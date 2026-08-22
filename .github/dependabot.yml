@@ -1,0 +1,19 @@
+version: 2
+
+# Monthly, not weekly: development here is deliberate and low-frequency, and a
+# PR queue nobody reads is worse than no PRs. The thing this actually prevents
+# is silent rot — pinned actions going years out of date because nobody was
+# looking.
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ['*']
+
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: monthly
