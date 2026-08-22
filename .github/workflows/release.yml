@@ -1,0 +1,104 @@
+name: Release
+
+# Cross-compiling four platforms on every commit is slow and wastes quota, and
+# four-platform artifacts are only needed at release time. workflow_dispatch is
+# here so the pipeline can be exercised without cutting a tag.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # On a tag, github.ref_name is the tag itself. On workflow_dispatch it is
+      # the branch, so VERSION stays empty and the binary honestly reports
+      # "dev".
+      - name: Cross-compile
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            make dist VERSION="${{ github.ref_name }}"
+          else
+            make dist
+          fi
+
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum * > SHA256SUMS && cat SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  # CI already ran the tests per platform, but from source, built on the host.
+  # This runs the artifact we are about to hand to users, on the platform we
+  # claim it runs on. These four runners cover exactly the four targets.
+  smoke:
+    needs: dist
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            binary: kist_linux_amd64
+            platform: linux/amd64
+          - runner: macos-13 # the last amd64 macOS runner
+            binary: kist_darwin_amd64
+            platform: darwin/amd64
+          - runner: macos-latest # arm64
+            binary: kist_darwin_arm64
+            platform: darwin/arm64
+          - runner: windows-latest
+            binary: kist_windows_amd64.exe
+            platform: windows/amd64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      # bash on every runner, including Windows, so this stays one step.
+      # upload-artifact drops the executable bit, hence the chmod.
+      - name: Run it
+        shell: bash
+        run: |
+          chmod +x "dist/${{ matrix.binary }}" || true
+          out=$("./dist/${{ matrix.binary }}" version)
+          echo "$out"
+          case "$out" in
+            *"${{ matrix.platform }}"*) ;;
+            *) echo "expected ${{ matrix.platform }} in version output"; exit 1 ;;
+          esac
+
+  release:
+    needs: smoke
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      # gh is preinstalled on the runners; no third-party action in the
+      # release path.
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release create "${{ github.ref_name }}" --generate-notes dist/*

@@ -1,0 +1,36 @@
+name: Feature request
+description: Suggest something kist should do
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Before filing: `docs/design/` records not just what kist does, but the
+        alternatives that were rejected and why. If your idea is in there as a
+        rejected option, the useful issue is "here is why that reasoning does
+        not hold" — which is a much stronger issue than the original proposal.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do that kist makes hard or impossible?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+
+  - type: textarea
+    id: prior
+    attributes:
+      label: Prior art and alternatives
+      description: >
+        How do other tools solve this? What else did you consider? If the
+        design docs already cover this, link the section.
+    validations:
+      required: false

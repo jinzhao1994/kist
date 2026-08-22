@@ -1,0 +1,63 @@
+name: CI
+
+# Both events, even though only push fires today: the repo is private and
+# development happens directly on main. When it goes public and switches to a
+# PR flow, this workflow needs no change.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A superseded push has nothing to tell us.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The full gate. gofmt, tidiness and vet are platform-independent, so they
+  # run once, here.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          # Reading the version from go.mod means CI and the local toolchain
+          # cannot drift apart.
+          go-version-file: go.mod
+          cache: true
+
+      # Identical to what `make check` runs locally. Keep it that way: the
+      # point of the Makefile is that the red X never appears in the first
+      # place.
+      - run: make check
+
+  # Tests only, on the platforms `check` does not cover. The storage layer is
+  # where platforms diverge — link farm capability detection, path limits,
+  # 0444, fsync and atomic rename — and that divergence has to fail here, not
+  # at release time.
+  platforms:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # Not `make check`: GNU make is not guaranteed on the Windows runner, and
+      # the checks worth repeating per platform are these two. No -race here —
+      # it needs a C toolchain on Windows; `check` covers it on Linux.
+      - shell: bash
+        run: |
+          go test ./...
+          CGO_ENABLED=0 go build ./...

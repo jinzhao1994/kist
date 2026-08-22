@@ -1,0 +1,53 @@
+name: Bug report
+description: Something does not work the way it should
+labels: [bug]
+body:
+  - type: checkboxes
+    id: data-loss
+    attributes:
+      label: Data integrity
+      options:
+        - label: This bug lost, corrupted, or silently altered archived data
+          required: false
+    validations:
+      required: false
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. kist init ~/archive
+        2. kist box new ...
+        3. ...
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `kist version`.
+      placeholder: kist v0.1.0 (abc123def456) go1.26.1 darwin/arm64
+    validations:
+      required: true
+
+  - type: textarea
+    id: library
+    attributes:
+      label: Library setup
+      description: >
+        Where the library lives and what kind of storage it is — internal SSD,
+        external drive, network mount — plus the link mode kist reported at
+        `init` (reflink / hardlink / symlink / copy), if you know it. Most
+        storage-layer bugs come down to this.
+    validations:
+      required: false
