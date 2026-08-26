@@ -5783,3 +5783,797 @@ ResolveBox 撞名时列出候选而不是随便挑一个。box 名没有唯一�
 ```
 
 ---
+
+### Task 11: library — Undo（严格模式）
+
+**Files:**
+- Create: `internal/library/undo.go`
+- Test: `internal/library/undo_test.go`
+
+**Interfaces:**
+- Consumes: `oplog.Lookup`、`oplog.ErrStaleBefore`、`store.RevertedBy` / `LastOpTouchingBox`、Task 8 的 `write`
+- Produces: `(*Library).Undo(ctx, opID int64) (int64, error)`、`library.ErrAlreadyReverted`、`library.ErrUndoBlocked`
+
+**撤销 = 追加反向 op，不是回滚**（spec 2.4）。撤销本身也是一条 op，因此也能被撤销。
+
+**严格模式的错误必须说出是哪条 op 挡住的**（spec 2.5）。`Apply` 返回 `ErrStaleBefore` 时只知道"状态对不上"，`Undo` 要再查一次 `op_boxes` 把那条 op 找出来——否则用户只看到"撤销失败"，没有任何可以采取的下一步。
+
+**已经撤销过的 op 不能再撤。** `reverts_id` 是列而不是 payload 字段，正是为了这个热查询（spec 2.2）。
+
+- [ ] **Step 1: 写失败的测试**
+
+```go
+package library
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"testing"
+
+	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/oplog"
+	"github.com/jinzhao1994/kist/internal/store"
+)
+
+func lastOpID(t *testing.T, l *Library) int64 {
+	t.Helper()
+	ops, err := l.Ops(context.Background(), store.ListOpsOptions{Limit: 1})
+	if err != nil || len(ops) == 0 {
+		t.Fatalf("Ops: %v (%d rows)", err, len(ops))
+	}
+	return ops[0].ID
+}
+
+func TestUndoCreateBox(t *testing.T) {
+	l := openTestLibrary(t)
+	ctx := context.Background()
+	b, _ := l.CreateBox(ctx, "regrettable", "", domain.LocalDate{}, domain.LocalDate{})
+	opID := lastOpID(t, l)
+
+	undoID, err := l.Undo(ctx, opID)
+	if err != nil {
+		t.Fatalf("Undo: %v", err)
+	}
+	if _, ok, _ := l.Box(ctx, b.ID); ok {
+		t.Error("the box survived the undo")
+	}
+
+	// spec 2.4: undo appends, it does not erase. Both ops are still there.
+	ops, _ := l.Ops(ctx, store.ListOpsOptions{Limit: 10})
+	if len(ops) != 2 {
+		t.Fatalf("history has %d ops, want 2", len(ops))
+	}
+	if ops[0].ID != undoID || ops[0].RevertsID == nil || *ops[0].RevertsID != opID {
+		t.Errorf("the undo op = %+v", ops[0])
+	}
+}
+
+func TestUndoIsItselfUndoable(t *testing.T) {
+	l := openTestLibrary(t)
+	ctx := context.Background()
+	b, _ := l.CreateBox(ctx, "back and forth", "", domain.LocalDate{}, domain.LocalDate{})
+	createOp := lastOpID(t, l)
+
+	undoOp, err := l.Undo(ctx, createOp)
+	if err != nil {
+		t.Fatalf("Undo: %v", err)
+	}
+	if _, err := l.Undo(ctx, undoOp); err != nil {
+		t.Fatalf("undoing the undo: %v", err)
+	}
+
+	got, ok, _ := l.Box(ctx, b.ID)
+	if !ok {
+		t.Fatal("the box did not come back")
+	}
+	if got.Name != "back and forth" {
+		t.Errorf("name came back as %q", got.Name)
+	}
+}
+
+func TestUndoUpdateBox(t *testing.T) {
+	l := openTestLibrary(t)
+	ctx := context.Background()
+	b, _ := l.CreateBox(ctx, "before", "", domain.LocalDate{}, domain.LocalDate{})
+	l.UpdateBox(ctx, b.ID, oplog.BoxFields{Name: "after", Description: "noted"})
+	updateOp := lastOpID(t, l)
+
+	if _, err := l.Undo(ctx, updateOp); err != nil {
+		t.Fatalf("Undo: %v", err)
+	}
+	got, _, _ := l.Box(ctx, b.ID)
+	if got.Name != "before" || got.Description != "" {
+		t.Errorf("after undo: %+v", got)
+	}
+}
+
+func TestUndoTagBoxesRestoresTheWholeBatch(t *testing.T) {
+	// spec 2.2.1: one batch, one op, one undo.
+	l := openTestLibrary(t)
+	ctx := context.Background()
+	tag, _ := l.CreateTag(ctx, "云南", nil)
+	var boxes []domain.BoxID
+	for _, n := range []string{"一", "二", "三"} {
+		b, _ := l.CreateBox(ctx, n, "", domain.LocalDate{}, domain.LocalDate{})
+		boxes = append(boxes, b.ID)
+	}
+	l.TagBoxes(ctx, tag.ID, boxes)
+	tagOp := lastOpID(t, l)
+
+	if _, err := l.Undo(ctx, tagOp); err != nil {
+		t.Fatalf("Undo: %v", err)
+	}
+	for _, id := range boxes {
+		tags, _ := l.BoxTags(ctx, id)
+		if len(tags) != 0 {
+			t.Errorf("box %s still carries %d tag(s)", id, len(tags))
+		}
+	}
+	if got := l.Tags().Count(tag.ID); got != 0 {
+		t.Errorf("the count cache says %d after the undo, want 0", got)
+	}
+}
+
+func TestUndoTagOpsKeepTheTreeInStep(t *testing.T) {
+	l := openTestLibrary(t)
+	ctx := context.Background()
+	tag, _ := l.CreateTag(ctx, "临时", nil)
+	createOp := lastOpID(t, l)
+
+	if _, err := l.Undo(ctx, createOp); err != nil {
+		t.Fatalf("Undo: %v", err)
+	}
+	if _, ok := l.Tags().ByID(tag.ID); ok {
+		t.Error("the in-memory tree still holds a tag that was undone")
+	}
+	// The name is free again, which is only true if the tree really dropped it.
+	if _, err := l.CreateTag(ctx, "临时", nil); err != nil {
+		t.Errorf("recreating the tag after undo: %v", err)
+	}
+}
+
+func TestUndoRefusesToRunTwice(t *testing.T) {
+	l := openTestLibrary(t)
+	ctx := context.Background()
+	l.CreateBox(ctx, "once", "", domain.LocalDate{}, domain.LocalDate{})
+	opID := lastOpID(t, l)
+
+	if _, err := l.Undo(ctx, opID); err != nil {
+		t.Fatalf("first undo: %v", err)
+	}
+	_, err := l.Undo(ctx, opID)
+	if !errors.Is(err, ErrAlreadyReverted) {
+		t.Errorf("second undo = %v, want ErrAlreadyReverted", err)
+	}
+}
+
+func TestUndoOfAMissingOp(t *testing.T) {
+	l := openTestLibrary(t)
+	if _, err := l.Undo(context.Background(), 9999); err == nil {
+		t.Error("undoing an op that does not exist succeeded")
+	}
+}
+
+func TestUndoAcrossTimeIsRefusedAndNamesTheBlocker(t *testing.T) {
+	// spec 2.5, the whole point of strict mode: "I thought the undo worked but
+	// it only restored half of it" is the worse outcome in an archive, and a
+	// bare "undo failed" leaves the user with nothing to do about it.
+	l := openTestLibrary(t)
+	ctx := context.Background()
+	b, _ := l.CreateBox(ctx, "v1", "", domain.LocalDate{}, domain.LocalDate{})
+
+	l.UpdateBox(ctx, b.ID, oplog.BoxFields{Name: "v2"})
+	firstUpdate := lastOpID(t, l)
+	l.UpdateBox(ctx, b.ID, oplog.BoxFields{Name: "v3"})
+	secondUpdate := lastOpID(t, l)
+
+	_, err := l.Undo(ctx, firstUpdate)
+	if !errors.Is(err, ErrUndoBlocked) {
+		t.Fatalf("error = %v, want ErrUndoBlocked", err)
+	}
+	if !strings.Contains(err.Error(), fmt.Sprint(secondUpdate)) {
+		t.Errorf("error = %q, want it to name op %d as the blocker", err, secondUpdate)
+	}
+
+	// Nothing changed, and nothing was written.
+	got, _, _ := l.Box(ctx, b.ID)
+	if got.Name != "v3" {
+		t.Errorf("the box is now %q; a refused undo must change nothing", got.Name)
+	}
+	if lastOpID(t, l) != secondUpdate {
+		t.Error("a refused undo still appended an op")
+	}
+}
+
+func TestUndoBlockedByALaterTag(t *testing.T) {
+	// Undoing the creation of a box that has since been tagged would take the
+	// tagging with it.
+	l := openTestLibrary(t)
+	ctx := context.Background()
+	b, _ := l.CreateBox(ctx, "tagged later", "", domain.LocalDate{}, domain.LocalDate{})
+	createOp := lastOpID(t, l)
+	tag, _ := l.CreateTag(ctx, "云南", nil)
+	l.TagBoxes(ctx, tag.ID, []domain.BoxID{b.ID})
+
+	if _, err := l.Undo(ctx, createOp); !errors.Is(err, ErrUndoBlocked) {
+		t.Errorf("error = %v, want ErrUndoBlocked", err)
+	}
+	if _, ok, _ := l.Box(ctx, b.ID); !ok {
+		t.Error("the box was deleted anyway")
+	}
+}
+```
+
+（测试文件顶部需要 `fmt`。）
+
+- [ ] **Step 2: 跑测试确认失败**
+
+Run: `go test ./internal/library/ -run 'TestUndo' -v`
+Expected: FAIL，`undefined: Undo`
+
+- [ ] **Step 3: 实现**
+
+`internal/library/undo.go`:
+
+```go
+package library
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"github.com/jinzhao1994/kist/internal/oplog"
+	"github.com/jinzhao1994/kist/internal/store"
+)
+
+var (
+	// ErrAlreadyReverted means some other op has already undone this one.
+	ErrAlreadyReverted = errors.New("this op has already been undone")
+	// ErrUndoBlocked means later ops changed what this undo wanted to restore.
+	ErrUndoBlocked = errors.New("later changes are in the way of this undo")
+)
+
+// Undo appends the inverse of an op.
+//
+// It is not a rollback (spec 2.4): op 47 stays in the log, op 48 says "this
+// undoes 47", and op 48 can itself be undone by op 49. The history only ever
+// grows, which is what makes it trustworthy.
+//
+// Strict mode (spec 2.5): if the state the inverse expects to find has since
+// been changed, the undo is refused rather than partially applied. Half a
+// restored archive that looks whole is the failure worth preventing.
+func (l *Library) Undo(ctx context.Context, opID int64) (int64, error) {
+	ops, err := l.Ops(ctx, store.ListOpsOptions{})
+	if err != nil {
+		return 0, err
+	}
+	var target *oplog.Op
+	for i := range ops {
+		if ops[i].ID == opID {
+			target = &ops[i]
+			break
+		}
+	}
+	if target == nil {
+		return 0, fmt.Errorf("op %d does not exist", opID)
+	}
+
+	// reverts_id is an indexed column precisely so this stays cheap: the
+	// history panel asks it for every row it renders (spec 2.2).
+	if by, ok, err := store.RevertedBy(l.db, opID); err != nil {
+		return 0, err
+	} else if ok {
+		return 0, fmt.Errorf("op %d was already undone by op %d: %w", opID, by, ErrAlreadyReverted)
+	}
+
+	handler, err := oplog.Lookup(target.Action)
+	if err != nil {
+		return 0, err
+	}
+	action, payload, err := handler.Inverse(target.Payload)
+	if err != nil {
+		return 0, fmt.Errorf("compute the inverse of op %d: %w", opID, err)
+	}
+
+	undoID, err := l.write(ctx, action, payload, oplog.SourceUser, &opID)
+	if err != nil {
+		if errors.Is(err, oplog.ErrStaleBefore) {
+			return 0, l.explainBlockedUndo(ctx, *target, err)
+		}
+		return 0, err
+	}
+	return undoID, nil
+}
+
+// explainBlockedUndo turns "the state does not match" into "op N is in the
+// way".
+//
+// Without this the user gets a true but useless sentence. With it they can go
+// look at op N, undo that first, or decide the change was wanted after all —
+// which is the difference between an error message and a dead end (spec 2.5).
+func (l *Library) explainBlockedUndo(ctx context.Context, target oplog.Op, cause error) error {
+	handler, err := oplog.Lookup(target.Action)
+	if err != nil {
+		return cause
+	}
+	targets, err := handler.Targets(target.Payload)
+	if err != nil {
+		return cause
+	}
+
+	for _, box := range targets.Boxes {
+		blocker, ok, err := store.LastOpTouchingBox(l.db, box, target.ID)
+		if err != nil || !ok {
+			continue
+		}
+		return fmt.Errorf(
+			"cannot undo op %d: op %d changed the same box afterwards; undo that first if you want this one back: %w",
+			target.ID, blocker, ErrUndoBlocked)
+	}
+	return fmt.Errorf("cannot undo op %d: the library has changed since it ran: %w", target.ID, ErrUndoBlocked)
+}
+```
+
+- [ ] **Step 4: 跑测试确认通过**
+
+Run: `go test ./internal/library/ -v`
+Expected: PASS
+
+- [ ] **Step 5: 提交**
+
+```bash
+git add internal/library/undo.go internal/library/undo_test.go
+git commit -m "feat(library): Undo，严格模式且能说出是哪条 op 挡住的
+
+撤销 = 追加反向 op，不是回滚。撤销本身也是一条 op，所以也能被撤销。
+
+Apply 返回 ErrStaleBefore 时只知道'状态对不上'，Undo 再查一次
+op_boxes 把挡路的那条找出来。差别是用户拿到的是一条能采取下一步的
+信息，还是一个死胡同。"
+```
+
+---
+
+### Task 12: library — Rebuild，以及不变量 3 的证明
+
+**Files:**
+- Create: `internal/library/rebuild.go`, `internal/store/snapshot.go`
+- Test: `internal/library/rebuild_test.go`
+
+**Interfaces:**
+- Consumes: `store.ClearViews` / `DeleteOpIndexes` / `ListOps`、`oplog.Lookup`
+- Produces: `(*Library).Rebuild(ctx) error`、`store.Snapshot(q Queryer) (string, error)`
+
+**这个 task 是整份计划里最重要的一个。** 前面十一个 task 都在说"`Apply` 是纯函数"，这一个把它变成一条会失败的断言：**建一批数据 → 记下全库快照 → `Rebuild` → 快照必须逐字节相同**（spec 2.3.1 明确要求 conformance suite 里有这条）。
+
+任何一处违反——`Apply` 里调了 `uuid.New()`、写了 `time.Now()`、按当时目录内容算了个名字——都会让两份快照不同，而且**失败信息直接指向出问题的那一行**。
+
+**`Rebuild` 不碰 `ops` 和 `blobs`。** 它清空物化视图和索引表，然后按 id 顺序重放。`updated_at` 的传递在重放时用**每条 op 自己的 ts**，所以结果和实时写入完全一致。
+
+**快照必须是确定性的**：每张表按主键排序，列全取，格式固定。否则这条测试会时灵时不灵，比没有还糟。
+
+- [ ] **Step 1: 写快照函数**
+
+`internal/store/snapshot.go`:
+
+```go
+package store
+
+import (
+	"fmt"
+	"strings"
+)
+
+// snapshotTables lists the rebuildable tables and how to order them so the
+// dump is byte-stable. ops and blobs are absent: they are the authority, not
+// the thing being proved.
+var snapshotTables = []struct {
+	name    string
+	columns string
+	order   string
+}{
+	{"boxes", "hex(id), name, name_fold, description, description_fold, created_at, updated_at, coalesce(start_at,''), coalesce(end_at,'')", "id"},
+	{"folders", "hex(id), hex(box_id), coalesce(hex(parent_id),''), name, name_fold, created_at, updated_at", "id"},
+	{"files", "hex(id), hex(box_id), hex(folder_id), name, name_fold, blob_key, coalesce(captured_at,''), created_at, updated_at", "id"},
+	{"tags", "hex(id), coalesce(hex(parent_id),''), name, name_fold", "id"},
+	{"box_tags", "hex(box_id), hex(tag_id), source", "box_id, tag_id"},
+	{"file_tags", "hex(file_id), hex(tag_id), source", "file_id, tag_id"},
+	{"tag_rejections", "hex(file_id), hex(tag_id)", "file_id, tag_id"},
+	{"metadata", "target_type, hex(target_id), key, value, source", "target_type, target_id, key"},
+	{"op_boxes", "op_id, hex(box_id)", "op_id, box_id"},
+	{"op_files", "op_id, hex(file_id)", "op_id, file_id"},
+}
+
+// Snapshot renders every rebuildable table as deterministic text.
+//
+// It exists for one test, and that test is the one that keeps invariant 3
+// honest: dump, rebuild, dump again, compare (spec 2.3.1). A snapshot whose
+// row order could vary would make that test flap, which is worse than not
+// having it.
+func Snapshot(q Queryer) (string, error) {
+	var sb strings.Builder
+	for _, t := range snapshotTables {
+		fmt.Fprintf(&sb, "== %s ==\n", t.name)
+		rows, err := q.Query(`SELECT ` + t.columns + ` FROM ` + t.name + ` ORDER BY ` + t.order)
+		if err != nil {
+			return "", fmt.Errorf("snapshot %s: %w", t.name, err)
+		}
+		cols, err := rows.Columns()
+		if err != nil {
+			rows.Close()
+			return "", err
+		}
+		for rows.Next() {
+			cells := make([]any, len(cols))
+			ptrs := make([]any, len(cols))
+			for i := range cells {
+				ptrs[i] = &cells[i]
+			}
+			if err := rows.Scan(ptrs...); err != nil {
+				rows.Close()
+				return "", fmt.Errorf("snapshot %s: %w", t.name, err)
+			}
+			parts := make([]string, len(cells))
+			for i, c := range cells {
+				parts[i] = fmt.Sprintf("%v", c)
+			}
+			sb.WriteString(strings.Join(parts, "\t"))
+			sb.WriteByte('\n')
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return "", fmt.Errorf("snapshot %s: %w", t.name, err)
+		}
+	}
+	return sb.String(), nil
+}
+```
+
+- [ ] **Step 2: 写失败的测试**
+
+`internal/library/rebuild_test.go`:
+
+```go
+package library
+
+import (
+	"context"
+	"strings"
+	"testing"
+
+	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/oplog"
+	"github.com/jinzhao1994/kist/internal/store"
+)
+
+// busyLibrary exercises every op type, including an undo, so the rebuild proof
+// covers all of them.
+func busyLibrary(t *testing.T) *Library {
+	t.Helper()
+	l := openTestLibrary(t)
+	ctx := context.Background()
+
+	places, err := l.CreateTag(ctx, "地点", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	yunnan, err := l.CreateTag(ctx, "云南", &places.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	people, _ := l.CreateTag(ctx, "人物", nil)
+	doomed, _ := l.CreateTag(ctx, "要删掉的", nil)
+	if err := l.DeleteTag(ctx, doomed.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := l.RenameTag(ctx, yunnan.ID, "云南省"); err != nil {
+		t.Fatal(err)
+	}
+	if err := l.MoveTag(ctx, yunnan.ID, &people.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	start, _ := domain.ParseLocalDate("2019-08")
+	var boxes []domain.BoxID
+	for _, n := range []string{"一", "二", "三"} {
+		b, err := l.CreateBox(ctx, n, "note "+n, start, domain.LocalDate{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		boxes = append(boxes, b.ID)
+	}
+	if _, err := l.UpdateBox(ctx, boxes[0], oplog.BoxFields{Name: "一号", Description: "renamed"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.TagBoxes(ctx, yunnan.ID, boxes); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.UntagBoxes(ctx, yunnan.ID, boxes[2:]); err != nil {
+		t.Fatal(err)
+	}
+
+	// A box that gets created and then undone, so the replay has to handle an
+	// inverse op too.
+	tmp, _ := l.CreateBox(ctx, "临时", "", domain.LocalDate{}, domain.LocalDate{})
+	_ = tmp
+	if _, err := l.Undo(ctx, lastOpID(t, l)); err != nil {
+		t.Fatal(err)
+	}
+	return l
+}
+
+// This is the test the whole plan is built around (spec 2.3.1). Every claim
+// about Apply being a pure function is only as good as this comparison.
+func TestRebuildReproducesTheLibraryExactly(t *testing.T) {
+	l := busyLibrary(t)
+	ctx := context.Background()
+
+	before, err := store.Snapshot(l.db)
+	if err != nil {
+		t.Fatalf("Snapshot: %v", err)
+	}
+	if !strings.Contains(before, "== boxes ==") || len(before) < 100 {
+		t.Fatalf("the snapshot looks empty:\n%s", before)
+	}
+
+	if err := l.Rebuild(ctx); err != nil {
+		t.Fatalf("Rebuild: %v", err)
+	}
+
+	after, err := store.Snapshot(l.db)
+	if err != nil {
+		t.Fatalf("Snapshot after rebuild: %v", err)
+	}
+	if before != after {
+		t.Errorf("rebuild did not reproduce the library.\n%s", firstDifference(before, after))
+	}
+}
+
+// firstDifference points at the line that broke, because a diff of two
+// thousand-line dumps is not a bug report.
+func firstDifference(a, b string) string {
+	al, bl := strings.Split(a, "\n"), strings.Split(b, "\n")
+	for i := 0; i < len(al) || i < len(bl); i++ {
+		var x, y string
+		if i < len(al) {
+			x = al[i]
+		}
+		if i < len(bl) {
+			y = bl[i]
+		}
+		if x != y {
+			return fmt.Sprintf("line %d:\n  before: %q\n  after:  %q", i+1, x, y)
+		}
+	}
+	return "the dumps differ but no line does; check trailing whitespace"
+}
+
+func TestRebuildIsIdempotent(t *testing.T) {
+	l := busyLibrary(t)
+	ctx := context.Background()
+
+	if err := l.Rebuild(ctx); err != nil {
+		t.Fatalf("first Rebuild: %v", err)
+	}
+	once, _ := store.Snapshot(l.db)
+	if err := l.Rebuild(ctx); err != nil {
+		t.Fatalf("second Rebuild: %v", err)
+	}
+	twice, _ := store.Snapshot(l.db)
+	if once != twice {
+		t.Error("rebuilding twice gave a different result than rebuilding once")
+	}
+}
+
+func TestRebuildLeavesTheOpLogAlone(t *testing.T) {
+	// Invariant 1: ops is the authority. A rebuild that rewrote it would not be
+	// a repair, it would be the one thing this design exists to prevent.
+	l := busyLibrary(t)
+	ctx := context.Background()
+
+	before, _ := l.Ops(ctx, store.ListOpsOptions{})
+	if err := l.Rebuild(ctx); err != nil {
+		t.Fatalf("Rebuild: %v", err)
+	}
+	after, _ := l.Ops(ctx, store.ListOpsOptions{})
+
+	if len(before) != len(after) {
+		t.Fatalf("op count went from %d to %d", len(before), len(after))
+	}
+	for i := range before {
+		if before[i].ID != after[i].ID || before[i].Action != after[i].Action ||
+			!before[i].TS.Equal(after[i].TS) || string(before[i].Payload) != string(after[i].Payload) {
+			t.Errorf("op %d changed during the rebuild", before[i].ID)
+		}
+	}
+}
+
+func TestRebuildRegeneratesTheIndexTables(t *testing.T) {
+	// spec 2.2.1: op_boxes is derived from the payload, so wiping it and
+	// replaying must put it back exactly.
+	l := busyLibrary(t)
+	ctx := context.Background()
+
+	var before int
+	l.db.QueryRow(`SELECT count(*) FROM op_boxes`).Scan(&before)
+	if before == 0 {
+		t.Fatal("the fixture produced no op_boxes rows")
+	}
+
+	if _, err := l.db.Exec(`DELETE FROM op_boxes`); err != nil {
+		t.Fatal(err)
+	}
+	if err := l.Rebuild(ctx); err != nil {
+		t.Fatalf("Rebuild: %v", err)
+	}
+
+	var after int
+	l.db.QueryRow(`SELECT count(*) FROM op_boxes`).Scan(&after)
+	if after != before {
+		t.Errorf("op_boxes has %d rows after the rebuild, want %d", after, before)
+	}
+}
+
+func TestRebuildRepairsAWreckedView(t *testing.T) {
+	// "物化视图坏了不是数据丢失" (spec 2.1) — the promise, tested.
+	l := busyLibrary(t)
+	ctx := context.Background()
+	before, _ := store.Snapshot(l.db)
+
+	if _, err := l.db.Exec(`DELETE FROM box_tags`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.db.Exec(`UPDATE boxes SET name = 'corrupted', name_fold = 'corrupted'`); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := l.Rebuild(ctx); err != nil {
+		t.Fatalf("Rebuild: %v", err)
+	}
+	after, _ := store.Snapshot(l.db)
+	if before != after {
+		t.Errorf("rebuild did not repair the damage.\n%s", firstDifference(before, after))
+	}
+}
+
+func TestRebuildReloadsTheTagTree(t *testing.T) {
+	l := busyLibrary(t)
+	ctx := context.Background()
+	before := l.Tags().Len()
+
+	if err := l.Rebuild(ctx); err != nil {
+		t.Fatalf("Rebuild: %v", err)
+	}
+	if got := l.Tags().Len(); got != before {
+		t.Errorf("the tag tree has %d nodes after the rebuild, want %d", got, before)
+	}
+	if _, ok := l.Tags().ByName("云南省"); !ok {
+		t.Error("the rebuilt tree lost a tag")
+	}
+}
+```
+
+（测试文件顶部需要 `fmt`。）
+
+- [ ] **Step 3: 跑测试确认失败**
+
+Run: `go test ./internal/library/ -run TestRebuild -v`
+Expected: FAIL，`undefined: Rebuild`
+
+- [ ] **Step 4: 实现**
+
+`internal/library/rebuild.go`:
+
+```go
+package library
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/jinzhao1994/kist/internal/oplog"
+	"github.com/jinzhao1994/kist/internal/store"
+)
+
+// Rebuild discards every materialized view and replays the log.
+//
+// This is what invariant 1 buys: ops and blobs/ are the authority, so a
+// corrupted view is an inconvenience rather than data loss (spec 2.1). It is
+// also the assertion that keeps invariant 3 honest — if any Apply generated an
+// id, read a clock, or looked at the current state to decide something, the
+// rebuilt library differs from the original and the test in this task says so.
+//
+// ops and blobs are not touched. The whole point is that they are the input.
+func (l *Library) Rebuild(ctx context.Context) error {
+	ops, err := store.ListOps(l.db, store.ListOpsOptions{})
+	if err != nil {
+		return err
+	}
+
+	tx, err := l.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin rebuild: %w", err)
+	}
+	defer tx.Rollback()
+
+	if err := store.ClearViews(tx); err != nil {
+		return err
+	}
+	if err := store.DeleteOpIndexes(tx); err != nil {
+		return err
+	}
+
+	// ListOps returns newest first; replay wants oldest first.
+	for i := len(ops) - 1; i >= 0; i-- {
+		row := ops[i]
+		action := oplog.Action(row.Action)
+		handler, err := oplog.Lookup(action)
+		if err != nil {
+			return fmt.Errorf("replaying op %d: %w", row.ID, err)
+		}
+
+		vtx := store.NewViewTx(tx, row.TS)
+		if err := handler.Apply(vtx, row.Payload); err != nil {
+			return fmt.Errorf("replaying op %d (%s): %w", row.ID, action, err)
+		}
+
+		targets, err := handler.Targets(row.Payload)
+		if err != nil {
+			return fmt.Errorf("replaying op %d: %w", row.ID, err)
+		}
+		if err := store.InsertOpBoxes(tx, row.ID, targets.Boxes); err != nil {
+			return err
+		}
+		if err := store.InsertOpFiles(tx, row.ID, targets.Files); err != nil {
+			return err
+		}
+
+		// Same rule as the live path, with this op's own ts — which is why the
+		// replayed updated_at values come out identical instead of all being
+		// the moment of the rebuild (spec 1.5.1 ①).
+		if oplog.Source(row.Source).PropagatesUpdatedAt() {
+			if err := vtx.TouchBoxes(targets.Boxes); err != nil {
+				return err
+			}
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit rebuild: %w", err)
+	}
+
+	tags, err := LoadTagTree(l.db)
+	if err != nil {
+		return fmt.Errorf("reload the tag tree after rebuild: %w", err)
+	}
+	l.tags = tags
+	return nil
+}
+```
+
+- [ ] **Step 5: 跑测试确认通过**
+
+Run: `go test ./internal/library/ -v`
+Expected: PASS
+
+⚠️ **如果 `TestRebuildReproducesTheLibraryExactly` 失败，不要改测试。** 它失败说明某个 `Apply` 违反了不变量 3，失败信息里的行号直接指向哪张表哪一行不同。按 2.3.1 的四类违反去查：生成了 ID、读了时钟、按当时状态算了名字、或者碰撞后缀是在 `Apply` 里定的。
+
+- [ ] **Step 6: 提交**
+
+```bash
+git add internal/library/rebuild.go internal/library/rebuild_test.go internal/store/snapshot.go
+git commit -m "feat(library): Rebuild，把不变量 3 变成一条会失败的断言
+
+建一批数据 → 记快照 → 重放 → 快照必须逐字节相同。这是设计文档
+2.3.1 明确要求的那条 conformance 测试。任何一处违反——Apply 里
+生成了 ID、读了时钟、按当时状态算了名字——都会让两份快照不同，
+且失败信息直接指向出问题的那一行。
+
+重放时 updated_at 用每条 op 自己的 ts，所以结果和实时写入一致，
+而不是全部变成重建那一刻。"
+```
+
+---
