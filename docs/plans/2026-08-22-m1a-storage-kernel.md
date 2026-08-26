@@ -3624,7 +3624,7 @@ git commit -m "feat(library): 目录布局与建库，拒绝铺在非空目录�
 
 默认路径 `~/kist`，一路回车即可。
 
-- [ ] **Step 1: 写 Prompter 的失败测试**
+- [x] **Step 1: 写 Prompter 的失败测试**
 
 ```go
 package cliutil
@@ -3737,12 +3737,12 @@ func TestAskFailsOnClosedInput(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `go test ./internal/cliutil/ -v`
 Expected: FAIL，`undefined: NewPrompter`
 
-- [ ] **Step 3: 实现 Prompter**
+- [x] **Step 3: 实现 Prompter**
 
 ```go
 // Package cliutil holds the pieces of the command line that are worth testing
@@ -3828,7 +3828,7 @@ func (p *Prompter) Confirm(question string, def bool) (bool, error) {
 }
 ```
 
-- [ ] **Step 4: 写 `kist init` 的失败测试**
+- [x] **Step 4: 写 `kist init` 的失败测试**
 
 ```go
 package main
@@ -3936,12 +3936,12 @@ func execStdin(t *testing.T, stdin string, args ...string) (string, error) {
 }
 ```
 
-- [ ] **Step 5: 跑测试确认失败**
+- [x] **Step 5: 跑测试确认失败**
 
 Run: `go test ./cmd/kist/ -run TestInit -v`
 Expected: FAIL，`unknown command "init"`
 
-- [ ] **Step 6: 实现 `kist init`**
+- [x] **Step 6: 实现 `kist init`**
 
 ```go
 package main
@@ -4110,7 +4110,7 @@ func humanBytes(n uint64) string {
 }
 ```
 
-- [ ] **Step 7: 在 `internal/library/create.go` 里导出空间查询**
+- [x] **Step 7: 在 `internal/library/create.go` 里导出空间查询**
 
 ```go
 // FreeSpaceAt reports the bytes available at path, and whether that could be
@@ -4119,7 +4119,7 @@ func humanBytes(n uint64) string {
 func FreeSpaceAt(path string) (uint64, bool) { return freeSpace(path) }
 ```
 
-- [ ] **Step 8: 注册子命令**
+- [x] **Step 8: 注册子命令**
 
 在 `cmd/kist/root.go` 的 `newRootCmd` 里，`root.AddCommand(newVersionCmd())` 旁边加上：
 
@@ -4127,23 +4127,23 @@ func FreeSpaceAt(path string) (uint64, bool) { return freeSpace(path) }
 	root.AddCommand(newInitCmd())
 ```
 
-- [ ] **Step 9: 跑全部测试**
+- [x] **Step 9: 跑全部测试**
 
 Run: `make check`
 Expected: PASS
 
-- [ ] **Step 10: 手工验证交互流程**
+- [x] **Step 10: 手工验证交互流程**
 
 ```bash
 go run ./cmd/kist init
 ```
 一路回车，确认：提问带默认值 `~/kist`、创建前显示位置与可用空间、创建后报告链接方式。然后 `ls -la ~/kist` 核对布局，`rm -rf ~/kist` 清掉。
 
-- [ ] **Step 11: 更新 README 与 AGENTS.md**
+- [x] **Step 11: 更新 README 与 AGENTS.md**
 
 `README.md` 的状态段落从"`kist version` is the only command that exists"改为说明 `kist init` 可用但库里还不能放东西；`README.zh-CN.md` 同步。`AGENTS.md` 的"当前状态"改成 M1a 完成、下一步 M1b。
 
-- [ ] **Step 12: 提交**
+- [x] **Step 12: 提交**
 
 ```bash
 go get golang.org/x/term
