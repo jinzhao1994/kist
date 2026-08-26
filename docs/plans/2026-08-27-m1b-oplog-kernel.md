@@ -3752,3 +3752,1209 @@ payload 只记实际发生变化的 box：如果把本来就有这个 tag 的也
 ```
 
 ---
+
+### Task 8: library — Open 与唯一写路径
+
+**Files:**
+- Create: `internal/library/library.go`, `internal/library/write.go`
+- Test: `internal/library/library_test.go`, `internal/library/write_test.go`
+
+**Interfaces:**
+- Consumes: `library.Layout` / `OpenLayout`（M1a）、`config.Load`、`blob.NewDir`、`store.*`、`oplog.*`
+- Produces:
+  - `library.Library`、`library.Open(root string, opts ...Option) (*Library, error)`、`(*Library).Close()`
+  - `library.WithClock(func() time.Time)`、`WithActor(string)`、`WithLogger(*slog.Logger)`
+  - `(*Library).write(ctx, action, payload, source, revertsID) (int64, error)`（包内私有）
+  - `(*Library).Ops(ctx, store.ListOpsOptions) ([]oplog.Op, error)`
+
+**这个 task 是不变量 2 的落点。** `write` 是包内私有的，`cmd` 够不到；所有对外的写方法（Task 10）都只能经过它。每次写入在**一个事务**里做四件事：插 op → `Apply` → 写索引表 → 传递 `updated_at`。任何一步失败整笔回滚。
+
+**时间戳要截到毫秒。** 存储格式是 `2006-01-02T15:04:05.000Z`，`time.Now()` 带纳秒。不截断的话，写进去的和读回来的不相等——测试里 `CreatedAt.Equal(ts)` 会莫名其妙地失败，而生产里的表现是"重放出来的库和原库差一点点"。
+
+**`updated_at` 的传递规则住在这里，不在每个 handler 里。** `source.PropagatesUpdatedAt()` 为真才传（spec 1.5.1 ②）。放在写路径上意味着将来加新 op 时不可能漏——handler 作者根本不需要知道这条规则存在。
+
+**时钟可注入。** `WithClock` 让测试能给出确定的 ts。这不只是为了测试舒服：Task 12 的 `Rebuild` 要断言"重建结果逐字节相同"，而快照里含时间戳。
+
+- [ ] **Step 1: 写失败的测试**
+
+`internal/library/write_test.go`:
+
+```go
+package library
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/oplog"
+	"github.com/jinzhao1994/kist/internal/store"
+)
+
+// fixedClock hands out timestamps one second apart, so op order is visible in
+// the data and every run produces the same values.
+func fixedClock() func() time.Time {
+	base := time.Date(2026, 8, 27, 9, 0, 0, 0, time.UTC)
+	n := 0
+	return func() time.Time {
+		n++
+		return base.Add(time.Duration(n) * time.Second)
+	}
+}
+
+// openTestLibrary creates a library in a temp dir and opens it.
+func openTestLibrary(t *testing.T) *Library {
+	t.Helper()
+	root := t.TempDir()
+	if _, err := Create(context.Background(), root); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	l, err := Open(root, WithClock(fixedClock()), WithActor("test"))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	t.Cleanup(func() { l.Close() })
+	return l
+}
+
+func TestOpenRejectsANonLibrary(t *testing.T) {
+	if _, err := Open(t.TempDir()); err == nil {
+		t.Error("Open on an empty directory = nil error, want a refusal")
+	}
+}
+
+func TestWriteRecordsAnOpAndAppliesIt(t *testing.T) {
+	l := openTestLibrary(t)
+	ctx := context.Background()
+
+	p := oplog.CreateBoxPayload{
+		BoxID:        domain.NewBoxID(),
+		RootFolderID: domain.NewFolderID(),
+		BoxFields:    oplog.BoxFields{Name: "云南"},
+	}
+	raw, _ := oplog.Marshal(p)
+
+	opID, err := l.write(ctx, oplog.ActionCreateBox, raw, oplog.SourceUser, nil)
+	if err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if opID <= 0 {
+		t.Fatalf("write returned op id %d", opID)
+	}
+
+	ops, err := l.Ops(ctx, store.ListOpsOptions{Limit: 10})
+	if err != nil {
+		t.Fatalf("Ops: %v", err)
+	}
+	if len(ops) != 1 || ops[0].Action != oplog.ActionCreateBox || ops[0].Source != oplog.SourceUser {
+		t.Fatalf("ops = %+v", ops)
+	}
+	if ops[0].Actor != "test" {
+		t.Errorf("Actor = %q, want %q", ops[0].Actor, "test")
+	}
+
+	// The materialized view moved in the same transaction.
+	b, ok, err := l.Box(ctx, p.BoxID)
+	if err != nil || !ok {
+		t.Fatalf("Box: %v ok=%v", err, ok)
+	}
+	if b.Name != "云南" {
+		t.Errorf("box name = %q", b.Name)
+	}
+	if !b.CreatedAt.Equal(ops[0].TS) {
+		t.Errorf("CreatedAt = %v, want the op's ts %v", b.CreatedAt, ops[0].TS)
+	}
+}
+
+func TestWriteIsAtomic(t *testing.T) {
+	// If Apply fails, the op must not survive either — otherwise the log would
+	// claim something happened that did not, and a rebuild would then make it
+	// happen.
+	l := openTestLibrary(t)
+	ctx := context.Background()
+
+	stale := oplog.UpdateBoxPayload{
+		BoxID:  domain.NewBoxID(), // no such box
+		Before: oplog.BoxFields{Name: "whatever"},
+		After:  oplog.BoxFields{Name: "nope"},
+	}
+	raw, _ := oplog.Marshal(stale)
+
+	if _, err := l.write(ctx, oplog.ActionUpdateBox, raw, oplog.SourceUser, nil); err == nil {
+		t.Fatal("writing an op whose Apply fails succeeded")
+	}
+
+	ops, _ := l.Ops(ctx, store.ListOpsOptions{Limit: 10})
+	if len(ops) != 0 {
+		t.Errorf("a failed write left %d op(s) behind", len(ops))
+	}
+}
+
+func TestWriteTruncatesTimestampsToMilliseconds(t *testing.T) {
+	// The storage format has exactly three fractional digits. A ts carrying
+	// nanoseconds would not survive the round trip, and every comparison
+	// against it would fail in ways that look like a clock bug.
+	root := t.TempDir()
+	Create(context.Background(), root)
+	odd := time.Date(2026, 8, 27, 9, 0, 0, 123_456_789, time.UTC)
+	l, err := Open(root, WithClock(func() time.Time { return odd }))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+
+	p := oplog.CreateBoxPayload{BoxID: domain.NewBoxID(), RootFolderID: domain.NewFolderID(),
+		BoxFields: oplog.BoxFields{Name: "x"}}
+	raw, _ := oplog.Marshal(p)
+	l.write(context.Background(), oplog.ActionCreateBox, raw, oplog.SourceUser, nil)
+
+	ops, _ := l.Ops(context.Background(), store.ListOpsOptions{Limit: 1})
+	want := odd.Truncate(time.Millisecond)
+	if !ops[0].TS.Equal(want) {
+		t.Errorf("stored ts = %v, want %v", ops[0].TS, want)
+	}
+}
+
+func TestWriteFillsTheIndexTables(t *testing.T) {
+	// Invariant 4: op_boxes is derived from the payload by Targets, and the
+	// write path must actually call it — a handler that returns targets nobody
+	// writes is a silent hole in the history view.
+	l := openTestLibrary(t)
+	ctx := context.Background()
+
+	p := oplog.CreateBoxPayload{BoxID: domain.NewBoxID(), RootFolderID: domain.NewFolderID(),
+		BoxFields: oplog.BoxFields{Name: "indexed"}}
+	raw, _ := oplog.Marshal(p)
+	opID, _ := l.write(ctx, oplog.ActionCreateBox, raw, oplog.SourceUser, nil)
+
+	byBox, err := l.Ops(ctx, store.ListOpsOptions{Box: &p.BoxID, Limit: 10})
+	if err != nil {
+		t.Fatalf("Ops by box: %v", err)
+	}
+	if len(byBox) != 1 || byBox[0].ID != opID {
+		t.Errorf("ops for the box = %+v, want just op %d", byBox, opID)
+	}
+}
+
+func TestUserOpsPropagateUpdatedAt(t *testing.T) {
+	// spec 1.5.1 ②: the rule lives on the write path, so a new op type cannot
+	// forget it.
+	l := openTestLibrary(t)
+	ctx := context.Background()
+
+	box := domain.NewBoxID()
+	create, _ := oplog.Marshal(oplog.CreateBoxPayload{BoxID: box, RootFolderID: domain.NewFolderID(),
+		BoxFields: oplog.BoxFields{Name: "before"}})
+	l.write(ctx, oplog.ActionCreateBox, create, oplog.SourceUser, nil)
+	first, _, _ := l.Box(ctx, box)
+
+	update, _ := oplog.Marshal(oplog.UpdateBoxPayload{
+		BoxID:  box,
+		Before: oplog.BoxFields{Name: "before"},
+		After:  oplog.BoxFields{Name: "after"},
+	})
+	l.write(ctx, oplog.ActionUpdateBox, update, oplog.SourceUser, nil)
+	second, _, _ := l.Box(ctx, box)
+
+	if !second.UpdatedAt.After(first.UpdatedAt) {
+		t.Errorf("UpdatedAt did not move: %v then %v", first.UpdatedAt, second.UpdatedAt)
+	}
+	if !second.CreatedAt.Equal(first.CreatedAt) {
+		t.Errorf("CreatedAt moved from %v to %v", first.CreatedAt, second.CreatedAt)
+	}
+}
+
+func TestMaintenanceOpsDoNotPropagateUpdatedAt(t *testing.T) {
+	// The failure this prevents: re-running an extractor over the library and
+	// stamping ten years of archive as modified this morning.
+	l := openTestLibrary(t)
+	ctx := context.Background()
+
+	box := domain.NewBoxID()
+	create, _ := oplog.Marshal(oplog.CreateBoxPayload{BoxID: box, RootFolderID: domain.NewFolderID(),
+		BoxFields: oplog.BoxFields{Name: "before"}})
+	l.write(ctx, oplog.ActionCreateBox, create, oplog.SourceUser, nil)
+	first, _, _ := l.Box(ctx, box)
+
+	update, _ := oplog.Marshal(oplog.UpdateBoxPayload{
+		BoxID:  box,
+		Before: oplog.BoxFields{Name: "before"},
+		After:  oplog.BoxFields{Name: "after"},
+	})
+	l.write(ctx, oplog.ActionUpdateBox, update, oplog.SourceMaintenance, nil)
+	second, _, _ := l.Box(ctx, box)
+
+	if !second.UpdatedAt.Equal(first.UpdatedAt) {
+		t.Errorf("a maintenance op moved UpdatedAt from %v to %v", first.UpdatedAt, second.UpdatedAt)
+	}
+	if second.Name != "after" {
+		t.Errorf("the maintenance op did not apply: name is %q", second.Name)
+	}
+}
+
+func TestWriteRejectsAnUnknownAction(t *testing.T) {
+	l := openTestLibrary(t)
+	_, err := l.write(context.Background(), oplog.Action("teleport"), []byte(`{}`), oplog.SourceUser, nil)
+	if err == nil {
+		t.Error("writing an unregistered action succeeded")
+	}
+}
+```
+
+- [ ] **Step 2: 跑测试确认失败**
+
+Run: `go test ./internal/library/ -run 'TestWrite|TestOpen|TestUserOps|TestMaintenance' -v`
+Expected: FAIL，`undefined: Open`（M1a 只有 `Create`）
+
+- [ ] **Step 3: 实现 Library**
+
+`internal/library/library.go`:
+
+```go
+package library
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"log/slog"
+	"time"
+
+	"github.com/jinzhao1994/kist/internal/blob"
+	"github.com/jinzhao1994/kist/internal/config"
+	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/oplog"
+	"github.com/jinzhao1994/kist/internal/store"
+)
+
+// Library is an open kist library, and the only thing in this program that can
+// write to one (invariant 2). api and cmd hold one of these; neither can reach
+// store's write side, because the write path below is unexported.
+type Library struct {
+	layout Layout
+	cfg    *config.Config
+	db     *sql.DB
+	blobs  *blob.Dir
+	tags   *TagTree
+	log    *slog.Logger
+	actor  string
+	now    func() time.Time
+}
+
+// Option configures Open.
+type Option func(*Library)
+
+// WithClock replaces the clock. Tests use it to get reproducible timestamps,
+// which matters because Rebuild's proof compares snapshots that contain them.
+func WithClock(now func() time.Time) Option { return func(l *Library) { l.now = now } }
+
+// WithActor records who is acting. v0.1 has one user, so this is mostly a
+// label; it becomes meaningful when sharing arrives (spec 2.2).
+func WithActor(actor string) Option { return func(l *Library) { l.actor = actor } }
+
+// WithLogger sets the logger.
+func WithLogger(log *slog.Logger) Option { return func(l *Library) { l.log = log } }
+
+// Open opens an existing library.
+func Open(root string, opts ...Option) (*Library, error) {
+	layout, err := OpenLayout(root)
+	if err != nil {
+		return nil, err
+	}
+	cfg, err := config.Load(layout.ConfigPath())
+	if err != nil {
+		return nil, err
+	}
+
+	l := &Library{
+		layout: layout,
+		cfg:    cfg,
+		log:    slog.Default(),
+		actor:  "cli",
+		now:    time.Now,
+	}
+	for _, opt := range opts {
+		opt(l)
+	}
+
+	if l.db, err = store.Open(layout.DB()); err != nil {
+		return nil, err
+	}
+	if err := store.Migrate(l.db); err != nil {
+		l.db.Close()
+		return nil, err
+	}
+	if l.blobs, err = blob.NewDir(layout.Blobs(), l.log); err != nil {
+		l.db.Close()
+		return nil, err
+	}
+	if l.tags, err = LoadTagTree(l.db); err != nil {
+		l.db.Close()
+		return nil, err
+	}
+	return l, nil
+}
+
+func (l *Library) Close() error {
+	if l.db == nil {
+		return nil
+	}
+	return l.db.Close()
+}
+
+// Layout exposes where things live, for commands that print paths.
+func (l *Library) Layout() Layout { return l.layout }
+
+// Tags is the in-memory tag tree.
+func (l *Library) Tags() *TagTree { return l.tags }
+
+// Box reads one box.
+func (l *Library) Box(ctx context.Context, id domain.BoxID) (domain.Box, bool, error) {
+	tx, err := l.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return domain.Box{}, false, err
+	}
+	defer tx.Rollback()
+	return store.NewViewTx(tx, time.Time{}).GetBox(id)
+}
+
+// Boxes lists boxes.
+func (l *Library) Boxes(ctx context.Context, opt store.ListBoxesOptions) ([]domain.Box, error) {
+	return store.ListBoxes(l.db, opt)
+}
+
+// BoxTags returns the tags attached to a box.
+func (l *Library) BoxTags(ctx context.Context, id domain.BoxID) ([]domain.TagID, error) {
+	return store.BoxTags(l.db, id)
+}
+
+// Ops reads the history.
+func (l *Library) Ops(ctx context.Context, opt store.ListOpsOptions) ([]oplog.Op, error) {
+	rows, err := store.ListOps(l.db, opt)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]oplog.Op, len(rows))
+	for i, r := range rows {
+		out[i] = toOp(r)
+	}
+	return out, nil
+}
+
+// RevertedBy reports which op undid this one, if any.
+func (l *Library) RevertedBy(ctx context.Context, id int64) (int64, bool, error) {
+	return store.RevertedBy(l.db, id)
+}
+
+// toOp converts store's row into oplog's type. The two packages do not import
+// each other; library is the seam, and this function is the price of that.
+func toOp(r store.OpRow) oplog.Op {
+	return oplog.Op{
+		ID:        r.ID,
+		TS:        r.TS,
+		Action:    oplog.Action(r.Action),
+		Source:    oplog.Source(r.Source),
+		Actor:     r.Actor,
+		Payload:   r.Payload,
+		RevertsID: r.RevertsID,
+	}
+}
+
+func toOpRow(o oplog.Op) store.OpRow {
+	return store.OpRow{
+		ID:        o.ID,
+		TS:        o.TS,
+		Action:    string(o.Action),
+		Source:    string(o.Source),
+		Actor:     o.Actor,
+		Payload:   o.Payload,
+		RevertsID: o.RevertsID,
+	}
+}
+
+var _ = fmt.Sprintf // keep fmt imported for the error paths added in later tasks
+```
+
+- [ ] **Step 4: 实现写路径**
+
+`internal/library/write.go`:
+
+```go
+package library
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"time"
+
+	"github.com/jinzhao1994/kist/internal/oplog"
+	"github.com/jinzhao1994/kist/internal/store"
+)
+
+// write is the single write path. Every change to a kist library goes through
+// this function; there is no other way in (invariant 2), which is why it is
+// unexported.
+//
+// One transaction, four steps, in this order:
+//
+//  1. append the op — its id is the library's new version number
+//  2. Apply it to the materialized views, with tx.TS() carrying the op's ts
+//  3. write the index tables from the payload via Targets (invariant 4)
+//  4. propagate updated_at, but only for sources that represent human intent
+//
+// If any step fails the whole thing rolls back. An op that survived a failed
+// Apply would be worse than a lost change: a rebuild would replay it and make
+// the claimed change real.
+func (l *Library) write(
+	ctx context.Context,
+	action oplog.Action,
+	payload []byte,
+	source oplog.Source,
+	revertsID *int64,
+) (int64, error) {
+	handler, err := oplog.Lookup(action)
+	if err != nil {
+		return 0, err
+	}
+	targets, err := handler.Targets(payload)
+	if err != nil {
+		return 0, fmt.Errorf("extract targets for %s: %w", action, err)
+	}
+
+	// Truncated to milliseconds because that is the resolution the storage
+	// format keeps. Without this, what is written and what is read back
+	// differ, and every timestamp comparison becomes mysteriously flaky.
+	ts := l.now().UTC().Truncate(time.Millisecond)
+
+	tx, err := l.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	opID, err := store.AppendOp(tx, store.OpRow{
+		TS:        ts,
+		Action:    string(action),
+		Source:    string(source),
+		Actor:     l.actor,
+		Payload:   payload,
+		RevertsID: revertsID,
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	vtx := store.NewViewTx(tx, ts)
+	if err := handler.Apply(vtx, payload); err != nil {
+		return 0, fmt.Errorf("apply %s: %w", action, err)
+	}
+
+	if err := store.InsertOpBoxes(tx, opID, targets.Boxes); err != nil {
+		return 0, err
+	}
+	if err := store.InsertOpFiles(tx, opID, targets.Files); err != nil {
+		return 0, err
+	}
+
+	// spec 1.5.1 ②: updated_at records human intent, not system activity. The
+	// rule lives here rather than in each handler so that a new op type cannot
+	// forget it.
+	if source.PropagatesUpdatedAt() {
+		if err := vtx.TouchBoxes(targets.Boxes); err != nil {
+			return 0, err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit %s: %w", action, err)
+	}
+	return opID, nil
+}
+
+// readTx runs fn against a read-only transaction.
+func (l *Library) readTx(ctx context.Context, fn func(*store.ViewTx) error) error {
+	tx, err := l.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	return fn(store.NewViewTx(tx, time.Time{}))
+}
+```
+
+- [ ] **Step 5: 跑测试确认通过**
+
+Run: `go test ./internal/library/ -v`
+Expected: PASS（`TestOpen...` 需要 Task 9 的 `LoadTagTree` 才能编过——两个 task 可以合并跑，或先写一个返回空树的桩，Task 9 再补全。**推荐先做 Task 9 再回来跑这一步**）
+
+- [ ] **Step 6: 确认 `write` 真的是私有的**
+
+Run: `grep -rn "func (l \*Library) [A-Z]" internal/library/ | grep -i "write\|apply"`
+Expected: 无输出。任何导出的写方法都必须是 Task 10 里那些语义明确的命令，而不是一个通用的"写任意 op"入口。
+
+- [ ] **Step 7: 提交**
+
+```bash
+git add internal/library/library.go internal/library/write.go internal/library/write_test.go
+git commit -m "feat(library): Open 与唯一写路径
+
+write 是包内私有的，cmd 够不到——不变量 2 由此变成结构性的而不是
+约定性的。一个事务里四步：插 op → Apply → 写索引表 → 传递
+updated_at，任何一步失败整笔回滚。
+
+updated_at 的传递规则放在写路径上而不是每个 handler 里：将来加新
+op 时不可能漏，handler 作者根本不需要知道这条规则存在。
+
+时间戳截到毫秒。存储格式只有三位小数，不截断的话写进去的和读回来的
+不相等，表现是'重放出来的库和原库差一点点'。"
+```
+
+---
+
+### Task 9: library — 内存 tag 树
+
+**Files:**
+- Create: `internal/library/tagtree.go`
+- Test: `internal/library/tagtree_test.go`
+
+**Interfaces:**
+- Consumes: `store.ListTags`、`store.Queryer`、`domain.Tag`
+- Produces:
+  - `library.TagTree`、`library.LoadTagTree(q store.Queryer) (*TagTree, error)`
+  - 方法 `ByID(domain.TagID) (domain.Tag, bool)` / `ByName(string) (domain.Tag, bool)` / `Roots() []domain.Tag` / `Children(domain.TagID) []domain.Tag` / `Descendants(domain.TagID) []domain.TagID` / `Path(domain.TagID) []domain.Tag` / `WouldCycle(node, newParent domain.TagID) bool` / `Count(domain.TagID) int` / `Len() int`
+  - 增量维护：`Insert(domain.Tag)` / `Remove(domain.TagID)` / `Update(domain.Tag)` / `SetDirectCount(domain.TagID, int)` / `AddDirectCount(domain.TagID, int)`
+
+**没有物化路径列，整棵树常驻内存**（spec 1.6）。几千个节点，求后代是一次内存遍历，微秒级。这也是"移动子树 O(1)"能成立的原因——DB 里只改一行 `parent_id`，树在内存里重新挂一下。
+
+**`Descendants` 含自身**，因为 spec 4.3 说"选中一个 tag 默认包含其所有后代"，而"选中 `人物`"当然也包括直接挂在 `人物` 上的东西。
+
+**`WouldCycle` 是命令时的校验**，不是 `Apply` 里的。把一个节点移到它自己的后代下面会造出一个环，而环一旦进了 DB，`Descendants` 会无限递归。决策在生成 op 时做完（不变量 3）。
+
+**计数缓存**：启动时一次 `GROUP BY` 拉全量直接挂载数，之后由 `library` 在 apply op 时增量更新。不在 `tags` 表上加冗余列——重启就重新推导，没有漂移风险。
+
+- [ ] **Step 1: 写失败的测试**
+
+```go
+package library
+
+import (
+	"testing"
+
+	"github.com/jinzhao1994/kist/internal/domain"
+)
+
+// buildTree makes a tree without a database:
+//
+//	地点            人物
+//	├── 云南        └── 爸
+//	│   ├── 大理
+//	│   └── 丽江
+//	└── 四川
+func buildTree(t *testing.T) (*TagTree, map[string]domain.TagID) {
+	t.Helper()
+	ids := map[string]domain.TagID{}
+	var tags []domain.Tag
+
+	add := func(name, parent string) {
+		id := domain.NewTagID()
+		ids[name] = id
+		var p *domain.TagID
+		if parent != "" {
+			pid := ids[parent]
+			p = &pid
+		}
+		tag, err := domain.NewTag(id, p, name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		tags = append(tags, tag)
+	}
+
+	add("地点", "")
+	add("人物", "")
+	add("云南", "地点")
+	add("四川", "地点")
+	add("大理", "云南")
+	add("丽江", "云南")
+	add("爸", "人物")
+
+	tree, err := NewTagTree(tags, nil)
+	if err != nil {
+		t.Fatalf("NewTagTree: %v", err)
+	}
+	return tree, ids
+}
+
+func names(tags []domain.Tag) []string {
+	out := make([]string, len(tags))
+	for i, t := range tags {
+		out[i] = t.Name
+	}
+	return out
+}
+
+func TestTagTreeLookup(t *testing.T) {
+	tree, ids := buildTree(t)
+
+	if got, ok := tree.ByID(ids["云南"]); !ok || got.Name != "云南" {
+		t.Errorf("ByID = %+v ok=%v", got, ok)
+	}
+	// spec 1.6: names are globally unique, so name lookup is unambiguous —
+	// that is the whole point of the constraint.
+	if got, ok := tree.ByName("大理"); !ok || got.ID != ids["大理"] {
+		t.Errorf("ByName = %+v ok=%v", got, ok)
+	}
+	// Lookup is case- and normalization-insensitive because it goes through
+	// the same fold function the unique index is built on (spec 4.7).
+	if _, ok := tree.ByName("大理 "); ok {
+		t.Error("ByName matched a name with trailing space; folding must not trim")
+	}
+	if _, ok := tree.ByName("没有这个"); ok {
+		t.Error("ByName found a tag that does not exist")
+	}
+	if tree.Len() != 7 {
+		t.Errorf("Len = %d, want 7", tree.Len())
+	}
+}
+
+func TestTagTreeStructure(t *testing.T) {
+	tree, ids := buildTree(t)
+
+	if got := names(tree.Roots()); len(got) != 2 {
+		t.Errorf("Roots = %v, want two", got)
+	}
+	if got := names(tree.Children(ids["地点"])); len(got) != 2 {
+		t.Errorf("Children(地点) = %v, want two", got)
+	}
+	if got := names(tree.Children(ids["大理"])); len(got) != 0 {
+		t.Errorf("Children(大理) = %v, want none", got)
+	}
+}
+
+func TestDescendantsIncludesSelf(t *testing.T) {
+	// spec 4.3: selecting 人物 should return everyone's photos — which
+	// includes anything hanging directly off 人物 itself.
+	tree, ids := buildTree(t)
+
+	got := tree.Descendants(ids["云南"])
+	if len(got) != 3 {
+		t.Fatalf("Descendants(云南) has %d entries, want 3 (self + 大理 + 丽江)", len(got))
+	}
+	found := map[domain.TagID]bool{}
+	for _, id := range got {
+		found[id] = true
+	}
+	for _, want := range []string{"云南", "大理", "丽江"} {
+		if !found[ids[want]] {
+			t.Errorf("Descendants(云南) is missing %s", want)
+		}
+	}
+
+	if got := tree.Descendants(ids["地点"]); len(got) != 5 {
+		t.Errorf("Descendants(地点) has %d entries, want 5", len(got))
+	}
+	if got := tree.Descendants(ids["爸"]); len(got) != 1 {
+		t.Errorf("Descendants of a leaf has %d entries, want just itself", len(got))
+	}
+}
+
+func TestPath(t *testing.T) {
+	tree, ids := buildTree(t)
+	got := names(tree.Path(ids["大理"]))
+	want := []string{"地点", "云南", "大理"}
+	if len(got) != len(want) {
+		t.Fatalf("Path = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("Path = %v, want %v", got, want)
+		}
+	}
+}
+
+func TestWouldCycle(t *testing.T) {
+	// Moving a node under its own descendant creates a loop, and a loop in the
+	// tag tree makes Descendants recurse forever. The check belongs here, at
+	// command time, because Apply is not allowed to make decisions.
+	tree, ids := buildTree(t)
+
+	if !tree.WouldCycle(ids["地点"], ids["大理"]) {
+		t.Error("moving 地点 under its own grandchild was not detected as a cycle")
+	}
+	if !tree.WouldCycle(ids["云南"], ids["云南"]) {
+		t.Error("moving a node under itself was not detected as a cycle")
+	}
+	if tree.WouldCycle(ids["云南"], ids["人物"]) {
+		t.Error("a legitimate move was reported as a cycle")
+	}
+}
+
+func TestTagTreeIncrementalMaintenance(t *testing.T) {
+	tree, ids := buildTree(t)
+
+	// insert
+	newID := domain.NewTagID()
+	parent := ids["人物"]
+	mom, _ := domain.NewTag(newID, &parent, "妈")
+	if err := tree.Insert(mom); err != nil {
+		t.Fatalf("Insert: %v", err)
+	}
+	if len(tree.Children(parent)) != 2 {
+		t.Error("Insert did not attach the node to its parent")
+	}
+
+	// rename
+	renamed, _ := domain.NewTag(newID, &parent, "母亲")
+	if err := tree.Update(renamed); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	if _, ok := tree.ByName("妈"); ok {
+		t.Error("the old name still resolves after a rename")
+	}
+	if _, ok := tree.ByName("母亲"); !ok {
+		t.Error("the new name does not resolve after a rename")
+	}
+
+	// move
+	places := ids["地点"]
+	moved, _ := domain.NewTag(newID, &places, "母亲")
+	if err := tree.Update(moved); err != nil {
+		t.Fatalf("Update (move): %v", err)
+	}
+	if len(tree.Children(parent)) != 1 {
+		t.Error("the node was not detached from its old parent")
+	}
+	if len(tree.Children(places)) != 3 {
+		t.Error("the node was not attached to its new parent")
+	}
+
+	// remove
+	if err := tree.Remove(newID); err != nil {
+		t.Fatalf("Remove: %v", err)
+	}
+	if _, ok := tree.ByID(newID); ok {
+		t.Error("the node survived Remove")
+	}
+	if len(tree.Children(places)) != 2 {
+		t.Error("Remove did not detach the node from its parent")
+	}
+}
+
+func TestTagTreeRejectsADuplicateName(t *testing.T) {
+	tree, _ := buildTree(t)
+	dup, _ := domain.NewTag(domain.NewTagID(), nil, "云南")
+	if err := tree.Insert(dup); err == nil {
+		t.Error("the tree accepted a duplicate name; global uniqueness is a lie")
+	}
+}
+
+func TestCountsAggregateUpTheTree(t *testing.T) {
+	// spec 1.6: the selector shows 人物 (1,204), which is the subtree total.
+	tree, ids := buildTree(t)
+	tree.SetDirectCount(ids["大理"], 10)
+	tree.SetDirectCount(ids["丽江"], 5)
+	tree.SetDirectCount(ids["云南"], 1)
+	tree.SetDirectCount(ids["四川"], 3)
+
+	if got := tree.Count(ids["云南"]); got != 16 {
+		t.Errorf("Count(云南) = %d, want 16", got)
+	}
+	if got := tree.Count(ids["地点"]); got != 19 {
+		t.Errorf("Count(地点) = %d, want 19", got)
+	}
+	if got := tree.Count(ids["人物"]); got != 0 {
+		t.Errorf("Count(人物) = %d, want 0", got)
+	}
+
+	tree.AddDirectCount(ids["大理"], -4)
+	if got := tree.Count(ids["地点"]); got != 15 {
+		t.Errorf("after AddDirectCount, Count(地点) = %d, want 15", got)
+	}
+}
+
+func TestLoadTagTreeFromStore(t *testing.T) {
+	l := openTestLibrary(t)
+	if l.Tags().Len() != 0 {
+		t.Errorf("a fresh library has %d tags, want 0", l.Tags().Len())
+	}
+}
+```
+
+- [ ] **Step 2: 跑测试确认失败**
+
+Run: `go test ./internal/library/ -run 'TagTree|Descendants|WouldCycle|Path|Counts' -v`
+Expected: FAIL，`undefined: NewTagTree`
+
+- [ ] **Step 3: 实现**
+
+`internal/library/tagtree.go`:
+
+```go
+package library
+
+import (
+	"fmt"
+	"sync"
+
+	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/store"
+)
+
+// TagTree is the whole tag tree, in memory.
+//
+// There is no materialized path column and no closure table (spec 1.6). A few
+// thousand nodes fit comfortably, resolving descendants is a microsecond-scale
+// walk, and — the part that actually pays — moving a subtree is a single
+// parent_id write instead of a cascading rewrite.
+//
+// Consistency rests on library being the only writer and on there being one
+// process (spec 1.6). A second process writing to the same library would leave
+// this tree silently stale; that is open question B3, deliberately not solved
+// in v0.1 because the CLI-only milestones cannot expose it.
+type TagTree struct {
+	mu     sync.RWMutex
+	byID   map[domain.TagID]*tagNode
+	byFold map[string]*tagNode
+	roots  map[domain.TagID]*tagNode
+}
+
+type tagNode struct {
+	tag         domain.Tag
+	parent      *tagNode
+	children    map[domain.TagID]*tagNode
+	directCount int
+}
+
+// NewTagTree builds a tree from a flat list. counts maps a tag to how many
+// things hang directly off it; it may be nil.
+func NewTagTree(tags []domain.Tag, counts map[domain.TagID]int) (*TagTree, error) {
+	t := &TagTree{
+		byID:   make(map[domain.TagID]*tagNode, len(tags)),
+		byFold: make(map[string]*tagNode, len(tags)),
+		roots:  map[domain.TagID]*tagNode{},
+	}
+	for _, tag := range tags {
+		if _, exists := t.byFold[tag.NameFold]; exists {
+			return nil, fmt.Errorf("two tags are both named %q; the unique index on name_fold should have prevented this", tag.Name)
+		}
+		n := &tagNode{tag: tag, children: map[domain.TagID]*tagNode{}, directCount: counts[tag.ID]}
+		t.byID[tag.ID] = n
+		t.byFold[tag.NameFold] = n
+	}
+	// Second pass: every node exists, so parents resolve regardless of order.
+	for _, n := range t.byID {
+		if n.tag.ParentID == nil {
+			t.roots[n.tag.ID] = n
+			continue
+		}
+		parent, ok := t.byID[*n.tag.ParentID]
+		if !ok {
+			return nil, fmt.Errorf("tag %q points at parent %s, which does not exist", n.tag.Name, *n.tag.ParentID)
+		}
+		n.parent = parent
+		parent.children[n.tag.ID] = n
+	}
+	return t, nil
+}
+
+// LoadTagTree reads the tree and its counts from the database.
+func LoadTagTree(q store.Queryer) (*TagTree, error) {
+	tags, err := store.ListTags(q)
+	if err != nil {
+		return nil, err
+	}
+	counts, err := store.TagDirectCounts(q)
+	if err != nil {
+		return nil, err
+	}
+	return NewTagTree(tags, counts)
+}
+
+func (t *TagTree) Len() int {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return len(t.byID)
+}
+
+func (t *TagTree) ByID(id domain.TagID) (domain.Tag, bool) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	n, ok := t.byID[id]
+	if !ok {
+		return domain.Tag{}, false
+	}
+	return n.tag, true
+}
+
+// ByName resolves a name through the same fold function the unique index uses,
+// so "Passport" and "passport" find the same tag (spec 1.6, 4.7).
+func (t *TagTree) ByName(name string) (domain.Tag, bool) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	n, ok := t.byFold[domain.Fold(name)]
+	if !ok {
+		return domain.Tag{}, false
+	}
+	return n.tag, true
+}
+
+func (t *TagTree) Roots() []domain.Tag {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return sortedTags(t.roots)
+}
+
+func (t *TagTree) Children(id domain.TagID) []domain.Tag {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	n, ok := t.byID[id]
+	if !ok {
+		return nil
+	}
+	return sortedTags(n.children)
+}
+
+// Descendants returns the id set for a tag filter: the node itself plus
+// everything under it (spec 4.3).
+func (t *TagTree) Descendants(id domain.TagID) []domain.TagID {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	n, ok := t.byID[id]
+	if !ok {
+		return nil
+	}
+	var out []domain.TagID
+	var walk func(*tagNode)
+	walk = func(n *tagNode) {
+		out = append(out, n.tag.ID)
+		for _, c := range n.children {
+			walk(c)
+		}
+	}
+	walk(n)
+	return out
+}
+
+// Path returns the chain from the root down to this tag, inclusive.
+func (t *TagTree) Path(id domain.TagID) []domain.Tag {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	n, ok := t.byID[id]
+	if !ok {
+		return nil
+	}
+	var reversed []domain.Tag
+	for cur := n; cur != nil; cur = cur.parent {
+		reversed = append(reversed, cur.tag)
+	}
+	out := make([]domain.Tag, len(reversed))
+	for i, tag := range reversed {
+		out[len(reversed)-1-i] = tag
+	}
+	return out
+}
+
+// WouldCycle reports whether making newParent the parent of node would close a
+// loop. A loop makes Descendants recurse until the stack runs out, so this is
+// checked when the command is built — Apply is not allowed to decide things.
+func (t *TagTree) WouldCycle(node, newParent domain.TagID) bool {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	for cur, ok := t.byID[newParent], true; ok && cur != nil; cur = cur.parent {
+		if cur.tag.ID == node {
+			return true
+		}
+	}
+	return false
+}
+
+// Count is the subtree total: what the tag selector shows next to a node.
+func (t *TagTree) Count(id domain.TagID) int {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	n, ok := t.byID[id]
+	if !ok {
+		return 0
+	}
+	total := 0
+	var walk func(*tagNode)
+	walk = func(n *tagNode) {
+		total += n.directCount
+		for _, c := range n.children {
+			walk(c)
+		}
+	}
+	walk(n)
+	return total
+}
+
+func (t *TagTree) SetDirectCount(id domain.TagID, n int) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if node, ok := t.byID[id]; ok {
+		node.directCount = n
+	}
+}
+
+func (t *TagTree) AddDirectCount(id domain.TagID, delta int) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if node, ok := t.byID[id]; ok {
+		node.directCount += delta
+	}
+}
+
+// Insert adds a node. It mirrors what the database just did, so a violated
+// invariant here means the two have drifted.
+func (t *TagTree) Insert(tag domain.Tag) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if _, exists := t.byID[tag.ID]; exists {
+		return fmt.Errorf("tag %s is already in the tree", tag.ID)
+	}
+	if _, exists := t.byFold[tag.NameFold]; exists {
+		return fmt.Errorf("tag name %q is already taken", tag.Name)
+	}
+	n := &tagNode{tag: tag, children: map[domain.TagID]*tagNode{}}
+	t.byID[tag.ID] = n
+	t.byFold[tag.NameFold] = n
+	return t.attach(n)
+}
+
+// Update handles both rename and move: the caller passes the new state of the
+// node and the tree rearranges itself.
+func (t *TagTree) Update(tag domain.Tag) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	n, ok := t.byID[tag.ID]
+	if !ok {
+		return fmt.Errorf("tag %s is not in the tree", tag.ID)
+	}
+	if other, exists := t.byFold[tag.NameFold]; exists && other != n {
+		return fmt.Errorf("tag name %q is already taken", tag.Name)
+	}
+	delete(t.byFold, n.tag.NameFold)
+	t.detach(n)
+
+	n.tag = tag
+	t.byFold[tag.NameFold] = n
+	return t.attach(n)
+}
+
+func (t *TagTree) Remove(id domain.TagID) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	n, ok := t.byID[id]
+	if !ok {
+		return fmt.Errorf("tag %s is not in the tree", id)
+	}
+	if len(n.children) > 0 {
+		return fmt.Errorf("tag %q still has children", n.tag.Name)
+	}
+	t.detach(n)
+	delete(t.byID, id)
+	delete(t.byFold, n.tag.NameFold)
+	return nil
+}
+
+// attach and detach assume the lock is held.
+func (t *TagTree) attach(n *tagNode) error {
+	if n.tag.ParentID == nil {
+		n.parent = nil
+		t.roots[n.tag.ID] = n
+		return nil
+	}
+	parent, ok := t.byID[*n.tag.ParentID]
+	if !ok {
+		return fmt.Errorf("parent tag %s does not exist", *n.tag.ParentID)
+	}
+	n.parent = parent
+	parent.children[n.tag.ID] = n
+	return nil
+}
+
+func (t *TagTree) detach(n *tagNode) {
+	if n.parent != nil {
+		delete(n.parent.children, n.tag.ID)
+	}
+	delete(t.roots, n.tag.ID)
+	n.parent = nil
+}
+
+// sortedTags returns nodes in byte order of their name (spec 4.8), so listings
+// are stable and identical on every platform.
+func sortedTags(m map[domain.TagID]*tagNode) []domain.Tag {
+	out := make([]domain.Tag, 0, len(m))
+	for _, n := range m {
+		out = append(out, n.tag)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Name != out[j].Name {
+			return out[i].Name < out[j].Name
+		}
+		return out[i].ID.String() < out[j].ID.String()
+	})
+	return out
+}
+```
+
+（文件顶部需要 `sort`。）
+
+- [ ] **Step 4: 在 store 里补上计数查询**
+
+在 `internal/store/queries.go` 追加：
+
+```go
+// TagDirectCounts returns how many things hang directly off each tag.
+//
+// One GROUP BY at startup, then library keeps it up to date incrementally
+// (spec 1.6). The counts are deliberately not a column on tags: a restart
+// re-derives them, so there is nothing to drift.
+func TagDirectCounts(q Queryer) (map[domain.TagID]int, error) {
+	rows, err := q.Query(
+		`SELECT tag_id, count(*) FROM box_tags GROUP BY tag_id
+		 UNION ALL
+		 SELECT tag_id, count(*) FROM file_tags GROUP BY tag_id`)
+	if err != nil {
+		return nil, fmt.Errorf("count tag usage: %w", err)
+	}
+	defer rows.Close()
+
+	out := map[domain.TagID]int{}
+	for rows.Next() {
+		var id domain.TagID
+		var n int
+		if err := rows.Scan(&id, &n); err != nil {
+			return nil, fmt.Errorf("count tag usage: %w", err)
+		}
+		out[id] += n
+	}
+	return out, rows.Err()
+}
+```
+
+- [ ] **Step 5: 跑测试确认通过**
+
+Run: `go test ./internal/library/ ./internal/store/ -v`
+Expected: PASS（Task 8 Step 5 那一步现在也该通过了）
+
+- [ ] **Step 6: 提交**
+
+```bash
+git add internal/library/tagtree.go internal/library/tagtree_test.go internal/store/queries.go
+git commit -m "feat(library): 内存 tag 树
+
+没有物化路径列也没有闭包表：几千个节点常驻内存，求后代是一次内存
+遍历。真正付钱的地方是移动子树——DB 里只改一行 parent_id，树在
+内存里重新挂一下，不用级联重写。
+
+WouldCycle 是命令时的校验而不是 Apply 里的：环一旦进了 DB，
+Descendants 会一直递归到栈溢出，而决策必须在生成 op 时做完。
+
+计数不在 tags 表上加列：启动时一次 GROUP BY 推导，重启就重来，
+没有漂移风险。"
+```
+
+---
