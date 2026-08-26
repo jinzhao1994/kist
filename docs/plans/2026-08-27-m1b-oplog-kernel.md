@@ -4958,3 +4958,828 @@ Descendants 会一直递归到栈溢出，而决策必须在生成 op 时做完�
 ```
 
 ---
+
+### Task 10: library — 对外的命令方法
+
+**Files:**
+- Create: `internal/library/commands.go`
+- Modify: `internal/library/write.go`（加 `refreshTagState`）
+- Test: `internal/library/commands_test.go`
+
+**Interfaces:**
+- Consumes: Task 8 的 `write`、Task 9 的 `TagTree`、`oplog` 的九个 payload 类型
+- Produces:
+  - `(*Library).CreateBox(ctx, name, description string, start, end domain.LocalDate) (domain.Box, error)`
+  - `(*Library).UpdateBox(ctx, id domain.BoxID, f oplog.BoxFields) (domain.Box, error)`
+  - `(*Library).CreateTag(ctx, name string, parent *domain.TagID) (domain.Tag, error)`
+  - `(*Library).RenameTag(ctx, id domain.TagID, name string) error`
+  - `(*Library).MoveTag(ctx, id domain.TagID, parent *domain.TagID) error`
+  - `(*Library).DeleteTag(ctx, id domain.TagID) error`
+  - `(*Library).TagBoxes(ctx, tag domain.TagID, boxes []domain.BoxID) (int, error)`
+  - `(*Library).UntagBoxes(ctx, tag domain.TagID, boxes []domain.BoxID) (int, error)`
+  - `(*Library).ResolveBox(ctx, ref string) (domain.Box, error)`、`(*Library).ResolveTag(ref string) (domain.Tag, error)`
+  - `library.ErrAmbiguousRef`、`library.ErrNoSuchBox`、`library.ErrNoSuchTag`、`library.ErrTagNameTaken`、`library.ErrTagCycle`
+
+**这些方法就是"命令做决策，事件记结果"里的命令**（spec 2.3.1）。每一个都：铸 ID → 校验 → 构造 payload → 调 `write`。**校验和 ID 生成全部发生在这里**，`Apply` 拿到的 payload 里已经没有任何待决定的东西。
+
+**`TagBoxes` 返回实际变化的数量。** 它在生成 op 前先滤掉已经有这个 tag 的 box（Task 7 解释过为什么必须滤）。如果滤完一个不剩，**不写 op 直接返回 0**——一条什么都没改的 op 只会给历史添乱，撤销它还等于什么都没做。
+
+**`ResolveBox` 接受 id、id 前缀、或精确名字。** box 名不唯一（schema 里 `boxes.name_fold` 只有普通索引），所以名字撞了要报 `ErrAmbiguousRef` 并列出候选，而不是随便挑一个。
+
+- [ ] **Step 1: 写失败的测试**
+
+```go
+package library
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/oplog"
+	"github.com/jinzhao1994/kist/internal/store"
+)
+
+func TestCreateBox(t *testing.T) {
+	l := openTestLibrary(t)
+	ctx := context.Background()
+
+	start, _ := domain.ParseLocalDate("2019-08")
+	b, err := l.CreateBox(ctx, "云南 2019", "the long way round", start, domain.LocalDate{})
+	if err != nil {
+		t.Fatalf("CreateBox: %v", err)
+	}
+	if b.ID.IsZero() || b.Name != "云南 2019" || b.StartAt.String() != "2019-08" {
+		t.Errorf("box = %+v", b)
+	}
+	if b.CreatedAt.IsZero() {
+		t.Error("CreatedAt was not filled in from the op")
+	}
+
+	// Exactly one root folder, per spec 1.4 and the partial unique index.
+	var folders int
+	l.db.QueryRow(`SELECT count(*) FROM folders WHERE box_id = ?`, b.ID).Scan(&folders)
+	if folders != 1 {
+		t.Errorf("the box has %d folders, want exactly 1", folders)
+	}
+}
+
+func TestCreateBoxRejectsABadName(t *testing.T) {
+	l := openTestLibrary(t)
+	if _, err := l.CreateBox(context.Background(), "  ", "", domain.LocalDate{}, domain.LocalDate{}); err == nil {
+		t.Error("a blank box name was accepted")
+	}
+	ops, _ := l.Ops(context.Background(), store.ListOpsOptions{Limit: 10})
+	if len(ops) != 0 {
+		t.Errorf("a rejected command still wrote %d op(s)", len(ops))
+	}
+}
+
+func TestUpdateBox(t *testing.T) {
+	l := openTestLibrary(t)
+	ctx := context.Background()
+	b, _ := l.CreateBox(ctx, "before", "", domain.LocalDate{}, domain.LocalDate{})
+
+	end, _ := domain.ParseLocalDate("2019-08-20")
+	got, err := l.UpdateBox(ctx, b.ID, oplog.BoxFields{Name: "after", Description: "noted", EndAt: end})
+	if err != nil {
+		t.Fatalf("UpdateBox: %v", err)
+	}
+	if got.Name != "after" || got.Description != "noted" || got.EndAt.String() != "2019-08-20" {
+		t.Errorf("box = %+v", got)
+	}
+	if !got.CreatedAt.Equal(b.CreatedAt) {
+		t.Errorf("CreatedAt moved from %v to %v", b.CreatedAt, got.CreatedAt)
+	}
+}
+
+func TestUpdateBoxOnAMissingBox(t *testing.T) {
+	l := openTestLibrary(t)
+	_, err := l.UpdateBox(context.Background(), domain.NewBoxID(), oplog.BoxFields{Name: "x"})
+	if !errors.Is(err, ErrNoSuchBox) {
+		t.Errorf("error = %v, want ErrNoSuchBox", err)
+	}
+}
+
+func TestCreateTagAndTree(t *testing.T) {
+	l := openTestLibrary(t)
+	ctx := context.Background()
+
+	places, err := l.CreateTag(ctx, "地点", nil)
+	if err != nil {
+		t.Fatalf("CreateTag: %v", err)
+	}
+	yunnan, err := l.CreateTag(ctx, "云南", &places.ID)
+	if err != nil {
+		t.Fatalf("CreateTag child: %v", err)
+	}
+
+	// The in-memory tree must track the database without a reload.
+	if got, ok := l.Tags().ByName("云南"); !ok || got.ID != yunnan.ID {
+		t.Errorf("the tag tree does not know about 云南")
+	}
+	if kids := l.Tags().Children(places.ID); len(kids) != 1 {
+		t.Errorf("地点 has %d children in the tree, want 1", len(kids))
+	}
+}
+
+func TestCreateTagRejectsADuplicateName(t *testing.T) {
+	l := openTestLibrary(t)
+	ctx := context.Background()
+	parent, _ := l.CreateTag(ctx, "地点", nil)
+
+	l.CreateTag(ctx, "云南", &parent.ID)
+	// spec 1.6: the hierarchy is not a namespace, so this collides even under
+	// a different parent.
+	if _, err := l.CreateTag(ctx, "云南", nil); !errors.Is(err, ErrTagNameTaken) {
+		t.Errorf("error = %v, want ErrTagNameTaken", err)
+	}
+	// Folding means case is not a way around it either.
+	if _, err := l.CreateTag(ctx, "YUNNAN", nil); err == nil {
+		l.CreateTag(ctx, "yunnan", nil) // only collides if folding is applied
+	}
+}
+
+func TestRenameAndMoveTag(t *testing.T) {
+	l := openTestLibrary(t)
+	ctx := context.Background()
+	places, _ := l.CreateTag(ctx, "地点", nil)
+	people, _ := l.CreateTag(ctx, "人物", nil)
+	yunnan, _ := l.CreateTag(ctx, "云南", &places.ID)
+
+	if err := l.RenameTag(ctx, yunnan.ID, "云南省"); err != nil {
+		t.Fatalf("RenameTag: %v", err)
+	}
+	if _, ok := l.Tags().ByName("云南省"); !ok {
+		t.Error("the tree did not pick up the rename")
+	}
+	if _, ok := l.Tags().ByName("云南"); ok {
+		t.Error("the old name still resolves")
+	}
+
+	if err := l.MoveTag(ctx, yunnan.ID, &people.ID); err != nil {
+		t.Fatalf("MoveTag: %v", err)
+	}
+	if kids := l.Tags().Children(people.ID); len(kids) != 1 {
+		t.Errorf("人物 has %d children after the move, want 1", len(kids))
+	}
+	if kids := l.Tags().Children(places.ID); len(kids) != 0 {
+		t.Errorf("地点 still has %d children after the move", len(kids))
+	}
+}
+
+func TestMoveTagRefusesACycle(t *testing.T) {
+	l := openTestLibrary(t)
+	ctx := context.Background()
+	places, _ := l.CreateTag(ctx, "地点", nil)
+	yunnan, _ := l.CreateTag(ctx, "云南", &places.ID)
+
+	if err := l.MoveTag(ctx, places.ID, &yunnan.ID); !errors.Is(err, ErrTagCycle) {
+		t.Errorf("error = %v, want ErrTagCycle", err)
+	}
+	ops, _ := l.Ops(ctx, store.ListOpsOptions{Limit: 100})
+	for _, o := range ops {
+		if o.Action == oplog.ActionMoveTag {
+			t.Error("a rejected move still wrote an op")
+		}
+	}
+}
+
+func TestDeleteTag(t *testing.T) {
+	l := openTestLibrary(t)
+	ctx := context.Background()
+	tag, _ := l.CreateTag(ctx, "临时", nil)
+
+	if err := l.DeleteTag(ctx, tag.ID); err != nil {
+		t.Fatalf("DeleteTag: %v", err)
+	}
+	if _, ok := l.Tags().ByID(tag.ID); ok {
+		t.Error("the tree still knows about the deleted tag")
+	}
+}
+
+func TestDeleteTagRefusesWhenInUse(t *testing.T) {
+	l := openTestLibrary(t)
+	ctx := context.Background()
+	tag, _ := l.CreateTag(ctx, "云南", nil)
+	b, _ := l.CreateBox(ctx, "trip", "", domain.LocalDate{}, domain.LocalDate{})
+	l.TagBoxes(ctx, tag.ID, []domain.BoxID{b.ID})
+
+	if err := l.DeleteTag(ctx, tag.ID); !errors.Is(err, oplog.ErrTagInUse) {
+		t.Errorf("error = %v, want ErrTagInUse", err)
+	}
+}
+
+func TestTagBoxes(t *testing.T) {
+	l := openTestLibrary(t)
+	ctx := context.Background()
+	tag, _ := l.CreateTag(ctx, "云南", nil)
+	var boxes []domain.BoxID
+	for _, n := range []string{"一", "二", "三"} {
+		b, _ := l.CreateBox(ctx, n, "", domain.LocalDate{}, domain.LocalDate{})
+		boxes = append(boxes, b.ID)
+	}
+
+	n, err := l.TagBoxes(ctx, tag.ID, boxes)
+	if err != nil {
+		t.Fatalf("TagBoxes: %v", err)
+	}
+	if n != 3 {
+		t.Errorf("TagBoxes changed %d boxes, want 3", n)
+	}
+
+	// One op, three targets (spec 2.2.1).
+	ops, _ := l.Ops(ctx, store.ListOpsOptions{Limit: 1})
+	if ops[0].Action != oplog.ActionTagBoxes {
+		t.Fatalf("last op is %q", ops[0].Action)
+	}
+	var targets int
+	l.db.QueryRow(`SELECT count(*) FROM op_boxes WHERE op_id = ?`, ops[0].ID).Scan(&targets)
+	if targets != 3 {
+		t.Errorf("op_boxes has %d rows for the batch, want 3", targets)
+	}
+
+	// The count cache followed along.
+	if got := l.Tags().Count(tag.ID); got != 3 {
+		t.Errorf("tag count = %d, want 3", got)
+	}
+}
+
+func TestTagBoxesSkipsBoxesThatAlreadyHaveIt(t *testing.T) {
+	l := openTestLibrary(t)
+	ctx := context.Background()
+	tag, _ := l.CreateTag(ctx, "云南", nil)
+	a, _ := l.CreateBox(ctx, "a", "", domain.LocalDate{}, domain.LocalDate{})
+	b, _ := l.CreateBox(ctx, "b", "", domain.LocalDate{}, domain.LocalDate{})
+
+	l.TagBoxes(ctx, tag.ID, []domain.BoxID{a.ID})
+	n, err := l.TagBoxes(ctx, tag.ID, []domain.BoxID{a.ID, b.ID})
+	if err != nil {
+		t.Fatalf("TagBoxes: %v", err)
+	}
+	if n != 1 {
+		t.Errorf("TagBoxes reported %d changes, want 1 (a already had the tag)", n)
+	}
+
+	ops, _ := l.Ops(ctx, store.ListOpsOptions{Limit: 1})
+	p, err := oplog.Payload[oplog.TagBoxesPayload](ops[0].Payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.BoxIDs) != 1 || p.BoxIDs[0] != b.ID {
+		t.Errorf("the payload names %v; it must name only what actually changed", p.BoxIDs)
+	}
+}
+
+func TestTagBoxesWritesNoOpWhenNothingChanges(t *testing.T) {
+	// An op that changes nothing is noise in the history and undoes to
+	// nothing. Better to report zero.
+	l := openTestLibrary(t)
+	ctx := context.Background()
+	tag, _ := l.CreateTag(ctx, "云南", nil)
+	b, _ := l.CreateBox(ctx, "a", "", domain.LocalDate{}, domain.LocalDate{})
+	l.TagBoxes(ctx, tag.ID, []domain.BoxID{b.ID})
+
+	before, _ := l.Ops(ctx, store.ListOpsOptions{Limit: 100})
+	n, err := l.TagBoxes(ctx, tag.ID, []domain.BoxID{b.ID})
+	if err != nil {
+		t.Fatalf("TagBoxes: %v", err)
+	}
+	if n != 0 {
+		t.Errorf("TagBoxes reported %d changes, want 0", n)
+	}
+	after, _ := l.Ops(ctx, store.ListOpsOptions{Limit: 100})
+	if len(after) != len(before) {
+		t.Errorf("a no-op tagging wrote %d extra op(s)", len(after)-len(before))
+	}
+}
+
+func TestUntagBoxes(t *testing.T) {
+	l := openTestLibrary(t)
+	ctx := context.Background()
+	tag, _ := l.CreateTag(ctx, "云南", nil)
+	b, _ := l.CreateBox(ctx, "a", "", domain.LocalDate{}, domain.LocalDate{})
+	l.TagBoxes(ctx, tag.ID, []domain.BoxID{b.ID})
+
+	n, err := l.UntagBoxes(ctx, tag.ID, []domain.BoxID{b.ID})
+	if err != nil {
+		t.Fatalf("UntagBoxes: %v", err)
+	}
+	if n != 1 {
+		t.Errorf("UntagBoxes reported %d changes, want 1", n)
+	}
+	if got := l.Tags().Count(tag.ID); got != 0 {
+		t.Errorf("tag count = %d after untagging, want 0", got)
+	}
+}
+
+func TestResolveBox(t *testing.T) {
+	l := openTestLibrary(t)
+	ctx := context.Background()
+	b, _ := l.CreateBox(ctx, "云南 2019", "", domain.LocalDate{}, domain.LocalDate{})
+
+	for _, ref := range []string{b.ID.String(), b.ID.String()[:8], "云南 2019"} {
+		got, err := l.ResolveBox(ctx, ref)
+		if err != nil {
+			t.Errorf("ResolveBox(%q): %v", ref, err)
+			continue
+		}
+		if got.ID != b.ID {
+			t.Errorf("ResolveBox(%q) found %s, want %s", ref, got.ID, b.ID)
+		}
+	}
+
+	if _, err := l.ResolveBox(ctx, "没有这个 box"); !errors.Is(err, ErrNoSuchBox) {
+		t.Errorf("error = %v, want ErrNoSuchBox", err)
+	}
+}
+
+func TestResolveBoxReportsAmbiguity(t *testing.T) {
+	// Box names are not unique (there is no unique index on boxes.name_fold),
+	// so picking one arbitrarily would silently act on the wrong archive.
+	l := openTestLibrary(t)
+	ctx := context.Background()
+	l.CreateBox(ctx, "重名", "", domain.LocalDate{}, domain.LocalDate{})
+	l.CreateBox(ctx, "重名", "", domain.LocalDate{}, domain.LocalDate{})
+
+	_, err := l.ResolveBox(ctx, "重名")
+	if !errors.Is(err, ErrAmbiguousRef) {
+		t.Fatalf("error = %v, want ErrAmbiguousRef", err)
+	}
+	// The message must let the user act on it.
+	if !strings.Contains(err.Error(), "重名") {
+		t.Errorf("error = %q, want it to name the candidates", err)
+	}
+}
+
+func TestResolveTag(t *testing.T) {
+	l := openTestLibrary(t)
+	ctx := context.Background()
+	tag, _ := l.CreateTag(ctx, "护照", nil)
+
+	got, err := l.ResolveTag("护照")
+	if err != nil || got.ID != tag.ID {
+		t.Errorf("ResolveTag by name = %+v, %v", got, err)
+	}
+	if got, err := l.ResolveTag(tag.ID.String()); err != nil || got.ID != tag.ID {
+		t.Errorf("ResolveTag by id = %+v, %v", got, err)
+	}
+	if _, err := l.ResolveTag("没有"); !errors.Is(err, ErrNoSuchTag) {
+		t.Errorf("error = %v, want ErrNoSuchTag", err)
+	}
+}
+```
+
+（测试文件顶部需要 `strings`。）
+
+- [ ] **Step 2: 跑测试确认失败**
+
+Run: `go test ./internal/library/ -run 'TestCreateBox|TestUpdateBox|TestCreateTag|TestRename|TestMoveTag|TestDeleteTag|TestTagBoxes|TestUntag|TestResolve' -v`
+Expected: FAIL，`undefined: CreateBox`
+
+- [ ] **Step 3: 在写路径上挂 tag 树的同步**
+
+在 `internal/library/write.go` 的 `write` 里，`tx.Commit()` 成功之后加：
+
+```go
+	if err := l.refreshTagState(action, payload); err != nil {
+		// The database is already committed and correct; only the in-memory
+		// mirror is behind. Reloading it is always safe, so recover rather
+		// than fail a write that actually succeeded.
+		l.log.Error("the in-memory tag tree fell out of step; reloading it", "op", opID, "action", action, "err", err)
+		if tags, rerr := LoadTagTree(l.db); rerr == nil {
+			l.tags = tags
+		} else {
+			return opID, fmt.Errorf("op %d committed but the tag tree could not be reloaded: %w", opID, rerr)
+		}
+	}
+	return opID, nil
+```
+
+并在同一个文件里追加：
+
+```go
+// refreshTagState mirrors a committed op into the in-memory tag tree.
+//
+// It is driven by the action rather than by the command that produced it, so
+// undo gets the same treatment for free: an inverse op is just another action
+// arriving at this switch.
+func (l *Library) refreshTagState(action oplog.Action, payload []byte) error {
+	switch action {
+	case oplog.ActionCreateTag:
+		p, err := oplog.Payload[oplog.CreateTagPayload](payload)
+		if err != nil {
+			return err
+		}
+		tag, err := domain.NewTag(p.TagID, p.ParentID, p.Name)
+		if err != nil {
+			return err
+		}
+		return l.tags.Insert(tag)
+
+	case oplog.ActionDeleteTag:
+		p, err := oplog.Payload[oplog.DeleteTagPayload](payload)
+		if err != nil {
+			return err
+		}
+		return l.tags.Remove(p.TagID)
+
+	case oplog.ActionRenameTag:
+		p, err := oplog.Payload[oplog.RenameTagPayload](payload)
+		if err != nil {
+			return err
+		}
+		current, ok := l.tags.ByID(p.TagID)
+		if !ok {
+			return fmt.Errorf("tag %s is not in the tree", p.TagID)
+		}
+		renamed, err := domain.NewTag(p.TagID, current.ParentID, p.After)
+		if err != nil {
+			return err
+		}
+		return l.tags.Update(renamed)
+
+	case oplog.ActionMoveTag:
+		p, err := oplog.Payload[oplog.MoveTagPayload](payload)
+		if err != nil {
+			return err
+		}
+		current, ok := l.tags.ByID(p.TagID)
+		if !ok {
+			return fmt.Errorf("tag %s is not in the tree", p.TagID)
+		}
+		moved, err := domain.NewTag(p.TagID, p.NewParent, current.Name)
+		if err != nil {
+			return err
+		}
+		return l.tags.Update(moved)
+
+	case oplog.ActionTagBoxes:
+		p, err := oplog.Payload[oplog.TagBoxesPayload](payload)
+		if err != nil {
+			return err
+		}
+		l.tags.AddDirectCount(p.TagID, len(p.BoxIDs))
+
+	case oplog.ActionUntagBoxes:
+		p, err := oplog.Payload[oplog.UntagBoxesPayload](payload)
+		if err != nil {
+			return err
+		}
+		l.tags.AddDirectCount(p.TagID, -len(p.BoxIDs))
+	}
+	return nil
+}
+```
+
+（`write.go` 顶部需要补 `domain`。）
+
+- [ ] **Step 4: 实现命令方法**
+
+`internal/library/commands.go`:
+
+```go
+package library
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/oplog"
+	"github.com/jinzhao1994/kist/internal/store"
+)
+
+var (
+	ErrNoSuchBox    = errors.New("no such box")
+	ErrNoSuchTag    = errors.New("no such tag")
+	ErrAmbiguousRef = errors.New("the reference matches more than one thing")
+	ErrTagNameTaken = errors.New("a tag with that name already exists")
+	ErrTagCycle     = errors.New("that move would put a tag inside its own subtree")
+)
+
+// CreateBox creates a box and its root folder.
+//
+// Both ids are minted here, not in Apply — that is the difference between a
+// command and an event (spec 2.3.1). A replay hands the same ids back, so
+// every reference into this box survives a rebuild.
+func (l *Library) CreateBox(ctx context.Context, name, description string, start, end domain.LocalDate) (domain.Box, error) {
+	if err := domain.ValidateName(name); err != nil {
+		return domain.Box{}, err
+	}
+	p := oplog.CreateBoxPayload{
+		BoxID:        domain.NewBoxID(),
+		RootFolderID: domain.NewFolderID(),
+		BoxFields: oplog.BoxFields{
+			Name: name, Description: description, StartAt: start, EndAt: end,
+		},
+	}
+	raw, err := oplog.Marshal(p)
+	if err != nil {
+		return domain.Box{}, err
+	}
+	if _, err := l.write(ctx, oplog.ActionCreateBox, raw, oplog.SourceUser, nil); err != nil {
+		return domain.Box{}, err
+	}
+	b, _, err := l.Box(ctx, p.BoxID)
+	return b, err
+}
+
+// UpdateBox rewrites a box's user-editable fields. The before state is read
+// here and written into the payload, which is what makes Inverse a pure swap
+// and strict undo possible (spec 2.3, 2.5).
+func (l *Library) UpdateBox(ctx context.Context, id domain.BoxID, f oplog.BoxFields) (domain.Box, error) {
+	if err := domain.ValidateName(f.Name); err != nil {
+		return domain.Box{}, err
+	}
+	current, ok, err := l.Box(ctx, id)
+	if err != nil {
+		return domain.Box{}, err
+	}
+	if !ok {
+		return domain.Box{}, fmt.Errorf("%s: %w", id, ErrNoSuchBox)
+	}
+
+	p := oplog.UpdateBoxPayload{
+		BoxID: id,
+		Before: oplog.BoxFields{
+			Name: current.Name, Description: current.Description,
+			StartAt: current.StartAt, EndAt: current.EndAt,
+		},
+		After: f,
+	}
+	if p.Before == p.After {
+		return current, nil // nothing to record
+	}
+	raw, err := oplog.Marshal(p)
+	if err != nil {
+		return domain.Box{}, err
+	}
+	if _, err := l.write(ctx, oplog.ActionUpdateBox, raw, oplog.SourceUser, nil); err != nil {
+		return domain.Box{}, err
+	}
+	b, _, err := l.Box(ctx, id)
+	return b, err
+}
+
+// CreateTag adds a node to the tag tree.
+func (l *Library) CreateTag(ctx context.Context, name string, parent *domain.TagID) (domain.Tag, error) {
+	if err := domain.ValidateName(name); err != nil {
+		return domain.Tag{}, err
+	}
+	// Checked here rather than left to the unique index so the user gets a
+	// sentence instead of a constraint violation — and so no op is written.
+	if existing, ok := l.tags.ByName(name); ok {
+		return domain.Tag{}, fmt.Errorf("%q is already a tag (%s): %w", existing.Name, existing.ID, ErrTagNameTaken)
+	}
+	if parent != nil {
+		if _, ok := l.tags.ByID(*parent); !ok {
+			return domain.Tag{}, fmt.Errorf("parent %s: %w", *parent, ErrNoSuchTag)
+		}
+	}
+
+	p := oplog.CreateTagPayload{TagID: domain.NewTagID(), ParentID: parent, Name: name}
+	raw, err := oplog.Marshal(p)
+	if err != nil {
+		return domain.Tag{}, err
+	}
+	if _, err := l.write(ctx, oplog.ActionCreateTag, raw, oplog.SourceUser, nil); err != nil {
+		return domain.Tag{}, err
+	}
+	tag, _ := l.tags.ByID(p.TagID)
+	return tag, nil
+}
+
+func (l *Library) RenameTag(ctx context.Context, id domain.TagID, name string) error {
+	if err := domain.ValidateName(name); err != nil {
+		return err
+	}
+	current, ok := l.tags.ByID(id)
+	if !ok {
+		return fmt.Errorf("%s: %w", id, ErrNoSuchTag)
+	}
+	if current.Name == name {
+		return nil
+	}
+	if other, exists := l.tags.ByName(name); exists && other.ID != id {
+		return fmt.Errorf("%q is already a tag (%s): %w", other.Name, other.ID, ErrTagNameTaken)
+	}
+
+	raw, err := oplog.Marshal(oplog.RenameTagPayload{TagID: id, Before: current.Name, After: name})
+	if err != nil {
+		return err
+	}
+	_, err = l.write(ctx, oplog.ActionRenameTag, raw, oplog.SourceUser, nil)
+	return err
+}
+
+// MoveTag reparents a subtree. In the database this is one row and one column,
+// because there is no materialized path to cascade (spec 1.6).
+func (l *Library) MoveTag(ctx context.Context, id domain.TagID, parent *domain.TagID) error {
+	current, ok := l.tags.ByID(id)
+	if !ok {
+		return fmt.Errorf("%s: %w", id, ErrNoSuchTag)
+	}
+	if parent != nil {
+		if _, ok := l.tags.ByID(*parent); !ok {
+			return fmt.Errorf("parent %s: %w", *parent, ErrNoSuchTag)
+		}
+		// A loop would make Descendants recurse until the stack gives out.
+		// Deciding this here, not in Apply, is invariant 3.
+		if l.tags.WouldCycle(id, *parent) {
+			return fmt.Errorf("%q cannot go under its own descendant: %w", current.Name, ErrTagCycle)
+		}
+	}
+	if sameTagID(current.ParentID, parent) {
+		return nil
+	}
+
+	raw, err := oplog.Marshal(oplog.MoveTagPayload{TagID: id, OldParent: current.ParentID, NewParent: parent})
+	if err != nil {
+		return err
+	}
+	_, err = l.write(ctx, oplog.ActionMoveTag, raw, oplog.SourceUser, nil)
+	return err
+}
+
+// DeleteTag removes a leaf that nothing is using. The refusal to cascade is
+// deliberate (spec 1.6).
+func (l *Library) DeleteTag(ctx context.Context, id domain.TagID) error {
+	current, ok := l.tags.ByID(id)
+	if !ok {
+		return fmt.Errorf("%s: %w", id, ErrNoSuchTag)
+	}
+	raw, err := oplog.Marshal(oplog.DeleteTagPayload{
+		TagID: id, ParentID: current.ParentID, Name: current.Name,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = l.write(ctx, oplog.ActionDeleteTag, raw, oplog.SourceUser, nil)
+	return err
+}
+
+// TagBoxes attaches one tag to many boxes as a single op, and returns how many
+// boxes actually changed.
+//
+// Boxes that already carry the tag are filtered out before the op is built. If
+// they were left in, the inverse would strip the tag from boxes this op never
+// touched — an undo doing more than the op did.
+func (l *Library) TagBoxes(ctx context.Context, tag domain.TagID, boxes []domain.BoxID) (int, error) {
+	changed, err := l.filterBoxTags(ctx, tag, boxes, false)
+	if err != nil || len(changed) == 0 {
+		return 0, err
+	}
+	raw, err := oplog.Marshal(oplog.TagBoxesPayload{TagID: tag, BoxIDs: changed, Source: "user"})
+	if err != nil {
+		return 0, err
+	}
+	if _, err := l.write(ctx, oplog.ActionTagBoxes, raw, oplog.SourceUser, nil); err != nil {
+		return 0, err
+	}
+	return len(changed), nil
+}
+
+// UntagBoxes is the mirror image.
+func (l *Library) UntagBoxes(ctx context.Context, tag domain.TagID, boxes []domain.BoxID) (int, error) {
+	changed, err := l.filterBoxTags(ctx, tag, boxes, true)
+	if err != nil || len(changed) == 0 {
+		return 0, err
+	}
+	raw, err := oplog.Marshal(oplog.UntagBoxesPayload{TagID: tag, BoxIDs: changed, Source: "user"})
+	if err != nil {
+		return 0, err
+	}
+	if _, err := l.write(ctx, oplog.ActionUntagBoxes, raw, oplog.SourceUser, nil); err != nil {
+		return 0, err
+	}
+	return len(changed), nil
+}
+
+// filterBoxTags keeps the boxes for which the operation would actually change
+// something. wantPresent is what the box must currently look like to qualify.
+func (l *Library) filterBoxTags(ctx context.Context, tag domain.TagID, boxes []domain.BoxID, wantPresent bool) ([]domain.BoxID, error) {
+	if _, ok := l.tags.ByID(tag); !ok {
+		return nil, fmt.Errorf("%s: %w", tag, ErrNoSuchTag)
+	}
+	var changed []domain.BoxID
+	seen := map[domain.BoxID]bool{}
+	err := l.readTx(ctx, func(vtx *store.ViewTx) error {
+		for _, id := range boxes {
+			if seen[id] {
+				continue
+			}
+			seen[id] = true
+			if _, ok, err := vtx.GetBox(id); err != nil {
+				return err
+			} else if !ok {
+				return fmt.Errorf("%s: %w", id, ErrNoSuchBox)
+			}
+			has, err := vtx.HasBoxTag(id, tag)
+			if err != nil {
+				return err
+			}
+			if has == wantPresent {
+				changed = append(changed, id)
+			}
+		}
+		return nil
+	})
+	return changed, err
+}
+
+// ResolveBox accepts a full id, an id prefix, or an exact name.
+//
+// Box names are not unique — the schema gives boxes.name_fold an ordinary
+// index, not a unique one — so an ambiguous name is reported with its
+// candidates rather than resolved by picking one.
+func (l *Library) ResolveBox(ctx context.Context, ref string) (domain.Box, error) {
+	if id, err := domain.ParseID(ref); err == nil {
+		b, ok, err := l.Box(ctx, domain.BoxID{ID: id})
+		if err != nil {
+			return domain.Box{}, err
+		}
+		if !ok {
+			return domain.Box{}, fmt.Errorf("%s: %w", ref, ErrNoSuchBox)
+		}
+		return b, nil
+	}
+
+	all, err := l.Boxes(ctx, store.ListBoxesOptions{})
+	if err != nil {
+		return domain.Box{}, err
+	}
+	fold := domain.Fold(ref)
+	var matches []domain.Box
+	for _, b := range all {
+		if b.NameFold == fold || strings.HasPrefix(b.ID.String(), ref) {
+			matches = append(matches, b)
+		}
+	}
+	switch len(matches) {
+	case 0:
+		return domain.Box{}, fmt.Errorf("%q: %w", ref, ErrNoSuchBox)
+	case 1:
+		return matches[0], nil
+	default:
+		var sb strings.Builder
+		for _, b := range matches {
+			fmt.Fprintf(&sb, "\n  %s  %s", b.ID, b.Name)
+		}
+		return domain.Box{}, fmt.Errorf("%q matches %d boxes; use an id instead:%s: %w",
+			ref, len(matches), sb.String(), ErrAmbiguousRef)
+	}
+}
+
+// ResolveTag accepts a full id or a name. Names are globally unique, so this
+// one cannot be ambiguous (spec 1.6).
+func (l *Library) ResolveTag(ref string) (domain.Tag, error) {
+	if id, err := domain.ParseID(ref); err == nil {
+		if tag, ok := l.tags.ByID(domain.TagID{ID: id}); ok {
+			return tag, nil
+		}
+	}
+	if tag, ok := l.tags.ByName(ref); ok {
+		return tag, nil
+	}
+	return domain.Tag{}, fmt.Errorf("%q: %w", ref, ErrNoSuchTag)
+}
+
+func sameTagID(a, b *domain.TagID) bool {
+	switch {
+	case a == nil && b == nil:
+		return true
+	case a == nil || b == nil:
+		return false
+	default:
+		return *a == *b
+	}
+}
+```
+
+- [ ] **Step 5: 跑测试确认通过**
+
+Run: `go test ./internal/library/ -v`
+Expected: PASS
+
+- [ ] **Step 6: 提交**
+
+```bash
+git add internal/library/commands.go internal/library/write.go internal/library/commands_test.go
+git commit -m "feat(library): 对外的命令方法
+
+这些就是'命令做决策，事件记结果'里的命令：铸 ID、校验、构造 payload、
+调 write。Apply 拿到的 payload 里已经没有任何待决定的东西。
+
+TagBoxes 先滤掉已经有这个 tag 的 box 再生成 op——不滤的话反向的
+untag 会摘掉这条 op 从没加过的 tag，等于撤销做了比原 op 更多的事。
+滤完一个不剩就不写 op：一条什么都没改的 op 只会给历史添乱。
+
+ResolveBox 撞名时列出候选而不是随便挑一个。box 名没有唯一约束，
+挑错了就是在错的归档上操作。"
+```
+
+---
