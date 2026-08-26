@@ -2933,3 +2933,822 @@ folder 会拿到新 id，而 M1c 之后 files.folder_id 指着它。
 ```
 
 ---
+
+### Task 6: oplog — tag 树的四个 handler
+
+**Files:**
+- Create: `internal/oplog/tag.go`
+- Test: `internal/oplog/tag_test.go`
+
+**Interfaces:**
+- Consumes: `oplog.Tx`、`oplog.ErrStaleBefore`、`domain.Tag`
+- Produces:
+  - `oplog.CreateTagPayload{TagID, ParentID, Name}`、`oplog.DeleteTagPayload`（同结构）
+  - `oplog.RenameTagPayload{TagID, Before, After string}`
+  - `oplog.MoveTagPayload{TagID, OldParent, NewParent *domain.TagID}`
+  - `oplog.ErrTagInUse`
+
+**`move_tag` 的 payload 只有三个字段**——`{node, old_parent, new_parent}`。设计文档 1.6 特意点出这是全局唯一命名换来的：按父唯一的话，移动会撞名，于是 payload 要膨胀到记录改名前后，`Inverse` 也跟着变复杂。这个 task 是那段论证的兑现，payload 结构本身就是证据。
+
+**没有物化路径列，所以移动子树在 DB 里是改一行 `parent_id`**，O(1)。`Apply` 里没有任何递归。
+
+**`delete_tag` 有子节点或有东西挂着就拒绝**（spec 1.6）。级联删除在归档软件里太危险——一次误点可以静默毁掉全库分类信息，而撤销它的 payload 会大到离谱。返回 `ErrTagInUse` 而不是 `ErrStaleBefore`：这不是"库变了"，是"这个操作本身不被允许"，用户看到的提示应该不同。
+
+**tag 没有 `updated_at`，也不进 `op_boxes`。** tag 树不属于任何 box（spec 2.2.1 说 tag 树操作单独记 `scope='tags'`），所以 `Targets` 返回空。M1b 不实现 `scope` 列——它在 schema 里还不存在，加它是 M5 历史 UI 的事；现在返回空 `Targets` 是诚实的：这条 op 确实没碰任何 box。
+
+- [ ] **Step 1: 写失败的测试**
+
+```go
+package oplog
+
+import (
+	"errors"
+	"testing"
+
+	"github.com/jinzhao1994/kist/internal/domain"
+)
+
+func createTag(t *testing.T, tx Tx, parent *domain.TagID, name string) domain.TagID {
+	t.Helper()
+	p := CreateTagPayload{TagID: domain.NewTagID(), ParentID: parent, Name: name}
+	raw, err := Marshal(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := apply(t, tx, ActionCreateTag, raw); err != nil {
+		t.Fatalf("create tag %q: %v", name, err)
+	}
+	return p.TagID
+}
+
+func TestCreateTagApply(t *testing.T) {
+	tx := newFakeTx(opTime)
+	id := createTag(t, tx, nil, "人物")
+
+	tag, ok, _ := tx.GetTag(id)
+	if !ok {
+		t.Fatal("the tag was not created")
+	}
+	if tag.Name != "人物" || tag.NameFold != domain.Fold("人物") {
+		t.Errorf("tag = %+v", tag)
+	}
+	if tag.ParentID != nil {
+		t.Error("a root tag should have no parent")
+	}
+}
+
+func TestCreateTagUnderParent(t *testing.T) {
+	tx := newFakeTx(opTime)
+	people := createTag(t, tx, nil, "人物")
+	dad := createTag(t, tx, &people, "爸")
+
+	tag, _, _ := tx.GetTag(dad)
+	if tag.ParentID == nil || *tag.ParentID != people {
+		t.Errorf("ParentID = %v, want %v", tag.ParentID, people)
+	}
+}
+
+func TestCreateTagInverseIsDelete(t *testing.T) {
+	tx := newFakeTx(opTime)
+	p := CreateTagPayload{TagID: domain.NewTagID(), Name: "临时"}
+	raw, _ := Marshal(p)
+	apply(t, tx, ActionCreateTag, raw)
+
+	h, _ := Lookup(ActionCreateTag)
+	action, inverse, err := h.Inverse(raw)
+	if err != nil {
+		t.Fatalf("Inverse: %v", err)
+	}
+	if action != ActionDeleteTag {
+		t.Fatalf("inverse action = %q, want delete_tag", action)
+	}
+	if err := apply(t, tx, action, inverse); err != nil {
+		t.Fatalf("applying the inverse: %v", err)
+	}
+	if _, ok, _ := tx.GetTag(p.TagID); ok {
+		t.Error("the tag survived its deletion")
+	}
+}
+
+func TestDeleteTagRefusesWithChildren(t *testing.T) {
+	// spec 1.6: cascade delete in archiving software can wipe a whole
+	// classification with one misclick, and the payload needed to undo that
+	// would be enormous.
+	tx := newFakeTx(opTime)
+	people := createTag(t, tx, nil, "人物")
+	createTag(t, tx, &people, "爸")
+
+	p := DeleteTagPayload{TagID: people, Name: "人物"}
+	raw, _ := Marshal(p)
+	err := apply(t, tx, ActionDeleteTag, raw)
+	if err == nil {
+		t.Fatal("deleting a tag with children succeeded")
+	}
+	if !errors.Is(err, ErrTagInUse) {
+		t.Errorf("error = %v, want ErrTagInUse", err)
+	}
+}
+
+func TestDeleteTagRefusesWhenAttached(t *testing.T) {
+	tx := newFakeTx(opTime)
+	tag := createTag(t, tx, nil, "云南")
+	box, raw := createBoxPayload(t, "trip")
+	apply(t, tx, ActionCreateBox, raw)
+	tx.AddBoxTag(box.BoxID, tag, "user")
+
+	p := DeleteTagPayload{TagID: tag, Name: "云南"}
+	delRaw, _ := Marshal(p)
+	err := apply(t, tx, ActionDeleteTag, delRaw)
+	if err == nil {
+		t.Fatal("deleting a tag that is still attached succeeded")
+	}
+	if !errors.Is(err, ErrTagInUse) {
+		t.Errorf("error = %v, want ErrTagInUse", err)
+	}
+}
+
+func TestRenameTagApplyAndInverse(t *testing.T) {
+	tx := newFakeTx(opTime)
+	id := createTag(t, tx, nil, "旧名")
+
+	p := RenameTagPayload{TagID: id, Before: "旧名", After: "新名"}
+	raw, _ := Marshal(p)
+	if err := apply(t, tx, ActionRenameTag, raw); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	tag, _, _ := tx.GetTag(id)
+	if tag.Name != "新名" || tag.NameFold != domain.Fold("新名") {
+		t.Errorf("after rename: %+v", tag)
+	}
+
+	h, _ := Lookup(ActionRenameTag)
+	action, inv, _ := h.Inverse(raw)
+	if action != ActionRenameTag {
+		t.Errorf("inverse action = %q, want rename_tag", action)
+	}
+	if err := apply(t, tx, action, inv); err != nil {
+		t.Fatalf("applying the inverse: %v", err)
+	}
+	tag, _, _ = tx.GetTag(id)
+	if tag.Name != "旧名" {
+		t.Errorf("after undo the name is %q", tag.Name)
+	}
+}
+
+func TestRenameTagRefusesAStaleBefore(t *testing.T) {
+	tx := newFakeTx(opTime)
+	id := createTag(t, tx, nil, "实际名字")
+
+	p := RenameTagPayload{TagID: id, Before: "别的名字", After: "无所谓"}
+	raw, _ := Marshal(p)
+	err := apply(t, tx, ActionRenameTag, raw)
+	if !errors.Is(err, ErrStaleBefore) {
+		t.Errorf("error = %v, want ErrStaleBefore", err)
+	}
+}
+
+func TestMoveTagIsOneFieldChange(t *testing.T) {
+	// spec 1.6: no materialized path column, so moving a subtree is a single
+	// parent_id write no matter how big the subtree is.
+	tx := newFakeTx(opTime)
+	places := createTag(t, tx, nil, "地点")
+	people := createTag(t, tx, nil, "人物")
+	yunnan := createTag(t, tx, &places, "云南")
+	createTag(t, tx, &yunnan, "大理")
+	createTag(t, tx, &yunnan, "丽江")
+
+	p := MoveTagPayload{TagID: yunnan, OldParent: &places, NewParent: &people}
+	raw, _ := Marshal(p)
+	if err := apply(t, tx, ActionMoveTag, raw); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	moved, _, _ := tx.GetTag(yunnan)
+	if moved.ParentID == nil || *moved.ParentID != people {
+		t.Errorf("ParentID = %v, want %v", moved.ParentID, people)
+	}
+	// The children were not touched: they still point at 云南, which is the
+	// whole reason the payload is only three fields.
+	n, _ := tx.CountTagChildren(yunnan)
+	if n != 2 {
+		t.Errorf("云南 has %d children after the move, want 2", n)
+	}
+}
+
+func TestMoveTagToRoot(t *testing.T) {
+	tx := newFakeTx(opTime)
+	places := createTag(t, tx, nil, "地点")
+	yunnan := createTag(t, tx, &places, "云南")
+
+	p := MoveTagPayload{TagID: yunnan, OldParent: &places, NewParent: nil}
+	raw, _ := Marshal(p)
+	if err := apply(t, tx, ActionMoveTag, raw); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	moved, _, _ := tx.GetTag(yunnan)
+	if moved.ParentID != nil {
+		t.Errorf("ParentID = %v, want nil", moved.ParentID)
+	}
+
+	h, _ := Lookup(ActionMoveTag)
+	action, inv, _ := h.Inverse(raw)
+	if action != ActionMoveTag {
+		t.Errorf("inverse action = %q", action)
+	}
+	if err := apply(t, tx, action, inv); err != nil {
+		t.Fatalf("applying the inverse: %v", err)
+	}
+	moved, _, _ = tx.GetTag(yunnan)
+	if moved.ParentID == nil || *moved.ParentID != places {
+		t.Errorf("after undo ParentID = %v, want %v", moved.ParentID, places)
+	}
+}
+
+func TestMoveTagRefusesAStaleParent(t *testing.T) {
+	tx := newFakeTx(opTime)
+	a := createTag(t, tx, nil, "a")
+	b := createTag(t, tx, nil, "b")
+	child := createTag(t, tx, &a, "child")
+
+	wrong := b
+	p := MoveTagPayload{TagID: child, OldParent: &wrong, NewParent: nil}
+	raw, _ := Marshal(p)
+	if err := apply(t, tx, ActionMoveTag, raw); !errors.Is(err, ErrStaleBefore) {
+		t.Errorf("error = %v, want ErrStaleBefore", err)
+	}
+}
+
+func TestTagOpsTouchNoBoxes(t *testing.T) {
+	// The tag tree belongs to no box (spec 2.2.1), so these ops produce no
+	// op_boxes rows. Returning an empty Targets is the honest answer.
+	tx := newFakeTx(opTime)
+	id := createTag(t, tx, nil, "孤立")
+
+	cases := []struct {
+		action  Action
+		payload any
+	}{
+		{ActionCreateTag, CreateTagPayload{TagID: id, Name: "孤立"}},
+		{ActionDeleteTag, DeleteTagPayload{TagID: id, Name: "孤立"}},
+		{ActionRenameTag, RenameTagPayload{TagID: id, Before: "a", After: "b"}},
+		{ActionMoveTag, MoveTagPayload{TagID: id}},
+	}
+	for _, c := range cases {
+		raw, _ := Marshal(c.payload)
+		h, _ := Lookup(c.action)
+		got, err := h.Targets(raw)
+		if err != nil {
+			t.Fatalf("Targets(%s): %v", c.action, err)
+		}
+		if len(got.Boxes) != 0 || len(got.Files) != 0 {
+			t.Errorf("Targets(%s) = %+v, want empty", c.action, got)
+		}
+	}
+}
+```
+
+- [ ] **Step 2: 跑测试确认失败**
+
+Run: `go test ./internal/oplog/ -run 'Tag' -v`
+Expected: FAIL，`undefined: CreateTagPayload`
+
+- [ ] **Step 3: 实现**
+
+`internal/oplog/tag.go`:
+
+```go
+package oplog
+
+import (
+	"errors"
+	"fmt"
+
+	"github.com/jinzhao1994/kist/internal/domain"
+)
+
+// ErrTagInUse means a tag cannot be deleted because something still hangs off
+// it. This is a refusal by policy (spec 1.6), not a stale-state conflict, and
+// the user needs a different message: cascade delete in archiving software can
+// wipe a whole classification with one misclick.
+var ErrTagInUse = errors.New("tag is still in use")
+
+func init() {
+	Register(ActionCreateTag, createTagOp{})
+	Register(ActionDeleteTag, deleteTagOp{})
+	Register(ActionRenameTag, renameTagOp{})
+	Register(ActionMoveTag, moveTagOp{})
+}
+
+// CreateTagPayload carries the id minted by library (invariant 3).
+type CreateTagPayload struct {
+	TagID    domain.TagID  `json:"tag_id"`
+	ParentID *domain.TagID `json:"parent_id,omitempty"`
+	Name     string        `json:"name"`
+}
+
+// DeleteTagPayload is the same shape, so undoing a delete rebuilds the node
+// exactly where it was.
+type DeleteTagPayload = CreateTagPayload
+
+type createTagOp struct{}
+
+func (createTagOp) Apply(tx Tx, payload []byte) error {
+	p, err := Payload[CreateTagPayload](payload)
+	if err != nil {
+		return err
+	}
+	tag, err := domain.NewTag(p.TagID, p.ParentID, p.Name)
+	if err != nil {
+		return err
+	}
+	return tx.InsertTag(tag)
+}
+
+func (createTagOp) Inverse(payload []byte) (Action, []byte, error) {
+	return ActionDeleteTag, payload, nil
+}
+
+func (createTagOp) Targets([]byte) (Targets, error) { return Targets{}, nil }
+
+type deleteTagOp struct{}
+
+func (deleteTagOp) Apply(tx Tx, payload []byte) error {
+	p, err := Payload[DeleteTagPayload](payload)
+	if err != nil {
+		return err
+	}
+	current, ok, err := tx.GetTag(p.TagID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("tag %s is already gone: %w", p.TagID, ErrStaleBefore)
+	}
+	if current.Name != p.Name {
+		return fmt.Errorf("tag %s is now named %q but this op expected %q: %w",
+			p.TagID, current.Name, p.Name, ErrStaleBefore)
+	}
+
+	children, err := tx.CountTagChildren(p.TagID)
+	if err != nil {
+		return err
+	}
+	if children > 0 {
+		return fmt.Errorf("tag %q has %d child tag(s); move or delete them first: %w",
+			p.Name, children, ErrTagInUse)
+	}
+	usage, err := tx.CountTagUsage(p.TagID)
+	if err != nil {
+		return err
+	}
+	if usage > 0 {
+		return fmt.Errorf("tag %q is attached to %d item(s); remove it from them first: %w",
+			p.Name, usage, ErrTagInUse)
+	}
+	return tx.DeleteTag(p.TagID)
+}
+
+func (deleteTagOp) Inverse(payload []byte) (Action, []byte, error) {
+	return ActionCreateTag, payload, nil
+}
+
+func (deleteTagOp) Targets([]byte) (Targets, error) { return Targets{}, nil }
+
+// RenameTagPayload records both names so Inverse is a swap.
+type RenameTagPayload struct {
+	TagID  domain.TagID `json:"tag_id"`
+	Before string       `json:"before"`
+	After  string       `json:"after"`
+}
+
+type renameTagOp struct{}
+
+func (renameTagOp) Apply(tx Tx, payload []byte) error {
+	p, err := Payload[RenameTagPayload](payload)
+	if err != nil {
+		return err
+	}
+	current, ok, err := tx.GetTag(p.TagID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("tag %s no longer exists: %w", p.TagID, ErrStaleBefore)
+	}
+	if current.Name != p.Before {
+		return fmt.Errorf("tag %s is named %q but this op expected %q: %w",
+			p.TagID, current.Name, p.Before, ErrStaleBefore)
+	}
+
+	renamed, err := domain.NewTag(p.TagID, current.ParentID, p.After)
+	if err != nil {
+		return err
+	}
+	return tx.UpdateTag(renamed)
+}
+
+func (renameTagOp) Inverse(payload []byte) (Action, []byte, error) {
+	p, err := Payload[RenameTagPayload](payload)
+	if err != nil {
+		return "", nil, err
+	}
+	p.Before, p.After = p.After, p.Before
+	raw, err := Marshal(p)
+	return ActionRenameTag, raw, err
+}
+
+func (renameTagOp) Targets([]byte) (Targets, error) { return Targets{}, nil }
+
+// MoveTagPayload is three fields, and that is the whole point.
+//
+// Global name uniqueness (spec 1.6) means a move can never collide, so there
+// is no rename to record and no lookup to perform. Per-parent uniqueness would
+// have forced this payload to grow a before/after name pair and Inverse to
+// grow with it.
+type MoveTagPayload struct {
+	TagID     domain.TagID  `json:"tag_id"`
+	OldParent *domain.TagID `json:"old_parent,omitempty"`
+	NewParent *domain.TagID `json:"new_parent,omitempty"`
+}
+
+type moveTagOp struct{}
+
+func (moveTagOp) Apply(tx Tx, payload []byte) error {
+	p, err := Payload[MoveTagPayload](payload)
+	if err != nil {
+		return err
+	}
+	current, ok, err := tx.GetTag(p.TagID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("tag %s no longer exists: %w", p.TagID, ErrStaleBefore)
+	}
+	if !sameParent(current.ParentID, p.OldParent) {
+		return fmt.Errorf("tag %s hangs off %v but this op expected %v: %w",
+			p.TagID, current.ParentID, p.OldParent, ErrStaleBefore)
+	}
+
+	// One row, one column. There is no materialized path to cascade, which is
+	// why moving a subtree of any size is O(1) (spec 1.6).
+	current.ParentID = p.NewParent
+	return tx.UpdateTag(current)
+}
+
+func (moveTagOp) Inverse(payload []byte) (Action, []byte, error) {
+	p, err := Payload[MoveTagPayload](payload)
+	if err != nil {
+		return "", nil, err
+	}
+	p.OldParent, p.NewParent = p.NewParent, p.OldParent
+	raw, err := Marshal(p)
+	return ActionMoveTag, raw, err
+}
+
+func (moveTagOp) Targets([]byte) (Targets, error) { return Targets{}, nil }
+
+func sameParent(a, b *domain.TagID) bool {
+	switch {
+	case a == nil && b == nil:
+		return true
+	case a == nil || b == nil:
+		return false
+	default:
+		return *a == *b
+	}
+}
+```
+
+- [ ] **Step 4: 把四个 action 放回 `AllActions()`**
+
+- [ ] **Step 5: 跑测试确认通过**
+
+Run: `go test ./internal/oplog/ -v`
+Expected: PASS
+
+- [ ] **Step 6: 提交**
+
+```bash
+git add internal/oplog/tag.go internal/oplog/tag_test.go internal/oplog/action.go
+git commit -m "feat(oplog): tag 树的四个 handler
+
+move_tag 的 payload 只有 {node, old_parent, new_parent} 三个字段——
+这是设计文档 1.6 里'全局唯一换来移动 O(1)'那段论证的兑现，payload
+结构本身就是证据。没有物化路径列，Apply 里没有任何递归。
+
+delete_tag 有子节点或有东西挂着就拒绝，返回 ErrTagInUse 而不是
+ErrStaleBefore：这不是'库变了'，是'这个操作不被允许'，用户该看到
+不同的提示。"
+```
+
+---
+
+### Task 7: oplog — box_tags 的两个 handler（批量语义）
+
+**Files:**
+- Create: `internal/oplog/boxtag.go`
+- Test: `internal/oplog/boxtag_test.go`
+
+**Interfaces:**
+- Consumes: `oplog.Tx`、`domain.BoxID` / `TagID`
+- Produces: `oplog.TagBoxesPayload{TagID, BoxIDs []domain.BoxID, Source string}`、`oplog.UntagBoxesPayload`（同结构）
+
+**这是"op 的粒度是批"的第一个实例**（spec 2.2.1）。给 12 个 box 打一个 tag 是**一条** op 带 12 个 target，不是 12 条——否则撤销要点 12 次。`Targets` 因此返回 12 个 box id，`op_boxes` 会有 12 行。
+
+**`tag_boxes` 的 payload 只记要加的那些，不记"加之前有没有"。** 这里有个陷阱：如果 12 个 box 里有 3 个本来就有这个 tag，那么 `untag_boxes` 作为它的反向会把那 3 个也摘掉——**多摘了**。所以 payload 必须记录**实际发生了变化的那些 box**，而这个筛选由 `library` 在生成 op 时完成（决策在生成 op 时做完，不变量 3）。`Apply` 拿到的列表就是"确实要加的"。
+
+**`source` 进 payload。** `file_tags` / `box_tags` 的 `source` 区分 user 与 derived（spec 1.6.1），而它必须能被重放重建出来，所以是 payload 的一部分而不是 `Apply` 里的常量。
+
+- [ ] **Step 1: 写失败的测试**
+
+```go
+package oplog
+
+import (
+	"testing"
+
+	"github.com/jinzhao1994/kist/internal/domain"
+)
+
+func threeBoxes(t *testing.T, tx Tx) []domain.BoxID {
+	t.Helper()
+	var out []domain.BoxID
+	for _, name := range []string{"一", "二", "三"} {
+		p, raw := createBoxPayload(t, name)
+		if err := apply(t, tx, ActionCreateBox, raw); err != nil {
+			t.Fatal(err)
+		}
+		out = append(out, p.BoxID)
+	}
+	return out
+}
+
+func TestTagBoxesIsOneOpForManyTargets(t *testing.T) {
+	// spec 2.2.1: batching is the unit. Tagging 12 boxes must be one op, or
+	// undoing it means twelve clicks.
+	tx := newFakeTx(opTime)
+	boxes := threeBoxes(t, tx)
+	tag := createTag(t, tx, nil, "云南")
+
+	p := TagBoxesPayload{TagID: tag, BoxIDs: boxes, Source: "user"}
+	raw, _ := Marshal(p)
+	if err := apply(t, tx, ActionTagBoxes, raw); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	for _, b := range boxes {
+		if has, _ := tx.HasBoxTag(b, tag); !has {
+			t.Errorf("box %s did not get the tag", b)
+		}
+	}
+
+	h, _ := Lookup(ActionTagBoxes)
+	targets, err := h.Targets(raw)
+	if err != nil {
+		t.Fatalf("Targets: %v", err)
+	}
+	if len(targets.Boxes) != 3 {
+		t.Errorf("Targets.Boxes has %d entries, want 3", len(targets.Boxes))
+	}
+}
+
+func TestTagBoxesInverseIsUntag(t *testing.T) {
+	tx := newFakeTx(opTime)
+	boxes := threeBoxes(t, tx)
+	tag := createTag(t, tx, nil, "云南")
+
+	p := TagBoxesPayload{TagID: tag, BoxIDs: boxes, Source: "user"}
+	raw, _ := Marshal(p)
+	apply(t, tx, ActionTagBoxes, raw)
+
+	h, _ := Lookup(ActionTagBoxes)
+	action, inv, err := h.Inverse(raw)
+	if err != nil {
+		t.Fatalf("Inverse: %v", err)
+	}
+	if action != ActionUntagBoxes {
+		t.Fatalf("inverse action = %q, want untag_boxes", action)
+	}
+	if err := apply(t, tx, action, inv); err != nil {
+		t.Fatalf("applying the inverse: %v", err)
+	}
+	for _, b := range boxes {
+		if has, _ := tx.HasBoxTag(b, tag); has {
+			t.Errorf("box %s still carries the tag after undo", b)
+		}
+	}
+}
+
+func TestUntagBoxesInverseIsTag(t *testing.T) {
+	tx := newFakeTx(opTime)
+	boxes := threeBoxes(t, tx)
+	tag := createTag(t, tx, nil, "云南")
+	for _, b := range boxes {
+		tx.AddBoxTag(b, tag, "user")
+	}
+
+	p := UntagBoxesPayload{TagID: tag, BoxIDs: boxes, Source: "user"}
+	raw, _ := Marshal(p)
+	apply(t, tx, ActionUntagBoxes, raw)
+
+	h, _ := Lookup(ActionUntagBoxes)
+	action, inv, _ := h.Inverse(raw)
+	if action != ActionTagBoxes {
+		t.Fatalf("inverse action = %q, want tag_boxes", action)
+	}
+	apply(t, tx, action, inv)
+	for _, b := range boxes {
+		if has, _ := tx.HasBoxTag(b, tag); !has {
+			t.Errorf("box %s did not get its tag back", b)
+		}
+	}
+}
+
+// The payload names only the boxes that actually changed. If it named boxes
+// that already carried the tag, the inverse would strip a tag the op never
+// added — an undo doing more than the op did.
+func TestTagBoxesPayloadOnlyNamesRealChanges(t *testing.T) {
+	tx := newFakeTx(opTime)
+	boxes := threeBoxes(t, tx)
+	tag := createTag(t, tx, nil, "云南")
+
+	// The first box already carries the tag; library would have filtered it
+	// out when building the op, so the payload holds only the other two.
+	tx.AddBoxTag(boxes[0], tag, "user")
+
+	p := TagBoxesPayload{TagID: tag, BoxIDs: boxes[1:], Source: "user"}
+	raw, _ := Marshal(p)
+	apply(t, tx, ActionTagBoxes, raw)
+
+	h, _ := Lookup(ActionTagBoxes)
+	action, inv, _ := h.Inverse(raw)
+	apply(t, tx, action, inv)
+
+	if has, _ := tx.HasBoxTag(boxes[0], tag); !has {
+		t.Error("undo removed a tag the op never added")
+	}
+}
+
+func TestTagBoxesRejectsAnEmptyBatch(t *testing.T) {
+	// An op that changes nothing should never have been written. Letting it
+	// through would litter the history with entries that undo to nothing.
+	tx := newFakeTx(opTime)
+	tag := createTag(t, tx, nil, "云南")
+	raw, _ := Marshal(TagBoxesPayload{TagID: tag, Source: "user"})
+	if err := apply(t, tx, ActionTagBoxes, raw); err == nil {
+		t.Error("an empty batch was accepted")
+	}
+}
+
+func TestTagBoxesSourceSurvivesReplay(t *testing.T) {
+	// spec 1.6.1: source distinguishes what a person did from what an
+	// extractor did, and the distinction must survive a rebuild — so it lives
+	// in the payload, not in a constant inside Apply.
+	tx := newFakeTx(opTime)
+	boxes := threeBoxes(t, tx)
+	tag := createTag(t, tx, nil, "自动")
+
+	raw, _ := Marshal(TagBoxesPayload{TagID: tag, BoxIDs: boxes[:1], Source: "derived"})
+	apply(t, tx, ActionTagBoxes, raw)
+
+	if got := tx.boxTags[btKey(boxes[0], tag)]; got != "derived" {
+		t.Errorf("source = %q, want %q", got, "derived")
+	}
+}
+```
+
+- [ ] **Step 2: 跑测试确认失败**
+
+Run: `go test ./internal/oplog/ -run 'TagBoxes|UntagBoxes' -v`
+Expected: FAIL，`undefined: TagBoxesPayload`
+
+- [ ] **Step 3: 实现**
+
+`internal/oplog/boxtag.go`:
+
+```go
+package oplog
+
+import (
+	"errors"
+	"fmt"
+
+	"github.com/jinzhao1994/kist/internal/domain"
+)
+
+func init() {
+	Register(ActionTagBoxes, tagBoxes{})
+	Register(ActionUntagBoxes, untagBoxes{})
+}
+
+// TagBoxesPayload attaches one tag to many boxes in a single op.
+//
+// The granularity is the batch (spec 2.2.1): tagging twelve boxes is one op
+// with twelve targets, not twelve ops, or undoing it would take twelve
+// clicks.
+//
+// BoxIDs names only the boxes that actually change. library filters out any
+// box that already carries the tag before writing the op — otherwise the
+// inverse would strip a tag this op never added, and an undo that does more
+// than the op did is a bug you find out about much later.
+type TagBoxesPayload struct {
+	TagID  domain.TagID   `json:"tag_id"`
+	BoxIDs []domain.BoxID `json:"box_ids"`
+	// Source is "user" or "derived" (spec 1.6.1). It lives in the payload
+	// rather than being a constant inside Apply because a rebuild has to
+	// reproduce it.
+	Source string `json:"source"`
+}
+
+// UntagBoxesPayload is the same shape, so the two are exact inverses.
+type UntagBoxesPayload = TagBoxesPayload
+
+var errEmptyBatch = errors.New("op has no targets")
+
+type tagBoxes struct{}
+
+func (tagBoxes) Apply(tx Tx, payload []byte) error {
+	p, err := Payload[TagBoxesPayload](payload)
+	if err != nil {
+		return err
+	}
+	if len(p.BoxIDs) == 0 {
+		return fmt.Errorf("tag_boxes: %w", errEmptyBatch)
+	}
+	for _, box := range p.BoxIDs {
+		if err := tx.AddBoxTag(box, p.TagID, p.Source); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (tagBoxes) Inverse(payload []byte) (Action, []byte, error) {
+	return ActionUntagBoxes, payload, nil
+}
+
+func (tagBoxes) Targets(payload []byte) (Targets, error) { return boxTagTargets(payload) }
+
+type untagBoxes struct{}
+
+func (untagBoxes) Apply(tx Tx, payload []byte) error {
+	p, err := Payload[UntagBoxesPayload](payload)
+	if err != nil {
+		return err
+	}
+	if len(p.BoxIDs) == 0 {
+		return fmt.Errorf("untag_boxes: %w", errEmptyBatch)
+	}
+	for _, box := range p.BoxIDs {
+		if err := tx.RemoveBoxTag(box, p.TagID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (untagBoxes) Inverse(payload []byte) (Action, []byte, error) {
+	return ActionTagBoxes, payload, nil
+}
+
+func (untagBoxes) Targets(payload []byte) (Targets, error) { return boxTagTargets(payload) }
+
+func boxTagTargets(payload []byte) (Targets, error) {
+	p, err := Payload[TagBoxesPayload](payload)
+	if err != nil {
+		return Targets{}, err
+	}
+	return Targets{Boxes: p.BoxIDs}, nil
+}
+```
+
+- [ ] **Step 4: 把两个 action 放回 `AllActions()`，整份列表恢复**
+
+此时 `TestLookupFindsRegisteredHandlers`（Task 2）应当对全部九个 action 通过。
+
+- [ ] **Step 5: 跑测试确认通过**
+
+Run: `go test ./internal/oplog/ -v`
+Expected: PASS
+
+- [ ] **Step 6: 再确认一次依赖方向**
+
+Run: `go list -deps ./internal/oplog/ | grep kist`
+Expected: 只有 `internal/domain`
+
+- [ ] **Step 7: 提交**
+
+```bash
+git add internal/oplog/
+git commit -m "feat(oplog): box_tags 的两个 handler，批量即一条 op
+
+给 12 个 box 打一个 tag 是一条 op 带 12 个 target，不是 12 条——
+否则撤销要点 12 次。
+
+payload 只记实际发生变化的 box：如果把本来就有这个 tag 的也列进去，
+反向的 untag_boxes 会把它们也摘掉，等于撤销做了比原 op 更多的事。
+筛选在生成 op 时完成，Apply 拿到的就是确定要加的那些。"
+```
+
+---
