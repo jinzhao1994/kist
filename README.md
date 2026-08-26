@@ -9,8 +9,9 @@ passports, contracts and lab reports.
 
 One Go binary plus SQLite. Apache-2.0.
 
-> **Not usable yet.** The design is settled and written down; the code is at
-> M0 — repository groundwork. `kist version` is the only command that exists.
+> **Not usable yet.** The design is settled and written down. `kist init`
+> creates a real library — content-addressed storage, schema and all — but
+> nothing can be put into it until M1b brings the op log and `kist import`.
 > See [Milestones](#milestones).
 
 ## The idea

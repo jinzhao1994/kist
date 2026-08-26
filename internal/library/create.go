@@ -132,3 +132,8 @@ TO BACK THIS UP:
 boxes/ and derived/ are both reconstructible from the two authoritative
 things above, so backing them up only costs space.
 `
+
+// FreeSpaceAt reports the bytes available at path, and whether that could be
+// determined at all. init shows this before creating anything, so it has to be
+// callable without a library.
+func FreeSpaceAt(path string) (uint64, bool) { return freeSpace(path) }

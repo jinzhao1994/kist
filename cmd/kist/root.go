@@ -32,6 +32,7 @@ and a global tag tree cuts across them for retrieval.`,
 	// template would prefix it with "kist version ".
 	root.SetVersionTemplate("{{.Version}}\n")
 
+	root.AddCommand(newInitCmd())
 	root.AddCommand(newVersionCmd())
 	return root
 }

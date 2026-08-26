@@ -75,3 +75,18 @@ func TestHelpListsVersion(t *testing.T) {
 		t.Errorf("help = %q, want the default completion command hidden", out)
 	}
 }
+
+// execStdin runs the root command with args, feeding stdin from a string.
+func execStdin(t *testing.T, stdin string, args ...string) (string, error) {
+	t.Helper()
+
+	var out bytes.Buffer
+	root := newRootCmd()
+	root.SetOut(&out)
+	root.SetErr(&out)
+	root.SetIn(strings.NewReader(stdin))
+	root.SetArgs(args)
+
+	err := root.Execute()
+	return out.String(), err
+}

@@ -79,7 +79,7 @@ cmd/kist/
 
 **为什么是四个独立类型而不是一个 `ID` 到处传：** `MoveFiles(boxID, folderID, fileIDs)` 这种签名里三个 UUID 挨着，传反了编译器一声不吭。内嵌 `struct{ ID }` 而不是 `type BoxID ID` 是关键——前者能把 `ID` 上的全部方法提升上来（含 `*ID` 上的 `Scan`），后者每个类型都要重抄一遍。且 `struct{ [16]byte }` 仍然可比较，能直接当 map key。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 ```go
 package domain
@@ -174,12 +174,12 @@ func TestEntityIDsAreDistinctTypes(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `go test ./internal/domain/ -run TestID -v`
 Expected: FAIL，`undefined: NewID`
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 ```go
 // Package domain holds kist's core types. It depends on nothing else in this
@@ -262,12 +262,12 @@ func NewFileID() FileID     { return FileID{NewID()} }
 func NewTagID() TagID       { return TagID{NewID()} }
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run: `go test ./internal/domain/ -v`
 Expected: PASS
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 go get github.com/google/uuid
@@ -292,7 +292,7 @@ git commit -m "feat(domain): UUIDv7 ID 类型，四个实体 ID 互不兼容"
 
 `DirPrefix()` 是投影层用的（spec 3.4）：分钟精度渲染成 `2019-08-12_1430` 而不是 ISO 的 `2019-08-12T14:30`，因为 `:` 在 Windows 文件名里非法。**DB 里必须保留带 `T` 和 `:` 的 ISO 形式**，字典序即时间序这条性质建立在它上面。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 ```go
 package domain
@@ -410,12 +410,12 @@ func TestZeroLocalDate(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `go test ./internal/domain/ -run 'LocalDate|DirPrefix|Lexicographic' -v`
 Expected: FAIL，`undefined: ParseLocalDate`
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 ```go
 package domain
@@ -562,12 +562,12 @@ func (d *LocalDate) UnmarshalText(b []byte) error {
 }
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run: `go test ./internal/domain/ -v`
 Expected: PASS
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add internal/domain/localdate.go internal/domain/localdate_test.go
@@ -590,7 +590,7 @@ git commit -m "feat(domain): 变精度日期，精度由长度推导不单独存
 
 同一个函数还负责 tag 名的全局唯一（spec 1.6，唯一索引建在 `name_fold` 上）——否则 `Apple` 和 `apple` 会是两个 tag，"唯一"就成了骗人的。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 ```go
 package domain
@@ -652,12 +652,12 @@ func TestFoldPreservesInnerSpacing(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `go test ./internal/domain/ -run TestFold -v`
 Expected: FAIL，`undefined: Fold`
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 ```go
 package domain
@@ -687,12 +687,12 @@ func Fold(s string) string {
 }
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run: `go test ./internal/domain/ -v`
 Expected: PASS
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 go get golang.org/x/text
@@ -717,7 +717,7 @@ git commit -m "feat(domain): 折叠函数，把 LIKE 的大小写语义从引擎
 
 顺带一个免费的护栏：`:` 在 Windows 文件名里非法，所以**想拿 key 直接拼路径的代码会当场炸掉**，而不是悄悄写出坏文件。因此 `RelPath()` 是唯一合法的 key→路径通道。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 ```go
 package blob
@@ -810,12 +810,12 @@ func TestKeyIsNotAPath(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `go test ./internal/blob/ -v`
 Expected: FAIL，`undefined: NewKey`
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 ```go
 // Package blob is kist's content-addressed store. It knows nothing about the
@@ -920,12 +920,12 @@ func (k Key) RelPath() string {
 }
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run: `go test ./internal/blob/ -v`
 Expected: PASS
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add internal/blob/key.go internal/blob/key_test.go
@@ -953,7 +953,7 @@ git commit -m "feat(blob): Key 类型与分片路径推导"
 
 **长度不同时不能提前返回。** 即使一眼看出字节不同，也必须把已存在的文件读完——因为还要知道它有没有损坏，而那需要完整哈希。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 ```go
 package blob
@@ -1104,12 +1104,12 @@ func TestCompareAndHashMissingFile(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `go test ./internal/blob/ -run TestCompareAndHash -v`
 Expected: FAIL，`undefined: compareAndHash`
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 ```go
 package blob
@@ -1199,12 +1199,12 @@ func isEOF(err error) bool {
 }
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run: `go test ./internal/blob/ -v`
 Expected: PASS
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add internal/blob/compare.go internal/blob/compare_test.go
@@ -1237,7 +1237,7 @@ git commit -m "feat(blob): 单次遍历同时做重哈希与字节比对
 
 **父目录 fsync 在 Windows 上不可用**（`os.Open` 一个目录再 `Sync` 会失败），用 build tag 分文件，Windows 上是 no-op。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 ```go
 package blob
@@ -1503,12 +1503,12 @@ func TestNewDirCreatesLayout(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `go test ./internal/blob/ -run 'TestPut|TestGet|TestStat|TestDelete|TestNewDir|TestStored' -v`
 Expected: FAIL，`undefined: NewDir`
 
-- [ ] **Step 3: 写接口与 Outcome**
+- [x] **Step 3: 写接口与 Outcome**
 
 ```go
 package blob
@@ -1587,7 +1587,7 @@ type Store interface {
 }
 ```
 
-- [ ] **Step 4: 写目录实现**
+- [x] **Step 4: 写目录实现**
 
 ```go
 package blob
@@ -1855,12 +1855,12 @@ package blob
 func syncDir(string) error { return nil }
 ```
 
-- [ ] **Step 5: 跑测试确认通过**
+- [x] **Step 5: 跑测试确认通过**
 
 Run: `go test ./internal/blob/ -v`
 Expected: PASS（全部）
 
-- [ ] **Step 6: 把接口偏离同步进设计文档**
+- [x] **Step 6: 把接口偏离同步进设计文档**
 
 修改 `docs/design/2026-08-22-kist-v0.1-design.md` 的 3.10 节，把 `Put` 的签名改成返回 `PutResult`，并写明理由：
 
@@ -1870,7 +1870,7 @@ Put(ctx context.Context, r io.Reader) (PutResult, error)   // 内容寻址，幂
 
 > **`Put` 返回 `PutResult` 而不是裸 key。** 调用方必须能区分四种结果——新存入 / 去重命中 / 修复了一个损坏的 blob / 撞上真碰撞。前两个是导入摘要要报的数字（"1200 个文件，340 个去重命中"），后两个是要高声告警的事件。它们都不是错误，塞进 `error` 语义不对；再开第二个方法则会让远端实现也被迫实现两遍。
 
-- [ ] **Step 7: 提交**
+- [x] **Step 7: 提交**
 
 ```bash
 git add internal/blob/ docs/design/2026-08-22-kist-v0.1-design.md
@@ -1897,7 +1897,7 @@ git commit -m "feat(blob): 本地目录 Store，原子写 + 去重 + 损坏自�
 
 **macOS 上 reflink 优先于硬链接**：硬链接共享 inode，用户就地编辑 `boxes/` 下的文件会直接改坏 blob；reflink 是独立 inode 共享块，没有这个问题。**Windows 上不用符号链接**：它需要管理员权限或开发者模式，硬链接不需要。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 ```go
 package blob
@@ -2000,12 +2000,12 @@ func TestNoSymlinksOnWindows(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `go test ./internal/blob/ -run 'Link' -v`
 Expected: FAIL，`undefined: DetectLinkMode`
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 `internal/blob/link.go`:
 
@@ -2200,12 +2200,12 @@ func reflink(_, _ string) error {
 }
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run: `go test ./internal/blob/ -v`
 Expected: PASS。macOS 上 `TestLinkReproducesContentInEverySupportedMode/reflink` 应当真的跑而不是 skip；Linux ext4 上它会 skip
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 go get golang.org/x/sys
@@ -2237,7 +2237,7 @@ git commit -m "feat(blob): 链接能力真实探测与四级降级"
 | `busy_timeout` | `5000` | 拿不到锁时等待而不是立刻 `SQLITE_BUSY` |
 | `synchronous` | `NORMAL` | WAL 下的推荐值。`FULL` 每次提交都 fsync，导入会慢一个量级；崩溃最多丢最后一个事务，而 blob 已先落盘（spec 3.7） |
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 ```go
 package store
@@ -2329,12 +2329,12 @@ func TestOpenRejectsUnwritablePath(t *testing.T) {
 
 （测试文件顶部的 import 需要 `context`、`database/sql`、`path/filepath`、`testing`。）
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `go test ./internal/store/ -v`
 Expected: FAIL，`undefined: Open`
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 ```go
 // Package store owns the database connection and its schema. Query code lives
@@ -2403,14 +2403,14 @@ func OpenMemory() (*sql.DB, error) {
 }
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run: `go test ./internal/store/ -v`
 Expected: PASS
 
 若 `TestPragmasApplyToEveryPooledConnection` 失败，说明 `_pragma=` 没被驱动接受——先用 `go doc modernc.org/sqlite` 核对当前版本的 DSN 参数名，不要改成"开完连接再 Exec"绕过去。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 go get modernc.org/sqlite
@@ -2729,12 +2729,12 @@ func tryInsertFile(db *sql.DB, box, folder []byte, name, key string) error {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `go test ./internal/store/ -run TestMigrate -v`
 Expected: FAIL，`undefined: Migrate`
 
-- [ ] **Step 3: 写迁移 SQL**
+- [x] **Step 3: 写迁移 SQL**
 
 `internal/store/migrations/00001_init.sql`：
 
@@ -2888,7 +2888,7 @@ DROP TABLE op_boxes;
 DROP TABLE ops;
 ```
 
-- [ ] **Step 4: 写 Migrate**
+- [x] **Step 4: 写 Migrate**
 
 `internal/store/migrate.go`:
 
@@ -2925,12 +2925,12 @@ func Migrate(db *sql.DB) error {
 }
 ```
 
-- [ ] **Step 5: 跑测试确认通过**
+- [x] **Step 5: 跑测试确认通过**
 
 Run: `go test ./internal/store/ -v`
 Expected: PASS
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 go get github.com/pressly/goose/v3
@@ -3064,12 +3064,12 @@ func TestLoadRejectsUnknownLinkMode(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `go test ./internal/config/ -v`
 Expected: FAIL，`undefined: Default`
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 ```go
 // Package config reads and writes kist.toml, the library's configuration.
@@ -3153,12 +3153,12 @@ func Save(path string, c *Config) error {
 }
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run: `go test ./internal/config/ -v`
 Expected: PASS
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 go get github.com/BurntSushi/toml
@@ -3365,12 +3365,12 @@ func TestOpenLayout(t *testing.T) {
 
 （测试文件需要 import `errors`、`github.com/jinzhao1994/kist/internal/config`、`github.com/jinzhao1994/kist/internal/store`。）
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `go test ./internal/library/ -v`
 Expected: FAIL，`undefined: Layout`
 
-- [ ] **Step 3: 写 Layout**
+- [x] **Step 3: 写 Layout**
 
 ```go
 // Package library owns a kist library: its directory layout, and — from M1b
@@ -3415,7 +3415,7 @@ func isLibrary(root string) bool {
 }
 ```
 
-- [ ] **Step 4: 写 Create**
+- [x] **Step 4: 写 Create**
 
 ```go
 package library
@@ -3595,12 +3595,12 @@ func freeSpace(path string) (uint64, bool) {
 }
 ```
 
-- [ ] **Step 5: 跑测试确认通过**
+- [x] **Step 5: 跑测试确认通过**
 
 Run: `go test ./internal/library/ -v`
 Expected: PASS
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add internal/library/

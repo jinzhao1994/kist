@@ -24,7 +24,11 @@ Go 单二进制 + SQLite，Apache-2.0。
 
 **M0 已完成**：LICENSE、双语 README、Makefile、CI/release workflow、issue/PR 模板，以及一个只有 `kist version` 的 CLI 骨架（用来验证四平台单二进制）。
 
-设计已定稿，但**还没有任何实际功能**。下一步是 M1（内核闭环）的实现计划。里程碑拆分见设计文档第 7 节，明确的范围外清单见第 8 节，待决问题见 `open-questions.md`。
+**M1a 已完成**（计划见 `docs/plans/2026-08-22-m1a-storage-kernel.md`）：`domain` 的纯类型（UUIDv7 ID、变精度日期、折叠函数）、`blob` 的内容寻址存储（原子写、去重、损坏自愈、碰撞分支、链接能力探测）、`store` 的连接与 v0.1 全量 schema、`config`、`library.Create`，以及一个能真跑的 `kist init`。
+
+**下一步是 M1b**：op log、`library` 的写入口、`boxes/` 投影，以及 `box new` / `tag` / `import --box` / `ls` / `find` / `relink`。M1a **一条 op 都没写**——现在这个库能建出来、能校验，但还进不去东西。
+
+里程碑拆分见设计文档第 7 节，明确的范围外清单见第 8 节，待决问题见 `open-questions.md`。
 
 ## 约定
 
