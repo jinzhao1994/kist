@@ -3,6 +3,7 @@ module github.com/jinzhao1994/kist
 go 1.26.1
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	github.com/google/uuid v1.6.0
 	github.com/pressly/goose/v3 v3.27.3
 	github.com/spf13/cobra v1.10.2
