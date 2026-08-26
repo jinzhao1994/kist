@@ -6577,3 +6577,1050 @@ git commit -m "feat(library): Rebuild，把不变量 3 变成一条会失败的�
 ```
 
 ---
+
+### Task 13: cmd — box / tag / log / undo
+
+**Files:**
+- Create: `cmd/kist/box.go`, `cmd/kist/tag.go`, `cmd/kist/oplog.go`, `cmd/kist/library.go`
+- Modify: `cmd/kist/root.go`（注册子命令 + `--library` 全局 flag）
+- Test: `cmd/kist/box_test.go`, `cmd/kist/tag_test.go`, `cmd/kist/oplog_test.go`
+
+**Interfaces:**
+- Consumes: `library.Open` 与 Task 10/11 的全部命令方法
+- Produces: `newBoxCmd()` / `newTagCmd()` / `newLogCmd()` / `newUndoCmd()`、`openLibrary(cmd *cobra.Command) (*library.Library, error)`
+
+**命令表：**
+
+```
+kist box new <name> [--start] [--end] [--description]
+kist box list
+kist box edit <box> [--name] [--start] [--end] [--description]
+kist box tag <box> <tag>...
+kist box untag <box> <tag>...
+
+kist tag new <name> [--parent <tag>]
+kist tag tree
+kist tag rename <tag> <new-name>
+kist tag move <tag> --parent <tag>        # --parent "" 移到根
+kist tag rm <tag>
+
+kist log [-n N] [--box <box>]
+kist undo <op-id>
+```
+
+**`kist box list` 和 `kist tag tree` 不在设计文档 7 节的 M1 命令清单里，但没有它们 M1b 无法被人验证**——`undo` 需要 op id，打 tag 需要 box 引用，而 M1c 的 `ls` 是"列一个 box 里的文件"，是另一件事。两条命令加起来不到八十行，且 M1c 不会重写它们。
+
+**`--library` 是全局 flag**，默认 `~/kist`，与 `kist init` 的默认位置一致（spec 3.1）。
+
+**`kist log` 要标出已撤销的行**，这正是 `reverts_id` 提成列的原因（spec 2.2）。
+
+- [ ] **Step 1: 写失败的测试**
+
+`cmd/kist/box_test.go`:
+
+```go
+package main
+
+import (
+	"context"
+	"strings"
+	"testing"
+
+	"github.com/jinzhao1994/kist/internal/library"
+)
+
+// newLibrary makes an initialised library and returns the flag that points at
+// it, so every test drives the real CLI surface.
+func newLibrary(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	if _, err := library.Create(context.Background(), root); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	return "--library=" + root
+}
+
+func TestBoxNewPrintsTheID(t *testing.T) {
+	lib := newLibrary(t)
+
+	out, err := exec(t, lib, "box", "new", "云南 2019")
+	if err != nil {
+		t.Fatalf("box new: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "云南 2019") {
+		t.Errorf("output does not name the box:\n%s", out)
+	}
+	// The id has to be printed: nothing else can reference the box yet.
+	if !strings.Contains(out, "-") || len(strings.TrimSpace(out)) < 36 {
+		t.Errorf("output does not look like it contains an id:\n%s", out)
+	}
+
+	list, err := exec(t, lib, "box", "list")
+	if err != nil {
+		t.Fatalf("box list: %v", err)
+	}
+	if !strings.Contains(list, "云南 2019") {
+		t.Errorf("box list does not show the box:\n%s", list)
+	}
+}
+
+func TestBoxNewWithDates(t *testing.T) {
+	lib := newLibrary(t)
+	out, err := exec(t, lib, "box", "new", "婚礼", "--start", "2019-08-12", "--end", "2019-08-12")
+	if err != nil {
+		t.Fatalf("box new: %v\n%s", err, out)
+	}
+	list, _ := exec(t, lib, "box", "list")
+	if !strings.Contains(list, "2019-08-12") {
+		t.Errorf("box list does not show the date:\n%s", list)
+	}
+}
+
+func TestBoxNewRejectsABadDate(t *testing.T) {
+	lib := newLibrary(t)
+	if _, err := exec(t, lib, "box", "new", "x", "--start", "2019-8"); err == nil {
+		t.Error("a non-zero-padded date was accepted")
+	}
+}
+
+func TestBoxEdit(t *testing.T) {
+	lib := newLibrary(t)
+	exec(t, lib, "box", "new", "before")
+
+	if _, err := exec(t, lib, "box", "edit", "before", "--name", "after"); err != nil {
+		t.Fatalf("box edit: %v", err)
+	}
+	list, _ := exec(t, lib, "box", "list")
+	if strings.Contains(list, "before") || !strings.Contains(list, "after") {
+		t.Errorf("the rename did not take:\n%s", list)
+	}
+}
+
+func TestBoxTagAndUntag(t *testing.T) {
+	lib := newLibrary(t)
+	exec(t, lib, "box", "new", "trip")
+	exec(t, lib, "tag", "new", "云南")
+
+	out, err := exec(t, lib, "box", "tag", "trip", "云南")
+	if err != nil {
+		t.Fatalf("box tag: %v\n%s", err, out)
+	}
+	tree, _ := exec(t, lib, "tag", "tree")
+	if !strings.Contains(tree, "云南") || !strings.Contains(tree, "1") {
+		t.Errorf("tag tree does not show the count:\n%s", tree)
+	}
+
+	if _, err := exec(t, lib, "box", "untag", "trip", "云南"); err != nil {
+		t.Fatalf("box untag: %v", err)
+	}
+}
+
+func TestBoxTagReportsAnAmbiguousName(t *testing.T) {
+	lib := newLibrary(t)
+	exec(t, lib, "box", "new", "重名")
+	exec(t, lib, "box", "new", "重名")
+	exec(t, lib, "tag", "new", "云南")
+
+	_, err := exec(t, lib, "box", "tag", "重名", "云南")
+	if err == nil {
+		t.Fatal("an ambiguous box name was accepted")
+	}
+	if !strings.Contains(err.Error(), "matches") {
+		t.Errorf("error = %q, want it to explain the ambiguity", err)
+	}
+}
+
+func TestCommandsRefuseAMissingLibrary(t *testing.T) {
+	out, err := exec(t, "--library="+t.TempDir(), "box", "list")
+	if err == nil {
+		t.Fatalf("box list on a non-library succeeded:\n%s", out)
+	}
+	if !strings.Contains(err.Error(), "kist init") {
+		t.Errorf("error = %q, want it to point at `kist init`", err)
+	}
+}
+```
+
+`cmd/kist/tag_test.go`:
+
+```go
+package main
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestTagTree(t *testing.T) {
+	lib := newLibrary(t)
+	exec(t, lib, "tag", "new", "地点")
+	exec(t, lib, "tag", "new", "云南", "--parent", "地点")
+	exec(t, lib, "tag", "new", "大理", "--parent", "云南")
+
+	out, err := exec(t, lib, "tag", "tree")
+	if err != nil {
+		t.Fatalf("tag tree: %v", err)
+	}
+	for _, want := range []string{"地点", "云南", "大理"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("tree is missing %q:\n%s", want, out)
+		}
+	}
+	// Depth has to be visible, or a tree view shows nothing a list would not.
+	if strings.Index(out, "大理") < strings.Index(out, "云南") {
+		t.Errorf("children are not printed under their parent:\n%s", out)
+	}
+}
+
+func TestTagNewRejectsADuplicate(t *testing.T) {
+	lib := newLibrary(t)
+	exec(t, lib, "tag", "new", "云南")
+	_, err := exec(t, lib, "tag", "new", "云南")
+	if err == nil {
+		t.Fatal("a duplicate tag name was accepted")
+	}
+	if !strings.Contains(err.Error(), "already") {
+		t.Errorf("error = %q, want it to say the name is taken", err)
+	}
+}
+
+func TestTagRenameAndMove(t *testing.T) {
+	lib := newLibrary(t)
+	exec(t, lib, "tag", "new", "地点")
+	exec(t, lib, "tag", "new", "人物")
+	exec(t, lib, "tag", "new", "云南", "--parent", "地点")
+
+	if _, err := exec(t, lib, "tag", "rename", "云南", "云南省"); err != nil {
+		t.Fatalf("tag rename: %v", err)
+	}
+	if _, err := exec(t, lib, "tag", "move", "云南省", "--parent", "人物"); err != nil {
+		t.Fatalf("tag move: %v", err)
+	}
+
+	out, _ := exec(t, lib, "tag", "tree")
+	if !strings.Contains(out, "云南省") {
+		t.Errorf("tree does not show the renamed tag:\n%s", out)
+	}
+}
+
+func TestTagMoveToRoot(t *testing.T) {
+	lib := newLibrary(t)
+	exec(t, lib, "tag", "new", "地点")
+	exec(t, lib, "tag", "new", "云南", "--parent", "地点")
+
+	if _, err := exec(t, lib, "tag", "move", "云南", "--parent", ""); err != nil {
+		t.Fatalf("tag move to root: %v", err)
+	}
+}
+
+func TestTagRemove(t *testing.T) {
+	lib := newLibrary(t)
+	exec(t, lib, "tag", "new", "临时")
+	if _, err := exec(t, lib, "tag", "rm", "临时"); err != nil {
+		t.Fatalf("tag rm: %v", err)
+	}
+	out, _ := exec(t, lib, "tag", "tree")
+	if strings.Contains(out, "临时") {
+		t.Errorf("the tag is still listed:\n%s", out)
+	}
+}
+
+func TestTagRemoveRefusesWhenInUse(t *testing.T) {
+	lib := newLibrary(t)
+	exec(t, lib, "tag", "new", "云南")
+	exec(t, lib, "box", "new", "trip")
+	exec(t, lib, "box", "tag", "trip", "云南")
+
+	_, err := exec(t, lib, "tag", "rm", "云南")
+	if err == nil {
+		t.Fatal("removing a tag in use succeeded")
+	}
+	if !strings.Contains(err.Error(), "attached") {
+		t.Errorf("error = %q, want it to explain what is still using the tag", err)
+	}
+}
+
+func TestTagMoveRefusesACycle(t *testing.T) {
+	lib := newLibrary(t)
+	exec(t, lib, "tag", "new", "地点")
+	exec(t, lib, "tag", "new", "云南", "--parent", "地点")
+
+	if _, err := exec(t, lib, "tag", "move", "地点", "--parent", "云南"); err == nil {
+		t.Error("a cycle was accepted")
+	}
+}
+```
+
+`cmd/kist/oplog_test.go`:
+
+```go
+package main
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestLog(t *testing.T) {
+	lib := newLibrary(t)
+	exec(t, lib, "box", "new", "一")
+	exec(t, lib, "tag", "new", "云南")
+
+	out, err := exec(t, lib, "log")
+	if err != nil {
+		t.Fatalf("log: %v", err)
+	}
+	for _, want := range []string{"create_box", "create_tag"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("log does not show %q:\n%s", want, out)
+		}
+	}
+	// Newest first, so the tag (written second) appears above the box.
+	if strings.Index(out, "create_tag") > strings.Index(out, "create_box") {
+		t.Errorf("log is not newest-first:\n%s", out)
+	}
+}
+
+func TestLogLimit(t *testing.T) {
+	lib := newLibrary(t)
+	for _, n := range []string{"一", "二", "三", "四"} {
+		exec(t, lib, "box", "new", n)
+	}
+	out, err := exec(t, lib, "log", "-n", "2")
+	if err != nil {
+		t.Fatalf("log: %v", err)
+	}
+	if got := strings.Count(out, "create_box"); got != 2 {
+		t.Errorf("log -n 2 printed %d ops:\n%s", got, out)
+	}
+}
+
+func TestUndoFromTheCLI(t *testing.T) {
+	lib := newLibrary(t)
+	exec(t, lib, "box", "new", "regrettable")
+
+	out, _ := exec(t, lib, "log", "-n", "1")
+	opID := firstField(out)
+	if opID == "" {
+		t.Fatalf("could not read an op id out of:\n%s", out)
+	}
+
+	if _, err := exec(t, lib, "undo", opID); err != nil {
+		t.Fatalf("undo %s: %v", opID, err)
+	}
+	list, _ := exec(t, lib, "box", "list")
+	if strings.Contains(list, "regrettable") {
+		t.Errorf("the box survived the undo:\n%s", list)
+	}
+
+	// spec 2.2: the history panel must be able to show what has been undone,
+	// which is why reverts_id is a column.
+	log, _ := exec(t, lib, "log")
+	if !strings.Contains(log, "undone") {
+		t.Errorf("log does not mark the reverted op:\n%s", log)
+	}
+}
+
+func TestUndoRefusesTwice(t *testing.T) {
+	lib := newLibrary(t)
+	exec(t, lib, "box", "new", "once")
+	out, _ := exec(t, lib, "log", "-n", "1")
+	opID := firstField(out)
+
+	exec(t, lib, "undo", opID)
+	if _, err := exec(t, lib, "undo", opID); err == nil {
+		t.Error("undoing the same op twice succeeded")
+	}
+}
+
+// firstField returns the first whitespace-separated token of the first
+// non-empty line, which is where `kist log` puts the op id.
+func firstField(s string) string {
+	for _, line := range strings.Split(s, "\n") {
+		if fields := strings.Fields(line); len(fields) > 0 {
+			return fields[0]
+		}
+	}
+	return ""
+}
+```
+
+- [ ] **Step 2: 跑测试确认失败**
+
+Run: `go test ./cmd/kist/ -v`
+Expected: FAIL，`unknown command "box"`
+
+- [ ] **Step 3: 加 `--library` 全局 flag 与打开助手**
+
+`cmd/kist/library.go`:
+
+```go
+package main
+
+import (
+	"errors"
+	"fmt"
+
+	"github.com/spf13/cobra"
+
+	"github.com/jinzhao1994/kist/internal/library"
+)
+
+// libraryFlag is the value of --library, shared by every command that needs an
+// open library.
+var libraryFlag string
+
+// openLibrary resolves --library and opens it.
+//
+// The error when the path is not a library names `kist init`, because that is
+// the next thing the user has to do and making them go look it up is a small
+// unkindness that a self-hosted tool cannot afford to repeat.
+func openLibrary(cmd *cobra.Command) (*library.Library, error) {
+	path := libraryFlag
+	if path == "" {
+		def, err := defaultLibraryPath()
+		if err != nil {
+			return nil, err
+		}
+		path = def
+	}
+	path, err := expandHome(path)
+	if err != nil {
+		return nil, err
+	}
+
+	l, err := library.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("%w\n\nIf you have not made a library yet, run: kist init", err)
+	}
+	return l, nil
+}
+
+// errSilent lets a command fail without cobra printing usage on top of an
+// error that is already a complete sentence.
+var errSilent = errors.New("")
+```
+
+在 `cmd/kist/root.go` 的 `newRootCmd` 里加：
+
+```go
+	root.PersistentFlags().StringVar(&libraryFlag, "library", "",
+		"path to the kist library (default ~/kist)")
+
+	root.AddCommand(newInitCmd())
+	root.AddCommand(newBoxCmd())
+	root.AddCommand(newTagCmd())
+	root.AddCommand(newLogCmd())
+	root.AddCommand(newUndoCmd())
+	root.AddCommand(newVersionCmd())
+```
+
+- [ ] **Step 4: 实现 box 子命令**
+
+`cmd/kist/box.go`:
+
+```go
+package main
+
+import (
+	"fmt"
+	"text/tabwriter"
+
+	"github.com/spf13/cobra"
+
+	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/library"
+	"github.com/jinzhao1994/kist/internal/oplog"
+	"github.com/jinzhao1994/kist/internal/store"
+)
+
+func newBoxCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "box",
+		Short: "Create and edit boxes",
+		Long: `A box is one activity, one trip, one batch of paperwork — the unit
+everything else hangs off.`,
+	}
+	cmd.AddCommand(newBoxNewCmd(), newBoxListCmd(), newBoxEditCmd(), newBoxTagCmd(), newBoxUntagCmd())
+	return cmd
+}
+
+// parseDate turns a flag value into a variable-precision date. An empty string
+// means "not set", which is a legitimate state (spec 1.3).
+func parseDate(s string) (domain.LocalDate, error) {
+	if s == "" {
+		return domain.LocalDate{}, nil
+	}
+	return domain.ParseLocalDate(s)
+}
+
+func newBoxNewCmd() *cobra.Command {
+	var start, end, description string
+
+	cmd := &cobra.Command{
+		Use:   "new <name>",
+		Short: "Create a box",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			l, err := openLibrary(cmd)
+			if err != nil {
+				return err
+			}
+			defer l.Close()
+
+			startAt, err := parseDate(start)
+			if err != nil {
+				return err
+			}
+			endAt, err := parseDate(end)
+			if err != nil {
+				return err
+			}
+
+			b, err := l.CreateBox(cmd.Context(), args[0], description, startAt, endAt)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "%s  %s\n", b.ID, b.Name)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&start, "start", "", "when it started: 2019, 2019-08, 2019-08-12, or 2019-08-12T14:30")
+	cmd.Flags().StringVar(&end, "end", "", "when it ended, same forms as --start")
+	cmd.Flags().StringVar(&description, "description", "", "a note about this box")
+	return cmd
+}
+
+func newBoxListCmd() *cobra.Command {
+	var byName bool
+
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List boxes",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			l, err := openLibrary(cmd)
+			if err != nil {
+				return err
+			}
+			defer l.Close()
+
+			boxes, err := l.Boxes(cmd.Context(), store.ListBoxesOptions{SortByName: byName})
+			if err != nil {
+				return err
+			}
+			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
+			for _, b := range boxes {
+				when := b.StartAt.String()
+				if when == "" {
+					when = "-"
+				}
+				fmt.Fprintf(w, "%s\t%s\t%s\n", b.ID, when, b.Name)
+			}
+			return w.Flush()
+		},
+	}
+	// Default is most-recently-active first; --sort-name is byte order
+	// (spec 4.8).
+	cmd.Flags().BoolVar(&byName, "sort-name", false, "sort by name instead of recent activity")
+	return cmd
+}
+
+func newBoxEditCmd() *cobra.Command {
+	var name, start, end, description string
+
+	cmd := &cobra.Command{
+		Use:   "edit <box>",
+		Short: "Change a box's name, dates or note",
+		Long:  "<box> is an id, an id prefix, or an exact name.",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			l, err := openLibrary(cmd)
+			if err != nil {
+				return err
+			}
+			defer l.Close()
+
+			b, err := l.ResolveBox(cmd.Context(), args[0])
+			if err != nil {
+				return err
+			}
+
+			// Unset flags keep the current value, so editing one field does
+			// not quietly blank the others.
+			fields := oplog.BoxFields{
+				Name: b.Name, Description: b.Description, StartAt: b.StartAt, EndAt: b.EndAt,
+			}
+			if cmd.Flags().Changed("name") {
+				fields.Name = name
+			}
+			if cmd.Flags().Changed("description") {
+				fields.Description = description
+			}
+			if cmd.Flags().Changed("start") {
+				if fields.StartAt, err = parseDate(start); err != nil {
+					return err
+				}
+			}
+			if cmd.Flags().Changed("end") {
+				if fields.EndAt, err = parseDate(end); err != nil {
+					return err
+				}
+			}
+
+			updated, err := l.UpdateBox(cmd.Context(), b.ID, fields)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "%s  %s\n", updated.ID, updated.Name)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&name, "name", "", "new name")
+	cmd.Flags().StringVar(&start, "start", "", "new start date, or empty to clear")
+	cmd.Flags().StringVar(&end, "end", "", "new end date, or empty to clear")
+	cmd.Flags().StringVar(&description, "description", "", "new note")
+	return cmd
+}
+
+func newBoxTagCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "tag <box> <tag>...",
+		Short: "Attach tags to a box",
+		Args:  cobra.MinimumNArgs(2),
+		RunE:  func(cmd *cobra.Command, args []string) error { return runBoxTag(cmd, args, true) },
+	}
+}
+
+func newBoxUntagCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "untag <box> <tag>...",
+		Short: "Remove tags from a box",
+		Args:  cobra.MinimumNArgs(2),
+		RunE:  func(cmd *cobra.Command, args []string) error { return runBoxTag(cmd, args, false) },
+	}
+}
+
+func runBoxTag(cmd *cobra.Command, args []string, attach bool) error {
+	l, err := openLibrary(cmd)
+	if err != nil {
+		return err
+	}
+	defer l.Close()
+
+	b, err := l.ResolveBox(cmd.Context(), args[0])
+	if err != nil {
+		return err
+	}
+
+	// One op per tag: a batch op carries one tag and many boxes (spec 2.2.1),
+	// so tagging one box with three tags is three ops. The CLI shape here is
+	// the mirror image of the batching the data model is built for; the web UI
+	// will use the other direction.
+	for _, ref := range args[1:] {
+		tag, err := l.ResolveTag(ref)
+		if err != nil {
+			return err
+		}
+		var n int
+		if attach {
+			n, err = l.TagBoxes(cmd.Context(), tag.ID, []domain.BoxID{b.ID})
+		} else {
+			n, err = l.UntagBoxes(cmd.Context(), tag.ID, []domain.BoxID{b.ID})
+		}
+		if err != nil {
+			return err
+		}
+		verb := "already had"
+		if n > 0 && attach {
+			verb = "tagged"
+		} else if n > 0 {
+			verb = "untagged"
+		} else if !attach {
+			verb = "did not have"
+		}
+		fmt.Fprintf(cmd.OutOrStdout(), "%s %s %s\n", b.Name, verb, tag.Name)
+	}
+	return nil
+}
+
+var _ = library.ErrNoSuchBox // errors flow through unchanged; this keeps the import honest
+```
+
+- [ ] **Step 5: 实现 tag 子命令**
+
+`cmd/kist/tag.go`:
+
+```go
+package main
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/spf13/cobra"
+
+	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/library"
+)
+
+func newTagCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "tag",
+		Short: "Manage the tag tree",
+		Long: `Tags cut across boxes. Names are unique across the whole tree, so a
+tag can be referred to by name from anywhere.`,
+	}
+	cmd.AddCommand(newTagNewCmd(), newTagTreeCmd(), newTagRenameCmd(), newTagMoveCmd(), newTagRemoveCmd())
+	return cmd
+}
+
+func newTagNewCmd() *cobra.Command {
+	var parent string
+
+	cmd := &cobra.Command{
+		Use:   "new <name>",
+		Short: "Create a tag",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			l, err := openLibrary(cmd)
+			if err != nil {
+				return err
+			}
+			defer l.Close()
+
+			var parentID *domain.TagID
+			if parent != "" {
+				p, err := l.ResolveTag(parent)
+				if err != nil {
+					return err
+				}
+				parentID = &p.ID
+			}
+
+			tag, err := l.CreateTag(cmd.Context(), args[0], parentID)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "%s  %s\n", tag.ID, tag.Name)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&parent, "parent", "", "put it under this tag")
+	return cmd
+}
+
+func newTagTreeCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "tree",
+		Short: "Show the tag tree",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			l, err := openLibrary(cmd)
+			if err != nil {
+				return err
+			}
+			defer l.Close()
+
+			tree := l.Tags()
+			var print func(tags []domain.Tag, depth int)
+			print = func(tags []domain.Tag, depth int) {
+				for _, tag := range tags {
+					// The count is the subtree total, which is what the tag
+					// selector will show later (spec 1.6).
+					fmt.Fprintf(cmd.OutOrStdout(), "%s%s (%d)\n",
+						strings.Repeat("  ", depth), tag.Name, tree.Count(tag.ID))
+					print(tree.Children(tag.ID), depth+1)
+				}
+			}
+			print(tree.Roots(), 0)
+			return nil
+		},
+	}
+}
+
+func newTagRenameCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "rename <tag> <new-name>",
+		Short: "Rename a tag",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			l, err := openLibrary(cmd)
+			if err != nil {
+				return err
+			}
+			defer l.Close()
+
+			tag, err := l.ResolveTag(args[0])
+			if err != nil {
+				return err
+			}
+			if err := l.RenameTag(cmd.Context(), tag.ID, args[1]); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "%s is now %s\n", tag.Name, args[1])
+			return nil
+		},
+	}
+}
+
+func newTagMoveCmd() *cobra.Command {
+	var parent string
+
+	cmd := &cobra.Command{
+		Use:   "move <tag> --parent <tag>",
+		Short: "Move a tag under a different parent",
+		Long:  `Pass --parent "" to move it to the top level.`,
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if !cmd.Flags().Changed("parent") {
+				return fmt.Errorf("--parent is required; pass --parent \"\" to move it to the top level")
+			}
+			l, err := openLibrary(cmd)
+			if err != nil {
+				return err
+			}
+			defer l.Close()
+
+			tag, err := l.ResolveTag(args[0])
+			if err != nil {
+				return err
+			}
+			var parentID *domain.TagID
+			if parent != "" {
+				p, err := l.ResolveTag(parent)
+				if err != nil {
+					return err
+				}
+				parentID = &p.ID
+			}
+			if err := l.MoveTag(cmd.Context(), tag.ID, parentID); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "moved %s\n", tag.Name)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&parent, "parent", "", "the new parent, or \"\" for the top level")
+	return cmd
+}
+
+func newTagRemoveCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "rm <tag>",
+		Short: "Delete a tag",
+		Long: `Only tags with no children and nothing attached can be deleted.
+kist does not cascade: losing a whole branch of your classification to one
+mistyped command is not a recoverable kind of mistake.`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			l, err := openLibrary(cmd)
+			if err != nil {
+				return err
+			}
+			defer l.Close()
+
+			tag, err := l.ResolveTag(args[0])
+			if err != nil {
+				return err
+			}
+			if err := l.DeleteTag(cmd.Context(), tag.ID); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "deleted %s\n", tag.Name)
+			return nil
+		},
+	}
+}
+
+var _ = library.ErrNoSuchTag
+```
+
+- [ ] **Step 6: 实现 log 与 undo**
+
+`cmd/kist/oplog.go`:
+
+```go
+package main
+
+import (
+	"fmt"
+	"strconv"
+	"text/tabwriter"
+
+	"github.com/spf13/cobra"
+
+	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/store"
+)
+
+func newLogCmd() *cobra.Command {
+	var (
+		limit int
+		box   string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "log",
+		Short: "Show what has happened to this library",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			l, err := openLibrary(cmd)
+			if err != nil {
+				return err
+			}
+			defer l.Close()
+
+			opt := store.ListOpsOptions{Limit: limit}
+			if box != "" {
+				b, err := l.ResolveBox(cmd.Context(), box)
+				if err != nil {
+					return err
+				}
+				id := domain.BoxID(b.ID)
+				opt.Box = &id
+			}
+
+			ops, err := l.Ops(cmd.Context(), opt)
+			if err != nil {
+				return err
+			}
+
+			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
+			for _, op := range ops {
+				// Marking reverted ops is what reverts_id being an indexed
+				// column is for (spec 2.2).
+				status := ""
+				if by, ok, err := l.RevertedBy(cmd.Context(), op.ID); err == nil && ok {
+					status = fmt.Sprintf("(undone by %d)", by)
+				}
+				if op.RevertsID != nil {
+					status = fmt.Sprintf("(undoes %d)", *op.RevertsID)
+				}
+				fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\n",
+					op.ID, op.TS.Format("2006-01-02 15:04:05"), op.Action, op.Source, status)
+			}
+			return w.Flush()
+		},
+	}
+	cmd.Flags().IntVarP(&limit, "limit", "n", 20, "how many ops to show")
+	cmd.Flags().StringVar(&box, "box", "", "only ops that touched this box")
+	return cmd
+}
+
+func newUndoCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "undo <op-id>",
+		Short: "Undo an operation",
+		Long: `Undo appends the inverse of an operation; it does not erase anything.
+The undo is itself an operation and can be undone in turn.
+
+If later changes touched the same things, the undo is refused rather than
+partly applied, and the operation in the way is named.`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			opID, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return fmt.Errorf("%q is not an operation id; `kist log` lists them", args[0])
+			}
+			l, err := openLibrary(cmd)
+			if err != nil {
+				return err
+			}
+			defer l.Close()
+
+			undoID, err := l.Undo(cmd.Context(), opID)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "op %d undone by op %d\n", opID, undoID)
+			return nil
+		},
+	}
+}
+```
+
+- [ ] **Step 7: 跑全部测试**
+
+Run: `make check`
+Expected: PASS
+
+- [ ] **Step 8: 手工走一遍完整流程**
+
+```bash
+rm -rf /tmp/kist-m1b && go run ./cmd/kist init /tmp/kist-m1b --yes
+L="--library=/tmp/kist-m1b"
+go run ./cmd/kist $L tag new 地点
+go run ./cmd/kist $L tag new 云南 --parent 地点
+go run ./cmd/kist $L box new "云南 2019" --start 2019-08
+go run ./cmd/kist $L box tag "云南 2019" 云南
+go run ./cmd/kist $L tag tree          # 云南 (1) 在 地点 (1) 下面
+go run ./cmd/kist $L box list
+go run ./cmd/kist $L log
+go run ./cmd/kist $L undo <打标那条的 id>
+go run ./cmd/kist $L tag tree          # 云南 (0)
+go run ./cmd/kist $L log               # 打标那条标着 (undone by N)
+```
+
+- [ ] **Step 9: 四平台交叉编译**
+
+```bash
+for p in darwin/arm64 darwin/amd64 linux/amd64 windows/amd64; do
+  GOOS=${p%/*} GOARCH=${p#*/} CGO_ENABLED=0 go vet ./... && echo "ok $p"
+done
+```
+
+- [ ] **Step 10: 更新 README 与 AGENTS.md**
+
+`README.md` 的状态段落改成：`kist init` 建库、`box` / `tag` 能用、每一步都能撤销，但还没法放文件进去（`import` 是 M1c）。`README.zh-CN.md` 同步。`AGENTS.md` 的「当前状态」改成 M1b 完成、下一步 M1c。
+
+- [ ] **Step 11: 提交**
+
+```bash
+git add .
+git commit -m "feat(cli): box / tag / log / undo
+
+box list 和 tag tree 不在设计文档 7 节的 M1 命令清单里，但没有它们
+M1b 没法被人验证——undo 要 op id，打 tag 要 box 引用。M1c 的 ls 是
+'列一个 box 里的文件'，是另一件事，不会重写这两条。
+
+box edit 只改传了的 flag：编辑一个字段不该悄悄清空其他字段。"
+```
+
+---
+
+## 自查
+
+**1. Spec 覆盖。** M1b 认领的是 spec 2.1–2.6（op log 内核）、1.5.1（`updated_at`）、1.6（tag 树）的一部分。逐条对照：
+
+| spec | 落在哪 |
+|---|---|
+| 2.1 CQRS 拆分、物化视图可重建 | Task 4 `ClearViews` + Task 12 `Rebuild` |
+| 2.2 ops 表、action 是开放 TEXT、`source` vs `actor` | Task 2 `Action` / `Source`、Task 3 `AppendOp` |
+| 2.2 `reverts_id` 是列 | Task 3 `RevertedBy`、Task 13 `log` 标注已撤销 |
+| 2.2.1 payload 与索引表、批量粒度 | Task 2 `Targets` 接口、Task 7 批量 handler |
+| 2.3 `Apply` / `Inverse`、payload 自带 before | Task 5 / 6 / 7 |
+| 2.3.1 `Apply` 是纯函数 + 重建确定性 | Task 2 `Tx` 接口（结构性保障）+ Task 12（测试） |
+| 2.4 撤销 = 追加反向 op | Task 11 |
+| 2.5 严格模式 + 说出是哪条 op 挡住 | Task 5 `ErrStaleBefore`、Task 11 `explainBlockedUndo` |
+| 2.6 `library` 是唯一写入口 | Task 8（`write` 私有）+ Task 5 Step 7 的依赖方向检查 |
+| 1.5.1 `updated_at` 四条规则 | ① Task 4 `ViewTx.TS()`；② Task 8 写路径；③ Task 4 `TouchBoxes` 去重；④ Task 5 只比对语义字段 |
+| 1.6 tag 树全局唯一、内存树、移动 O(1)、删除拒绝级联 | Task 6 / Task 9 / Task 10 |
+| 1.6.1 `source` 区分 user 与 derived | Task 7（进 payload） |
+| 3.1 `kist init` | M1a 已完成 |
+
+**未覆盖且是有意的：** `scope='tags'` 列（M5 历史 UI 才需要，schema 里还没有）、反向重放 K 步的 `kist replay`（M1 清单里没有，`Inverse` 的机器已经在了）、`file_tags` 相关的一切（M1c 才有文件）。
+
+**2. 占位符扫描。** 已检查 `TBD` / `TODO` / `待补` / `类似 Task N`——无。每个 code step 都有完整可粘贴的代码。
+
+**3. 类型一致性。**
+
+- `oplog.Tx` 在 Task 2 定义，Task 4 的 `store.ViewTx` 实现，Task 5 的 `fakeTx` 也实现，两处都有 `var _ Tx = ...` 的编译期断言
+- `CountBoxTags` 在 Task 2 的接口里、Task 4 的实现里、Task 5 的 fake 里都在
+- `Handler.Inverse` 三处签名一致：`(Action, []byte, error)`
+- payload 类型名在 `oplog`（定义）、`library`（构造）、测试（断言）三处一致
+- `store.OpRow` ↔ `oplog.Op` 的转换只在 `library.toOp` / `toOpRow` 一处
+
+**4. 执行依赖。** Task 1–2 无依赖，可并行。Task 3–4 依赖 Task 1。Task 5–7 依赖 Task 2，三者之间互相独立可并行。Task 8 依赖 3/4/5-7 全部。Task 9 与 Task 8 有循环引用（`Open` 要 `LoadTagTree`，测试 helper 又在 `write_test.go`）——**按 8 → 9 的顺序写，但 Task 8 的 Step 5 要放到 Task 9 之后再跑**，计划里已经标注。Task 10 依赖 8+9，Task 11 依赖 10，Task 12 依赖 11（fixture 用到 `Undo`），Task 13 依赖全部。
+
+**5. 一处刻意的取舍。** `cmd/kist/box.go` 和 `tag.go` 里有两行 `var _ = library.ErrNoSuchBox` 形式的语句，纯粹为了让 import 有用处——错误是原样往上冒的，CLI 不做包装。如果实现时发现这两行确实多余（比如因为别的用途已经 import 了 `library`），删掉即可，不必保留。
