@@ -4173,8 +4173,15 @@ func toOpRow(o oplog.Op) store.OpRow {
 	}
 }
 
-var _ = fmt.Sprintf // keep fmt imported for the error paths added in later tasks
+// store.ViewTx satisfies oplog.Tx structurally — store does not import oplog,
+// so neither package can state that relationship. library is where the two
+// meet, so this is the only place the compiler can be asked to check it.
+// Without this line, a missing method would surface as a confusing error deep
+// inside write() instead of right here.
+var _ oplog.Tx = (*store.ViewTx)(nil)
 ```
+
+（`library.go` 不 import `fmt`——它的错误都是直接往上冒的。）
 
 - [ ] **Step 4: 实现写路径**
 
@@ -6958,7 +6965,6 @@ Expected: FAIL，`unknown command "box"`
 package main
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -6995,11 +7001,9 @@ func openLibrary(cmd *cobra.Command) (*library.Library, error) {
 	}
 	return l, nil
 }
-
-// errSilent lets a command fail without cobra printing usage on top of an
-// error that is already a complete sentence.
-var errSilent = errors.New("")
 ```
+
+（`library.go` 只 import `fmt`、`cobra` 和 `internal/library`。）
 
 在 `cmd/kist/root.go` 的 `newRootCmd` 里加：
 
@@ -7477,8 +7481,7 @@ func newLogCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				id := domain.BoxID(b.ID)
-				opt.Box = &id
+				opt.Box = &b.ID
 			}
 
 			ops, err := l.Ops(cmd.Context(), opt)
@@ -7615,7 +7618,7 @@ box edit 只改传了的 flag：编辑一个字段不该悄悄清空其他字段
 
 **3. 类型一致性。**
 
-- `oplog.Tx` 在 Task 2 定义，Task 4 的 `store.ViewTx` 实现，Task 5 的 `fakeTx` 也实现，两处都有 `var _ Tx = ...` 的编译期断言
+- `oplog.Tx` 在 Task 2 定义，由 Task 4 的 `store.ViewTx` 和 Task 5 的 `fakeTx` 分别实现。**两者的断言写法不同**：`fakeTx` 在 `oplog` 包内，可以直接 `var _ Tx = (*fakeTx)(nil)`；`store.ViewTx` 不行——`store` 不 import `oplog`，那正是这套依赖方向的核心，所以断言只能写在 `library` 里（`var _ oplog.Tx = (*store.ViewTx)(nil)`，见 Task 8）。少了这一行，缺一个方法会在 `write()` 深处报一个难懂的错，而不是在断言那一行
 - `CountBoxTags` 在 Task 2 的接口里、Task 4 的实现里、Task 5 的 fake 里都在
 - `Handler.Inverse` 三处签名一致：`(Action, []byte, error)`
 - payload 类型名在 `oplog`（定义）、`library`（构造）、测试（断言）三处一致
