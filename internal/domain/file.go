@@ -16,10 +16,14 @@ var ErrNoBlobKey = errors.New("file has no blob key")
 // anything else in this repository — blob.Key is a named string type, so the
 // conversion at the boundary costs nothing.
 //
-// CapturedAt is the photo's own idea of when it was taken: variable-precision
-// local wall time with no timezone (spec 1.3), extracted from EXIF in M3. It
-// is empty for every file until then, and files with no CapturedAt sort last
-// (spec 4.5.1).
+// CapturedAt is when the photo was taken, as a unix instant. It is empty for
+// every file until the extraction pipeline fills it in (M3), and files with no
+// CapturedAt sort last (spec 4.5.1).
+//
+// It is a conclusion, not an observation: the kernel resolves it from several
+// metadata rows (EXIF's DateTimeOriginal, a video's creation time, file:mtime)
+// plus a timezone, and records the result here (spec 1.5.2). No extractor sets
+// it, which is a trust boundary as much as a layering one.
 type File struct {
 	ID         FileID
 	BoxID      BoxID
@@ -27,7 +31,7 @@ type File struct {
 	Name       string
 	NameFold   string
 	BlobKey    string
-	CapturedAt LocalDate
+	CapturedAt Instant
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }

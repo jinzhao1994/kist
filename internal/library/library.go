@@ -34,6 +34,9 @@ type Library struct {
 	// dirs caches each box's projected directory name, so a write can tell a
 	// rename (move the directory, O(1)) from a first projection (build it).
 	dirs map[domain.BoxID]string
+	// loc is the library's timezone, resolved once at Open. It interprets a
+	// date range against capture instants and renders one back (spec 1.5.2).
+	loc *time.Location
 }
 
 // hooks are test seams.
@@ -83,6 +86,9 @@ func Open(root string, opts ...Option) (*Library, error) {
 		opt(l)
 	}
 
+	if l.loc, err = cfg.Library.Zone(); err != nil {
+		return nil, err
+	}
 	if l.db, err = store.Open(layout.DB()); err != nil {
 		return nil, err
 	}
@@ -121,6 +127,10 @@ func (l *Library) Layout() Layout { return l.layout }
 
 // Tags is the in-memory tag tree.
 func (l *Library) Tags() *TagTree { return l.tags }
+
+// zone is the library's configured timezone (spec 1.5.2). It interprets a date
+// range against capture instants and renders one back.
+func (l *Library) zone() *time.Location { return l.loc }
 
 // Box reads one box.
 func (l *Library) Box(ctx context.Context, id domain.BoxID) (domain.Box, bool, error) {

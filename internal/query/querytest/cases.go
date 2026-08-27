@@ -245,12 +245,35 @@ func cases() []testCase {
 		requireSet(t, got, "passport.jpg", "IMG_1.jpg")
 	})
 
-	add("a coarse value overlapping the range matches", simple, func(t *testing.T, b Backend, f *Builder) {
-		// contract.PDF is known only as "2015". A search for March 2015
-		// overlaps it, and overlap is the rule (spec 4.2.1): for an archive,
-		// a false positive beats a false negative.
+	add("a file's capture time is contained, not overlapped", simple, func(t *testing.T, b Backend, f *Builder) {
+		// contract.PDF's capture time is an instant (spec 1.5.2), and the
+		// fixture puts it at the start of 2015. March does not contain it.
+		//
+		// This case used to assert the opposite: a file "known only as 2015"
+		// overlapped March, because a file's capture time was a
+		// variable-precision LocalDate like a box's. Making it an instant is
+		// what changed the answer — a real instant is not fuzzy, so there is
+		// nothing for a range to overlap with.
+		//
+		// The overlap rule did not go away; it moved to where it is true. A
+		// box start_at is an interval a person declared, and a box known only
+		// as "2019" really does overlap March 2019.
 		got := run(t, b, query.Query{Time: &query.DateRange{From: mustDate("2015-03"), To: mustDate("2015-04")}})
+		requireSet(t, got)
+
+		got = run(t, b, query.Query{Time: &query.DateRange{From: mustDate("2015-01"), To: mustDate("2015-02")}})
 		requireSet(t, got, "contract.PDF")
+	})
+
+	add("range ends are inclusive", simple, func(t *testing.T, b Backend, f *Builder) {
+		// passport.jpg is at the start of 2019-08-12. Asking for exactly that
+		// day must find it, in both directions of the bound — an archive
+		// where "the 12th" excludes something taken on the 12th is one people
+		// stop trusting.
+		got := run(t, b, query.Query{Time: &query.DateRange{
+			From: mustDate("2019-08-12"), To: mustDate("2019-08-12"),
+		}})
+		requireSet(t, got, "passport.jpg", "IMG_1.jpg")
 	})
 
 	add("a range entirely before the values matches nothing", simple, func(t *testing.T, b Backend, f *Builder) {

@@ -8,6 +8,7 @@ import (
 	"go/token"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/oplog"
@@ -77,7 +78,7 @@ func busyLibrary(t *testing.T) *Library {
 
 	// Tag some of those files, so file_tags is covered too — and untag one, so
 	// the replay handles both directions.
-	imported, _, err := store.ListFiles(l.db, query.Query{Boxes: []domain.BoxID{boxes[1]}})
+	imported, _, err := store.ListFiles(l.db, query.Query{Boxes: []domain.BoxID{boxes[1]}}, time.UTC)
 	if err != nil {
 		t.Fatal(err)
 	}

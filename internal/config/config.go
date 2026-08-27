@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/BurntSushi/toml"
 
@@ -40,6 +41,35 @@ type Library struct {
 	// op ids become (instance_id, seq) when devices start syncing (spec 3.12),
 	// and minting it at init is free while backfilling it later is not.
 	ID domain.ID `toml:"id"`
+
+	// Timezone is the IANA name this library assumes when a file's capture
+	// time carries no zone of its own — a scan, a screenshot, an old camera
+	// (spec 1.5.2).
+	//
+	// It is written out at init rather than left empty, for the same reason
+	// 3.5 writes the link mode out: an empty value means "whatever this
+	// machine says", and this one decides the order the user sees. Opening
+	// the same library on a laptop set to UTC must not reorder it.
+	//
+	// Empty falls back to the machine's zone, so a hand-written config that
+	// omits it still works.
+	Timezone string `toml:"timezone,omitempty"`
+}
+
+// Zone resolves Timezone, falling back to the machine's.
+//
+// A name that will not load is an error rather than a silent fallback: a
+// library configured for Asia/Shanghai that quietly behaved as UTC because
+// the tzdata was missing would reorder every photo without saying so.
+func (l Library) Zone() (*time.Location, error) {
+	if l.Timezone == "" {
+		return time.Local, nil
+	}
+	loc, err := time.LoadLocation(l.Timezone)
+	if err != nil {
+		return nil, fmt.Errorf("library timezone %q: %w", l.Timezone, err)
+	}
+	return loc, nil
 }
 
 type Storage struct {

@@ -280,7 +280,8 @@ func (v *ViewTx) HasBoxTag(box domain.BoxID, tag domain.TagID) (bool, error) {
 // touched either would turn `kist rebuild` into data loss.
 func ClearViews(tx *sql.Tx) error {
 	for _, table := range []string{
-		"box_tags", "file_tags", "tag_rejections", "metadata",
+		"box_tags", "file_tags", "tag_rejections",
+		"file_metadata", "file_extractions",
 		"files", "folders", "boxes", "tags",
 	} {
 		if _, err := tx.Exec(`DELETE FROM ` + table); err != nil {

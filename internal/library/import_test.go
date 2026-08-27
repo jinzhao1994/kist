@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/query"
@@ -44,7 +45,7 @@ func writeTree(t *testing.T, files map[string]string) string {
 
 func listAll(t *testing.T, l *Library, box domain.BoxID) []domain.File {
 	t.Helper()
-	got, _, err := store.ListFiles(l.db, query.Query{Boxes: []domain.BoxID{box}})
+	got, _, err := store.ListFiles(l.db, query.Query{Boxes: []domain.BoxID{box}}, time.UTC)
 	if err != nil {
 		t.Fatal(err)
 	}

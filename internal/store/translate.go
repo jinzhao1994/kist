@@ -3,6 +3,7 @@ package store
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/query"
@@ -18,14 +19,16 @@ const maxParameters = 32766
 
 // translate turns a Query into a WHERE fragment and its arguments.
 //
-// It is a pure function of the query — same query in, same SQL out — so it can
-// be tested exhaustively without a database. That division matters: this file
+// It is a pure function of its arguments — same query and zone in, same SQL
+// out — so it can be tested exhaustively without a database. The zone is an
+// argument for that reason as much as for spec 4.7's: a translator that read
+// the process's local zone would not be pure. That division matters: this file
 // is tested for the shape of what it emits, and the conformance suite is
 // tested for what the results mean. Neither can stand in for the other.
 //
 // Every condition it emits starts with " AND ", so callers append it to a
 // "WHERE 1 = 1".
-func translate(q query.Query) (string, []any, error) {
+func translate(q query.Query, zone *time.Location) (string, []any, error) {
 	if err := q.Validate(); err != nil {
 		return "", nil, err
 	}
@@ -58,7 +61,10 @@ func translate(q query.Query) (string, []any, error) {
 		args = append(args, "%"+escapeLike(domain.Fold(q.Text))+"%")
 	}
 	if q.Time != nil {
-		frag, targs := timePredicate("captured_at", *q.Time)
+		frag, targs, err := timePredicate("captured_at", *q.Time, zone)
+		if err != nil {
+			return "", nil, err
+		}
 		sb.WriteString(frag)
 		args = append(args, targs...)
 	}
@@ -131,26 +137,23 @@ func joinPredicates(children []query.TagExpr, op, empty string) (string, []any) 
 	return "(" + strings.Join(parts, op) + ")", args
 }
 
-// timePredicate matches variable-precision values that overlap a range.
+// timePredicate matches capture instants inside a range.
 //
-// Values are stored as ISO-8601 prefixes (spec 1.3), so a value denotes an
-// interval: "2019" is the whole of 2019. Overlap rather than containment is
-// the decision in spec 4.2.1 — an archive exists to help you find things, so a
-// box known only to be "2019" should turn up in a search for spring 2019.
+// The range the caller gave is a variable-precision LocalDate — "2019",
+// "2019-08" — and it is turned into two instants here, in zone. What it is
+// does not matter to the shape of the predicate; that it is a *parameter*
+// does. Reading time.Local would make the same query return different rows on
+// two machines, and spec 4.7 is about exactly that class of divergence.
 //
-// Both halves fall out of prefix ordering:
-//
-//   - the value's interval starts at or before the upper bound  ⟺  value <= hi
-//   - the value's interval ends at or after the lower bound     ⟺  value >= the
-//     first length(value) characters of lo — compare only as far as the value's
-//     own precision goes, which is exactly what "we only know this much" means
-//
-// NULL is excluded explicitly. A file with no capture time is in no range
-// (spec 4.2.1), and leaving that to NULL comparison semantics would make the
-// answer depend on the engine.
-func timePredicate(column string, r query.DateRange) (string, []any) {
+// This used to be a string overlap against a variable-precision column
+// (value <= hi AND value >= substr(lo, 1, length(value))), because a file's
+// capture time used to be a LocalDate too. Spec 1.5.2 made it an instant, so
+// the overlap degenerates into containment — and the predicate gets simpler
+// rather than more complex. Box dates keep the overlap: those are intervals a
+// person declared, and a box known only as "2019" really does overlap March.
+func timePredicate(column string, r query.DateRange, zone *time.Location) (string, []any, error) {
 	if r.From.IsZero() && r.To.IsZero() {
-		return "", nil
+		return "", nil, nil
 	}
 	var (
 		sb   strings.Builder
@@ -158,12 +161,32 @@ func timePredicate(column string, r query.DateRange) (string, []any) {
 	)
 	sb.WriteString(` AND ` + column + ` IS NOT NULL`)
 	if !r.To.IsZero() {
+		hi, err := instantAt(r.To.End(), zone)
+		if err != nil {
+			return "", nil, err
+		}
 		sb.WriteString(` AND ` + column + ` <= ?`)
-		args = append(args, r.To.End())
+		args = append(args, hi)
 	}
 	if !r.From.IsZero() {
-		sb.WriteString(` AND ` + column + ` >= substr(?, 1, length(` + column + `))`)
-		args = append(args, r.From.Start())
+		lo, err := instantAt(r.From.Start(), zone)
+		if err != nil {
+			return "", nil, err
+		}
+		sb.WriteString(` AND ` + column + ` >= ?`)
+		args = append(args, lo)
 	}
-	return sb.String(), args
+	return sb.String(), args, nil
+}
+
+// instantAt reads one end of a LocalDate interval as unix seconds in zone.
+//
+// Start and End pad to minute precision, which is the widest form LocalDate
+// has, so the layout here is fixed rather than discovered (spec 1.3).
+func instantAt(padded string, zone *time.Location) (int64, error) {
+	t, err := time.ParseInLocation("2006-01-02T15:04", padded, zone)
+	if err != nil {
+		return 0, fmt.Errorf("read date %q: %w", padded, err)
+	}
+	return t.Unix(), nil
 }

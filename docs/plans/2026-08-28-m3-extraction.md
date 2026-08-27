@@ -117,6 +117,12 @@ internal/arch/arch_test.go        改：加 extract 的依赖规则
 
 ### Task 1: schema —— 改初始迁移，不加新迁移
 
+> **执行时修正了本 task 的边界。** 计划把 `domain.File.CapturedAt` 的类型和时间谓词放在 Task 6，那是错的：列类型一改，`store` 就扫不出来了，整棵树在两个 task 之间是红的——而 Global Constraints 写着「每个 task 结束时 `make check` 必须通过」。
+>
+> **`captured_at` 的类型改动是原子的**，它一次性穿过 migration、`domain.Instant`、`store` 的扫描、游标、时间谓词、conformance fixture。全部并进 Task 1。Task 6 因此只剩 metadata 的读写。
+>
+> 另一处比计划好：conformance fixture 里的日期**仍然写成 `"2019-08-12"`**，由 `mustInstant` 在固定的 UTC 下转换。计划说的是「fixture 改成塞 unix 秒」，但那样 case 会变得没法读，而可读性正是 suite 的价值之一。
+
 **Files:**
 - Modify: `internal/store/migrations/00001_init.sql`
 - Modify: `internal/store/views.go`（`ClearViews`）

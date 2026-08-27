@@ -115,7 +115,7 @@ func (b *Builder) File(box, folder, name, captured string, tags ...string) *Buil
 		UpdatedAt: fixtureTime,
 	}
 	if captured != "" {
-		file.CapturedAt = mustDate(captured)
+		file.CapturedAt = mustInstant(captured)
 	}
 	b.files[name] = file
 	b.order = append(b.order, name)
@@ -192,12 +192,34 @@ func (b *Builder) TagID(name string) domain.TagID { return b.tags[name].ID }
 // real clock would make failures differ between runs.
 var fixtureTime = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
+// mustDate is for the two places that are still variable-precision dates: a
+// box's declared start and end, and the DateRange a caller asks for. A file's
+// capture time is not one of them any more (spec 1.5.2).
 func mustDate(s string) domain.LocalDate {
 	d, err := domain.ParseLocalDate(s)
 	if err != nil {
 		panic("querytest: bad fixture date " + s + ": " + err.Error())
 	}
 	return d
+}
+
+// mustInstant turns a fixture's human-readable date into the instant the
+// column actually holds.
+//
+// Cases stay written as "2019-08-12" because that is what a reader of the
+// suite needs to see; the conversion is pinned to UTC so a fixture means the
+// same thing on every machine. Which zone it is does not matter to any case —
+// they all assert relative order — but that it is *fixed* does (spec 4.7).
+func mustInstant(s string) domain.Instant {
+	d, err := domain.ParseLocalDate(s)
+	if err != nil {
+		panic("querytest: bad fixture date " + s + ": " + err.Error())
+	}
+	start, err := time.Parse("2006-01-02T15:04", d.Start())
+	if err != nil {
+		panic("querytest: bad fixture date " + s + ": " + err.Error())
+	}
+	return domain.NewInstant(start.Unix())
 }
 
 // names renders a result for a failure message.

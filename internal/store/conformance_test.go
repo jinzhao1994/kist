@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"testing"
+	"time"
 
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/query"
@@ -88,6 +89,10 @@ func setCapturedAt(tx *sql.Tx, f domain.File) error {
 	return err
 }
 
+// The zone is fixed to UTC, matching what querytest's fixtures mean by a date
+// (spec 1.5.2). Which zone it is does not matter to any case — they all assert
+// relative order or containment — but a backend that read the machine's zone
+// would make the suite's answers depend on where it runs.
 func (b *sqliteBackend) Files(q query.Query) ([]domain.File, string, error) {
-	return ListFiles(b.db, q)
+	return ListFiles(b.db, q, time.UTC)
 }

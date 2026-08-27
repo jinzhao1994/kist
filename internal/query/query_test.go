@@ -2,6 +2,7 @@ package query
 
 import (
 	"testing"
+	"time"
 
 	"github.com/jinzhao1994/kist/internal/domain"
 )
@@ -13,6 +14,19 @@ func date(t *testing.T, s string) domain.LocalDate {
 		t.Fatal(err)
 	}
 	return d
+}
+
+// instant renders a human-readable date as the unix second a file's capture
+// time actually holds (spec 1.5.2). UTC is arbitrary and fixed: these cases
+// care about round-tripping and ordering, not about which zone.
+func instant(t *testing.T, s string) domain.Instant {
+	t.Helper()
+	d := date(t, s)
+	start, err := time.Parse("2006-01-02T15:04", d.Start())
+	if err != nil {
+		t.Fatalf("bad date %q: %v", s, err)
+	}
+	return domain.NewInstant(start.Unix())
 }
 
 // The zero Query is "everything, newest first". A query type whose zero value

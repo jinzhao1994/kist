@@ -26,8 +26,9 @@ func TestMigrateCreatesEveryTable(t *testing.T) {
 	db := migrated(t)
 
 	want := []string{
-		"blobs", "box_tags", "boxes", "file_tags", "files", "folders",
-		"metadata", "op_boxes", "op_files", "ops", "tag_rejections", "tags",
+		"blobs", "box_tags", "boxes", "file_extractions", "file_metadata",
+		"file_tags", "files", "folders", "op_boxes", "op_files", "ops",
+		"tag_rejections", "tags",
 	}
 	for _, table := range want {
 		var n int
@@ -284,4 +285,70 @@ func tryInsertFile(db *sql.DB, box, folder []byte, name, key string) error {
 	                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		b, box, folder, name, strings.ToLower(name), key, testTS, testTS)
 	return err
+}
+
+// spec 1.7.3: metadata hangs off a file and carries a real foreign key.
+//
+// The first version of this table was polymorphic — (target_type, target_id)
+// so it could describe a box too — and that shape cannot have a foreign key at
+// all, because target_id points at two tables. Deleting a file would leave
+// orphan rows nothing catches: not the database, and not integrity's fifteen
+// checks either, which were written while this table was empty.
+//
+// 1.6 had already reached the opposite conclusion for the same shape: box_tags
+// and file_tags are two tables precisely so each can name its own parent.
+func TestFileMetadataHasARealForeignKey(t *testing.T) {
+	db := migrated(t)
+	if _, err := db.Exec(`PRAGMA foreign_keys = ON`); err != nil {
+		t.Fatal(err)
+	}
+	_, err := db.Exec(`INSERT INTO file_metadata (file_id, key, value, type, source)
+	                   VALUES (?, 'exif:Make', 'Apple', 'text', 'exif')`, randomID(t))
+	if err == nil {
+		t.Fatal("a metadata row naming a file that does not exist was accepted")
+	}
+	// Any error would satisfy the check above — including "no such table",
+	// which is what this test reported before the table existed. Name the
+	// constraint, or the test passes hardest exactly when it is least true.
+	if !strings.Contains(err.Error(), "FOREIGN KEY") {
+		t.Errorf("the insert failed for the wrong reason: %v", err)
+	}
+}
+
+// spec 1.7.6 ③: "which files has exif v3 not seen yet" has to be a query, so
+// the extractor and its version are an index table rather than a field inside
+// the payload — payload is not queryable (invariant 4).
+//
+// One row per (file, extractor): a re-run replaces the version, it does not
+// append a second row. Without the constraint, "has this file been extracted"
+// would depend on which of several rows you happened to read.
+func TestFileExtractionsIsOnePerFilePerExtractor(t *testing.T) {
+	db := migrated(t)
+	box := insertBox(t, db, "trip")
+	root := insertRootFolder(t, db, box)
+	insertBlob(t, db, "sha256:aa")
+	file := insertFile(t, db, box, root, "a.jpg", "sha256:aa")
+
+	if _, err := db.Exec(`INSERT INTO file_extractions (file_id, extractor, version) VALUES (?, 'exif', 1)`, file); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO file_extractions (file_id, extractor, version) VALUES (?, 'exif', 2)`, file); err == nil {
+		t.Error("a second row for the same (file, extractor) was accepted; a re-run must replace the version, not append")
+	}
+}
+
+// spec 1.5.2: captured_at is a unix instant, not a variable-precision wall
+// clock. The column type is load-bearing rather than cosmetic — as TEXT, a
+// scanned 1960 photograph (a negative timestamp) sorts before every positive
+// one, and scanning old photographs is exactly what an archive is for.
+func TestCapturedAtIsAnInteger(t *testing.T) {
+	db := migrated(t)
+	var typ string
+	if err := db.QueryRow(
+		`SELECT type FROM pragma_table_info('files') WHERE name = 'captured_at'`).Scan(&typ); err != nil {
+		t.Fatal(err)
+	}
+	if typ != "INTEGER" {
+		t.Errorf("files.captured_at is %s, want INTEGER (spec 1.5.2)", typ)
+	}
 }

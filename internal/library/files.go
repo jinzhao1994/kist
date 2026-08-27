@@ -25,7 +25,7 @@ var ErrNoSuchFolder = fmt.Errorf("no such folder")
 // owns that tree, which is this package. TagCondition and ExcludeTags are how
 // a caller gets from tag names to that expression.
 func (l *Library) Files(ctx context.Context, q query.Query) ([]domain.File, string, error) {
-	return store.ListFiles(l.db, q)
+	return store.ListFiles(l.db, q, l.zone())
 }
 
 // TagCondition turns tag names into "carries all of these, each including its

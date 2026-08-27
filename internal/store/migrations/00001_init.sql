@@ -78,7 +78,7 @@ CREATE TABLE files (
   name        TEXT NOT NULL,
   name_fold   TEXT NOT NULL,
   blob_key    TEXT NOT NULL REFERENCES blobs(key),
-  captured_at TEXT,                                  -- 从 EXIF 提取，M3 才会有值
+  captured_at INTEGER,                                -- unix 秒。内核从 metadata 算出的结论（spec 1.5.2）
   created_at  TEXT NOT NULL,
   updated_at  TEXT NOT NULL
 );
@@ -122,18 +122,51 @@ CREATE TABLE tag_rejections (
   PRIMARY KEY (file_id, tag_id)
 );
 
--- v0.1 只写 extracted 侧，且只有 file:size / file:mtime（spec 1.7）。
-CREATE TABLE metadata (
-  target_type TEXT NOT NULL,   -- box | file
-  target_id   BLOB NOT NULL,
-  key         TEXT NOT NULL,   -- 必须带命名空间："exif:Make"、"file:mtime"
-  value       TEXT NOT NULL,
-  source      TEXT NOT NULL,   -- extracted | user
-  PRIMARY KEY (target_type, target_id, key)
+-- v0.1 只写 extracted 侧（spec 1.7）。
+--
+-- 只挂在 file 上（spec 1.7.3）。第一版是一张多态表 (target_type, target_id)
+-- 好让它也能描述 box，那个形状建不了外键——target_id 指着两张表——于是删掉
+-- 一个文件会留下没人拦得住的孤儿行。而 1.6 早就为同样的形状给出过相反的
+-- 结论：box_tags 和 file_tags 是两张表，正是为了各自能指认自己的父亲。
+--
+-- 没有 box metadata：检索归 tag，日期归 boxes 的列，聚合算出来不存。
+-- 真需要时加一张 box_metadata 是零数据的纯增量迁移（spec 8）。
+--
+-- value 是提取器看到的原样（"f/1.8"、带前导零的 "0100"），type 是提取器
+-- 声明的类型——不由 Apply 推断，否则换个数字识别逻辑就会让 rebuild 产出
+-- 一个不同的库（spec 1.7.5、不变量 3）。
+--
+-- v0.1 不建非主键索引，因为 v0.1 不查 metadata。数值比较要的是另外的
+-- value_int / value_real 旁列，同样等到需要时再加（spec 1.7.5、8）。
+CREATE TABLE file_metadata (
+  file_id BLOB NOT NULL REFERENCES files(id),
+  key     TEXT NOT NULL,   -- 必须带命名空间："exif:Make"、"file:mtime"、"user:有效期"
+  value   TEXT NOT NULL,
+  type    TEXT NOT NULL,   -- text | int | real
+  source  TEXT NOT NULL,   -- 提取器 id，或保留值 "user"
+  PRIMARY KEY (file_id, key)
+);
+
+-- "哪些文件还没被 exif v3 处理过"（spec 1.7.6 ③）。payload 里也记了提取器
+-- 和版本，但 payload 不可查询，所以按不变量 4 提成索引表——和 op_boxes /
+-- op_files 是同一个形状，都能从 payload 单向重建。
+--
+-- 一个 (file, extractor) 一行：重跑是替换版本，不是追加。否则"这个文件被
+-- 提取过吗"的答案取决于你恰好读到哪一行。
+--
+-- captured_at 的解析规则也注册在这里，用保留 id "kist:captured"（spec 1.5.2）。
+-- 规则版本和提取器版本共用一张表，所以"规则改进了、哪些文件要重算"不需要
+-- 另造一套机制。
+CREATE TABLE file_extractions (
+  file_id   BLOB NOT NULL REFERENCES files(id),
+  extractor TEXT NOT NULL,
+  version   INTEGER NOT NULL,
+  PRIMARY KEY (file_id, extractor)
 );
 
 -- +goose Down
-DROP TABLE metadata;
+DROP TABLE file_extractions;
+DROP TABLE file_metadata;
 DROP TABLE tag_rejections;
 DROP TABLE box_tags;
 DROP TABLE file_tags;

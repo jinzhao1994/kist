@@ -7,10 +7,27 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/query"
 )
+
+// testInstant reads a fixture's human-readable date as the unix second the
+// column holds. UTC and fixed, so a test means the same thing everywhere
+// (spec 1.5.2).
+func testInstant(t *testing.T, s string) domain.Instant {
+	t.Helper()
+	d, err := domain.ParseLocalDate(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	start, err := time.Parse("2006-01-02T15:04", d.Start())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return domain.NewInstant(start.Unix())
+}
 
 // putFile inserts one file, optionally with a captured_at, and returns its id.
 func putFile(t *testing.T, db *sql.DB, box domain.BoxID, folder domain.FolderID, name, captured string) domain.FileID {
@@ -21,9 +38,7 @@ func putFile(t *testing.T, db *sql.DB, box domain.BoxID, folder domain.FolderID,
 		t.Fatal(err)
 	}
 	if captured != "" {
-		if f.CapturedAt, err = domain.ParseLocalDate(captured); err != nil {
-			t.Fatal(err)
-		}
+		f.CapturedAt = testInstant(t, captured)
 	}
 	viewTx(t, db, testTime, func(vtx *ViewTx) {
 		if err := vtx.UpsertBlob(key, strings.Repeat("a", 64), 1); err != nil {
@@ -80,7 +95,7 @@ func TestListFilesSortsCapturedFirstThenNewest(t *testing.T) {
 	captured := putFile(t, db, box, root, "photo.jpg", "2019-08-12")
 	noCapture2 := putFile(t, db, box, root, "c.pdf", "")
 
-	got, _, err := ListFiles(db, query.Query{})
+	got, _, err := ListFiles(db, query.Query{}, time.UTC)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,7 +158,7 @@ func TestCursorWalksEveryRowExactlyOnceInEveryOrder(t *testing.T) {
 			var paged []domain.FileID
 			cursor := ""
 			for range total + 5 {
-				page, next, err := ListFiles(db, query.Query{Sort: s, Cursor: cursor, Limit: 1})
+				page, next, err := ListFiles(db, query.Query{Sort: s, Cursor: cursor, Limit: 1}, time.UTC)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -167,7 +182,7 @@ func TestCursorWalksEveryRowExactlyOnceInEveryOrder(t *testing.T) {
 				}
 			}
 
-			whole, next, err := ListFiles(db, query.Query{Sort: s, Limit: total})
+			whole, next, err := ListFiles(db, query.Query{Sort: s, Limit: total}, time.UTC)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -194,7 +209,7 @@ func TestNullCaptureTimesSortLastInBothDirections(t *testing.T) {
 	seedPagingFixture(t, db)
 
 	for _, s := range []query.SortSpec{{Key: query.SortCaptured}, {Key: query.SortCaptured, Asc: true}} {
-		got, _, err := ListFiles(db, query.Query{Sort: s, Limit: 100})
+		got, _, err := ListFiles(db, query.Query{Sort: s, Limit: 100}, time.UTC)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -219,7 +234,7 @@ func TestNameOrderIsFolded(t *testing.T) {
 	db := migrated(t)
 	seedPagingFixture(t, db)
 
-	got, _, err := ListFiles(db, query.Query{Sort: query.SortSpec{Key: query.SortName, Asc: true}, Limit: 100})
+	got, _, err := ListFiles(db, query.Query{Sort: query.SortSpec{Key: query.SortName, Asc: true}, Limit: 100}, time.UTC)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,7 +250,7 @@ func TestAnExactlyFullLastPageOffersNoCursor(t *testing.T) {
 	db := migrated(t)
 	total := seedPagingFixture(t, db)
 
-	_, next, err := ListFiles(db, query.Query{Limit: total})
+	_, next, err := ListFiles(db, query.Query{Limit: total}, time.UTC)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,11 +266,11 @@ func TestListFilesRefusesACursorFromAnotherSort(t *testing.T) {
 	db := migrated(t)
 	seedPagingFixture(t, db)
 
-	_, next, err := ListFiles(db, query.Query{Sort: query.SortSpec{Key: query.SortCaptured}, Limit: 1})
+	_, next, err := ListFiles(db, query.Query{Sort: query.SortSpec{Key: query.SortCaptured}, Limit: 1}, time.UTC)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _, err = ListFiles(db, query.Query{Sort: query.SortSpec{Key: query.SortName}, Cursor: next, Limit: 1})
+	_, _, err = ListFiles(db, query.Query{Sort: query.SortSpec{Key: query.SortName}, Cursor: next, Limit: 1}, time.UTC)
 	if !errors.Is(err, query.ErrCursorSortMismatch) {
 		t.Errorf("err = %v, want ErrCursorSortMismatch", err)
 	}
@@ -269,7 +284,7 @@ func TestListFilesTextIsCaseInsensitive(t *testing.T) {
 	putFile(t, db, box, root, "IMG_0001.JPG", "")
 	putFile(t, db, box, root, "notes.txt", "")
 
-	got, _, err := ListFiles(db, query.Query{Text: "img_00"})
+	got, _, err := ListFiles(db, query.Query{Text: "img_00"}, time.UTC)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -286,7 +301,7 @@ func TestListFilesEscapesLikeWildcards(t *testing.T) {
 	putFile(t, db, box, root, "100%.txt", "")
 	putFile(t, db, box, root, "1000.txt", "")
 
-	got, _, err := ListFiles(db, query.Query{Text: "100%"})
+	got, _, err := ListFiles(db, query.Query{Text: "100%"}, time.UTC)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -294,7 +309,7 @@ func TestListFilesEscapesLikeWildcards(t *testing.T) {
 		t.Errorf("got %v, want only 100%%.txt", fileNames(got))
 	}
 
-	got, _, err = ListFiles(db, query.Query{Text: "10_0"})
+	got, _, err = ListFiles(db, query.Query{Text: "10_0"}, time.UTC)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -327,7 +342,7 @@ func TestListFilesCombinesTagConditions(t *testing.T) {
 			query.TagAny{dad},
 			query.TagNot{Expr: query.TagAny{private}},
 		},
-	})
+	}, time.UTC)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -352,7 +367,7 @@ func TestListFilesFiltersByBoxAndFolder(t *testing.T) {
 	putFile(t, db, box, sub, "in-sub.jpg", "")
 	putFile(t, db, other, otherRoot, "elsewhere.jpg", "")
 
-	got, _, err := ListFiles(db, query.Query{Boxes: []domain.BoxID{box}})
+	got, _, err := ListFiles(db, query.Query{Boxes: []domain.BoxID{box}}, time.UTC)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -360,7 +375,7 @@ func TestListFilesFiltersByBoxAndFolder(t *testing.T) {
 		t.Errorf("by box: %v", fileNames(got))
 	}
 
-	got, _, err = ListFiles(db, query.Query{Folder: &sub})
+	got, _, err = ListFiles(db, query.Query{Folder: &sub}, time.UTC)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -371,7 +386,7 @@ func TestListFilesFiltersByBoxAndFolder(t *testing.T) {
 
 func TestListFilesRejectsABadCursor(t *testing.T) {
 	db := migrated(t)
-	if _, _, err := ListFiles(db, query.Query{Cursor: "not base64!!"}); err == nil {
+	if _, _, err := ListFiles(db, query.Query{Cursor: "not base64!!"}, time.UTC); err == nil {
 		t.Error("a corrupt cursor was accepted")
 	}
 }

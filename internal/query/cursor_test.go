@@ -11,7 +11,7 @@ func fileWith(t *testing.T, captured, name string) domain.File {
 	t.Helper()
 	f := domain.File{ID: domain.NewFileID(), Name: name, NameFold: domain.Fold(name)}
 	if captured != "" {
-		f.CapturedAt = date(t, captured)
+		f.CapturedAt = instant(t, captured)
 	}
 	return f
 }

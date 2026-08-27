@@ -3,6 +3,7 @@ package store
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/query"
@@ -85,8 +86,8 @@ func cursorPredicate(s query.SortSpec, key string, id domain.FileID) (string, []
 // page, rather than assuming a full page has more behind it. The assumption is
 // wrong exactly when the last page is exactly full, and the symptom is a "more"
 // control that leads to an empty page.
-func ListFiles(q Queryer, qry query.Query) ([]domain.File, string, error) {
-	where, args, err := translate(qry)
+func ListFiles(q Queryer, qry query.Query, zone *time.Location) ([]domain.File, string, error) {
+	where, args, err := translate(qry, zone)
 	if err != nil {
 		return nil, "", err
 	}
