@@ -118,3 +118,25 @@ func TestSourcePropagatesUpdatedAt(t *testing.T) {
 		}
 	}
 }
+
+// TestEveryDeclaredActionHasAHandler closes the loop the other way round.
+//
+// AllActions describes what is registered; this checks that nothing was
+// declared as a constant and then left without an implementation. A constant
+// with no handler reads as supported everywhere it appears, and only fails on
+// a user's library.
+func TestEveryDeclaredActionHasAHandler(t *testing.T) {
+	declared := []Action{
+		ActionCreateBox, ActionDeleteBox, ActionUpdateBox,
+		ActionCreateTag, ActionDeleteTag, ActionRenameTag, ActionMoveTag,
+		ActionTagBoxes, ActionUntagBoxes,
+	}
+	for _, a := range declared {
+		if _, err := Lookup(a); err != nil {
+			t.Errorf("action %q is declared but has no handler: %v", a, err)
+		}
+	}
+	if len(AllActions()) < len(declared) {
+		t.Errorf("AllActions has %d entries but %d actions are declared", len(AllActions()), len(declared))
+	}
+}

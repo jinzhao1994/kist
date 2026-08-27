@@ -1,0 +1,143 @@
+package oplog
+
+import (
+	"testing"
+
+	"github.com/jinzhao1994/kist/internal/domain"
+)
+
+func threeBoxes(t *testing.T, tx Tx) []domain.BoxID {
+	t.Helper()
+	var out []domain.BoxID
+	for _, name := range []string{"一", "二", "三"} {
+		p, raw := createBoxPayload(t, name)
+		if err := apply(t, tx, ActionCreateBox, raw); err != nil {
+			t.Fatal(err)
+		}
+		out = append(out, p.BoxID)
+	}
+	return out
+}
+
+func TestTagBoxesIsOneOpForManyTargets(t *testing.T) {
+	// spec 2.2.1: batching is the unit. Tagging 12 boxes must be one op, or
+	// undoing it means twelve clicks.
+	tx := newFakeTx(opTime)
+	boxes := threeBoxes(t, tx)
+	tag := createTag(t, tx, nil, "云南")
+
+	raw, _ := Marshal(TagBoxesPayload{TagID: tag, BoxIDs: boxes, Source: "user"})
+	if err := apply(t, tx, ActionTagBoxes, raw); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	for _, b := range boxes {
+		if has, _ := tx.HasBoxTag(b, tag); !has {
+			t.Errorf("box %s did not get the tag", b)
+		}
+	}
+
+	h, _ := Lookup(ActionTagBoxes)
+	targets, err := h.Targets(raw)
+	if err != nil {
+		t.Fatalf("Targets: %v", err)
+	}
+	if len(targets.Boxes) != 3 {
+		t.Errorf("Targets.Boxes has %d entries, want 3", len(targets.Boxes))
+	}
+}
+
+func TestTagBoxesInverseIsUntag(t *testing.T) {
+	tx := newFakeTx(opTime)
+	boxes := threeBoxes(t, tx)
+	tag := createTag(t, tx, nil, "云南")
+
+	raw, _ := Marshal(TagBoxesPayload{TagID: tag, BoxIDs: boxes, Source: "user"})
+	apply(t, tx, ActionTagBoxes, raw)
+
+	action, inv := inverseOf(t, ActionTagBoxes, raw)
+	if action != ActionUntagBoxes {
+		t.Fatalf("inverse action = %q, want untag_boxes", action)
+	}
+	if err := apply(t, tx, action, inv); err != nil {
+		t.Fatalf("applying the inverse: %v", err)
+	}
+	for _, b := range boxes {
+		if has, _ := tx.HasBoxTag(b, tag); has {
+			t.Errorf("box %s still carries the tag after undo", b)
+		}
+	}
+}
+
+func TestUntagBoxesInverseIsTag(t *testing.T) {
+	tx := newFakeTx(opTime)
+	boxes := threeBoxes(t, tx)
+	tag := createTag(t, tx, nil, "云南")
+	for _, b := range boxes {
+		tx.AddBoxTag(b, tag, "user")
+	}
+
+	raw, _ := Marshal(UntagBoxesPayload{TagID: tag, BoxIDs: boxes, Source: "user"})
+	apply(t, tx, ActionUntagBoxes, raw)
+
+	action, inv := inverseOf(t, ActionUntagBoxes, raw)
+	if action != ActionTagBoxes {
+		t.Fatalf("inverse action = %q, want tag_boxes", action)
+	}
+	apply(t, tx, action, inv)
+	for _, b := range boxes {
+		if has, _ := tx.HasBoxTag(b, tag); !has {
+			t.Errorf("box %s did not get its tag back", b)
+		}
+	}
+}
+
+// The payload names only the boxes that actually changed. If it named boxes
+// that already carried the tag, the inverse would strip a tag the op never
+// added — an undo doing more than the op did.
+func TestTagBoxesPayloadOnlyNamesRealChanges(t *testing.T) {
+	tx := newFakeTx(opTime)
+	boxes := threeBoxes(t, tx)
+	tag := createTag(t, tx, nil, "云南")
+
+	// The first box already carries the tag; library would have filtered it
+	// out when building the op, so the payload holds only the other two.
+	tx.AddBoxTag(boxes[0], tag, "user")
+
+	raw, _ := Marshal(TagBoxesPayload{TagID: tag, BoxIDs: boxes[1:], Source: "user"})
+	apply(t, tx, ActionTagBoxes, raw)
+
+	action, inv := inverseOf(t, ActionTagBoxes, raw)
+	apply(t, tx, action, inv)
+
+	if has, _ := tx.HasBoxTag(boxes[0], tag); !has {
+		t.Error("undo removed a tag the op never added")
+	}
+}
+
+func TestTagBoxesRejectsAnEmptyBatch(t *testing.T) {
+	// An op that changes nothing should never have been written. Letting it
+	// through would litter the history with entries that undo to nothing.
+	tx := newFakeTx(opTime)
+	tag := createTag(t, tx, nil, "云南")
+	raw, _ := Marshal(TagBoxesPayload{TagID: tag, Source: "user"})
+	if err := apply(t, tx, ActionTagBoxes, raw); err == nil {
+		t.Error("an empty batch was accepted")
+	}
+}
+
+func TestTagBoxesSourceSurvivesReplay(t *testing.T) {
+	// spec 1.6.1: source distinguishes what a person did from what an
+	// extractor did, and the distinction must survive a rebuild — so it lives
+	// in the payload, not in a constant inside Apply.
+	tx := newFakeTx(opTime)
+	boxes := threeBoxes(t, tx)
+	tag := createTag(t, tx, nil, "自动")
+
+	raw, _ := Marshal(TagBoxesPayload{TagID: tag, BoxIDs: boxes[:1], Source: "derived"})
+	apply(t, tx, ActionTagBoxes, raw)
+
+	if got := tx.boxTags[btKey(boxes[0], tag)]; got != "derived" {
+		t.Errorf("source = %q, want %q", got, "derived")
+	}
+}
