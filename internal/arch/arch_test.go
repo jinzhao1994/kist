@@ -151,3 +151,25 @@ func TestLockfileIsSelfContained(t *testing.T) {
 			"code path takes it is library's decision, made at library's call sites.", imp)
 	}
 }
+
+// TestExtractKnowsOnlyDomain keeps extraction testable without a library, and
+// keeps plugins away from the write path.
+//
+// An extractor is a function from bytes to observations; library is what turns
+// those observations into an op. If this package could see store or oplog, an
+// extractor could write its own rows — and "extraction results are recorded in
+// the log, so an extractor may be impure" would stop being true by
+// construction (spec 1.7.1, 1.7.6).
+//
+// It is also why captured_at does not live here: the kernel draws that
+// conclusion, and a plugin must not be able to set the sort key (spec 1.5.2).
+func TestExtractKnowsOnlyDomain(t *testing.T) {
+	for _, imp := range imports(t, "internal/extract") {
+		if imp != "internal/domain" {
+			t.Errorf("internal/extract imports %s.\n\n"+
+				"Extractors produce data; library turns it into an op. Reaching for\n"+
+				"store or oplog would let an extractor write directly, and the\n"+
+				"determinism a rebuild depends on would stop being structural.", imp)
+		}
+	}
+}
