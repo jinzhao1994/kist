@@ -30,6 +30,9 @@ const (
 
 	ActionImportFiles Action = "import_files"
 	ActionDeleteFiles Action = "delete_files"
+
+	ActionTagFiles   Action = "tag_files"
+	ActionUntagFiles Action = "untag_files"
 )
 
 // implementedActions is appended to by each handler file's init, so it always
