@@ -130,6 +130,7 @@ func TestEveryDeclaredActionHasAHandler(t *testing.T) {
 		ActionCreateBox, ActionDeleteBox, ActionUpdateBox,
 		ActionCreateTag, ActionDeleteTag, ActionRenameTag, ActionMoveTag,
 		ActionTagBoxes, ActionUntagBoxes,
+		ActionImportFiles, ActionDeleteFiles,
 	}
 	for _, a := range declared {
 		if _, err := Lookup(a); err != nil {

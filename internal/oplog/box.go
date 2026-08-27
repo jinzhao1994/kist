@@ -100,6 +100,17 @@ func (deleteBox) Apply(tx Tx, payload []byte) error {
 	if n > 0 {
 		return fmt.Errorf("box %s carries %d tag(s) added after this op: %w", p.BoxID, n, ErrStaleBefore)
 	}
+	// Same rule for files, and the same reason it is checked here rather than
+	// left to the foreign key: "FOREIGN KEY constraint failed (787)" is true,
+	// useless and frightening.
+	files, err := tx.CountBoxFiles(p.BoxID)
+	if err != nil {
+		return err
+	}
+	if files > 0 {
+		return fmt.Errorf("box %q still holds %d file(s); undo the imports first: %w",
+			p.Name, files, ErrStaleBefore)
+	}
 
 	if err := tx.DeleteFoldersOfBox(p.BoxID); err != nil {
 		return err
