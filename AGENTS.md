@@ -34,9 +34,15 @@ Go 单二进制 + SQLite，Apache-2.0。
 
 不变量 2 和依赖方向由 `internal/arch` 的测试守着（`oplog` 不得 import `store` / `blob`，`projection` 不得 import `store` / `oplog` / `library`，`cmd` 不得 import `store` / `oplog`）。
 
-**下一步是 M2a**（M2 拆成了两个，理由见设计文档第 7 节）：`verify` / `verify --deep` / `scrub` / `repair` / `rebuild` 五个 CLI、`blobs/tmp/` 的崩溃残留清理、远端 blob 目录与从远端修复。**M2b** 是 4.2 的 `Query` AST 与 conformance suite，开写前要先定 `open-questions.md` B1c 那四件事。
+**M2a 已完成**（计划见 `docs/plans/2026-08-27-m2a-integrity.md`）：新包 `internal/integrity`（发现模型 + 结构 / 内容 / 投影三层检查）、`store` 的一致性查询与 `DiffViews`、`blob` 的 `Walk` / `Rehash` / `CleanTmp` / `Restore` / 只读 `OpenDir`、`projection` 的 `DiffDir` 与 `CheckLinks`、`library` 的 `Verify` / `Scrub` / `Repair`，以及 `verify` / `scrub` / `repair` / `remote list` / `rebuild` 五组 CLI。
 
-设计文档里那句实践建议现在正当时——**M2a 通过之前，别删掉导入源的原始副本**。
+**「M2a 通过之前别删导入源」这条建议现在解除了。** `kist verify` 和 `kist scrub` 能告诉你库里的东西有没有问题，`kist repair` 能从第二份副本修回来——**前提是你真的有第二份副本**。`kist remote list` 会在你没配的时候说这件事。
+
+**不变量 1 现在有用户能跑的检查**：`kist verify --deep` 把日志重放到一份 `VACUUM INTO` 出来的副本上，再逐表 `EXCEPT` 双向比。在 M2a 之前这条只在测试里被验证过。
+
+**「修复不写 op」是结构保证**，不是约定：`internal/arch` 禁止 `internal/integrity` import `oplog`，所以它连一条 op 都写不出来。
+
+**下一步是 M2b**：4.2 的 `Query` AST 与 conformance suite。**开写前要先定 `open-questions.md` B1c 那四件事**——`Kinds` 现在连数据都没有，`Sort` 的四个键和写死的 keyset 游标冲突，`Time` 撞上变精度日期怎么混排。
 
 里程碑拆分见设计文档第 7 节，明确的范围外清单见第 8 节，待决问题见 `open-questions.md`。
 

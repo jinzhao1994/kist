@@ -63,13 +63,66 @@ make build   # -> bin/kist
 make dist    # -> dist/, all four release platforms
 ```
 
+## Using it
+
+```sh
+kist init                                  # create a library, interactively
+kist box new "Yunnan" --start 2019-08-12   # a box is one trip, one visit, one batch
+kist import --box Yunnan ~/Pictures/2019/  # copy files in; Ctrl-C is safe and resumable
+kist ls Yunnan                             # what is in there
+kist find --name jpg --tag people          # search across boxes
+kist file tag people <file-id>             # attach a tag
+kist relink                                # rebuild boxes/, the human-readable mirror
+```
+
+Everything is undoable, because every write is an entry in an append-only log:
+
+```sh
+kist log            # what has happened to this library
+kist undo <op-id>   # take one of them back
+```
+
+### Checking that nothing has gone wrong
+
+```sh
+kist verify          # is anything missing, mismatched or out of place?  (seconds)
+kist verify --deep   # also: replay the whole log and compare it with the tables
+kist scrub           # read every byte and re-hash it, to catch silent rot
+kist repair          # fetch damaged content back from a remote copy
+kist rebuild         # throw away the derived tables and replay the log
+```
+
+`verify` stats files; `scrub` reads them. That is the whole difference, and it
+is why one is cheap enough for cron and the other is not.
+
+`repair` needs somewhere to repair from. A remote is any other copy of the same
+content — an external drive, a network share, a second machine — added by hand
+to `kist.toml`:
+
+```toml
+[[remote]]
+name = "backup"
+path = "/Volumes/Archive/kist/blobs"
+```
+
+The usual way to make one is the command that backs the library up anyway:
+
+```sh
+rsync -a ~/kist/blobs/ /Volumes/Archive/kist/blobs/
+```
+
+kist never writes to a remote, and never trusts one: content fetched from it is
+hashed on the way in and discarded if it is not what was asked for. Run
+`kist remote list` to check a path today rather than on the day you need it.
+
 ## Milestones
 
 | | | |
 |---|---|---|
-| **M0** | repository groundwork | ← here |
-| M1 | kernel: op log, blob store, CLI import and search | |
-| M2 | integrity: `verify`, `scrub`, `rebuild`, second blob backend | |
+| M0 | repository groundwork | done |
+| M1 | kernel: op log, blob store, CLI import and search | done |
+| **M2a** | integrity: `verify`, `scrub`, `repair`, `rebuild` | ← here |
+| M2b | the query contract and its conformance suite | |
 | M3 | extraction: EXIF, thumbnails, previews | |
 | M4 | web UI | first version worth showing anyone |
 | M5 | history UI: browse and undo any past operation | |

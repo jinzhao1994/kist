@@ -53,13 +53,61 @@ make build   # -> bin/kist
 make dist    # -> dist/，四个发布平台
 ```
 
+## 怎么用
+
+```sh
+kist init                                  # 交互式建库
+kist box new "云南" --start 2019-08-12      # 一个 box 就是一次出行、一次就诊、一批档案
+kist import --box 云南 ~/Pictures/2019/     # 把文件放进去；Ctrl-C 是安全的，重跑会跳过已导入的
+kist ls 云南                                # 看看里面有什么
+kist find --name jpg --tag 人物             # 跨 box 检索
+kist file tag 人物 <file-id>                # 给文件打 tag
+kist relink                                # 重建 boxes/，那个人可读的镜像
+```
+
+每一次写入都是 append-only 日志里的一条记录，所以什么都能撤销：
+
+```sh
+kist log            # 这个库都发生过什么
+kist undo <op-id>   # 把其中一条收回来
+```
+
+### 确认没出事
+
+```sh
+kist verify          # 有没有东西丢了、对不上、放错了？（秒级）
+kist verify --deep   # 再加一步：重放整份日志，和当前的表逐行比对
+kist scrub           # 读完每个字节重新哈希，抓静默的位翻转
+kist repair          # 从远端副本把坏掉的内容取回来
+kist rebuild         # 扔掉派生的表，重放日志重建
+```
+
+`verify` 只 stat，`scrub` 读内容。这就是两者的全部区别，也是为什么一个便宜到能挂 cron、另一个不能。
+
+`repair` 需要一个可以修回来的地方。远端就是同一份内容的另一个副本——移动硬盘、网络共享、另一台机器——手写进 `kist.toml`：
+
+```toml
+[[remote]]
+name = "backup"
+path = "/Volumes/Archive/kist/blobs"
+```
+
+做一个远端最常见的办法，就是你本来就该跑的那条备份命令：
+
+```sh
+rsync -a ~/kist/blobs/ /Volumes/Archive/kist/blobs/
+```
+
+kist 从不往远端写，也从不信任远端：取回来的内容边读边哈希，对不上就丢掉。用 `kist remote list` 让路径打错的那天是今天，而不是你真需要它的那天。
+
 ## 里程碑
 
 | | | |
 |---|---|---|
-| **M0** | 仓库地基 | ← 当前 |
-| M1 | 内核：op log、blob 存储、命令行导入与检索 | |
-| M2 | 完整性：`verify`、`scrub`、`rebuild`、第二个 blob 后端 | |
+| M0 | 仓库地基 | 已完成 |
+| M1 | 内核：op log、blob 存储、命令行导入与检索 | 已完成 |
+| **M2a** | 完整性：`verify`、`scrub`、`repair`、`rebuild` | ← 当前 |
+| M2b | Query 契约与 conformance suite | |
 | M3 | 提取：EXIF、缩略图、预览图 | |
 | M4 | Web UI | 第一个能给别人看的版本 |
 | M5 | 历史 UI：浏览并撤销任意历史操作 | |
