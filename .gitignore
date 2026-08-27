@@ -1,6 +1,9 @@
 # ── Go ──
-/bin/                 # make build 的本地产物
-/dist/                # make dist 的跨平台发布产物
+
+# make build 的本地产物
+/bin/
+# make dist 的跨平台发布产物
+/dist/
 *.test
 *.out
 
@@ -12,7 +15,9 @@
 # CI 里构建前端再 go build，还是直接提交构建产物。定了再往这里加规则。
 
 # ── 本地开发 ──
-/devlib/              # 手工测试用的库目录（kist init ./devlib）
+
+# 手工测试用的库目录（kist init ./devlib）
+/devlib/
 
 # ── 编辑器 / 系统 ──
 .DS_Store
