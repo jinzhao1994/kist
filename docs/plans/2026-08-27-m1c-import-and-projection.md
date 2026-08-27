@@ -2970,7 +2970,7 @@ tag 的后代展开在内存树里做（4.3 第 1 步），不建闭包表——
 
 **净化规则在所有平台上一视同仁**（见前面的偏离 ⑤）。
 
-- [ ] **Step 1: 写净化规则的失败测试**
+- [x] **Step 1: 写净化规则的失败测试**
 
 `internal/projection/name_test.go`：
 
@@ -3043,12 +3043,12 @@ func TestSanitizeIsIdempotent(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑测试，确认失败**
+- [x] **Step 2: 跑测试，确认失败**
 
 Run: `go test ./internal/projection/`
 Expected: FAIL, 包不存在
 
-- [ ] **Step 3: 实现 `Sanitize`**
+- [x] **Step 3: 实现 `Sanitize`**
 
 ```go
 // Package projection turns library state into the human-readable directory
@@ -3118,7 +3118,7 @@ func Sanitize(name string) string {
 }
 ```
 
-- [ ] **Step 4: 写 box 目录名与冲突解决的失败测试**
+- [x] **Step 4: 写 box 目录名与冲突解决的失败测试**
 
 ```go
 // spec 3.4: the box directory is "<date>_<slug>", the date comes from start_at
@@ -3183,7 +3183,7 @@ func TestSanitizeCollisionsAreResolved(t *testing.T) {
 }
 ```
 
-- [ ] **Step 5: 实现 `BoxDirName` / `Disambiguate` / `Resolve`**
+- [x] **Step 5: 实现 `BoxDirName` / `Disambiguate` / `Resolve`**
 
 ```go
 // BoxDirName is a box's directory under boxes/: "<date>_<slug>".
@@ -3223,12 +3223,12 @@ func Resolve[T any](items []T, key func(T) (domain.ID, string)) map[domain.ID]st
 
 `Resolve` 的实现：按 `id` 字节序排序（UUIDv7 的高位是时间戳，所以字节序即创建序），逐个用折叠名占坑，撞了就 `Disambiguate`；`Disambiguate` 之后再撞的（几乎不可能）继续加序号。
 
-- [ ] **Step 6: 跑测试**
+- [x] **Step 6: 跑测试**
 
 Run: `go test ./internal/projection/ -v`
 Expected: PASS
 
-- [ ] **Step 7: 把偏离 ⑤ 写回设计文档 3.4**
+- [x] **Step 7: 把偏离 ⑤ 写回设计文档 3.4**
 
 把 3.4 表格里那一行
 
@@ -3240,7 +3240,7 @@ Expected: PASS
 
 并在表格下方加一段说明为什么不做平台相关净化（三条理由抄本计划的偏离 ⑤）。
 
-- [ ] **Step 8: `make check` 并提交**
+- [x] **Step 8: `make check` 并提交**
 
 ```bash
 make check
