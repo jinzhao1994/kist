@@ -13,11 +13,11 @@ type fake struct {
 	ns      []string
 }
 
-func (f fake) ID() string                                       { return f.id }
-func (f fake) Version() int                                     { return max(f.version, 1) }
-func (f fake) Namespaces() []string                             { return f.ns }
-func (f fake) Wants(string) bool                                { return true }
-func (f fake) Extract(context.Context, io.Reader) ([]KV, error) { return nil, nil }
+func (f fake) ID() string                                                   { return f.id }
+func (f fake) Version() int                                                 { return max(f.version, 1) }
+func (f fake) Namespaces() []string                                         { return f.ns }
+func (f fake) Wants(string) bool                                            { return true }
+func (f fake) Extract(context.Context, io.ReadSeeker, string) ([]KV, error) { return nil, nil }
 
 // spec 1.7.6 ②: namespaces belong to one extractor. Without this, a user
 // plugin could silently overwrite what the camera wrote into exif:Make — and

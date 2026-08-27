@@ -85,7 +85,15 @@ type Extractor interface {
 	// Extract reads the content. Finding nothing is not an error — a PDF, a
 	// text file and a voice memo all have no EXIF, and that is an ordinary
 	// answer rather than a failure (spec 3.7.1).
-	Extract(ctx context.Context, r io.Reader) ([]KV, error)
+	//
+	// It takes a ReadSeeker because container formats are not streams: EXIF in
+	// a HEIC lives behind an offset table, and a decoder has to jump. The
+	// source is always a blob on disk, so this costs nothing.
+	//
+	// mime is passed in rather than sniffed here so that every extractor sees
+	// the same answer for a given file. Two extractors disagreeing about what
+	// a file is would be a very quiet bug.
+	Extract(ctx context.Context, r io.ReadSeeker, mime string) ([]KV, error)
 }
 
 // Check validates what an extractor produced before any of it becomes an op.

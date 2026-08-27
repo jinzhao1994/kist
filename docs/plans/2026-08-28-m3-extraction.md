@@ -1265,3 +1265,41 @@ kist file show <id>        # 列出 metadata，标注 source
 2. **`store` 里读了 `time.Local`**（Task 6）——同一个查询在不同机器上返回不同结果
 3. **失败的文件被写进了 `file_extractions`**（Task 7）——重试永远不会再碰它
 
+---
+
+## 执行记录（2026-08-28，Task 1–3）
+
+### 计划被实测推翻的三处
+
+**① `captured_at` 的类型改动没法拆成两个 task。** 计划把 `domain.File.CapturedAt` 和时间谓词放在 Task 6，但列类型一改 `store` 就扫不出来，整棵树在两个 task 之间是红的——而 Global Constraints 要求每个 task 结束时 `make check` 通过。migration、`domain.Instant`、扫描、游标、时间谓词、conformance fixture 全部并进了 Task 1。
+
+**② 「展开按形状」这条规则挡不住 MakerNote，而计划以为它能。** 计划写着「`printable` 拒绝控制字符和超长，上限设 1 KB：超过它的一定是被当成字符串的二进制块」。实测下来 imagemeta **先替换后交付**：
+
+```
+len=128  validUTF8=true  controlBytes=0
+bytes=41 70 70 6c 65 20 69 4f 53 4d 4d … ef bf bd ef bf bd …
+```
+
+`ef bf bd` 是 U+FFFD。非法字节被替换、控制字节被丢弃，于是 MakerNote 到手时**合法 UTF-8、128 字节、零控制字符**——形状和普通文本一模一样，三条检查一条都咬不住。
+
+补了两条规则：
+
+- **值里含 U+FFFD 就拒绝。** 替换字符意味着解码器为它读不出来的字节做了替代，剩下的东西已经不是提取器看到的原样了，而 1.7.5 要求 value 是 verbatim。这仍然是形状规则，只是读的是「形状检查被应用得太晚」这个证据
+- **`MakerNote*` 按名字排除。** 理由不是「猜没人会搜它」，是 **EXIF 标准把 0x927C 定义成 UNDEFINED 类型的厂商私有块**——格式自己说了它不是标量。按名字匹配是因为 imagemeta 不暴露 EXIF 类型
+
+**③ 第二条规则一开始是没有依据的代码。** 去掉 `isVendorBlob` 之后测试仍然绿——U+FFFD 那条已经覆盖了当时那个 fixture。补了一个**纯 ASCII 的 MakerNote** fixture（有些厂商确实写可读的头），它通过全部形状检查，于是 `isVendorBlob` 成了唯一挡得住它的东西，变异当场变红。
+
+### 比计划好的一处
+
+conformance fixture 里的日期**仍然写成 `"2019-08-12"`**，由 `mustInstant` 在固定 UTC 下转换。计划说「fixture 改成塞 unix 秒」，但那样 case 就没法读了，而可读性正是这套 suite 的价值之一。
+
+### 依赖没进 testdata
+
+计划要求 fixture 图片自制或明确公有领域。手边唯一的 iPhone HEIC 是 CC BY-SA 4.0，不该进一个 Apache-2.0 的仓库，而且它有 2 MB。改成**在测试里构造真实的 EXIF JPEG**（`fixture_test.go`）——没有二进制入库、内容完全可控、每个 case 都能说清自己在断言哪个标签。
+
+**代价：HEIC 的容器解析没有被测试覆盖。** 那是关于 imagemeta 的断言而不是关于我们映射的断言，需要一张真实文件才能钉住，见下面的待办。
+
+### 待办
+
+- [ ] 需要一张**自己拍的** HEIC 和 JPEG 进 `testdata/`，用来钉住「EXIF 能从 HEIC 里纯 Go 读出来」这条——它是 M3 对 iPhone 用户完不完整的分界线
+
