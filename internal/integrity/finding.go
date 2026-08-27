@@ -72,6 +72,9 @@ const (
 	LinkStray       // under boxes/, should not be
 	LinkWrongTarget // there, but not pointing at the blob it should
 
+	// ── scrub ───────────────────────────────────────────────────────────
+	ScrubIncomplete // the run stopped before it had read everything
+
 	// ── deep ────────────────────────────────────────────────────────────
 	ViewDrift // a materialized-view row that replaying the log does not produce
 
@@ -98,6 +101,7 @@ var kindInfo = map[Kind]struct {
 	LinkMissing:       {SeverityWarn, "boxes/ is missing something"},
 	LinkStray:         {SeverityWarn, "boxes/ holds something that belongs to no file"},
 	LinkWrongTarget:   {SeverityWarn, "a link under boxes/ points at the wrong content"},
+	ScrubIncomplete:   {SeverityWarn, "the scrub did not finish"},
 	ViewDrift:         {SeverityError, "a table does not match what replaying the log produces"},
 }
 

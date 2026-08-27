@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -13,51 +12,11 @@ import (
 	"github.com/jinzhao1994/kist/internal/library"
 )
 
-// interruptExitCode is the conventional 128+SIGINT.
-const interruptExitCode = 130
-
-// interruptContext turns the first SIGINT into a graceful stop and the second
-// into an exit.
-//
-// The policy is spec 3.7.1 ①: the first Ctrl-C lets the files already imported
-// commit as one op, and only the second gives up on them. library knows
-// nothing about signals — it just watches the context — which is what lets
-// this be tested by pushing values into a channel instead of sending a real
-// signal at the test binary.
-func interruptContext(
-	parent context.Context,
-	sig <-chan os.Signal,
-	notify func(string),
-	exit func(int),
-) (context.Context, context.CancelFunc) {
-	ctx, cancel := context.WithCancel(parent)
-	done := make(chan struct{})
-	go func() {
-		first := false
-		for {
-			select {
-			case <-done:
-				return
-			case _, ok := <-sig:
-				if !ok {
-					return
-				}
-				if !first {
-					first = true
-					notify("stopping — the files already imported will be kept; press Ctrl-C again to discard them")
-					cancel()
-					continue
-				}
-				exit(interruptExitCode)
-				return
-			}
-		}
-	}()
-	return ctx, func() {
-		close(done)
-		cancel()
-	}
-}
+// importStopMessage is what the first Ctrl-C prints. It has to say that the
+// finished files are kept, because the whole point of spec 3.7.1 ① is that
+// stopping an import does not throw away what it already did — and a user who
+// does not know that will re-run from scratch.
+const importStopMessage = "stopping — the files already imported will be kept; press Ctrl-C again to discard them"
 
 func newImportCmd() *cobra.Command {
 	var (
@@ -104,7 +63,7 @@ converges instead of accumulating copies.`,
 			sig := make(chan os.Signal, 2)
 			signal.Notify(sig, os.Interrupt)
 			defer signal.Stop(sig)
-			ctx, cancel := interruptContext(cmd.Context(), sig,
+			ctx, cancel := interruptContext(cmd.Context(), sig, importStopMessage,
 				func(msg string) { fmt.Fprintln(cmd.ErrOrStderr(), msg) },
 				os.Exit)
 			defer cancel()

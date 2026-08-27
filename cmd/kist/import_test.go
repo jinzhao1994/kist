@@ -29,7 +29,7 @@ func TestInterruptFirstCancelsSecondExits(t *testing.T) {
 	var notices []string
 	exited := make(chan int, 1)
 
-	ctx, cancel := interruptContext(t.Context(), sig,
+	ctx, cancel := interruptContext(t.Context(), sig, importStopMessage,
 		func(s string) { notices = append(notices, s) },
 		func(code int) { exited <- code })
 	defer cancel()
@@ -59,7 +59,7 @@ func TestInterruptFirstCancelsSecondExits(t *testing.T) {
 // not be affected by the handler existing.
 func TestInterruptContextLeavesAQuietRunAlone(t *testing.T) {
 	sig := make(chan os.Signal, 1)
-	ctx, cancel := interruptContext(t.Context(), sig, func(string) {}, func(int) {})
+	ctx, cancel := interruptContext(t.Context(), sig, "stopping", func(string) {}, func(int) {})
 	defer cancel()
 	if err := ctx.Err(); err != nil {
 		t.Errorf("ctx.Err() = %v with no signal sent", err)

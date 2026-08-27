@@ -72,25 +72,46 @@ type damage struct {
 	note string
 }
 
-// describeDamage turns damaged blob keys into sentences about files.
-//
-// One query for the whole batch rather than one per key: damage is normally
-// rare, but a half-restored backup can make it universal, and that is exactly
-// the moment a report must not take a minute to print.
 func describeDamage(q store.Queryer, r *Report, damaged []damage) error {
 	if len(damaged) == 0 {
 		return nil
 	}
 	keys := make([]string, len(damaged))
+	notes := make(map[string]string, len(damaged))
+	kinds := make(map[string]Kind, len(damaged))
 	for i, d := range damaged {
 		keys[i] = d.key
+		notes[d.key] = d.note
+		kinds[d.key] = d.kind
+	}
+	return describeKeys(q, r, keys, kinds, notes)
+}
+
+// DescribeDamagedBlobs turns damaged blob keys into findings that name the
+// files behind them. scrub calls it with what re-hashing found; CheckBlobs
+// calls the unexported form with what stating found.
+//
+// It is one query for the whole batch rather than one per key. Damage is
+// normally rare, but a half-restored backup can make it universal, and that is
+// exactly the moment a report must not take a minute to print.
+func DescribeDamagedBlobs(q store.Queryer, r *Report, keys []string, kinds map[string]Kind) error {
+	return describeKeys(q, r, keys, kinds, nil)
+}
+
+func describeKeys(q store.Queryer, r *Report, keys []string, kinds map[string]Kind, notes map[string]string) error {
+	if len(keys) == 0 {
+		return nil
 	}
 	users, err := store.FilesUsingBlobs(q, keys)
 	if err != nil {
 		return err
 	}
-	for _, d := range damaged {
-		r.Add(Finding{Kind: d.kind, Detail: describe(d.key, d.note, users[d.key]), Fix: "kist repair"})
+	for _, key := range keys {
+		r.Add(Finding{
+			Kind:   kinds[key],
+			Detail: describe(key, notes[key], users[key]),
+			Fix:    "kist repair",
+		})
 	}
 	return nil
 }
