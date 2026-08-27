@@ -194,10 +194,11 @@ func TestLockIsExclusiveAcrossProcesses(t *testing.T) {
 // dropping the lock on exit is the whole reason this is an advisory lock
 // rather than a pid file (spec 2.7).
 //
-// Unlike the rest of this file, no small mutation of flock_unix.go makes this
-// fail — the property belongs to the OS primitive, not to our code. It is here
-// as a regression guard for the day somebody reaches for a pid file, which is
-// exactly the change that would break it.
+// No mutation of flock_unix.go makes this fail — the release-on-death property
+// belongs to the OS primitive, not to our code. It is here as a regression
+// guard for the day somebody reaches for a pid file, which is exactly the
+// change that would break it. What is checkable is the precondition, and the
+// first version of this test got that wrong; see below.
 func TestLockSurvivesAKilledHolder(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "kist.lock")
 
@@ -207,7 +208,18 @@ func TestLockSurvivesAKilledHolder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd.Stdin = strings.NewReader("") // never closed by us; the kill ends it
+	// The helper holds the lock until its stdin closes, so this pipe has to
+	// stay open for the kill to be the thing that ends it. Handing it an
+	// already-empty reader instead would let the helper exit on its own, and
+	// the test would go green having proved only that an *exited* holder
+	// releases the lock — a weaker claim, and on Windows a flaky one, because
+	// TerminateProcess on an already-dead process fails with "Access is
+	// denied".
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stdin.Close()
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -216,13 +228,22 @@ func TestLockSurvivesAKilledHolder(t *testing.T) {
 		t.Fatalf("helper did not take the lock: %q, %v", line, err)
 	}
 
+	l := New(path)
+	l.wait = 150 * time.Millisecond
+
+	// State the precondition rather than assuming it: the helper is alive and
+	// really holding the lock at the moment we kill it. Without this the test
+	// can pass while proving nothing.
+	if _, err := l.Acquire(t.Context()); !IsBusy(err) {
+		t.Fatalf("the helper was not holding the lock before the kill: %v", err)
+	}
+
 	if err := cmd.Process.Kill(); err != nil {
 		t.Fatal(err)
 	}
-	cmd.Wait()
+	cmd.Wait() // returns the kill; nothing to check
 
-	l := New(path)
-	l.wait = 2 * time.Second
+	l.wait = 5 * time.Second
 	release, err := l.Acquire(t.Context())
 	if err != nil {
 		t.Fatalf("a killed holder left the lock stuck: %v", err)
