@@ -2956,7 +2956,7 @@ folder 会拿到新 id，而 M1c 之后 files.folder_id 指着它。
 
 **tag 没有 `updated_at`，也不进 `op_boxes`。** tag 树不属于任何 box（spec 2.2.1 说 tag 树操作单独记 `scope='tags'`），所以 `Targets` 返回空。M1b 不实现 `scope` 列——它在 schema 里还不存在，加它是 M5 历史 UI 的事；现在返回空 `Targets` 是诚实的：这条 op 确实没碰任何 box。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 ```go
 package oplog
@@ -3207,12 +3207,12 @@ func TestTagOpsTouchNoBoxes(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `go test ./internal/oplog/ -run 'Tag' -v`
 Expected: FAIL，`undefined: CreateTagPayload`
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 `internal/oplog/tag.go`:
 
@@ -3420,14 +3420,14 @@ func sameParent(a, b *domain.TagID) bool {
 }
 ```
 
-- [ ] **Step 4: 把四个 action 放回 `AllActions()`**
+- [x] **Step 4: 把四个 action 放回 `AllActions()`**
 
-- [ ] **Step 5: 跑测试确认通过**
+- [x] **Step 5: 跑测试确认通过**
 
 Run: `go test ./internal/oplog/ -v`
 Expected: PASS
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add internal/oplog/tag.go internal/oplog/tag_test.go internal/oplog/action.go
