@@ -6,13 +6,17 @@ import (
 )
 
 // snapshotTables lists the rebuildable tables and how to order them so the
-// dump is byte-stable. ops and blobs are absent: they are the authority, not
-// the thing being proved.
+// dump is byte-stable.
+//
+// ops is absent: it is the authority, not the thing being proved. blobs is
+// present from M1c on — Apply maintains it, idempotently, so a rebuild has to
+// reproduce it exactly like everything else here.
 var snapshotTables = []struct {
 	name    string
 	columns string
 	order   string
 }{
+	{"blobs", "key, sha256, size", "key"},
 	{"boxes", "hex(id), name, name_fold, description, description_fold, created_at, updated_at, coalesce(start_at,''), coalesce(end_at,'')", "id"},
 	{"folders", "hex(id), hex(box_id), coalesce(hex(parent_id),''), name, name_fold, created_at, updated_at", "id"},
 	{"files", "hex(id), hex(box_id), hex(folder_id), name, name_fold, blob_key, coalesce(captured_at,''), created_at, updated_at", "id"},

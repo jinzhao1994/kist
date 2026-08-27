@@ -390,3 +390,254 @@ func TestTagDirectCounts(t *testing.T) {
 		t.Errorf("count for the tag = %d, want 1", counts[tag.ID])
 	}
 }
+
+// ── files, folders and blobs (M1c) ────────────────────────────────────────
+
+// seedBoxWithRoot creates a box and its root folder, the shape every file
+// needs to exist inside.
+func seedBoxWithRoot(t *testing.T, db *sql.DB) (domain.BoxID, domain.FolderID) {
+	t.Helper()
+	b := mustBox(t, "云南")
+	root := domain.NewFolderID()
+	viewTx(t, db, testTime, func(vtx *ViewTx) {
+		if err := vtx.InsertBox(b); err != nil {
+			t.Fatal(err)
+		}
+		if err := vtx.InsertFolder(domain.NewRootFolder(root, b.ID)); err != nil {
+			t.Fatal(err)
+		}
+	})
+	return b.ID, root
+}
+
+func TestInsertAndGetFile(t *testing.T) {
+	db := migrated(t)
+	box, root := seedBoxWithRoot(t, db)
+
+	f, err := domain.NewFile(domain.NewFileID(), box, root, "IMG_0001.JPG", "sha256:abcd")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	viewTx(t, db, testTime, func(vtx *ViewTx) {
+		if err := vtx.UpsertBlob("sha256:abcd", "abcd", 12); err != nil {
+			t.Fatalf("UpsertBlob: %v", err)
+		}
+		if err := vtx.InsertFile(f); err != nil {
+			t.Fatalf("InsertFile: %v", err)
+		}
+	})
+
+	viewTx(t, db, testTime, func(vtx *ViewTx) {
+		got, ok, err := vtx.GetFile(f.ID)
+		if err != nil || !ok {
+			t.Fatalf("GetFile: %v ok=%v", err, ok)
+		}
+		if got.Name != "IMG_0001.JPG" || got.NameFold != "img_0001.jpg" || got.BlobKey != "sha256:abcd" {
+			t.Errorf("round trip lost data: %+v", got)
+		}
+		if got.BoxID != box || got.FolderID != root {
+			t.Errorf("placement lost: box %v folder %v", got.BoxID, got.FolderID)
+		}
+		// spec 2.3.1: timestamps come from the op, not the wall clock.
+		if !got.CreatedAt.Equal(testTime) || !got.UpdatedAt.Equal(testTime) {
+			t.Errorf("timestamps = %v / %v, want the op's ts %v", got.CreatedAt, got.UpdatedAt, testTime)
+		}
+		if !got.CapturedAt.IsZero() {
+			t.Errorf("CapturedAt = %q, want empty until M3", got.CapturedAt)
+		}
+	})
+}
+
+func TestGetFileMissing(t *testing.T) {
+	db := migrated(t)
+	viewTx(t, db, testTime, func(vtx *ViewTx) {
+		if _, ok, err := vtx.GetFile(domain.NewFileID()); err != nil || ok {
+			t.Errorf("GetFile of a missing file = ok %v, err %v", ok, err)
+		}
+	})
+}
+
+// UpsertBlob has to be idempotent because Rebuild replays the same import op
+// against a blobs table it never cleared.
+func TestUpsertBlobIsIdempotent(t *testing.T) {
+	db := migrated(t)
+	viewTx(t, db, testTime, func(vtx *ViewTx) {
+		for i := range 3 {
+			if err := vtx.UpsertBlob("sha256:abcd", "abcd", 12); err != nil {
+				t.Fatalf("upsert %d: %v", i, err)
+			}
+		}
+	})
+
+	var n int
+	if err := db.QueryRow(`SELECT count(*) FROM blobs`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Errorf("blobs has %d rows after three identical upserts, want 1", n)
+	}
+}
+
+// The folder chain is how updated_at reaches a box from a file buried three
+// levels down (spec 1.5.1). It must stop at the root rather than walking off
+// the end into NULL.
+func TestFolderChainOfFiles(t *testing.T) {
+	db := migrated(t)
+	box, root := seedBoxWithRoot(t, db)
+
+	mid, leaf := domain.NewFolderID(), domain.NewFolderID()
+	file, err := domain.NewFile(domain.NewFileID(), box, leaf, "a.jpg", "sha256:abcd")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	viewTx(t, db, testTime, func(vtx *ViewTx) {
+		f1, _ := domain.NewFolder(mid, box, root, "day1")
+		if err := vtx.InsertFolder(f1); err != nil {
+			t.Fatal(err)
+		}
+		f2, _ := domain.NewFolder(leaf, box, mid, "raw")
+		if err := vtx.InsertFolder(f2); err != nil {
+			t.Fatal(err)
+		}
+		if err := vtx.UpsertBlob("sha256:abcd", "abcd", 1); err != nil {
+			t.Fatal(err)
+		}
+		if err := vtx.InsertFile(file); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	viewTx(t, db, testTime, func(vtx *ViewTx) {
+		chain, err := vtx.FolderChainOfFiles([]domain.FileID{file.ID})
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := map[domain.FolderID]bool{root: true, mid: true, leaf: true}
+		if len(chain) != len(want) {
+			t.Fatalf("chain has %d folders, want the three on the path", len(chain))
+		}
+		for _, id := range chain {
+			if !want[id] {
+				t.Errorf("chain contains %v, which is not on the path", id)
+			}
+		}
+	})
+}
+
+func TestFolderChainOfNoFilesIsEmpty(t *testing.T) {
+	db := migrated(t)
+	viewTx(t, db, testTime, func(vtx *ViewTx) {
+		chain, err := vtx.FolderChainOfFiles(nil)
+		if err != nil || len(chain) != 0 {
+			t.Errorf("chain = %v, err = %v", chain, err)
+		}
+	})
+}
+
+func TestTouchFoldersUsesTheOpTimestamp(t *testing.T) {
+	db := migrated(t)
+	box, root := seedBoxWithRoot(t, db)
+	_ = box
+
+	later := testTime.Add(time.Hour)
+	viewTx(t, db, later, func(vtx *ViewTx) {
+		if err := vtx.TouchFolders([]domain.FolderID{root}); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	viewTx(t, db, testTime, func(vtx *ViewTx) {
+		got, ok, err := vtx.GetFolder(root)
+		if err != nil || !ok {
+			t.Fatalf("GetFolder: %v ok=%v", err, ok)
+		}
+		if !got.UpdatedAt.Equal(later) {
+			t.Errorf("updated_at = %v, want %v", got.UpdatedAt, later)
+		}
+		if !got.CreatedAt.Equal(testTime) {
+			t.Errorf("created_at moved to %v; touching must not rewrite it", got.CreatedAt)
+		}
+	})
+}
+
+func TestFileTagRoundTrip(t *testing.T) {
+	db := migrated(t)
+	box, root := seedBoxWithRoot(t, db)
+	tag, _ := domain.NewTag(domain.NewTagID(), nil, "云南")
+	f, err := domain.NewFile(domain.NewFileID(), box, root, "a.jpg", "sha256:abcd")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	viewTx(t, db, testTime, func(vtx *ViewTx) {
+		if err := vtx.UpsertBlob("sha256:abcd", "abcd", 1); err != nil {
+			t.Fatal(err)
+		}
+		if err := vtx.InsertFile(f); err != nil {
+			t.Fatal(err)
+		}
+		if err := vtx.InsertTag(tag); err != nil {
+			t.Fatal(err)
+		}
+		if err := vtx.AddFileTag(f.ID, tag.ID, "user"); err != nil {
+			t.Fatalf("AddFileTag: %v", err)
+		}
+	})
+
+	viewTx(t, db, testTime, func(vtx *ViewTx) {
+		has, err := vtx.HasFileTag(f.ID, tag.ID)
+		if err != nil || !has {
+			t.Fatalf("HasFileTag = %v, err %v", has, err)
+		}
+		n, err := vtx.CountFileTags(f.ID)
+		if err != nil || n != 1 {
+			t.Errorf("CountFileTags = %d, err %v", n, err)
+		}
+		if err := vtx.RemoveFileTag(f.ID, tag.ID); err != nil {
+			t.Fatal(err)
+		}
+		if has, _ := vtx.HasFileTag(f.ID, tag.ID); has {
+			t.Error("the tag survived RemoveFileTag")
+		}
+	})
+}
+
+func TestFolderAndBoxCounts(t *testing.T) {
+	db := migrated(t)
+	box, root := seedBoxWithRoot(t, db)
+	sub := domain.NewFolderID()
+
+	viewTx(t, db, testTime, func(vtx *ViewTx) {
+		f, _ := domain.NewFolder(sub, box, root, "day1")
+		if err := vtx.InsertFolder(f); err != nil {
+			t.Fatal(err)
+		}
+		if err := vtx.UpsertBlob("sha256:abcd", "abcd", 1); err != nil {
+			t.Fatal(err)
+		}
+		file, _ := domain.NewFile(domain.NewFileID(), box, sub, "a.jpg", "sha256:abcd")
+		if err := vtx.InsertFile(file); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	viewTx(t, db, testTime, func(vtx *ViewTx) {
+		if n, err := vtx.CountBoxFiles(box); err != nil || n != 1 {
+			t.Errorf("CountBoxFiles = %d, err %v", n, err)
+		}
+		if n, err := vtx.CountFolderFiles(sub); err != nil || n != 1 {
+			t.Errorf("CountFolderFiles(sub) = %d, err %v", n, err)
+		}
+		if n, err := vtx.CountFolderFiles(root); err != nil || n != 0 {
+			t.Errorf("CountFolderFiles(root) = %d, err %v", n, err)
+		}
+		if n, err := vtx.CountFolderChildren(root); err != nil || n != 1 {
+			t.Errorf("CountFolderChildren(root) = %d, err %v", n, err)
+		}
+		if n, err := vtx.CountFolderChildren(sub); err != nil || n != 0 {
+			t.Errorf("CountFolderChildren(sub) = %d, err %v", n, err)
+		}
+	})
+}

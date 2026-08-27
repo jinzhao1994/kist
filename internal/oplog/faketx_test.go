@@ -15,8 +15,16 @@ type fakeTx struct {
 	boxes    map[domain.BoxID]domain.Box
 	folders  map[domain.FolderID]domain.Folder
 	tags     map[domain.TagID]domain.Tag
+	files    map[domain.FileID]domain.File
+	blobs    map[string]fakeBlob
 	boxTags  map[[2]string]string // box|tag -> source
-	fileTags map[domain.TagID]int
+	fileTags map[[2]string]string // file|tag -> source
+}
+
+// fakeBlob mirrors a row of the blobs index.
+type fakeBlob struct {
+	sha256 string
+	size   int64
 }
 
 func newFakeTx(ts time.Time) *fakeTx {
@@ -25,12 +33,16 @@ func newFakeTx(ts time.Time) *fakeTx {
 		boxes:    map[domain.BoxID]domain.Box{},
 		folders:  map[domain.FolderID]domain.Folder{},
 		tags:     map[domain.TagID]domain.Tag{},
+		files:    map[domain.FileID]domain.File{},
+		blobs:    map[string]fakeBlob{},
 		boxTags:  map[[2]string]string{},
-		fileTags: map[domain.TagID]int{},
+		fileTags: map[[2]string]string{},
 	}
 }
 
 func btKey(b domain.BoxID, t domain.TagID) [2]string { return [2]string{b.String(), t.String()} }
+
+func ftKey(f domain.FileID, t domain.TagID) [2]string { return [2]string{f.String(), t.String()} }
 
 func (f *fakeTx) TS() time.Time { return f.ts }
 
@@ -135,7 +147,12 @@ func (f *fakeTx) CountTagChildren(id domain.TagID) (int, error) {
 }
 
 func (f *fakeTx) CountTagUsage(id domain.TagID) (int, error) {
-	n := f.fileTags[id]
+	n := 0
+	for k := range f.fileTags {
+		if k[1] == id.String() {
+			n++
+		}
+	}
 	for k := range f.boxTags {
 		if k[1] == id.String() {
 			n++
@@ -156,6 +173,97 @@ func (f *fakeTx) RemoveBoxTag(b domain.BoxID, t domain.TagID) error {
 
 func (f *fakeTx) HasBoxTag(b domain.BoxID, t domain.TagID) (bool, error) {
 	_, ok := f.boxTags[btKey(b, t)]
+	return ok, nil
+}
+
+func (f *fakeTx) CountBoxFiles(id domain.BoxID) (int, error) {
+	n := 0
+	for _, file := range f.files {
+		if file.BoxID == id {
+			n++
+		}
+	}
+	return n, nil
+}
+
+func (f *fakeTx) GetFolder(id domain.FolderID) (domain.Folder, bool, error) {
+	fo, ok := f.folders[id]
+	return fo, ok, nil
+}
+
+func (f *fakeTx) DeleteFolder(id domain.FolderID) error { delete(f.folders, id); return nil }
+
+func (f *fakeTx) CountFolderFiles(id domain.FolderID) (int, error) {
+	n := 0
+	for _, file := range f.files {
+		if file.FolderID == id {
+			n++
+		}
+	}
+	return n, nil
+}
+
+func (f *fakeTx) CountFolderChildren(id domain.FolderID) (int, error) {
+	n := 0
+	for _, fo := range f.folders {
+		if fo.ParentID != nil && *fo.ParentID == id {
+			n++
+		}
+	}
+	return n, nil
+}
+
+func (f *fakeTx) InsertFile(file domain.File) error {
+	if _, exists := f.files[file.ID]; exists {
+		return fmt.Errorf("file %s already exists", file.ID)
+	}
+	if _, ok := f.blobs[file.BlobKey]; !ok {
+		return fmt.Errorf("file %s references unknown blob %s", file.Name, file.BlobKey)
+	}
+	for _, existing := range f.files {
+		if existing.FolderID == file.FolderID && existing.NameFold == file.NameFold {
+			return fmt.Errorf("%q already exists in that folder", file.Name)
+		}
+	}
+	file.CreatedAt, file.UpdatedAt = f.ts, f.ts
+	f.files[file.ID] = file
+	return nil
+}
+
+func (f *fakeTx) DeleteFile(id domain.FileID) error { delete(f.files, id); return nil }
+
+func (f *fakeTx) GetFile(id domain.FileID) (domain.File, bool, error) {
+	file, ok := f.files[id]
+	return file, ok, nil
+}
+
+func (f *fakeTx) CountFileTags(id domain.FileID) (int, error) {
+	n := 0
+	for k := range f.fileTags {
+		if k[0] == id.String() {
+			n++
+		}
+	}
+	return n, nil
+}
+
+func (f *fakeTx) UpsertBlob(key, sha256 string, size int64) error {
+	f.blobs[key] = fakeBlob{sha256: sha256, size: size}
+	return nil
+}
+
+func (f *fakeTx) AddFileTag(file domain.FileID, t domain.TagID, source string) error {
+	f.fileTags[ftKey(file, t)] = source
+	return nil
+}
+
+func (f *fakeTx) RemoveFileTag(file domain.FileID, t domain.TagID) error {
+	delete(f.fileTags, ftKey(file, t))
+	return nil
+}
+
+func (f *fakeTx) HasFileTag(file domain.FileID, t domain.TagID) (bool, error) {
+	_, ok := f.fileTags[ftKey(file, t)]
 	return ok, nil
 }
 

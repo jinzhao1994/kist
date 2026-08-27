@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jinzhao1994/kist/internal/domain"
@@ -287,4 +288,237 @@ func ClearViews(tx *sql.Tx) error {
 		}
 	}
 	return nil
+}
+
+// ── blobs ────────────────────────────────────────────────────────────────
+
+// UpsertBlob records a blob in the index.
+//
+// The blobs table is an index over the blobs/ directory and is rebuildable by
+// scanning it (invariant 1), so this is deliberately idempotent: Rebuild
+// replays import ops against a blobs table it never cleared, and writing the
+// same row again must be a no-op rather than a constraint violation. Purity is
+// untouched — identical payload, identical row.
+func (v *ViewTx) UpsertBlob(key, sha256 string, size int64) error {
+	_, err := v.tx.Exec(
+		`INSERT INTO blobs (key, sha256, size) VALUES (?, ?, ?)
+		 ON CONFLICT(key) DO UPDATE SET sha256 = excluded.sha256, size = excluded.size`,
+		key, sha256, size)
+	if err != nil {
+		return fmt.Errorf("upsert blob %s: %w", key, err)
+	}
+	return nil
+}
+
+// ── files ────────────────────────────────────────────────────────────────
+
+// fileColumns is every column of a file, in the order scanFile expects.
+const fileColumns = `id, box_id, folder_id, name, name_fold, blob_key, captured_at, created_at, updated_at`
+
+func scanFile(scan func(...any) error) (domain.File, error) {
+	var (
+		f                domain.File
+		created, updated string
+	)
+	if err := scan(&f.ID, &f.BoxID, &f.FolderID, &f.Name, &f.NameFold, &f.BlobKey,
+		&f.CapturedAt, &created, &updated); err != nil {
+		return domain.File{}, err
+	}
+	var err error
+	if f.CreatedAt, err = ParseTime(created); err != nil {
+		return domain.File{}, err
+	}
+	if f.UpdatedAt, err = ParseTime(updated); err != nil {
+		return domain.File{}, err
+	}
+	return f, nil
+}
+
+func (v *ViewTx) InsertFile(f domain.File) error {
+	_, err := v.tx.Exec(
+		`INSERT INTO files (`+fileColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		f.ID, f.BoxID, f.FolderID, f.Name, f.NameFold, f.BlobKey, f.CapturedAt,
+		FormatTime(v.ts), FormatTime(v.ts))
+	if err != nil {
+		return fmt.Errorf("insert file %s: %w", f.Name, err)
+	}
+	return nil
+}
+
+func (v *ViewTx) GetFile(id domain.FileID) (domain.File, bool, error) {
+	f, err := scanFile(v.tx.QueryRow(`SELECT `+fileColumns+` FROM files WHERE id = ?`, id).Scan)
+	if err == sql.ErrNoRows {
+		return domain.File{}, false, nil
+	}
+	if err != nil {
+		return domain.File{}, false, fmt.Errorf("read file %s: %w", id, err)
+	}
+	return f, true, nil
+}
+
+func (v *ViewTx) DeleteFile(id domain.FileID) error {
+	if _, err := v.tx.Exec(`DELETE FROM files WHERE id = ?`, id); err != nil {
+		return fmt.Errorf("delete file %s: %w", id, err)
+	}
+	return nil
+}
+
+func (v *ViewTx) CountFileTags(id domain.FileID) (int, error) {
+	var n int
+	if err := v.tx.QueryRow(`SELECT count(*) FROM file_tags WHERE file_id = ?`, id).Scan(&n); err != nil {
+		return 0, fmt.Errorf("count tags on file %s: %w", id, err)
+	}
+	return n, nil
+}
+
+func (v *ViewTx) CountBoxFiles(id domain.BoxID) (int, error) {
+	var n int
+	if err := v.tx.QueryRow(`SELECT count(*) FROM files WHERE box_id = ?`, id).Scan(&n); err != nil {
+		return 0, fmt.Errorf("count files in box %s: %w", id, err)
+	}
+	return n, nil
+}
+
+// ── folders, continued ───────────────────────────────────────────────────
+
+const folderColumns = `id, box_id, parent_id, name, name_fold, created_at, updated_at`
+
+func scanFolder(scan func(...any) error) (domain.Folder, error) {
+	var (
+		f                domain.Folder
+		created, updated string
+	)
+	if err := scan(&f.ID, &f.BoxID, &f.ParentID, &f.Name, &f.NameFold, &created, &updated); err != nil {
+		return domain.Folder{}, err
+	}
+	var err error
+	if f.CreatedAt, err = ParseTime(created); err != nil {
+		return domain.Folder{}, err
+	}
+	if f.UpdatedAt, err = ParseTime(updated); err != nil {
+		return domain.Folder{}, err
+	}
+	return f, nil
+}
+
+func (v *ViewTx) GetFolder(id domain.FolderID) (domain.Folder, bool, error) {
+	f, err := scanFolder(v.tx.QueryRow(`SELECT `+folderColumns+` FROM folders WHERE id = ?`, id).Scan)
+	if err == sql.ErrNoRows {
+		return domain.Folder{}, false, nil
+	}
+	if err != nil {
+		return domain.Folder{}, false, fmt.Errorf("read folder %s: %w", id, err)
+	}
+	return f, true, nil
+}
+
+func (v *ViewTx) DeleteFolder(id domain.FolderID) error {
+	if _, err := v.tx.Exec(`DELETE FROM folders WHERE id = ?`, id); err != nil {
+		return fmt.Errorf("delete folder %s: %w", id, err)
+	}
+	return nil
+}
+
+func (v *ViewTx) CountFolderFiles(id domain.FolderID) (int, error) {
+	var n int
+	if err := v.tx.QueryRow(`SELECT count(*) FROM files WHERE folder_id = ?`, id).Scan(&n); err != nil {
+		return 0, fmt.Errorf("count files in folder %s: %w", id, err)
+	}
+	return n, nil
+}
+
+func (v *ViewTx) CountFolderChildren(id domain.FolderID) (int, error) {
+	var n int
+	if err := v.tx.QueryRow(`SELECT count(*) FROM folders WHERE parent_id = ?`, id).Scan(&n); err != nil {
+		return 0, fmt.Errorf("count subfolders of %s: %w", id, err)
+	}
+	return n, nil
+}
+
+// FolderChainOfFiles returns every folder on the path from these files up to
+// their box roots.
+//
+// It exists so the write path can bump updated_at all the way up (spec 1.5.1)
+// without any handler having to remember to. The recursion walks parent_id
+// upward and stops at the root, whose parent_id is NULL.
+func (v *ViewTx) FolderChainOfFiles(files []domain.FileID) ([]domain.FolderID, error) {
+	if len(files) == 0 {
+		return nil, nil
+	}
+	args := make([]any, len(files))
+	for i, id := range files {
+		args[i] = id
+	}
+	rows, err := v.tx.Query(`
+		WITH RECURSIVE chain(id) AS (
+			SELECT folder_id FROM files WHERE id IN (`+placeholders(len(files))+`)
+			UNION
+			SELECT f.parent_id FROM folders f JOIN chain c ON f.id = c.id
+			WHERE f.parent_id IS NOT NULL
+		)
+		SELECT id FROM chain`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("folder chain: %w", err)
+	}
+	defer rows.Close()
+
+	var out []domain.FolderID
+	for rows.Next() {
+		var id domain.FolderID
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("folder chain: %w", err)
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+// TouchFolders stamps updated_at on the given folders. Same rule and same
+// caller as TouchBoxes: the write path, never a handler.
+func (v *ViewTx) TouchFolders(ids []domain.FolderID) error {
+	for _, id := range ids {
+		if _, err := v.tx.Exec(`UPDATE folders SET updated_at = ? WHERE id = ?`, FormatTime(v.ts), id); err != nil {
+			return fmt.Errorf("touch folder %s: %w", id, err)
+		}
+	}
+	return nil
+}
+
+// ── file_tags ────────────────────────────────────────────────────────────
+
+func (v *ViewTx) AddFileTag(file domain.FileID, tag domain.TagID, source string) error {
+	_, err := v.tx.Exec(
+		`INSERT INTO file_tags (file_id, tag_id, source) VALUES (?, ?, ?)`, file, tag, source)
+	if err != nil {
+		return fmt.Errorf("tag file %s: %w", file, err)
+	}
+	return nil
+}
+
+func (v *ViewTx) RemoveFileTag(file domain.FileID, tag domain.TagID) error {
+	if _, err := v.tx.Exec(`DELETE FROM file_tags WHERE file_id = ? AND tag_id = ?`, file, tag); err != nil {
+		return fmt.Errorf("untag file %s: %w", file, err)
+	}
+	return nil
+}
+
+func (v *ViewTx) HasFileTag(file domain.FileID, tag domain.TagID) (bool, error) {
+	var n int
+	err := v.tx.QueryRow(`SELECT count(*) FROM file_tags WHERE file_id = ? AND tag_id = ?`, file, tag).Scan(&n)
+	if err != nil {
+		return false, fmt.Errorf("check tag on file %s: %w", file, err)
+	}
+	return n > 0, nil
+}
+
+// placeholders renders "?, ?, ?" for an IN list.
+//
+// spec 4.3 measured SQLite's MAX_VARIABLE_NUMBER at 32766, which is far above
+// anything a tag tree or a folder chain will produce, so there is no chunking
+// here.
+func placeholders(n int) string {
+	if n <= 0 {
+		return ""
+	}
+	return strings.TrimSuffix(strings.Repeat("?, ", n), ", ")
 }
