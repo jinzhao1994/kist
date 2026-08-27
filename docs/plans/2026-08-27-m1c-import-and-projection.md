@@ -1637,7 +1637,7 @@ Targets 只报 files 不报 box：op_boxes 是「这个 box 发生过什么」�
 
 **排序：`ORDER BY captured_at DESC NULLS LAST, id DESC`，固定不变**（设计文档 4.5.1）。`NULLS LAST` 必须显式写，哪怕 SQLite 加不加都一样——Postgres 的 `DESC` 默认是 `NULLS FIRST`（4.7）。
 
-- [ ] **Step 1: 写排序与 keyset 的失败测试**
+- [x] **Step 1: 写排序与 keyset 的失败测试**
 
 `internal/store/files_test.go`：
 
@@ -1778,12 +1778,12 @@ func TestListFilesCombinesTagConditions(t *testing.T) {
 
 辅助函数 `seedBox` / `insertFile` / `insertTag` / `tagFile` / `names` / `randomSuffix` 写在同一个文件里，直接用 `ViewTx` 建数据。
 
-- [ ] **Step 2: 跑测试，确认失败**
+- [x] **Step 2: 跑测试，确认失败**
 
 Run: `go test ./internal/store/ -run TestListFiles`
 Expected: FAIL, `undefined: ListFiles`
 
-- [ ] **Step 3: 实现 `internal/store/files.go` 的排序与游标**
+- [x] **Step 3: 实现 `internal/store/files.go` 的排序与游标**
 
 ```go
 package store
@@ -1859,7 +1859,7 @@ func cursorPredicate(captured string, id domain.FileID) (string, []any) {
 
 `domain.FileID` 是 `struct{ ID }`（M1a），所以 `domain.FileID{ID: parsed}` 是它的构造式，`f.ID.String()` 走的是提升上来的 `ID.String()`，即带连字符的规范 UUID。
 
-- [ ] **Step 4: 实现 `ListFiles`**
+- [x] **Step 4: 实现 `ListFiles`**
 
 ```go
 // ListFilesOptions is the M1c subset of spec 4.2's Query.
@@ -1973,7 +1973,7 @@ func escapeLike(s string) string {
 }
 ```
 
-- [ ] **Step 5: 实现目录浏览与导入要用的三个查询**
+- [x] **Step 5: 实现目录浏览与导入要用的三个查询**
 
 ```go
 // FoldersOfBox returns every folder of a box, root first, then the rest in id
@@ -2024,12 +2024,12 @@ func ExistingNames(q Queryer, box domain.BoxID) (map[domain.FolderID]map[string]
 
 三个列表查询的 body 都是 `scanFile` / folder 扫描的直写，照 `ListFiles` 的形状写。
 
-- [ ] **Step 6: 跑测试**
+- [x] **Step 6: 跑测试**
 
 Run: `go test ./internal/store/ -run 'TestListFiles|TestExistingNames' -v`
 Expected: PASS
 
-- [ ] **Step 7: 用 `EXPLAIN QUERY PLAN` 确认排序真的走了索引**
+- [x] **Step 7: 用 `EXPLAIN QUERY PLAN` 确认排序真的走了索引**
 
 设计文档 4.5.1 的整个论证建立在「`ORDER BY captured_at DESC NULLS LAST, id DESC` 走覆盖索引」上。加一个测试把它钉住，否则将来有人加一列排序键，性能会静默塌掉：
 
@@ -2067,7 +2067,7 @@ func TestFileOrderUsesTheIndex(t *testing.T) {
 }
 ```
 
-- [ ] **Step 8: `make check` 并提交**
+- [x] **Step 8: `make check` 并提交**
 
 ```bash
 make check
