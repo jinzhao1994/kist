@@ -122,7 +122,7 @@ cmd      ← 只 import library / cliutil
 
 **名字的校验规则住在 `domain` 里，不在 CLI 也不在 `library`。** 设计文档 1.4 提过"幽灵目录"问题——名字首尾带空格在投影时会产生一个看不见的目录，而用户在 UI 上完全看不出两个 box 有什么区别。折叠函数（M1a Task 3）刻意不做 trim，因为那是校验的职责，不是规范化的职责；这个 task 就是那句话的落点。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 `internal/domain/box_test.go`:
 
@@ -264,12 +264,12 @@ func TestNewTagRejectsBadNames(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `go test ./internal/domain/ -run 'TestNewBox|TestValidateName|TestNewTag|TestBoxDates' -v`
 Expected: FAIL，`undefined: NewBox`
 
-- [ ] **Step 3: 实现名字校验**
+- [x] **Step 3: 实现名字校验**
 
 `internal/domain/name.go`:
 
@@ -322,7 +322,7 @@ func ValidateName(name string) error {
 }
 ```
 
-- [ ] **Step 4: 实现三个实体**
+- [x] **Step 4: 实现三个实体**
 
 `internal/domain/box.go`:
 
@@ -416,12 +416,12 @@ func NewRootFolder(id FolderID, box BoxID) Folder {
 }
 ```
 
-- [ ] **Step 5: 跑测试确认通过**
+- [x] **Step 5: 跑测试确认通过**
 
 Run: `go test ./internal/domain/ -v`
 Expected: PASS
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add internal/domain/
