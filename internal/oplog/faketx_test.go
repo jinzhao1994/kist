@@ -1,0 +1,163 @@
+package oplog
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/jinzhao1994/kist/internal/domain"
+)
+
+// fakeTx is an in-memory stand-in for the real transaction. Handlers are pure
+// functions of (tx, payload), so testing them against maps rather than SQLite
+// is not a shortcut — it is the shape the design promises.
+type fakeTx struct {
+	ts       time.Time
+	boxes    map[domain.BoxID]domain.Box
+	folders  map[domain.FolderID]domain.Folder
+	tags     map[domain.TagID]domain.Tag
+	boxTags  map[[2]string]string // box|tag -> source
+	fileTags map[domain.TagID]int
+}
+
+func newFakeTx(ts time.Time) *fakeTx {
+	return &fakeTx{
+		ts:       ts,
+		boxes:    map[domain.BoxID]domain.Box{},
+		folders:  map[domain.FolderID]domain.Folder{},
+		tags:     map[domain.TagID]domain.Tag{},
+		boxTags:  map[[2]string]string{},
+		fileTags: map[domain.TagID]int{},
+	}
+}
+
+func btKey(b domain.BoxID, t domain.TagID) [2]string { return [2]string{b.String(), t.String()} }
+
+func (f *fakeTx) TS() time.Time { return f.ts }
+
+func (f *fakeTx) InsertBox(b domain.Box) error {
+	if _, exists := f.boxes[b.ID]; exists {
+		return fmt.Errorf("box %s already exists", b.ID)
+	}
+	b.CreatedAt, b.UpdatedAt = f.ts, f.ts
+	f.boxes[b.ID] = b
+	return nil
+}
+
+func (f *fakeTx) UpdateBox(b domain.Box) error {
+	old, exists := f.boxes[b.ID]
+	if !exists {
+		return fmt.Errorf("no such box %s", b.ID)
+	}
+	b.CreatedAt = old.CreatedAt
+	b.UpdatedAt = f.ts
+	f.boxes[b.ID] = b
+	return nil
+}
+
+func (f *fakeTx) DeleteBox(id domain.BoxID) error {
+	for _, fo := range f.folders {
+		if fo.BoxID == id {
+			return fmt.Errorf("box %s still has folders", id)
+		}
+	}
+	delete(f.boxes, id)
+	return nil
+}
+
+func (f *fakeTx) GetBox(id domain.BoxID) (domain.Box, bool, error) {
+	b, ok := f.boxes[id]
+	return b, ok, nil
+}
+
+func (f *fakeTx) CountBoxTags(id domain.BoxID) (int, error) {
+	n := 0
+	for k := range f.boxTags {
+		if k[0] == id.String() {
+			n++
+		}
+	}
+	return n, nil
+}
+
+func (f *fakeTx) InsertFolder(fo domain.Folder) error {
+	fo.CreatedAt, fo.UpdatedAt = f.ts, f.ts
+	f.folders[fo.ID] = fo
+	return nil
+}
+
+func (f *fakeTx) DeleteFoldersOfBox(id domain.BoxID) error {
+	for k, fo := range f.folders {
+		if fo.BoxID == id {
+			delete(f.folders, k)
+		}
+	}
+	return nil
+}
+
+func (f *fakeTx) InsertTag(t domain.Tag) error {
+	for _, existing := range f.tags {
+		if existing.NameFold == t.NameFold {
+			return fmt.Errorf("tag name %q is already taken", t.Name)
+		}
+	}
+	f.tags[t.ID] = t
+	return nil
+}
+
+func (f *fakeTx) UpdateTag(t domain.Tag) error {
+	if _, ok := f.tags[t.ID]; !ok {
+		return fmt.Errorf("no such tag %s", t.ID)
+	}
+	for id, existing := range f.tags {
+		if id != t.ID && existing.NameFold == t.NameFold {
+			return fmt.Errorf("tag name %q is already taken", t.Name)
+		}
+	}
+	f.tags[t.ID] = t
+	return nil
+}
+
+func (f *fakeTx) DeleteTag(id domain.TagID) error { delete(f.tags, id); return nil }
+
+func (f *fakeTx) GetTag(id domain.TagID) (domain.Tag, bool, error) {
+	t, ok := f.tags[id]
+	return t, ok, nil
+}
+
+func (f *fakeTx) CountTagChildren(id domain.TagID) (int, error) {
+	n := 0
+	for _, t := range f.tags {
+		if t.ParentID != nil && *t.ParentID == id {
+			n++
+		}
+	}
+	return n, nil
+}
+
+func (f *fakeTx) CountTagUsage(id domain.TagID) (int, error) {
+	n := f.fileTags[id]
+	for k := range f.boxTags {
+		if k[1] == id.String() {
+			n++
+		}
+	}
+	return n, nil
+}
+
+func (f *fakeTx) AddBoxTag(b domain.BoxID, t domain.TagID, source string) error {
+	f.boxTags[btKey(b, t)] = source
+	return nil
+}
+
+func (f *fakeTx) RemoveBoxTag(b domain.BoxID, t domain.TagID) error {
+	delete(f.boxTags, btKey(b, t))
+	return nil
+}
+
+func (f *fakeTx) HasBoxTag(b domain.BoxID, t domain.TagID) (bool, error) {
+	_, ok := f.boxTags[btKey(b, t)]
+	return ok, nil
+}
+
+// compile-time proof that the fake covers the whole interface
+var _ Tx = (*fakeTx)(nil)
