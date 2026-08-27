@@ -6621,7 +6621,7 @@ kist undo <op-id>
 
 **`kist log` 要标出已撤销的行**，这正是 `reverts_id` 提成列的原因（spec 2.2）。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 `cmd/kist/box_test.go`:
 
@@ -6952,12 +6952,12 @@ func firstField(s string) string {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `go test ./cmd/kist/ -v`
 Expected: FAIL，`unknown command "box"`
 
-- [ ] **Step 3: 加 `--library` 全局 flag 与打开助手**
+- [x] **Step 3: 加 `--library` 全局 flag 与打开助手**
 
 `cmd/kist/library.go`:
 
@@ -7019,7 +7019,7 @@ func openLibrary(cmd *cobra.Command) (*library.Library, error) {
 	root.AddCommand(newVersionCmd())
 ```
 
-- [ ] **Step 4: 实现 box 子命令**
+- [x] **Step 4: 实现 box 子命令**
 
 `cmd/kist/box.go`:
 
@@ -7251,7 +7251,7 @@ func runBoxTag(cmd *cobra.Command, args []string, attach bool) error {
 var _ = library.ErrNoSuchBox // errors flow through unchanged; this keeps the import honest
 ```
 
-- [ ] **Step 5: 实现 tag 子命令**
+- [x] **Step 5: 实现 tag 子命令**
 
 `cmd/kist/tag.go`:
 
@@ -7440,7 +7440,7 @@ mistyped command is not a recoverable kind of mistake.`,
 var _ = library.ErrNoSuchTag
 ```
 
-- [ ] **Step 6: 实现 log 与 undo**
+- [x] **Step 6: 实现 log 与 undo**
 
 `cmd/kist/oplog.go`:
 
@@ -7543,12 +7543,12 @@ partly applied, and the operation in the way is named.`,
 }
 ```
 
-- [ ] **Step 7: 跑全部测试**
+- [x] **Step 7: 跑全部测试**
 
 Run: `make check`
 Expected: PASS
 
-- [ ] **Step 8: 手工走一遍完整流程**
+- [x] **Step 8: 手工走一遍完整流程**
 
 ```bash
 rm -rf /tmp/kist-m1b && go run ./cmd/kist init /tmp/kist-m1b --yes
@@ -7565,7 +7565,7 @@ go run ./cmd/kist $L tag tree          # 云南 (0)
 go run ./cmd/kist $L log               # 打标那条标着 (undone by N)
 ```
 
-- [ ] **Step 9: 四平台交叉编译**
+- [x] **Step 9: 四平台交叉编译**
 
 ```bash
 for p in darwin/arm64 darwin/amd64 linux/amd64 windows/amd64; do
@@ -7573,11 +7573,11 @@ for p in darwin/arm64 darwin/amd64 linux/amd64 windows/amd64; do
 done
 ```
 
-- [ ] **Step 10: 更新 README 与 AGENTS.md**
+- [x] **Step 10: 更新 README 与 AGENTS.md**
 
 `README.md` 的状态段落改成：`kist init` 建库、`box` / `tag` 能用、每一步都能撤销，但还没法放文件进去（`import` 是 M1c）。`README.zh-CN.md` 同步。`AGENTS.md` 的「当前状态」改成 M1b 完成、下一步 M1c。
 
-- [ ] **Step 11: 提交**
+- [x] **Step 11: 提交**
 
 ```bash
 git add .
