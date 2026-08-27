@@ -67,8 +67,10 @@ func TestGetBoxMissing(t *testing.T) {
 	})
 }
 
-func TestUpdateBoxKeepsCreatedAt(t *testing.T) {
-	// created_at is set once and never moves; updated_at follows the op.
+func TestUpdateBoxLeavesBothTimestampsAlone(t *testing.T) {
+	// UpdateBox writes semantic fields only. created_at is immutable, and
+	// updated_at is the write path's business — whether it moves depends on
+	// the op's source (spec 1.5.1 ②), which a handler does not get to know.
 	db := migrated(t)
 	b := mustBox(t, "before")
 	viewTx(t, db, testTime, func(vtx *ViewTx) { vtx.InsertBox(b) })
@@ -89,8 +91,21 @@ func TestUpdateBoxKeepsCreatedAt(t *testing.T) {
 		if !got.CreatedAt.Equal(testTime) {
 			t.Errorf("CreatedAt = %v, want it unchanged at %v", got.CreatedAt, testTime)
 		}
+		if !got.UpdatedAt.Equal(testTime) {
+			t.Errorf("UpdatedAt = %v; UpdateBox must not move it, TouchBoxes does", got.UpdatedAt)
+		}
+	})
+
+	// TouchBoxes is what moves it.
+	viewTx(t, db, later, func(vtx *ViewTx) {
+		if err := vtx.TouchBoxes([]domain.BoxID{b.ID}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	viewTx(t, db, later, func(vtx *ViewTx) {
+		got, _, _ := vtx.GetBox(b.ID)
 		if !got.UpdatedAt.Equal(later) {
-			t.Errorf("UpdatedAt = %v, want %v", got.UpdatedAt, later)
+			t.Errorf("after TouchBoxes UpdatedAt = %v, want %v", got.UpdatedAt, later)
 		}
 	})
 }

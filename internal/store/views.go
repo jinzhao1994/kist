@@ -48,15 +48,21 @@ func (v *ViewTx) InsertBox(b domain.Box) error {
 	return nil
 }
 
-// UpdateBox rewrites the mutable fields. created_at is deliberately absent:
-// it is set once by InsertBox and must never move.
+// UpdateBox rewrites the semantic fields, and only those.
+//
+// Neither timestamp is touched. created_at is set once by InsertBox and must
+// never move; updated_at belongs entirely to the write path's propagation step
+// (spec 1.5.1 ②), because whether it moves depends on the op's source, and a
+// handler has no business knowing that. Writing it here would let a
+// maintenance op — a re-extraction, a relink — stamp the row as freshly
+// modified, which is precisely the failure that rule exists to prevent.
 func (v *ViewTx) UpdateBox(b domain.Box) error {
 	res, err := v.tx.Exec(
 		`UPDATE boxes SET name = ?, name_fold = ?, description = ?, description_fold = ?,
-		                  start_at = ?, end_at = ?, updated_at = ?
+		                  start_at = ?, end_at = ?
 		 WHERE id = ?`,
 		b.Name, b.NameFold, b.Description, b.DescriptionFold,
-		b.StartAt, b.EndAt, FormatTime(v.ts), b.ID)
+		b.StartAt, b.EndAt, b.ID)
 	if err != nil {
 		return fmt.Errorf("update box %s: %w", b.ID, err)
 	}
