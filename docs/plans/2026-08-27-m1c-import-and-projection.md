@@ -3851,7 +3851,7 @@ kist file untag <tag> <file-id>...
 kist relink
 ```
 
-- [ ] **Step 1: 写 `ls` 的测试**
+- [x] **Step 1: 写 `ls` 的测试**
 
 ```go
 // ls with no arguments lists boxes; with a box it lists that box's root; with
@@ -3865,9 +3865,9 @@ func TestLsListsDirectoriesFirst(t *testing.T) { /* … */ }
 func TestLsNamesAMissingPath(t *testing.T) { /* … */ }
 ```
 
-- [ ] **Step 2: 实现 `ls`，跑测试**
+- [x] **Step 2: 实现 `ls`，跑测试**
 
-- [ ] **Step 3: 写 `find` 的测试**
+- [x] **Step 3: 写 `find` 的测试**
 
 ```go
 // spec 4.3: several tags intersect, and a tag includes its descendants.
@@ -3887,15 +3887,15 @@ func TestFindRejectsAnUnknownTag(t *testing.T) { /* … */ }
 func TestFindPrintsTheBoxRelativePath(t *testing.T) { /* … */ }
 ```
 
-- [ ] **Step 4: 实现 `find`，跑测试**
+- [x] **Step 4: 实现 `find`，跑测试**
 
 `--tag` 经 `l.ExpandTags` 展开成 `AllOf`，`--not-tag` 展开成 `NoneOf`。
 
-- [ ] **Step 5: 实现 `file tag` / `file untag` 与它们的测试**
+- [x] **Step 5: 实现 `file tag` / `file untag` 与它们的测试**
 
 文件用 id 指定（`find` 的输出里带 id）。与 `box tag` 的形状保持一致。
 
-- [ ] **Step 6: 实现 `relink` 与它的测试**
+- [x] **Step 6: 实现 `relink` 与它的测试**
 
 ```
 kist relink
@@ -3904,7 +3904,7 @@ rebuilt 1,204 links in 3 boxes; removed 2 strays
 
 脏标记存在时，`relink` 的输出要明确说「the warning is cleared」。同时在 `openLibrary` 里，脏标记存在就往 stderr 打一行提示——3.4.1 要求它可见。
 
-- [ ] **Step 7: 把新命令挂进 `root.go`**
+- [x] **Step 7: 把新命令挂进 `root.go`**
 
 ```go
 	root.AddCommand(newImportCmd())
@@ -3914,12 +3914,12 @@ rebuilt 1,204 links in 3 boxes; removed 2 strays
 	root.AddCommand(newRelinkCmd())
 ```
 
-- [ ] **Step 8: 确认 `internal/arch` 还是绿的**
+- [x] **Step 8: 确认 `internal/arch` 还是绿的**
 
 Run: `go test ./internal/arch/ -v`
 Expected: PASS。新命令**不得** import `store` 或 `oplog`；缺什么就在 `library` 里加别名，别放宽规则。
 
-- [ ] **Step 9: `make check` 并提交**
+- [x] **Step 9: `make check` 并提交**
 
 ```bash
 make check
