@@ -3460,7 +3460,7 @@ ErrStaleBefore：这不是'库变了'，是'这个操作不被允许'，用户�
 
 **`source` 进 payload。** `file_tags` / `box_tags` 的 `source` 区分 user 与 derived（spec 1.6.1），而它必须能被重放重建出来，所以是 payload 的一部分而不是 `Apply` 里的常量。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 ```go
 package oplog
@@ -3618,12 +3618,12 @@ func TestTagBoxesSourceSurvivesReplay(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `go test ./internal/oplog/ -run 'TagBoxes|UntagBoxes' -v`
 Expected: FAIL，`undefined: TagBoxesPayload`
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 `internal/oplog/boxtag.go`:
 
@@ -3723,21 +3723,21 @@ func boxTagTargets(payload []byte) (Targets, error) {
 }
 ```
 
-- [ ] **Step 4: 把两个 action 放回 `AllActions()`，整份列表恢复**
+- [x] **Step 4: 把两个 action 放回 `AllActions()`，整份列表恢复**
 
 此时 `TestLookupFindsRegisteredHandlers`（Task 2）应当对全部九个 action 通过。
 
-- [ ] **Step 5: 跑测试确认通过**
+- [x] **Step 5: 跑测试确认通过**
 
 Run: `go test ./internal/oplog/ -v`
 Expected: PASS
 
-- [ ] **Step 6: 再确认一次依赖方向**
+- [x] **Step 6: 再确认一次依赖方向**
 
 Run: `go list -deps ./internal/oplog/ | grep kist`
 Expected: 只有 `internal/domain`
 
-- [ ] **Step 7: 提交**
+- [x] **Step 7: 提交**
 
 ```bash
 git add internal/oplog/
