@@ -101,3 +101,15 @@ func rebuildInto(ctx context.Context, db *sql.DB) error {
 	}
 	return nil
 }
+
+// OpCount is how many operations a rebuild would replay.
+//
+// It exists for the CLI, which has to tell the user how much work it is about
+// to do and cannot reach store itself (invariant 2).
+func (l *Library) OpCount(ctx context.Context) (int64, error) {
+	var n int64
+	if err := l.db.QueryRowContext(ctx, `SELECT count(*) FROM ops`).Scan(&n); err != nil {
+		return 0, fmt.Errorf("count operations: %w", err)
+	}
+	return n, nil
+}
