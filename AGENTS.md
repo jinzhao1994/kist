@@ -34,7 +34,9 @@ Go 单二进制 + SQLite，Apache-2.0。
 
 不变量 2 和依赖方向由 `internal/arch` 的测试守着（`oplog` 不得 import `store` / `blob`，`projection` 不得 import `store` / `oplog` / `library`，`cmd` 不得 import `store` / `oplog`）。
 
-**下一步是 M2**：`verify` / `scrub` / `rebuild` 的 CLI、`blobs/tmp/` 的崩溃残留清理、远端 `BlobStore` 第二实现与自动修复、以及围着 4.2 的 `Query` 写的 conformance test suite。设计文档里那句实践建议现在正当时——**M2 通过之前，别删掉导入源的原始副本**。
+**下一步是 M2a**（M2 拆成了两个，理由见设计文档第 7 节）：`verify` / `verify --deep` / `scrub` / `repair` / `rebuild` 五个 CLI、`blobs/tmp/` 的崩溃残留清理、远端 blob 目录与从远端修复。**M2b** 是 4.2 的 `Query` AST 与 conformance suite，开写前要先定 `open-questions.md` B1c 那四件事。
+
+设计文档里那句实践建议现在正当时——**M2a 通过之前，别删掉导入源的原始副本**。
 
 里程碑拆分见设计文档第 7 节，明确的范围外清单见第 8 节，待决问题见 `open-questions.md`。
 
