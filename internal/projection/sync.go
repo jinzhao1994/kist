@@ -54,6 +54,51 @@ func (s *Syncer) log() *slog.Logger {
 	return slog.Default()
 }
 
+// Diff is what one directory needs to become correct: things to make, things
+// to remove. Remove comes out deepest-first, ready to be applied in order.
+type Diff struct {
+	Create []Entry
+	Remove []string
+}
+
+// Empty reports whether the projection already matches.
+func (d Diff) Empty() bool { return len(d.Create) == 0 && len(d.Remove) == 0 }
+
+// DiffDir computes what SyncDir would do, without doing any of it.
+//
+// verify's projection check is this function (spec 3.8). Sharing the diff with
+// the thing that repairs is the whole point: two implementations of "what does
+// boxes/ look like when it is right" would eventually disagree, and then
+// neither the report nor the repair could be trusted.
+func (s *Syncer) DiffDir(dir string, want []Entry) (Diff, error) {
+	desired := make(map[string]Entry, len(want))
+	for _, e := range want {
+		desired[e.Path] = e
+	}
+	actual, err := s.walk(dir)
+	if err != nil {
+		return Diff{}, err
+	}
+
+	var d Diff
+	for p := range actual {
+		if _, ok := desired[p]; !ok {
+			d.Remove = append(d.Remove, p)
+		}
+	}
+	// Deepest first, so a directory is empty by the time it goes.
+	slices.Sort(d.Remove)
+	slices.Reverse(d.Remove)
+
+	// Plan order, which is parents before children.
+	for _, e := range want {
+		if _, exists := actual[e.Path]; !exists {
+			d.Create = append(d.Create, e)
+		}
+	}
+	return d, nil
+}
+
 // SyncDir makes one directory under Root match want.
 //
 // It is a diff, not a rebuild: a box holding twenty thousand photos must not
@@ -70,28 +115,24 @@ func (s *Syncer) log() *slog.Logger {
 //  4. stamp directory mtimes, last of all — creating a child bumps its
 //     parent's mtime, so any earlier stamp would be undone
 func (s *Syncer) SyncDir(dir string, want []Entry) (Stats, error) {
+	d, err := s.DiffDir(dir, want)
+	if err != nil {
+		return Stats{}, err
+	}
+	return s.apply(d, want), nil
+}
+
+// apply carries out a diff.
+//
+// want is passed alongside it because step 4 stamps every directory in the
+// plan, not only the ones just created: a sync that merely removed a stray
+// still has to put its parent's mtime back, and the removal is what disturbed
+// it.
+func (s *Syncer) apply(d Diff, want []Entry) Stats {
 	var stats Stats
 
-	desired := make(map[string]Entry, len(want))
-	for _, e := range want {
-		desired[e.Path] = e
-	}
-
-	actual, err := s.walk(dir)
-	if err != nil {
-		return stats, err
-	}
-
-	// 1. Strays. Deepest first so a directory is empty by the time it goes.
-	var strays []string
-	for p := range actual {
-		if _, ok := desired[p]; !ok {
-			strays = append(strays, p)
-		}
-	}
-	slices.Sort(strays)
-	slices.Reverse(strays)
-	for _, p := range strays {
+	// 1. Strays, deepest first.
+	for _, p := range d.Remove {
 		if err := os.RemoveAll(filepath.Join(s.Root, filepath.FromSlash(p))); err != nil {
 			s.log().Error("could not remove a stray from the projection", "path", p, "err", err)
 			stats.Failed++
@@ -101,10 +142,7 @@ func (s *Syncer) SyncDir(dir string, want []Entry) (Stats, error) {
 	}
 
 	// 2 and 3. Creations, in plan order, which is parents before children.
-	for _, e := range want {
-		if _, exists := actual[e.Path]; exists {
-			continue
-		}
+	for _, e := range d.Create {
 		abs := filepath.Join(s.Root, filepath.FromSlash(e.Path))
 		if e.IsDir {
 			if err := os.MkdirAll(abs, 0o755); err != nil {
@@ -140,7 +178,7 @@ func (s *Syncer) SyncDir(dir string, want []Entry) (Stats, error) {
 			s.log().Warn("could not stamp a projected directory", "path", e.Path, "err", err)
 		}
 	}
-	return stats, nil
+	return stats
 }
 
 // walk reads what is actually on disk under one directory, as slash paths
@@ -169,25 +207,42 @@ func (s *Syncer) walk(dir string) (map[string]bool, error) {
 	return out, nil
 }
 
-// PruneRoot removes directories directly under Root that belong to no box.
+// StrayBoxDirs lists directories directly under Root that belong to no box.
 //
 // That is what a deleted box or an interrupted rename leaves behind. Dot-files
 // are left alone: the projection's own dirty marker lives there.
-func (s *Syncer) PruneRoot(keep map[string]bool) (int, error) {
+//
+// verify reports these and PruneRoot removes them, from this one list — the
+// same reason DiffDir exists. A checker and a repairer with separate notions
+// of "belongs to no box" is a pair that will one day disagree.
+func (s *Syncer) StrayBoxDirs(keep map[string]bool) ([]string, error) {
 	entries, err := os.ReadDir(s.Root)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return 0, nil
+			return nil, nil
 		}
-		return 0, fmt.Errorf("read %s: %w", s.Root, err)
+		return nil, fmt.Errorf("read %s: %w", s.Root, err)
 	}
-	removed := 0
+	var out []string
 	for _, e := range entries {
 		if strings.HasPrefix(e.Name(), ".") || keep[e.Name()] {
 			continue
 		}
-		if err := os.RemoveAll(filepath.Join(s.Root, e.Name())); err != nil {
-			return removed, fmt.Errorf("remove %s: %w", e.Name(), err)
+		out = append(out, e.Name())
+	}
+	return out, nil
+}
+
+// PruneRoot removes the directories StrayBoxDirs finds.
+func (s *Syncer) PruneRoot(keep map[string]bool) (int, error) {
+	strays, err := s.StrayBoxDirs(keep)
+	if err != nil {
+		return 0, err
+	}
+	removed := 0
+	for _, name := range strays {
+		if err := os.RemoveAll(filepath.Join(s.Root, name)); err != nil {
+			return removed, fmt.Errorf("remove %s: %w", name, err)
 		}
 		removed++
 	}
