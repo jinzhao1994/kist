@@ -2112,7 +2112,7 @@ COALESCE 的全部论证就建立在这一条上。"
 3. **同名判定用折叠名**，与 `files(folder_id, name)` 的唯一索引一致，也与 `ExistingNames` 的 key 一致
 4. **`taken` 集合必须包含这一批自己刚加的名字**，否则同一次导入里两个同名文件会撞唯一约束
 
-- [ ] **Step 1: 写「幂等」的失败测试**——这是 3.7.1 ② 的验收
+- [x] **Step 1: 写「幂等」的失败测试**——这是 3.7.1 ② 的验收
 
 `internal/library/import_test.go`：
 
@@ -2211,12 +2211,12 @@ func TestImportNumbersWithinOneBatch(t *testing.T) {
 
 `openWithBox` / `writeTree` / `countStatus` / `describe` / `listAll` / `names` / `equalUnordered` 写在测试文件里，`writeTree` 把一个 `map[相对路径]内容` 铺到 `t.TempDir()` 下。
 
-- [ ] **Step 2: 跑测试，确认失败**
+- [x] **Step 2: 跑测试，确认失败**
 
 Run: `go test ./internal/library/ -run TestImport`
 Expected: FAIL, `undefined: ImportOptions`
 
-- [ ] **Step 3: 实现 `internal/library/import.go` 的类型与扫描**
+- [x] **Step 3: 实现 `internal/library/import.go` 的类型与扫描**
 
 ```go
 package library
@@ -2365,7 +2365,7 @@ func scan(src string, hidden bool) ([]scanned, error) {
 
 **空目录不产生 folder 行。** 目录是懒创建的——只有真的有文件落进去时才建。这让 payload 只包含实际用到的目录，撤销时的「目录必须是空的」断言也不会被一堆空壳绊住。
 
-- [ ] **Step 4: 实现 `Import` 的主循环**
+- [x] **Step 4: 实现 `Import` 的主循环**
 
 ```go
 // Import puts a file or a directory tree into an existing box.
@@ -2531,7 +2531,7 @@ func resolveName(
 
 `blob.OutcomeCollided` 和 `OutcomeRepaired` 也要在 per-file 结果里体现出来：这两件事都值得让用户看见，而不是混在「导入成功」里一笔带过。`FileResult` 上多带一个 `Outcome blob.Outcome` 字段，CLI 汇总时单独列出来。
 
-- [ ] **Step 5: 实现 `importTree`——folder 的复用与懒创建**
+- [x] **Step 5: 实现 `importTree`——folder 的复用与懒创建**
 
 ```go
 // importTree resolves a relative directory path to a folder id, reusing what
@@ -2602,12 +2602,12 @@ func (t *importTree) folderFor(rel string, payload *oplog.ImportFilesPayload) (d
 
 `relPathOf` 从 `byID` 往上走到 `base`，拼出斜杠路径；走到 root 还没碰到 `base` 就返回 `false`。
 
-- [ ] **Step 6: 跑 Step 1 的三个测试**
+- [x] **Step 6: 跑 Step 1 的三个测试**
 
 Run: `go test ./internal/library/ -run TestImport -v`
 Expected: PASS
 
-- [ ] **Step 7: 写中断的测试**——3.7.1 ① 的验收
+- [x] **Step 7: 写中断的测试**——3.7.1 ① 的验收
 
 ```go
 // A cancelled context is a graceful stop: what was finished is committed as
@@ -2666,7 +2666,7 @@ type hooks struct {
 
 在 `importOne` 返回前调用 `l.hooks.afterFile`（判空）。
 
-- [ ] **Step 8: 写「部分失败」的测试**——3.7.1 ③ 的验收
+- [x] **Step 8: 写「部分失败」的测试**——3.7.1 ③ 的验收
 
 ```go
 func TestImportKeepsGoingAfterOneBadFile(t *testing.T) {
@@ -2702,24 +2702,24 @@ func TestImportKeepsGoingAfterOneBadFile(t *testing.T) {
 
 在 Windows 上 `os.Chmod(_, 0)` 不阻止读取，所以这个测试要么 `t.Skip`，要么改用一个 `runtime.GOOS` 判断——两条都行，选 `Skip` 那条并写清楚原因。
 
-- [ ] **Step 9: 跑全部 library 测试**
+- [x] **Step 9: 跑全部 library 测试**
 
 Run: `go test ./internal/library/ -v`
 Expected: PASS
 
-- [ ] **Step 10: 写 `Rebuild` 含文件的决定性测试**（不变量 3 的真正验收）
+- [x] **Step 10: 写 `Rebuild` 含文件的决定性测试**（不变量 3 的真正验收）
 
 在 `internal/library/rebuild_test.go` 里给既有的快照测试加上导入：建 box、建 tag、**导入一棵两层目录树**、给文件打 tag、撤销一次，然后快照 → `Rebuild` → 快照，逐字节相同。
 
 M1b 的版本没有文件，所以 `files` / `folders` / `blobs` / `file_tags` 四张表在那个测试里全是空的——不变量 3 在文件这条线上此前从未被验证过。
 
-- [ ] **Step 11: 确认这个测试真的会红**
+- [x] **Step 11: 确认这个测试真的会红**
 
 临时把 `importOne` 里的 `domain.NewFileID()` 挪进 `oplog` 的 `importFiles.Apply`（即在 Apply 里现铸 ID），跑 Step 10 的测试，确认它变红并指出是 `files` 那一段不同。然后改回来。
 
 **这一步不能跳。** M1b 的经验是：一个不会红的决定性测试和没有测试是一回事。
 
-- [ ] **Step 12: `make check` 并提交**
+- [x] **Step 12: `make check` 并提交**
 
 ```bash
 make check
