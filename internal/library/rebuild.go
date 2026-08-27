@@ -46,14 +46,19 @@ func (l *Library) Rebuild(ctx context.Context) error {
 			return fmt.Errorf("replaying op %d: %w", row.ID, err)
 		}
 
-		vtx := store.NewViewTx(tx, row.TS)
-		if err := handler.Apply(vtx, row.Payload); err != nil {
-			return fmt.Errorf("replaying op %d (%s): %w", row.ID, action, err)
-		}
-
 		targets, err := handler.Targets(row.Payload)
 		if err != nil {
 			return fmt.Errorf("replaying op %d: %w", row.ID, err)
+		}
+
+		vtx := store.NewViewTx(tx, row.TS)
+		chainBefore, err := vtx.FolderChainOfFiles(targets.Files)
+		if err != nil {
+			return err
+		}
+
+		if err := handler.Apply(vtx, row.Payload); err != nil {
+			return fmt.Errorf("replaying op %d (%s): %w", row.ID, action, err)
 		}
 		if err := store.InsertOpBoxes(tx, row.ID, targets.Boxes); err != nil {
 			return err
@@ -62,13 +67,12 @@ func (l *Library) Rebuild(ctx context.Context) error {
 			return err
 		}
 
-		// Same rule as the live path, with this op's own ts — which is why the
-		// replayed updated_at values come out identical instead of all being
-		// the moment of the rebuild (spec 1.5.1 ①).
-		if oplog.Source(row.Source).PropagatesUpdatedAt() {
-			if err := vtx.TouchBoxes(targets.Boxes); err != nil {
-				return err
-			}
+		// Same rule as the live path — literally the same function, with this
+		// op's own ts. That is why replayed updated_at values come out
+		// identical instead of all being the moment of the rebuild
+		// (spec 1.5.1 ①).
+		if err := touchAfter(vtx, oplog.Source(row.Source), targets, chainBefore); err != nil {
+			return err
 		}
 	}
 

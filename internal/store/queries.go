@@ -86,6 +86,25 @@ func BoxTags(q Queryer, box domain.BoxID) ([]domain.TagID, error) {
 	return out, rows.Err()
 }
 
+// FileTags returns the tags attached to a file.
+func FileTags(q Queryer, file domain.FileID) ([]domain.TagID, error) {
+	rows, err := q.Query(`SELECT tag_id FROM file_tags WHERE file_id = ? ORDER BY tag_id`, file)
+	if err != nil {
+		return nil, fmt.Errorf("read tags of file %s: %w", file, err)
+	}
+	defer rows.Close()
+
+	var out []domain.TagID
+	for rows.Next() {
+		var id domain.TagID
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("read tags of file %s: %w", file, err)
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
 // TagDirectCounts returns how many things hang directly off each tag.
 //
 // One GROUP BY at startup, then library keeps it up to date incrementally

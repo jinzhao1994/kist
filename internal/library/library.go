@@ -181,6 +181,8 @@ type (
 	BoxFields = oplog.BoxFields
 	// ListBoxesOptions controls the box listing.
 	ListBoxesOptions = store.ListBoxesOptions
+	// ListFilesOptions controls the file listing and search.
+	ListFilesOptions = store.ListFilesOptions
 	// ListOpsOptions filters the history view.
 	ListOpsOptions = store.ListOpsOptions
 	// Op is one entry in the history.

@@ -65,6 +65,18 @@ func (l *Library) write(
 	}
 
 	vtx := store.NewViewTx(tx, ts)
+
+	// The folder chain has to be sampled on both sides of Apply.
+	//
+	// An import's files do not exist before Apply, and a delete's files do not
+	// exist after it, so either sample alone misses one direction. Taking the
+	// union also gets a future move-file op right for free: the first sample
+	// names the old chain, the second the new one, and both need bumping.
+	chainBefore, err := vtx.FolderChainOfFiles(targets.Files)
+	if err != nil {
+		return 0, err
+	}
+
 	if err := handler.Apply(vtx, payload); err != nil {
 		return 0, fmt.Errorf("apply %s: %w", action, err)
 	}
@@ -76,13 +88,8 @@ func (l *Library) write(
 		return 0, err
 	}
 
-	// spec 1.5.1 ②: updated_at records human intent, not system activity. The
-	// rule lives here rather than in each handler so that a new op type cannot
-	// forget it.
-	if source.PropagatesUpdatedAt() {
-		if err := vtx.TouchBoxes(targets.Boxes); err != nil {
-			return 0, err
-		}
+	if err := touchAfter(vtx, source, targets, chainBefore); err != nil {
+		return 0, err
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -102,6 +109,50 @@ func (l *Library) write(
 		l.tags = tags
 	}
 	return opID, nil
+}
+
+// touchAfter propagates updated_at once an op has been applied.
+//
+// spec 1.5.1 ②: updated_at records human intent, not system activity. The rule
+// lives here rather than in each handler so that a new op type cannot forget
+// it, and it is shared by the live write path and Rebuild so that a replayed
+// library carries the same values as the original — which the byte-for-byte
+// snapshot test would otherwise catch immediately.
+func touchAfter(
+	vtx *store.ViewTx,
+	source oplog.Source,
+	targets oplog.Targets,
+	chainBefore []domain.FolderID,
+) error {
+	if !source.PropagatesUpdatedAt() {
+		return nil
+	}
+	if err := vtx.TouchBoxes(targets.Boxes); err != nil {
+		return err
+	}
+	chainAfter, err := vtx.FolderChainOfFiles(targets.Files)
+	if err != nil {
+		return err
+	}
+	return vtx.TouchFolders(unionFolders(chainBefore, chainAfter))
+}
+
+// unionFolders merges two folder-id lists without duplicates.
+func unionFolders(a, b []domain.FolderID) []domain.FolderID {
+	if len(a) == 0 {
+		return b
+	}
+	seen := make(map[domain.FolderID]bool, len(a)+len(b))
+	out := make([]domain.FolderID, 0, len(a)+len(b))
+	for _, list := range [][]domain.FolderID{a, b} {
+		for _, id := range list {
+			if !seen[id] {
+				seen[id] = true
+				out = append(out, id)
+			}
+		}
+	}
+	return out
 }
 
 // refreshTagState mirrors a committed op into the in-memory tag tree.
@@ -172,6 +223,20 @@ func (l *Library) refreshTagState(action oplog.Action, payload []byte) error {
 			return err
 		}
 		l.tags.AddDirectCount(p.TagID, -len(p.BoxIDs))
+
+	case oplog.ActionTagFiles:
+		p, err := oplog.Payload[oplog.TagFilesPayload](payload)
+		if err != nil {
+			return err
+		}
+		l.tags.AddDirectCount(p.TagID, len(p.FileIDs))
+
+	case oplog.ActionUntagFiles:
+		p, err := oplog.Payload[oplog.UntagFilesPayload](payload)
+		if err != nil {
+			return err
+		}
+		l.tags.AddDirectCount(p.TagID, -len(p.FileIDs))
 	}
 	return nil
 }

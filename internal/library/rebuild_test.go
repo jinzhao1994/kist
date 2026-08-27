@@ -71,6 +71,23 @@ func busyLibrary(t *testing.T) *Library {
 		t.Fatal(err)
 	}
 
+	// Tag some of those files, so file_tags is covered too — and untag one, so
+	// the replay handles both directions.
+	imported, _, err := store.ListFiles(l.db, store.ListFilesOptions{Box: &boxes[1]})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := make([]domain.FileID, len(imported))
+	for i, f := range imported {
+		ids[i] = f.ID
+	}
+	if _, err := l.TagFiles(ctx, yunnan.ID, ids); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.UntagFiles(ctx, yunnan.ID, ids[:1]); err != nil {
+		t.Fatal(err)
+	}
+
 	// An import that gets undone, so the replay has to handle delete_files too.
 	undone := writeTree(t, map[string]string{"temp/scratch.txt": "throwaway"})
 	if _, err := l.Import(ctx, undone, ImportOptions{Box: boxes[2]}); err != nil {
@@ -105,7 +122,7 @@ func busyLibrary(t *testing.T) *Library {
 //     nothing else
 func TestBusyLibraryCoversTheFileTables(t *testing.T) {
 	l := busyLibrary(t)
-	for table, want := range map[string]int{"files": 5, "folders": 5, "blobs": 5} {
+	for table, want := range map[string]int{"files": 5, "folders": 5, "blobs": 5, "file_tags": 4} {
 		var n int
 		if err := l.db.QueryRow(`SELECT count(*) FROM ` + table).Scan(&n); err != nil {
 			t.Fatal(err)
