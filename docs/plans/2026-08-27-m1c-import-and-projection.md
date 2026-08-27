@@ -978,7 +978,7 @@ type ImportFilesPayload struct {
 type DeleteFilesPayload = ImportFilesPayload
 ```
 
-- [ ] **Step 1: 写 `import_files` 的失败测试**
+- [x] **Step 1: 写 `import_files` 的失败测试**
 
 `internal/oplog/file_test.go`：
 
@@ -1069,12 +1069,12 @@ func TestImportFilesTargets(t *testing.T) {
 
 `applyPayload` / `newFakeTx` / `seedBox` 是 `faketx_test.go` 里的既有辅助（M1b），按需补 `seedBox`：建一个 box 和它的根 folder，返回两个 id。
 
-- [ ] **Step 2: 跑测试，确认失败**
+- [x] **Step 2: 跑测试，确认失败**
 
 Run: `go test ./internal/oplog/ -run TestImportFiles`
 Expected: FAIL, `undefined: ActionImportFiles`
 
-- [ ] **Step 3: 加 action 常量**
+- [x] **Step 3: 加 action 常量**
 
 `internal/oplog/action.go` 的 const 块追加：
 
@@ -1088,7 +1088,7 @@ Expected: FAIL, `undefined: ActionImportFiles`
 
 （后两个 Task 4 才实现，但常量一起加，`AllActions` 由各 handler 的 `init` 追加，所以未实现的不会出现在里面——这正是 M1b 那条设计的用处。）
 
-- [ ] **Step 4: 实现 `internal/oplog/file.go` 的 `importFiles`**
+- [x] **Step 4: 实现 `internal/oplog/file.go` 的 `importFiles`**
 
 ```go
 package oplog
@@ -1146,7 +1146,7 @@ func (importFiles) Inverse(payload []byte) (Action, []byte, error) {
 func (importFiles) Targets(payload []byte) (Targets, error) { return fileTargets(payload) }
 ```
 
-- [ ] **Step 5: 写 `delete_files` 的严格模式测试**
+- [x] **Step 5: 写 `delete_files` 的严格模式测试**
 
 ```go
 // Undoing an import is refused rather than partly done. Three things can have
@@ -1227,12 +1227,12 @@ func TestDeleteFilesUndoesACleanImport(t *testing.T) {
 }
 ```
 
-- [ ] **Step 6: 跑测试，确认失败**
+- [x] **Step 6: 跑测试，确认失败**
 
 Run: `go test ./internal/oplog/ -run TestDeleteFiles`
 Expected: FAIL
 
-- [ ] **Step 7: 实现 `deleteFiles`**
+- [x] **Step 7: 实现 `deleteFiles`**
 
 ```go
 type deleteFiles struct{}
@@ -1322,7 +1322,7 @@ func fileTargets(payload []byte) (Targets, error) {
 }
 ```
 
-- [ ] **Step 8: 给 `deleteBox` 补一条「box 里还有文件」的断言**
+- [x] **Step 8: 给 `deleteBox` 补一条「box 里还有文件」的断言**
 
 M1b 的 `deleteBox` 只检查了 `CountBoxTags`。现在 box 里可能有文件，而 `files.box_id` 是外键——不检查的话用户会看到 `FOREIGN KEY constraint failed (787)`，跟 M1b 里 `tag_boxes` 那个 bug 一模一样。
 
@@ -1353,17 +1353,17 @@ func TestDeleteBoxRefusesWhenTheBoxHoldsFiles(t *testing.T) {
 }
 ```
 
-- [ ] **Step 9: 跑全部 oplog 测试**
+- [x] **Step 9: 跑全部 oplog 测试**
 
 Run: `go test ./internal/oplog/ -v`
 Expected: PASS
 
-- [ ] **Step 10: 确认新 action 出现在 `AllActions` 里**
+- [x] **Step 10: 确认新 action 出现在 `AllActions` 里**
 
 Run: `go test ./internal/oplog/ -run TestAllActions -v`
 Expected: PASS，`import_files` 和 `delete_files` 在列，`tag_files` / `untag_files` **不**在（Task 4 才注册）
 
-- [ ] **Step 11: `make check` 并提交**
+- [x] **Step 11: `make check` 并提交**
 
 ```bash
 make check
