@@ -2,6 +2,7 @@ package library
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/jinzhao1994/kist/internal/oplog"
@@ -19,7 +20,26 @@ import (
 //
 // ops and blobs are not touched. The whole point is that they are the input.
 func (l *Library) Rebuild(ctx context.Context) error {
-	tx, err := l.db.BeginTx(ctx, nil)
+	if err := rebuildInto(ctx, l.db); err != nil {
+		return err
+	}
+	tags, err := LoadTagTree(l.db)
+	if err != nil {
+		return fmt.Errorf("reload the tag tree after rebuild: %w", err)
+	}
+	l.tags = tags
+	return nil
+}
+
+// rebuildInto discards db's materialized views and replays its op log into
+// them. db must already hold the ops — it is either the live library or a
+// VACUUM INTO copy of one.
+//
+// It is a function rather than a method because verify --deep runs it against
+// a database that is deliberately not this Library's: the point there is to
+// produce a second, independent answer and compare the two.
+func rebuildInto(ctx context.Context, db *sql.DB) error {
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin rebuild: %w", err)
 	}
@@ -35,7 +55,7 @@ func (l *Library) Rebuild(ctx context.Context) error {
 	// One op at a time. Reading the whole log into a slice would hold every
 	// payload in memory at once, and after a hundred thousand imported files
 	// that is tens of megabytes for no reason (spec 2.2.1).
-	err = store.IterOps(l.db, func(row store.OpRow) error {
+	err = store.IterOps(db, func(row store.OpRow) error {
 		action := oplog.Action(row.Action)
 		handler, err := oplog.Lookup(action)
 		if err != nil {
@@ -79,11 +99,5 @@ func (l *Library) Rebuild(ctx context.Context) error {
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit rebuild: %w", err)
 	}
-
-	tags, err := LoadTagTree(l.db)
-	if err != nil {
-		return fmt.Errorf("reload the tag tree after rebuild: %w", err)
-	}
-	l.tags = tags
 	return nil
 }

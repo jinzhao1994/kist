@@ -2,7 +2,6 @@ package library
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/jinzhao1994/kist/internal/blob"
 	"github.com/jinzhao1994/kist/internal/integrity"
@@ -131,9 +130,4 @@ func (l *Library) cleanTmp() {
 	if n > 0 {
 		l.log.Info("removed crash residue from blobs/tmp", "files", n)
 	}
-}
-
-// verifyDeep is filled in by the next task.
-func (l *Library) verifyDeep(context.Context) (integrity.Report, error) {
-	return integrity.Report{}, fmt.Errorf("--deep is not implemented yet")
 }
