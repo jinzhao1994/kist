@@ -16,6 +16,10 @@ func newFindCmd() *cobra.Command {
 		tags    []string
 		notTags []string
 		box     string
+		sort    string
+		asc     bool
+		since   string
+		until   string
 		limit   int
 	)
 
@@ -27,7 +31,23 @@ tag conditions: --tag can be given several times and a file has to carry all of
 them. A tag includes everything below it in the tree, so --tag 人物 finds
 files tagged with any person.
 
---not-tag excludes.`,
+--not-tag excludes.
+
+  --sort   captured (default), imported, or name
+  --asc    oldest or A-Z first, instead of newest or Z-A
+
+Time filtering takes --since and --until, and two things about it surprise
+people:
+
+  Dates are as precise as you knew at the time — "2019", "2019-08",
+  "2019-08-12" — and matching is by overlap. --since 2019-03 --until 2019-06
+  therefore also finds things dated only "2019", because they might be from
+  the spring. An archive is for finding your things, so it would rather show
+  you one too many than hide one.
+
+  Files do not have a capture time yet. Reading it out of EXIF is a later
+  milestone, so today a --since or --until search finds nothing at all. Box
+  dates, which you set yourself, are unaffected.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			l, err := openLibrary(cmd)
@@ -36,7 +56,14 @@ files tagged with any person.
 			}
 			defer l.Close()
 
-			q := query.Query{Text: name, Limit: limit}
+			sortSpec, err := parseSort(sort, asc)
+			if err != nil {
+				return err
+			}
+			q := query.Query{Text: name, Limit: limit, Sort: sortSpec}
+			if q.Time, err = parseRange(since, until); err != nil {
+				return err
+			}
 			if box != "" {
 				b, err := l.ResolveBox(cmd.Context(), box)
 				if err != nil {
@@ -78,6 +105,10 @@ files tagged with any person.
 	cmd.Flags().StringArrayVar(&tags, "tag", nil, "require this tag (repeatable; includes its descendants)")
 	cmd.Flags().StringArrayVar(&notTags, "not-tag", nil, "exclude this tag (repeatable)")
 	cmd.Flags().StringVar(&box, "box", "", "only files in this box")
+	cmd.Flags().StringVar(&sort, "sort", "captured", "order by captured, imported or name")
+	cmd.Flags().BoolVar(&asc, "asc", false, "oldest or A-Z first")
+	cmd.Flags().StringVar(&since, "since", "", "only files captured on or after this date (2019, 2019-08, 2019-08-12)")
+	cmd.Flags().StringVar(&until, "until", "", "only files captured on or before this date")
 	cmd.Flags().IntVarP(&limit, "limit", "n", 50, "how many results to show")
 	return cmd
 }
@@ -99,4 +130,42 @@ func combineTagConditions(required, excluded query.TagExpr) query.TagExpr {
 	default:
 		return query.TagAll{required, excluded}
 	}
+}
+
+// parseSort turns the flag into a SortSpec.
+//
+// An unknown value names the valid ones. The contract's own error is "unknown
+// sort key 99", which is true and useless to somebody who typed --sort date.
+func parseSort(name string, asc bool) (query.SortSpec, error) {
+	keys := map[string]query.SortKey{
+		"captured": query.SortCaptured,
+		"imported": query.SortImported,
+		"name":     query.SortName,
+	}
+	key, ok := keys[name]
+	if !ok {
+		return query.SortSpec{}, fmt.Errorf("unknown --sort %q; use captured, imported or name", name)
+	}
+	return query.SortSpec{Key: key, Asc: asc}, nil
+}
+
+// parseRange turns --since and --until into a DateRange, or nil if neither was
+// given.
+func parseRange(since, until string) (*query.DateRange, error) {
+	if since == "" && until == "" {
+		return nil, nil
+	}
+	var r query.DateRange
+	var err error
+	if since != "" {
+		if r.From, err = domain.ParseLocalDate(since); err != nil {
+			return nil, fmt.Errorf("--since: %w", err)
+		}
+	}
+	if until != "" {
+		if r.To, err = domain.ParseLocalDate(until); err != nil {
+			return nil, fmt.Errorf("--until: %w", err)
+		}
+	}
+	return &r, nil
 }
