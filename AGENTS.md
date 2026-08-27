@@ -48,7 +48,11 @@ Go 单二进制 + SQLite，Apache-2.0。
 
 **conformance suite 断言结果，从不断言查询计划。** 没有 `EXPLAIN`、没有关于索引的断言。v0.2 的 Postgres 实现只需要加一个和 `internal/store/conformance_test.go` 一模一样的文件。
 
-**下一步是 M3**（提取与派生）。**开写前必须先定 `open-questions.md` A1**——HEIC / ffmpeg 与单二进制的取舍，而 iPhone 默认拍出来就是 HEIC，这不是边角情况。
+**B3（并发与多进程）已定**（2026-08-27，见设计文档 2.7）：`kist.lock` 上一把作用域为「一次逻辑写操作」的 OS 咨询锁，加上读路径比一次 `MAX(ops.id)`。**还没实现**——但其中一个 bug（导入的文件名分配 vs `files(folder_id, name)` 的 UNIQUE 索引）在今天两个 `kist import` 之间就已经能触发，不必等 serve。
+
+**A1（HEIC）的截止条件改了**：从「M3 开始前」改成「网格浏览成为主要界面时」。HEIC 只挡住缩略图 / 预览，存储和检索都不需要解码，所以 M3 可以开写——但要按「**降级是默认路径**」规划。
+
+**下一步是 M3（提取与派生）还是先做 API server，没定。**
 
 里程碑拆分见设计文档第 7 节，明确的范围外清单见第 8 节，待决问题见 `open-questions.md`。
 
