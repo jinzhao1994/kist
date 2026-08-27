@@ -480,7 +480,7 @@ café.jpg 从 Mac 和从 Linux 导入会存成两行不同的 name，而 name_fo
 
 **为什么 `UpsertBlob` 进 `Apply` 而不是写路径：** `blobs` 表是 `blobs/` 目录的索引，扫目录就能重建（不变量 1）。但让 `Apply` 用**幂等 upsert** 维护它有两个好处：写路径保持"所有写都发生在 Apply 里"这一条统一规则；且 `Rebuild` 在 `blobs` 表被清空的库上也能把它填回来——`Rebuild` 本来就不清 `blobs`，upsert 遇到已有行原样写回，纯度不受影响（同样的 payload 永远产生同样的行）。
 
-- [ ] **Step 1: 写 files / folders 写接口的失败测试**
+- [x] **Step 1: 写 files / folders 写接口的失败测试**
 
 `internal/store/views_test.go` 追加：
 
@@ -605,12 +605,12 @@ func mustNoErr(t *testing.T, err error) {
 }
 ```
 
-- [ ] **Step 2: 跑测试，确认失败**
+- [x] **Step 2: 跑测试，确认失败**
 
 Run: `go test ./internal/store/ -run 'TestInsertAndGetFile|TestUpsertBlob|TestFolderChain'`
 Expected: FAIL, `v.UpsertBlob undefined`
 
-- [ ] **Step 3: 在 `internal/store/views.go` 实现 blobs 与 files**
+- [x] **Step 3: 在 `internal/store/views.go` 实现 blobs 与 files**
 
 ```go
 // ── blobs ────────────────────────────────────────────────────────────────
@@ -705,7 +705,7 @@ func (v *ViewTx) CountBoxFiles(id domain.BoxID) (int, error) {
 
 `captured_at` 直接绑 `domain.LocalDate`：它已经实现了 `driver.Valuer` / `sql.Scanner`，空值往返成 NULL（M1a）。
 
-- [ ] **Step 4: 实现 folders 的补充方法**
+- [x] **Step 4: 实现 folders 的补充方法**
 
 ```go
 func (v *ViewTx) GetFolder(id domain.FolderID) (domain.Folder, bool, error) {
@@ -756,7 +756,7 @@ func (v *ViewTx) CountFolderChildren(id domain.FolderID) (int, error) {
 }
 ```
 
-- [ ] **Step 5: 实现 file_tags 的三个方法**
+- [x] **Step 5: 实现 file_tags 的三个方法**
 
 与 M1b 的 `AddBoxTag` / `RemoveBoxTag` / `HasBoxTag` 同构：
 
@@ -788,7 +788,7 @@ func (v *ViewTx) HasFileTag(file domain.FileID, tag domain.TagID) (bool, error) 
 }
 ```
 
-- [ ] **Step 6: 实现 `FolderChainOfFiles` 与 `TouchFolders`**
+- [x] **Step 6: 实现 `FolderChainOfFiles` 与 `TouchFolders`**
 
 ```go
 // FolderChainOfFiles returns every folder on the path from these files up to
@@ -843,7 +843,7 @@ func (v *ViewTx) TouchFolders(ids []domain.FolderID) error {
 
 `placeholders(n)` 如果 `store` 里还没有就加一个：`strings.TrimSuffix(strings.Repeat("?,", n), ",")`。
 
-- [ ] **Step 7: 在 `internal/oplog/tx.go` 的 `Tx` 接口里加上对应方法**
+- [x] **Step 7: 在 `internal/oplog/tx.go` 的 `Tx` 接口里加上对应方法**
 
 按实体分组，插在既有分组之间：
 
@@ -874,11 +874,11 @@ func (v *ViewTx) TouchFolders(ids []domain.FolderID) error {
 // would invite a handler to do it, and then a new op type could forget to.
 ```
 
-- [ ] **Step 8: 更新 `internal/oplog/faketx_test.go` 的假 Tx**
+- [x] **Step 8: 更新 `internal/oplog/faketx_test.go` 的假 Tx**
 
 它实现了整个 `Tx`，加方法就会编译不过。补上十四个方法，用一个内存 map 支撑 files / folders / blobs / file_tags，与既有 box / tag 的写法保持一致。
 
-- [ ] **Step 9: 把 `blobs` 加进 `store.Snapshot`**
+- [x] **Step 9: 把 `blobs` 加进 `store.Snapshot`**
 
 M1b 里 `blobs` 表恒为空，所以没进快照。导入之后它有内容了，而 `Rebuild` 的证明要覆盖 `Apply` 写的每一张表：
 
@@ -888,17 +888,17 @@ M1b 里 `blobs` 表恒为空，所以没进快照。导入之后它有内容了�
 
 放在 `snapshotTables` 的开头。同时把那句 doc 里的「ops and blobs are absent」改成「ops is absent: it is the authority, not the thing being proved. blobs is present from M1c on, because Apply maintains it (idempotently) and a rebuild must reproduce it exactly.」
 
-- [ ] **Step 10: 跑测试**
+- [x] **Step 10: 跑测试**
 
 Run: `go test ./internal/store/ ./internal/oplog/ -v`
 Expected: PASS
 
-- [ ] **Step 11: 确认 `library` 里那句编译期断言还成立**
+- [x] **Step 11: 确认 `library` 里那句编译期断言还成立**
 
 Run: `go build ./...`
 Expected: 成功。`var _ oplog.Tx = (*store.ViewTx)(nil)` 是这一步真正的验收——它证明 `ViewTx` 补齐了接口的每一个新方法。
 
-- [ ] **Step 12: `make check` 并提交**
+- [x] **Step 12: `make check` 并提交**
 
 ```bash
 make check
