@@ -1,6 +1,6 @@
 # M2a 完整性与可恢复 实现计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 让 `kist verify` / `kist scrub` / `kist repair` / `kist rebuild` 真的能告诉用户「你的库有没有问题、问题在哪、能不能修」，并且在能修的时候从远端副本修回来——**M2a 的产出「数据可信了」，以及那句实践建议「M2a 通过之前别删掉导入源的原始副本」到这里才解除**。
 
@@ -97,7 +97,7 @@ v0.1 不回收任何东西（3.9），而一个会删文件的完整性工具，
 
 先做词汇表，再做检查。三层检查会各自往 `Report` 里塞东西，如果词汇表不先定死，三个文件会各自发明一套「怎么描述一个问题」，然后 CLI 要为三种形状各写一遍渲染。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 `internal/integrity/finding_test.go`：
 
@@ -217,7 +217,7 @@ func TestACleanReportSaysSo(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑一遍确认它红**
+- [x] **Step 2: 跑一遍确认它红**
 
 ```
 go test ./internal/integrity/
@@ -225,7 +225,7 @@ go test ./internal/integrity/
 
 Expected: FAIL，包不存在。
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 `internal/integrity/finding.go`：
 
@@ -487,7 +487,7 @@ func (r *Report) summary() string {
 }
 ```
 
-- [ ] **Step 4: 跑测试确认它绿**
+- [x] **Step 4: 跑测试确认它绿**
 
 ```
 go test ./internal/integrity/
@@ -495,7 +495,7 @@ go test ./internal/integrity/
 
 Expected: PASS。
 
-- [ ] **Step 5: 确认排序断言真的会咬**
+- [x] **Step 5: 确认排序断言真的会咬**
 
 把 `Write` 里的 `slices.SortFunc` 整个删掉，跑 `TestReportPutsTheWorstFirst`。map 遍历顺序随机，它可能偶尔碰巧过——所以加 `-count=20`：
 
@@ -505,7 +505,7 @@ go test ./internal/integrity/ -run TestReportPutsTheWorstFirst -count=20
 
 Expected: FAIL。**看到红了再把排序放回去。** 这个项目的惯例是每条守卫都要被验证会咬（M1b / M1c 都这么做），一个从没红过的测试和没有测试是一回事。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add internal/integrity/
@@ -535,7 +535,7 @@ CLI 就要为三种形状各写一遍渲染。
 
 `UnreachableFolders` 一条查询同时覆盖两种坏法——父目录没了、以及成环。做法是从每个 box 的根 folder 往下递归求可达集，不在可达集里的 folder 就是有问题的，不需要单独写环检测。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 `internal/store/consistency_test.go`：
 
@@ -686,7 +686,7 @@ func forceUpdate(t *testing.T, db *sql.DB, query string, args ...any) {
 
 > **注意 `PRAGMA foreign_keys` 和连接池。** `store.Open` 的注释已经写过这个坑：`database/sql` 会开新连接，一次 `PRAGMA` 只作用于一条连接。`migrated(t)` 用的是 `OpenMemory`，它 `SetMaxOpenConns(1)`，所以上面的写法在测试里成立。**如果这个 helper 将来被搬到文件型库上用，必须先 `db.Conn(ctx)` 钉住一条连接。** 这条要写进 `forceUpdate` 的注释里。
 
-- [ ] **Step 2: 跑一遍确认它红**
+- [x] **Step 2: 跑一遍确认它红**
 
 ```
 go test ./internal/store/ -run 'Orphan|Mismatch|Unreachable|UnknownBlob|Healthy'
@@ -694,7 +694,7 @@ go test ./internal/store/ -run 'Orphan|Mismatch|Unreachable|UnknownBlob|Healthy'
 
 Expected: FAIL，函数不存在。
 
-- [ ] **Step 3: 实现 `store` 那一侧**
+- [x] **Step 3: 实现 `store` 那一侧**
 
 `internal/store/consistency.go`：
 
@@ -798,7 +798,7 @@ func CrossBoxFolders(q Queryer) ([]Inconsistency, error) {
 
 > `UNION` 而不是 `UNION ALL` 是这条查询的关键：`UNION` 去重，所以递归碰到环时会停下来；`UNION ALL` 会一直转下去直到 SQLite 报错。（`FolderChainOfFiles` 用的是同一个理由，见 `views.go`。）
 
-- [ ] **Step 4: 跑测试确认 `store` 侧绿**
+- [x] **Step 4: 跑测试确认 `store` 侧绿**
 
 ```
 go test ./internal/store/ -run 'Orphan|Mismatch|Unreachable|UnknownBlob|Healthy'
@@ -806,7 +806,7 @@ go test ./internal/store/ -run 'Orphan|Mismatch|Unreachable|UnknownBlob|Healthy'
 
 Expected: PASS。
 
-- [ ] **Step 5: 实现 `integrity` 那一侧**
+- [x] **Step 5: 实现 `integrity` 那一侧**
 
 `internal/integrity/structure.go`：
 
@@ -884,7 +884,7 @@ func TestCheckStructureIsSilentOnAHealthyLibrary(t *testing.T) {
 }
 ```
 
-- [ ] **Step 6: 跑全部测试**
+- [x] **Step 6: 跑全部测试**
 
 ```
 go test ./internal/integrity/ ./internal/store/
@@ -892,13 +892,13 @@ go test ./internal/integrity/ ./internal/store/
 
 Expected: PASS。
 
-- [ ] **Step 7: 确认可达性查询真的会咬**
+- [x] **Step 7: 确认可达性查询真的会咬**
 
 手动确认环那个测试：把 `UnreachableFolders` 的 `WHERE d.id NOT IN (…)` 改成 `WHERE 0`，跑 `TestUnreachableFoldersCoverGoneParentsAndCycles`，必须红。改回去。
 
 再确认一次 `UNION` 那条注释是真的：把 `UNION` 改成 `UNION ALL`，跑同一个测试——它应该挂在 SQLite 的递归深度上而不是返回结果。**把观察到的实际报错记进 `UnreachableFolders` 的注释里**，这样下一个人看到 `UNION` 时知道它不是随手写的。
 
-- [ ] **Step 8: 提交**
+- [x] **Step 8: 提交**
 
 ```bash
 git add internal/store/consistency.go internal/store/consistency_test.go internal/integrity/
@@ -931,7 +931,7 @@ folder 的两种坏法（父目录没了、成环）合成一条查询：从 box
 
 `Walk` 必须跳过 `tmp/`：那里的东西不是内容寻址的，把一个半写的临时文件当成孤儿 blob 报出来是纯噪音。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 `internal/blob/walk_test.go`：
 
@@ -1116,7 +1116,7 @@ func corrupt(t *testing.T, d *Dir, k Key, content string) {
 }
 ```
 
-- [ ] **Step 2: 跑一遍确认它红**
+- [x] **Step 2: 跑一遍确认它红**
 
 ```
 go test ./internal/blob/ -run 'Walk|Rehash|CleanTmp'
@@ -1124,7 +1124,7 @@ go test ./internal/blob/ -run 'Walk|Rehash|CleanTmp'
 
 Expected: FAIL。
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 `internal/blob/walk.go`：
 
@@ -1332,7 +1332,7 @@ func OpenDir(root string, log *slog.Logger) (*Dir, error) {
 
 > `NewDir` 保持原样（它照旧 `MkdirAll` 出 `tmp/`），**不要**把它改成调用 `OpenDir`——本地库那一侧「打开即可用」是它现在的契约，而只读打开恰恰不该有那个副作用。
 
-- [ ] **Step 4: 跑测试确认绿**
+- [x] **Step 4: 跑测试确认绿**
 
 ```
 go test ./internal/blob/
@@ -1340,7 +1340,7 @@ go test ./internal/blob/
 
 Expected: PASS，包括原有的全部 blob 测试。
 
-- [ ] **Step 5: 写 `integrity.CheckBlobs`**
+- [x] **Step 5: 写 `integrity.CheckBlobs`**
 
 `internal/integrity/blobs.go`：
 
@@ -1445,7 +1445,7 @@ func AllBlobs(q Queryer) ([]BlobRow, error) {
 
 > `d.Stat(nil, key)` 传 `nil` context 看着刺眼，但 `Dir.Stat` 现在的签名就是忽略它的（`func (d *Dir) Stat(_ context.Context, …)`）。**实现时改成传 `context.Background()`**，别把 `nil` 留在代码里。
 
-- [ ] **Step 6: 写 `CheckBlobs` 的测试**
+- [x] **Step 6: 写 `CheckBlobs` 的测试**
 
 `internal/integrity/blobs_test.go`：三个 case——健康库零发现、`blobs` 表有行而盘上没文件（`BlobMissing`）、盘上有文件而表里没行（`BlobOrphan`）。**再加一个关键的负向断言**：
 
@@ -1461,7 +1461,7 @@ func TestCheckBlobsDoesNotNoticeSameLengthCorruption(t *testing.T) {
 }
 ```
 
-- [ ] **Step 7: 跑全部**
+- [x] **Step 7: 跑全部**
 
 ```
 go test ./internal/blob/ ./internal/integrity/ ./internal/store/
@@ -1469,13 +1469,13 @@ go test ./internal/blob/ ./internal/integrity/ ./internal/store/
 
 Expected: PASS。
 
-- [ ] **Step 8: 确认 `tmp/` 的截止时间真的会咬**
+- [x] **Step 8: 确认 `tmp/` 的截止时间真的会咬**
 
 把 `CleanTmp` 里的 `info.ModTime().Before(cutoff)` 改成 `true`，跑 `TestCleanTmpRemovesOnlyOldResidue`：必须红在「the fresh temp file was removed」。改回去。
 
 这条特别值得验一次：清早了就是在删一个正在跑的导入的暂存文件，而那个 bug 在测试里不会自己暴露——它只在有并发导入时才发作。
 
-- [ ] **Step 9: 提交**
+- [x] **Step 9: 提交**
 
 ```bash
 git add internal/blob/ internal/integrity/ internal/store/consistency.go
@@ -1514,7 +1514,7 @@ CheckBlobs 只 stat 不读内容，并且有一个负向测试钉住这一点—
 
 拆完之后 `SyncDir` 必须逐字保持原有行为——现有的全部 `sync_test.go` 是这次重构的验收标准，一个都不许改。
 
-- [ ] **Step 1: 先跑一遍现有测试，记下基线**
+- [x] **Step 1: 先跑一遍现有测试，记下基线**
 
 ```
 go test ./internal/projection/ -v 2>&1 | tail -30
@@ -1522,7 +1522,7 @@ go test ./internal/projection/ -v 2>&1 | tail -30
 
 把通过的测试名记下来。重构之后必须一个不少、一个不改。
 
-- [ ] **Step 2: 写新测试（先红）**
+- [x] **Step 2: 写新测试（先红）**
 
 `internal/projection/check_test.go`：
 
@@ -1679,7 +1679,7 @@ func TestCheckLinksUnderCopyChecksOnlySize(t *testing.T) {
 
 `skipIfLinksUnsupported` 照 `internal/blob` 里已有的探测惯例写：hardlink 在某些文件系统上不可用，测试要 skip 而不是红。
 
-- [ ] **Step 3: 跑一遍确认它红**
+- [x] **Step 3: 跑一遍确认它红**
 
 ```
 go test ./internal/projection/ -run 'DiffDir|CheckLinks'
@@ -1687,7 +1687,7 @@ go test ./internal/projection/ -run 'DiffDir|CheckLinks'
 
 Expected: FAIL。
 
-- [ ] **Step 4: 把 `SyncDir` 拆成 diff + apply**
+- [x] **Step 4: 把 `SyncDir` 拆成 diff + apply**
 
 `internal/projection/sync.go` 改成：
 
@@ -1776,7 +1776,7 @@ func (s *Syncer) apply(d Diff, want []Entry) Stats {
 
 > **`apply` 的 mtime 循环走的是 `want` 而不是 `d.Create`，这是搬代码时最容易搞错的一处。** 现有 `SyncDir` 的第 4 步遍历的就是 `want`；改成只 stamp 新建的目录，`TestSyncIsIdempotent` 不会红（第二次没有新建），但一个「只删掉了一个杂物」的 sync 会留下被删除操作抬高了的父目录 mtime。搬完先跑 `TestSyncStampsDirectoryTimes` 和 `TestSyncIsIdempotent`。
 
-- [ ] **Step 5: 跑现有测试，确认重构没改行为**
+- [x] **Step 5: 跑现有测试，确认重构没改行为**
 
 ```
 go test ./internal/projection/ -v 2>&1 | tail -30
@@ -1784,7 +1784,7 @@ go test ./internal/projection/ -v 2>&1 | tail -30
 
 Expected: Step 1 记下的测试**一个不少全部 PASS**，且 `sync_test.go` 一行没改。
 
-- [ ] **Step 6: 实现 `CheckLinks`**
+- [x] **Step 6: 实现 `CheckLinks`**
 
 `internal/projection/check.go`：
 
@@ -1870,7 +1870,7 @@ func (s *Syncer) CheckLinks(want []Entry) ([]LinkProblem, error) {
 }
 ```
 
-- [ ] **Step 7: 跑全部**
+- [x] **Step 7: 跑全部**
 
 ```
 go test ./internal/projection/
@@ -1878,11 +1878,11 @@ go test ./internal/projection/
 
 Expected: PASS。
 
-- [ ] **Step 8: 确认 `DiffDir` 真的没有副作用**
+- [x] **Step 8: 确认 `DiffDir` 真的没有副作用**
 
 把 `DiffDir` 里的 `for p := range actual` 循环临时改成直接 `os.RemoveAll`，跑 `TestDiffDirReportsWithoutTouchingAnything`：必须红在「DiffDir removed the stray」。改回去。
 
-- [ ] **Step 9: 提交**
+- [x] **Step 9: 提交**
 
 ```bash
 git add internal/projection/
@@ -1915,7 +1915,7 @@ CheckLinks 按 link mode 分级，hardlink 和 symlink 能免费确认指向，r
 
 三层接起来，第一个能跑的命令出来。**`--deep` 这个 task 先只留下 flag 与「尚未实现」的错误，Task 6 才填**——先把便宜的那条路走通，因为它是要被频繁跑的那个。
 
-- [ ] **Step 1: 写 `integrity.CheckProjection`**
+- [x] **Step 1: 写 `integrity.CheckProjection`**
 
 `internal/integrity/projection.go`：
 
@@ -1957,7 +1957,7 @@ func CheckProjection(s *projection.Syncer, dir string, want []projection.Entry) 
 }
 ```
 
-- [ ] **Step 2: 写 `library.Verify` 的测试（先红）**
+- [x] **Step 2: 写 `library.Verify` 的测试（先红）**
 
 `internal/library/verify_test.go`：
 
@@ -2074,7 +2074,7 @@ func TestVerifyChangesNothing(t *testing.T) {
 
 `snapshotOf` 用现有的 `store.Snapshot`（`Rebuild` 的测试里已经在用了，直接复用那个 helper）。`removeSomeBlob` 是新的小 helper：`filepath.WalkDir(l.Layout().Blobs()/"sha256")` 找第一个文件，`os.Chmod(0o644)` 后删掉。
 
-- [ ] **Step 3: 跑一遍确认它红**
+- [x] **Step 3: 跑一遍确认它红**
 
 ```
 go test ./internal/library/ -run Verify
@@ -2082,7 +2082,7 @@ go test ./internal/library/ -run Verify
 
 Expected: FAIL。
 
-- [ ] **Step 4: 实现 `library.Verify`**
+- [x] **Step 4: 实现 `library.Verify`**
 
 `internal/library/verify.go`：
 
@@ -2232,11 +2232,11 @@ func (l *Library) verifyDeep(context.Context) (integrity.Report, error) {
 
 `projection.Syncer` 要长出 `StrayBoxDirs(keep map[string]bool) ([]string, error)`：和 `PruneRoot` 同一段逻辑，只报不删。**`PruneRoot` 改成调用它**，理由和 `DiffDir` 一样——只留一份关于「哪些目录不属于任何 box」的知识。
 
-- [ ] **Step 5: `import` 开头接上 `tmp/` 清理**
+- [x] **Step 5: `import` 开头接上 `tmp/` 清理**
 
 `internal/library/import.go` 的 `Import` 开头加一行 `l.cleanTmp()`，并在注释里写清为什么在这里：导入是唯一会往 `tmp/` 里写的操作，也是唯一会因为崩溃在那里留下东西的操作。
 
-- [ ] **Step 6: 跑测试**
+- [x] **Step 6: 跑测试**
 
 ```
 go test ./internal/library/ ./internal/integrity/ ./internal/projection/
@@ -2244,7 +2244,7 @@ go test ./internal/library/ ./internal/integrity/ ./internal/projection/
 
 Expected: PASS。
 
-- [ ] **Step 7: 写 `kist verify`**
+- [x] **Step 7: 写 `kist verify`**
 
 `cmd/kist/verify.go`：
 
@@ -2267,7 +2267,7 @@ package main
 
 flag：`--deep`。输出：`report.Write(cmd.OutOrStdout())`。退出码通过现有的 `quietError` 机制（`cmd/kist/import.go` 里已有）实现——**先读一遍它现在怎么把 error 变成退出码，照那个形状加两个哨兵 error**。
 
-- [ ] **Step 8: 加 arch 测试**
+- [x] **Step 8: 加 arch 测试**
 
 `internal/arch/arch_test.go`：
 
@@ -2291,7 +2291,7 @@ func TestIntegrityCannotWrite(t *testing.T) {
 }
 ```
 
-- [ ] **Step 9: 确认 arch 测试会咬**
+- [x] **Step 9: 确认 arch 测试会咬**
 
 往 `internal/integrity/finding.go` 里临时加 `import _ "github.com/jinzhao1994/kist/internal/oplog"`，跑：
 
@@ -2301,7 +2301,7 @@ go test ./internal/arch/ -run TestIntegrityCannotWrite
 
 Expected: FAIL，且错误信息里带上面那段解释。删掉 import。
 
-- [ ] **Step 10: 手动走查**
+- [x] **Step 10: 手动走查**
 
 ```bash
 kist init /tmp/m2a && cd /tmp/m2a
@@ -2324,7 +2324,7 @@ echo $?                  # 期望：2
 
 把实际输出贴进本步骤下面。**特别确认那句 error 读起来像一句人话**——3.8 说这个命令的第一价值是「精确告诉用户哪些文件坏了」，而现在报的是 blob key，不是文件名。**如果读下来觉得 blob key 没用，就在这里把 `CheckBlobs` 改成同时报出引用它的文件名**（`SELECT name FROM files WHERE blob_key = ?`，每个坏 blob 一次，坏 blob 本来就该是少数）。这是本 task 唯一预留的产品判断。
 
-- [ ] **Step 11: 提交**
+- [x] **Step 11: 提交**
 
 ```bash
 git add internal/library/verify.go internal/library/verify_test.go internal/integrity/projection.go \
@@ -2358,7 +2358,7 @@ verify --deep 就要为它永远留一个特例。"
 
 不变量 1 说「`kist.db` 里除 `ops` 外每张表都可重建」。到 M1c 为止这条只在测试里被验证过。这个 task 把同一个断言变成用户能跑的命令。
 
-- [ ] **Step 1: 先实测 `VACUUM INTO` 和 `ATTACH` 在 modernc 上可用**
+- [x] **Step 1: 先实测 `VACUUM INTO` 和 `ATTACH` 在 modernc 上可用**
 
 这是个探针，不是实现。写一个临时的 `TestSpikeVacuumIntoAndAttach`，跑通之后**保留它**（改名 `TestVacuumIntoAndAttachWork`，加注释说明它守的是什么）：
 
@@ -2403,7 +2403,7 @@ go test ./internal/store/ -run VacuumIntoAndAttach -v
 
 **如果这一步失败，整个 task 的方案要换**（退路：把副本重放的结果一表一表读回 Go 里比对，慢且吃内存，但可行）。先跑，再往下写。
 
-- [ ] **Step 2: 拆出 `rebuildInto`**
+- [x] **Step 2: 拆出 `rebuildInto`**
 
 `internal/library/rebuild.go` 现在的 `Rebuild` 里，从 `BeginTx` 到 `Commit` 那一整段与 `l` 只有一个关系：用了 `l.db`。抽出来：
 
@@ -2437,7 +2437,7 @@ func (l *Library) Rebuild(ctx context.Context) error {
 
 跑 `go test ./internal/library/ -run Rebuild`：**现有的全部 rebuild 测试（含不变量 3 的逐字节快照测试）必须原样通过**，这是重构没走样的证据。
 
-- [ ] **Step 3: 写 `store.DiffViews` 的测试（先红）**
+- [x] **Step 3: 写 `store.DiffViews` 的测试（先红）**
 
 `internal/store/diffviews_test.go`：
 
@@ -2531,7 +2531,7 @@ func TestDiffViewsIgnoresOps(t *testing.T) {
 }
 ```
 
-- [ ] **Step 4: 实现 `store.DiffViews`**
+- [x] **Step 4: 实现 `store.DiffViews`**
 
 `internal/store/diffviews.go`：
 
@@ -2664,7 +2664,7 @@ func countAndSample(ctx context.Context, conn *sql.Conn, except string) (int, []
 
 > `snapshotTables` 里没有 `ops`——注释已经写明「它是权威，不是被证明的东西」。`DiffViews` 复用它就自动继承了这一点，`TestDiffViewsIgnoresOps` 守着它别被改回去。
 
-- [ ] **Step 5: 跑 `store` 的测试**
+- [x] **Step 5: 跑 `store` 的测试**
 
 ```
 go test ./internal/store/
@@ -2672,7 +2672,7 @@ go test ./internal/store/
 
 Expected: PASS。
 
-- [ ] **Step 6: 实现 `library.verifyDeep`**
+- [x] **Step 6: 实现 `library.verifyDeep`**
 
 `internal/library/deep.go`：
 
@@ -2755,7 +2755,7 @@ func removeDatabase(path string) {
 
 > **`copyDB.Close()` 显式调用了一次，`defer` 里还有一次。** 这是故意的：`DiffViews` 要 ATTACH 那个文件，而 WAL 模式下没关干净的库会留着 `-wal`，比对读到的可能不是重放后的全部内容。`sql.DB.Close` 是幂等的，defer 那次只是兜底。
 
-- [ ] **Step 7: 写 `--deep` 的测试**
+- [x] **Step 7: 写 `--deep` 的测试**
 
 `internal/library/deep_test.go`：
 
@@ -2804,7 +2804,7 @@ func TestDeepVerifyLeavesNothingBehind(t *testing.T) {
 }
 ```
 
-- [ ] **Step 8: 跑全部并确认 `--deep` 会咬**
+- [x] **Step 8: 跑全部并确认 `--deep` 会咬**
 
 ```
 go test ./internal/library/
@@ -2812,7 +2812,7 @@ go test ./internal/library/
 
 然后把 `verifyDeep` 里的 `rebuildInto` 调用注释掉（副本原样比对，必然零差异），跑 `TestDeepVerifyFindsAViewThatDriftedFromTheLog`：必须红。恢复。
 
-- [ ] **Step 9: 提交**
+- [x] **Step 9: 提交**
 
 ```bash
 git add internal/store/diffviews.go internal/store/diffviews_test.go \
@@ -2857,7 +2857,7 @@ store.Open 注释里那个 PRAGMA 陷阱是同一个。所以比对全程钉在�
 
 scrub 是 verify 那条「只 stat」的界限之外的东西：**它读完每个字节**。因此它必须可中断、必须报进度，而且它报出来的坏 blob 是 `repair` 的输入。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 `internal/library/scrub_test.go`：
 
@@ -2929,13 +2929,13 @@ func TestScrubStopsWhenCancelledAndKeepsWhatItFound(t *testing.T) {
 func TestScrubChangesNothing(t *testing.T) { /* … snapshot before/after, blob still on disk … */ }
 ```
 
-- [ ] **Step 2: 跑一遍确认它红**
+- [x] **Step 2: 跑一遍确认它红**
 
 ```
 go test ./internal/library/ -run Scrub
 ```
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 `internal/library/scrub.go`：
 
@@ -3031,23 +3031,23 @@ func (l *Library) Scrub(ctx context.Context, progress func(ScrubProgress)) (inte
 
 新增 `integrity.ScrubIncomplete`（`SeverityWarn`，headline `"the scrub did not finish"`）。**一趟没跑完的 scrub 必须在报告里说出来**——「没发现问题」和「没查完所以没发现问题」是两句完全不同的话，而这个命令的全部价值就是让人敢相信前一句。
 
-- [ ] **Step 4: 跑测试**
+- [x] **Step 4: 跑测试**
 
 ```
 go test ./internal/library/ ./internal/integrity/
 ```
 
-- [ ] **Step 5: 写 `kist scrub`**
+- [x] **Step 5: 写 `kist scrub`**
 
 `cmd/kist/scrub.go`：进度写 stderr（`\r` 单行刷新，非 TTY 时降级成每 N 个一行），报告写 stdout。退出码规则与 `verify` 一致，复用同一个 `severityExit` 函数。
 
 信号处理**复用 `cmd/kist/import.go` 的 `interruptContext`**——它已经解决过同一个问题（第一次 Ctrl-C 优雅停止、第二次强制退出）。如果它现在是 `import.go` 的私有函数，这一步把它搬进一个共用文件（`cmd/kist/interrupt.go`），`import.go` 的行为不变。
 
-- [ ] **Step 6: 确认「没查完要说出来」这条会咬**
+- [x] **Step 6: 确认「没查完要说出来」这条会咬**
 
 把 `ScrubIncomplete` 那两处 `r.Add` 删掉，跑 `TestScrubStopsWhenCancelledAndKeepsWhatItFound` 的一个变体：断言 `r.Count(integrity.ScrubIncomplete) == 1`。必须红。加回去。
 
-- [ ] **Step 7: 手动走查**
+- [x] **Step 7: 手动走查**
 
 在 Task 5 建的 `/tmp/m2a` 上：
 
@@ -3062,7 +3062,7 @@ kist scrub                    # 期望：立刻停下，报告里有 "the scrub 
 
 贴实际输出。**特别看中断那次**：如果它花了几秒才停，说明 `readerContext` 没生效（大文件读到一半不检查 ctx），回 Task 3 修。
 
-- [ ] **Step 8: 提交**
+- [x] **Step 8: 提交**
 
 ```bash
 git add internal/library/scrub.go internal/library/scrub_test.go cmd/kist/scrub.go cmd/kist/interrupt.go internal/integrity/
@@ -3095,7 +3095,7 @@ scrub 是 verify 那条「只 stat」界限之外的东西：它读完每个字�
 
 这是 3.8 那句「这是真答案，而内容寻址让它几乎免费」的兑现。**唯一要紧的性质是不信任远端**：边读边哈希，对不上就丢掉。
 
-- [ ] **Step 1: 配置里加 `[[remote]]`**
+- [x] **Step 1: 配置里加 `[[remote]]`**
 
 `internal/config/config.go`：
 
@@ -3116,7 +3116,7 @@ type Remote struct {
 
 测试：一份带两个 `[[remote]]` 的 toml 能读回来；重名报错；`Save` 之后 `Load` 得到同样的东西（round-trip）。
 
-- [ ] **Step 2: 写 `Dir.Restore` 的测试（先红）**
+- [x] **Step 2: 写 `Dir.Restore` 的测试（先红）**
 
 `internal/blob/restore_test.go`：
 
@@ -3192,7 +3192,7 @@ func TestRestoreHonoursTheCollisionSuffix(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: 实现 `Dir.Restore`**
+- [x] **Step 3: 实现 `Dir.Restore`**
 
 `internal/blob/restore.go`：
 
@@ -3294,13 +3294,13 @@ func (d *Dir) Restore(ctx context.Context, r io.Reader, want Key) (Outcome, erro
 
 > `Rehash` 抽出一个按路径工作的 `rehashPath(ctx, path)`，`Rehash` 和 `Restore` 共用。`Restore` 不能走 `Rehash(key)`，因为它要哈希的是**将要被覆盖的那个文件**，而那时它是不是该 key 的合法内容正是问题所在。
 
-- [ ] **Step 4: 跑 blob 测试**
+- [x] **Step 4: 跑 blob 测试**
 
 ```
 go test ./internal/blob/
 ```
 
-- [ ] **Step 5: 实现 `library.Repair`**
+- [x] **Step 5: 实现 `library.Repair`**
 
 `internal/library/repair.go`：
 
@@ -3376,7 +3376,7 @@ func TestRepairDryRunWritesNothing(t *testing.T) { /* … */ }
 func TestRepairWithNoRemotesSaysSo(t *testing.T) { /* … */ }
 ```
 
-- [ ] **Step 6: 写 `kist repair` 与 `kist remote list`**
+- [x] **Step 6: 写 `kist repair` 与 `kist remote list`**
 
 `cmd/kist/repair.go`：
 
@@ -3386,13 +3386,13 @@ func TestRepairWithNoRemotesSaysSo(t *testing.T) { /* … */ }
 
 `kist remote list` 在没有配置远端时打印一段带 `[[remote]]` 例子的提示——**这是用户唯一会知道这个功能存在的地方**。
 
-- [ ] **Step 7: 确认「不信任远端」真的会咬**
+- [x] **Step 7: 确认「不信任远端」真的会咬**
 
 把 `Restore` 里那句 `if got != want.Hex()` 改成 `if false`，跑 `TestRestoreRefusesContentThatDoesNotMatch`：必须红。改回去。
 
 再确认一次 dry-run：把 `RepairOptions.Apply` 的判断去掉，跑 `TestRepairDryRunWritesNothing`：必须红。
 
-- [ ] **Step 8: 手动走查——M2a 的验收**
+- [x] **Step 8: 手动走查——M2a 的验收**
 
 ```bash
 cd /tmp/m2a
@@ -3421,7 +3421,7 @@ kist scrub         # 期望：no problems found
 
 **这一串走完就是 M2a 的产出兑现了**：数据坏了能发现，发现了能修。把实际输出贴进本步骤。
 
-- [ ] **Step 9: 提交**
+- [x] **Step 9: 提交**
 
 ```bash
 git add internal/blob/restore.go internal/blob/restore_test.go internal/config/ \
@@ -3461,7 +3461,7 @@ dry-run 是默认，而且它不下载。为了「确认真的能修」把每个
 
 `library.Rebuild` 从 M1b 起就在，只是没有 CLI。它是 `verify --deep` 报出 `ViewDrift` 之后用户要跑的那条命令，所以现在必须有。
 
-- [ ] **Step 1: 写测试**
+- [x] **Step 1: 写测试**
 
 `cmd/kist/rebuild_test.go`（照 `cmd/kist` 现有的命令测试写法）：
 
@@ -3477,7 +3477,7 @@ func TestRebuildNeedsConfirmation(t *testing.T) { /* … */ }
 func TestRebuildRelinksAfterwards(t *testing.T) { /* … */ }
 ```
 
-- [ ] **Step 2: 实现**
+- [x] **Step 2: 实现**
 
 `cmd/kist/rebuild.go`：
 
@@ -3498,7 +3498,7 @@ func TestRebuildRelinksAfterwards(t *testing.T) { /* … */ }
 - `--yes` 跳过确认
 - 跑完打印重放了多少条 op、`relink` 的统计
 
-- [ ] **Step 3: 跑测试并手动走查**
+- [x] **Step 3: 跑测试并手动走查**
 
 ```bash
 cd /tmp/m2a
@@ -3507,7 +3507,7 @@ kist rebuild --yes      # 期望：replayed N ops, relinked M files
 kist verify --deep      # 期望：no problems found
 ```
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add cmd/kist/rebuild.go cmd/kist/rebuild_test.go internal/library/
@@ -3530,7 +3530,7 @@ ViewDrift 之后用户要跑的那条命令，所以现在必须有。
 **Files:**
 - Modify: `docs/design/2026-08-22-kist-v0.1-design.md`、`docs/design/open-questions.md`、`CLAUDE.md`、`README.md`、`README.zh-CN.md`
 
-- [ ] **Step 1: 把实现中冒出来的偏离写回设计文档**
+- [x] **Step 1: 把实现中冒出来的偏离写回设计文档**
 
 **这是本仓库唯一真正要紧的规矩。** 逐条过一遍前九个 task 里所有「实现时发现规范说得不对/不够」的地方，每一条都要写进设计文档，**并写明为什么不选另一条路**。已知至少这些：
 
@@ -3539,7 +3539,7 @@ ViewDrift 之后用户要跑的那条命令，所以现在必须有。
 - `ScrubIncomplete`：报告要能说「没查完」
 - 结构层检查报的是 blob key 还是文件名（Task 5 Step 10 那个产品判断的结论）
 
-- [ ] **Step 2: 更新 `open-questions.md`**
+- [x] **Step 2: 更新 `open-questions.md`**
 
 划掉本里程碑解决掉的，并把 M2a 期间新暴露的记进去（**大概率至少有这几条，实现时按实际情况增删**）：
 
@@ -3547,17 +3547,17 @@ ViewDrift 之后用户要跑的那条命令，所以现在必须有。
 - **`repair` 没有进度。** 从一块 USB 2.0 的移动硬盘修 200 GB 是几个小时
 - **多进程下 `scrub` 和 `import` 同时跑会怎样。** B3 的一部分，但 scrub 是第一个真的会跑几小时的命令，它把这个问题从理论变成了日常
 
-- [ ] **Step 3: 更新 `CLAUDE.md` 的当前状态**
+- [x] **Step 3: 更新 `CLAUDE.md` 的当前状态**
 
 「M2a 已完成」段照 M1a/M1b/M1c 的格式写，并把「下一步」改成 M2b（先定 B1c 的四件事）。
 
 **把那句实践建议撤掉**：「M2a 通过之前，别删掉导入源的原始副本」现在解除了，改成一句说明——现在 `kist verify` / `kist scrub` 能告诉你库里的东西有没有问题，`kist repair` 能从第二份副本修回来，**前提是你真的有第二份副本**。
 
-- [ ] **Step 4: README 两份都加上新命令**
+- [x] **Step 4: README 两份都加上新命令**
 
 `README.md`（英文）和 `README.zh-CN.md`（中文）的命令清单加 `verify` / `scrub` / `repair` / `rebuild`，并加一小节讲远端怎么配——这是 v0.1 唯一一个必须手改 `kist.toml` 的功能，不写进 README 就等于不存在。
 
-- [ ] **Step 5: 全量验证**
+- [x] **Step 5: 全量验证**
 
 ```
 make check
@@ -3565,7 +3565,7 @@ make check
 
 四平台 vet、`go test -race ./...`、gofmt、`go mod tidy` 干净。
 
-- [ ] **Step 6: 在一个真实规模的库上跑一遍**
+- [x] **Step 6: 在一个真实规模的库上跑一遍**
 
 用 M1c 那个 4000 文件的走查库（或重新导一次）：
 
@@ -3577,7 +3577,7 @@ time kist scrub
 
 **把三个时间记进设计文档 3.8。** 这三个数字决定了那句「verify 要能被频繁跑、能挂 cron，所以 --deep 不做默认」是不是真的成立——如果 `verify` 和 `verify --deep` 在 4000 文件上差不多快，那条理由在这个规模上不成立，要么改结论要么说明它在什么规模上才成立。
 
-- [ ] **Step 7: 提交并推**
+- [x] **Step 7: 提交并推**
 
 ```bash
 git add -A
@@ -3587,7 +3587,7 @@ git commit -m "docs: M2a 完成——设计文档同步、README、里程碑状�
 git push
 ```
 
-- [ ] **Step 8: 等 CI 三平台绿**
+- [x] **Step 8: 等 CI 三平台绿**
 
 Windows runner 是唯一会执行到某些代码路径的地方，M1c 已经证明过一次。特别留意：
 
@@ -3606,3 +3606,22 @@ Windows runner 是唯一会执行到某些代码路径的地方，M1c 已经证�
 **类型一致性：** `integrity.Report` 被五处产出（`CheckStructure` / `CheckBlobs` / `CheckProjection` / `verifyDeep` / `Scrub`），全部通过 `Merge` 汇总；`blob.Outcome` 在 `Restore` 里复用了 `Put` 的四个值，没有新增；`projection.Diff` 同时服务 `SyncDir` 和 `DiffDir`。
 
 **每个 task 都有一个「确认守卫会咬」的步骤**（Task 1 Step 5、Task 2 Step 7、Task 3 Step 8、Task 4 Step 8、Task 5 Step 9、Task 6 Step 8、Task 7 Step 6、Task 8 Step 7）。这是 M1b 起的惯例：一个从没红过的测试和没有测试是一回事。
+
+---
+
+## 执行记录（2026-08-27）
+
+十个 task 全部完成。计划本身在四处被实现推翻，都已写回设计文档：
+
+| 计划里怎么说的 | 实测是什么 |
+|---|---|
+| `Walk` 跳过 `tmp/` 是为了不把暂存文件报成未知内容 | 挡住它的是 `keyFromRelPath` 的严格（`tmp/<name>` 两段，key 要四段）。删掉 `SkipDir` 测试照样绿。它的真实价值是别在大导入跑着时 stat 几千个暂存文件 |
+| `UNION` 是环检测能停下来的原因 | 不是。`parent_id` 单值 ⇒ **环按构造就不可能从根到达**。换成 `UNION ALL` 行为和测试完全不变 |
+| 搬 mtime 循环搞错的话「幂等测试不会红」 | **整个 projection 套件都不会红**，连 `TestSyncStampsDirectoryTimes` 都不会——第一次 sync 时每个目录都是新建的。补了 `TestSyncRestampsDirectoriesItOnlyRemovedFrom` |
+| `--deep` 不做默认是因为「全量重放是分钟级的」 | 4000 文件 / 502 op 上是 **0.38 s**，而且几乎与 op 数无关。理由换成实测支持得住的那条：它每跑一次写一份全库副本到磁盘 |
+
+计划里预留的那个产品判断（Task 5 Step 8）走查之后做了：报告从印 blob key 改成印文件名，`verify` / `scrub` / `repair` 三处统一。
+
+一处没能按计划验证：Task 7 Step 7 要求在大目录上跑 scrub 并中途 Ctrl-C，实测 4000 个文件 / 156 MB 的 scrub 只要 0.17 s，**手根本按不进去**。大文件读到一半能不能响应取消，由单元测试 `TestRehashStopsWhenCancelled`（1 MB blob + 已取消的 ctx）覆盖。这条要等有真的几百 GB 的库时再补真实走查。
+
+**最终数字**：11 个包，431 个测试，`make check` 绿，三平台 CI 绿。
