@@ -2764,7 +2764,7 @@ boxes/ 投影还没接，Task 10 才接。"
 
 #### 7a. `updated_at` 走完整条 folder 链
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 `internal/library/write_test.go` 追加：
 
@@ -2802,12 +2802,12 @@ func TestImportTouchesTheWholeFolderChain(t *testing.T) {
 func TestMaintenanceOpsDoNotTouchFolders(t *testing.T) { /* … 与既有的 box 版对称 … */ }
 ```
 
-- [ ] **Step 2: 跑测试，确认失败**
+- [x] **Step 2: 跑测试，确认失败**
 
 Run: `go test ./internal/library/ -run TestImportTouchesTheWholeFolderChain`
 Expected: FAIL——folder 的 `updated_at` 还停在创建时刻
 
-- [ ] **Step 3: 改 `write()`**
+- [x] **Step 3: 改 `write()`**
 
 在 `TouchBoxes` 那一段前后加上 folder 链：
 
@@ -2846,14 +2846,14 @@ Expected: FAIL——folder 的 `updated_at` 还停在创建时刻
 
 **同一处改动也要进 `Rebuild`**，否则重建出来的 folder `updated_at` 与原库不同——而那正是 Task 6 Step 10 那个逐字节快照测试会抓到的。把这段抽成 `library` 内部的一个 `touchAfter(vtx, source, targets, chainBefore)`，写路径和重放路径共用。
 
-- [ ] **Step 4: 跑测试**
+- [x] **Step 4: 跑测试**
 
 Run: `go test ./internal/library/ -run 'TestImportTouches|TestMaintenance|TestRebuild' -v`
 Expected: PASS
 
 #### 7b. 文件的读写命令
 
-- [ ] **Step 5: 写 `TagFiles` 的失败测试**
+- [x] **Step 5: 写 `TagFiles` 的失败测试**
 
 ```go
 // Only the files that actually change go into the op. A file that already
@@ -2894,7 +2894,7 @@ func TestTagFilesWritesNoOpWhenNothingChanges(t *testing.T) { /* … */ }
 func TestTagFilesUpdatesTheTreeCounts(t *testing.T) { /* … */ }
 ```
 
-- [ ] **Step 6: 实现 `internal/library/files.go`**
+- [x] **Step 6: 实现 `internal/library/files.go`**
 
 `TagFiles` / `UntagFiles` 照 M1b 的 `TagBoxes` / `UntagBoxes` 写：先读现状过滤出真正会变的，为空则直接返回 `(0, nil)` 不写 op，否则 `l.write(...)`。`refreshTagState` 里补上 `ActionTagFiles` / `ActionUntagFiles` 两个分支，调 `l.tags.AddDirectCount(p.TagID, ±len(p.FileIDs))`。
 
@@ -2911,14 +2911,14 @@ func TestTagFilesUpdatesTheTreeCounts(t *testing.T) { /* … */ }
 func (l *Library) ResolveFolder(ctx context.Context, box domain.BoxID, p string) (domain.Folder, error) { … }
 ```
 
-- [ ] **Step 7: `library.go` 补别名**
+- [x] **Step 7: `library.go` 补别名**
 
 ```go
 	// ListFilesOptions controls the file listing and search.
 	ListFilesOptions = store.ListFilesOptions
 ```
 
-- [ ] **Step 8: 实现 tag 条件的后代展开**
+- [x] **Step 8: 实现 tag 条件的后代展开**
 
 `find --tag 人物` 要包含所有后代（4.3 第 1 步）。展开在内存树里做，`store` 只收 ID 列表：
 
@@ -2931,7 +2931,7 @@ func (l *Library) ResolveFolder(ctx context.Context, box domain.BoxID, p string)
 func (l *Library) ExpandTags(refs []string) ([][]domain.TagID, error) { … }
 ```
 
-- [ ] **Step 9: 跑测试并提交**
+- [x] **Step 9: 跑测试并提交**
 
 ```bash
 go test ./internal/library/ -v
