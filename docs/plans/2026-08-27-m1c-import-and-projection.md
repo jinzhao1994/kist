@@ -3950,7 +3950,7 @@ ls 里目录排在文件前面，两组各自按字节序（4.8），与数据�
 
 **问题二：`Rebuild` 把全库 payload 一次性读进内存。** 它现在的写法是 `ListOps(opt{})` 拿到全部 op 的切片再遍历。一个装了十万文件的库，光 payload 就是几十 MB 常驻。
 
-- [ ] **Step 1: 写测试钉住「列表不读 payload」**
+- [x] **Step 1: 写测试钉住「列表不读 payload」**
 
 ```go
 // ListOps deliberately leaves Payload empty: the history view never renders
@@ -3993,12 +3993,12 @@ func TestListOpsDoesNotReadPayload(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑测试，确认失败**
+- [x] **Step 2: 跑测试，确认失败**
 
 Run: `go test ./internal/store/ -run TestListOpsDoesNotReadPayload`
 Expected: FAIL
 
-- [ ] **Step 3: 拆开列查询与单条查询的列**
+- [x] **Step 3: 拆开列查询与单条查询的列**
 
 ```go
 // opColumns is everything about an op. Used by GetOp and by replay, both of
@@ -4015,7 +4015,7 @@ const opListColumns = `id, ts, action, source, coalesce(actor, ''), reverts_id`
 
 `scanOp` 拆成 `scanOp` 和 `scanOpHeader` 两个。
 
-- [ ] **Step 4: 加 `IterOps` 游标**
+- [x] **Step 4: 加 `IterOps` 游标**
 
 ```go
 // IterOps calls fn for every op, oldest first, one row at a time.
@@ -4029,11 +4029,11 @@ const opListColumns = `id, ts, action, source, coalesce(actor, ''), reverts_id`
 func IterOps(q Queryer, fn func(OpRow) error) error { … }
 ```
 
-- [ ] **Step 5: `Rebuild` 改用 `IterOps`**
+- [x] **Step 5: `Rebuild` 改用 `IterOps`**
 
 顺带把 M1b 里那句 `// ListOps returns newest first; replay wants oldest first.` 和倒序循环删掉——`IterOps` 直接按 `id ASC` 出。
 
-- [ ] **Step 6: 加一个「大库重建不爆内存」的测试**
+- [x] **Step 6: 加一个「大库重建不爆内存」的测试**
 
 ```go
 // The point of streaming is that memory does not grow with the log. A test
@@ -4048,18 +4048,18 @@ func TestRebuildDoesNotHoldTheWholeLogInMemory(t *testing.T) {
 
 如果这个测试写出来太脆（分配量受 GC 影响），退而求其次：断言 `Rebuild` 的实现里不出现 `ListOps`，用一个 `go/ast` 检查——**但先试真的那个**，行为测试永远比结构测试好。
 
-- [ ] **Step 7: 跑测试**
+- [x] **Step 7: 跑测试**
 
 Run: `go test ./internal/store/ ./internal/library/ -v`
 Expected: PASS，尤其是 Task 6 Step 10 那个逐字节快照测试
 
-- [ ] **Step 8: 把结论写进设计文档 2.2.1**
+- [x] **Step 8: 把结论写进设计文档 2.2.1**
 
 在 payload 那一节加一段：
 
 > **payload 不进列表查询。** 导入把 payload 从几百字节变成几 MB（5000 个文件约 1 MB），而历史面板一行也用不到它。所以列表查询选的是不含 payload 的列，只有 `GetOp` 和重放读完整行；`Rebuild` 用游标逐条读，内存不随日志长度增长。
 
-- [ ] **Step 9: `make check` 并提交**
+- [x] **Step 9: `make check` 并提交**
 
 ```bash
 make check
