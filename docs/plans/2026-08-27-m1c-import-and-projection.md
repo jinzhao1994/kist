@@ -3740,7 +3740,7 @@ kist import --box <ref> [--into <path>] [--hidden] <source>...
 - 第一次 SIGINT → 取消 context，打印一行「stopping — the files already imported will be kept」
 - 第二次 SIGINT → `os.Exit(130)`，事务回滚，孤儿 blob 留给将来的 GC
 
-- [ ] **Step 1: 写信号处理的失败测试**
+- [x] **Step 1: 写信号处理的失败测试**
 
 信号在测试里不好瞄准，所以把逻辑抽成一个可测的函数，测它而不是测进程：
 
@@ -3781,14 +3781,14 @@ func TestInterruptFirstCancelsSecondExits(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑测试，确认失败**
+- [x] **Step 2: 跑测试，确认失败**
 
 Run: `go test ./cmd/kist/ -run TestInterrupt`
 Expected: FAIL
 
-- [ ] **Step 3: 实现 `interruptContext` 与 `newImportCmd`**
+- [x] **Step 3: 实现 `interruptContext` 与 `newImportCmd`**
 
-- [ ] **Step 4: 写输出格式的测试**
+- [x] **Step 4: 写输出格式的测试**
 
 per-file 结果要汇总得让人能行动（3.7.1 ③）：
 
@@ -3814,12 +3814,12 @@ func TestImportSummaryDistinguishesSkippedFromFailed(t *testing.T) { /* … */ }
 func TestImportExitsNonZeroOnAnyFailure(t *testing.T) { /* … */ }
 ```
 
-- [ ] **Step 5: 实现输出，跑测试**
+- [x] **Step 5: 实现输出，跑测试**
 
 Run: `go test ./cmd/kist/ -v`
 Expected: PASS
 
-- [ ] **Step 6: `make check` 并提交**
+- [x] **Step 6: `make check` 并提交**
 
 ```bash
 make check
