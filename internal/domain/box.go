@@ -23,6 +23,7 @@ type Box struct {
 // NewBox validates and folds. Timestamps are left zero: they belong to the op
 // that creates the box, and only the write path knows that op's ts.
 func NewBox(id BoxID, name, description string) (Box, error) {
+	name, description = Normalize(name), Normalize(description)
 	if err := ValidateName(name); err != nil {
 		return Box{}, err
 	}

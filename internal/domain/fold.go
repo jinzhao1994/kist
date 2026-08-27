@@ -23,3 +23,13 @@ func Fold(s string) string {
 	// lowercased, and NFC last guarantees the output is in normal form.
 	return norm.NFC.String(strings.ToLower(norm.NFC.String(s)))
 }
+
+// Normalize puts user text into NFC, the one form the database stores
+// (spec 3.4).
+//
+// It matters most for names that arrived from a filesystem: macOS hands back
+// NFD, Linux hands back whatever was written. Without this, the same 中文 or
+// accented name imported on two machines produces two rows whose name differs
+// and whose name_fold does not — a UNIQUE constraint that fires for reasons
+// nobody can see, and a projection that differs per platform.
+func Normalize(s string) string { return norm.NFC.String(s) }

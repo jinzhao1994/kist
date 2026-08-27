@@ -11,6 +11,7 @@ type Tag struct {
 
 // NewTag validates and folds.
 func NewTag(id TagID, parent *TagID, name string) (Tag, error) {
+	name = Normalize(name)
 	if err := ValidateName(name); err != nil {
 		return Tag{}, err
 	}
