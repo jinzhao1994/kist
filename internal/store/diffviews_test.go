@@ -29,6 +29,12 @@ func TestVacuumIntoAndAttachWork(t *testing.T) {
 	if _, err := conn.ExecContext(t.Context(), `ATTACH DATABASE ? AS copy`, dst); err != nil {
 		t.Fatalf("ATTACH: %v", err)
 	}
+	// Detaching is not tidiness. Windows refuses to unlink a file that is
+	// still open, so an attached database cannot be deleted — which is what
+	// t.TempDir does on cleanup, and what verify --deep does to its scratch
+	// copy. Leaving it attached failed on the windows runner only.
+	defer conn.ExecContext(t.Context(), `DETACH DATABASE copy`)
+
 	var n int
 	if err := conn.QueryRowContext(t.Context(), `SELECT count(*) FROM copy.boxes`).Scan(&n); err != nil {
 		t.Fatalf("query the attached database: %v", err)

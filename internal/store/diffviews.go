@@ -49,6 +49,11 @@ func DiffViews(ctx context.Context, live *sql.DB, rebuiltPath string) ([]Drift, 
 	if _, err := conn.ExecContext(ctx, `ATTACH DATABASE ? AS rebuilt`, rebuiltPath); err != nil {
 		return nil, fmt.Errorf("attach the rebuilt copy: %w", err)
 	}
+	// Detaching matters beyond tidiness: Windows will not unlink a file that
+	// is still open, so the caller could not delete its scratch copy while it
+	// remained attached. WithoutCancel because this has to happen even when
+	// the comparison was interrupted — that is exactly when a leftover copy
+	// would be most annoying.
 	defer conn.ExecContext(context.WithoutCancel(ctx), `DETACH DATABASE rebuilt`)
 
 	var out []Drift
