@@ -57,6 +57,29 @@ func busyLibrary(t *testing.T) *Library {
 		t.Fatal(err)
 	}
 
+	// Files, in a two-level tree, so the proof covers files / folders / blobs
+	// as well. Before M1c those four tables were empty in this fixture and
+	// invariant 3 had never actually been checked along the file path.
+	src := writeTree(t, map[string]string{
+		"封面.jpg":         "cover",
+		"day1/IMG_1.jpg": "one",
+		"day1/IMG_2.jpg": "two",
+		"day2/IMG_3.jpg": "three",
+		"day2/dup.jpg":   "one", // same content as IMG_1: one blob, two rows
+	})
+	if _, err := l.Import(ctx, src, ImportOptions{Box: boxes[1]}); err != nil {
+		t.Fatal(err)
+	}
+
+	// An import that gets undone, so the replay has to handle delete_files too.
+	undone := writeTree(t, map[string]string{"temp/scratch.txt": "throwaway"})
+	if _, err := l.Import(ctx, undone, ImportOptions{Box: boxes[2]}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.Undo(ctx, lastOpID(t, l)); err != nil {
+		t.Fatal(err)
+	}
+
 	// A box that gets created and then undone, so the replay has to handle an
 	// inverse op too.
 	if _, err := l.CreateBox(ctx, "临时", "", domain.LocalDate{}, domain.LocalDate{}); err != nil {
@@ -66,6 +89,31 @@ func busyLibrary(t *testing.T) *Library {
 		t.Fatal(err)
 	}
 	return l
+}
+
+// The fixture is only a proof if it actually populated the file tables.
+//
+// The counts are worth stating rather than just asserting non-zero:
+//
+//   - files 5: the four distinct files plus dup.jpg, which shares a blob with
+//     IMG_1.jpg. Deduplication happens in blob storage, not in the file table
+//   - folders 5: three box roots (临时 was undone, taking its root with it)
+//     plus day1 and day2. temp/ went away with the undone import
+//   - blobs 5: four distinct contents from the surviving import, plus the one
+//     from the import that was undone. Undo does not reclaim blobs — that is
+//     GC's job and v0.1 has none (spec 3.9), so an orphan blob costs space and
+//     nothing else
+func TestBusyLibraryCoversTheFileTables(t *testing.T) {
+	l := busyLibrary(t)
+	for table, want := range map[string]int{"files": 5, "folders": 5, "blobs": 5} {
+		var n int
+		if err := l.db.QueryRow(`SELECT count(*) FROM ` + table).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		if n != want {
+			t.Errorf("%s has %d rows, want %d — the rebuild proof only covers what the fixture creates", table, n, want)
+		}
+	}
 }
 
 // This is the test the whole plan is built around (spec 2.3.1). Every claim

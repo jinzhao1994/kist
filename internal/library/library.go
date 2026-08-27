@@ -25,6 +25,17 @@ type Library struct {
 	log    *slog.Logger
 	actor  string
 	now    func() time.Time
+	hooks  hooks
+}
+
+// hooks are test seams.
+//
+// They are unexported and nothing outside a test ever sets them. The
+// alternative for testing interruption is a real signal, which is not
+// something a test can aim precisely at one point in a loop.
+type hooks struct {
+	// afterFile runs after each candidate an import has processed.
+	afterFile func()
 }
 
 // Option configures Open.
