@@ -38,6 +38,7 @@ and a global tag tree cuts across them for retrieval.`,
 	root.AddCommand(newInitCmd())
 	root.AddCommand(newBoxCmd())
 	root.AddCommand(newTagCmd())
+	root.AddCommand(newImportCmd())
 	root.AddCommand(newLogCmd())
 	root.AddCommand(newUndoCmd())
 	root.AddCommand(newVersionCmd())
