@@ -141,7 +141,7 @@ cmd/kist/
 
 **关键约束：`domain` 不许 import 仓库里任何别的包**（`internal/arch` 的 `TestDomainDependsOnNothing` 守着）。所以 `File.BlobKey` 是 `string` 而不是 `blob.Key`——把 `blob` 拉进 `domain` 会让最底层的包长出一个存储依赖。`blob.Key` 本身就是 `string` 的具名类型，两边转换是零成本的。
 
-- [ ] **Step 1: 写 `NumberedName` 与 `SplitName` 的失败测试**
+- [x] **Step 1: 写 `NumberedName` 与 `SplitName` 的失败测试**
 
 `internal/domain/filename_test.go`：
 
@@ -192,12 +192,12 @@ func TestSplitName(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑测试，确认它因为函数不存在而失败**
+- [x] **Step 2: 跑测试，确认它因为函数不存在而失败**
 
 Run: `go test ./internal/domain/ -run 'TestNumberedName|TestSplitName'`
 Expected: FAIL, `undefined: NumberedName`
 
-- [ ] **Step 3: 实现 `internal/domain/filename.go`**
+- [x] **Step 3: 实现 `internal/domain/filename.go`**
 
 ```go
 package domain
@@ -232,12 +232,12 @@ func NumberedName(name string, n int) string {
 }
 ```
 
-- [ ] **Step 4: 跑测试，确认通过**
+- [x] **Step 4: 跑测试，确认通过**
 
 Run: `go test ./internal/domain/ -run 'TestNumberedName|TestSplitName' -v`
 Expected: PASS
 
-- [ ] **Step 5: 写 `File` 与 `NewFolder` 的失败测试**
+- [x] **Step 5: 写 `File` 与 `NewFolder` 的失败测试**
 
 `internal/domain/file_test.go`：
 
@@ -314,12 +314,12 @@ func TestNewFolderRejectsEmptyName(t *testing.T) {
 }
 ```
 
-- [ ] **Step 6: 跑测试，确认失败**
+- [x] **Step 6: 跑测试，确认失败**
 
 Run: `go test ./internal/domain/ -run 'TestNewFile|TestNewFolder'`
 Expected: FAIL, `undefined: NewFile`
 
-- [ ] **Step 7: 实现 `internal/domain/file.go`**
+- [x] **Step 7: 实现 `internal/domain/file.go`**
 
 ```go
 package domain
@@ -377,7 +377,7 @@ func NewFile(id FileID, box BoxID, folder FolderID, name, blobKey string) (File,
 }
 ```
 
-- [ ] **Step 7b: 把 NFC 规范化补进 `fold.go` 和其余三个构造函数**
+- [x] **Step 7b: 把 NFC 规范化补进 `fold.go` 和其余三个构造函数**
 
 设计文档 3.4 写的是「**DB 里一律存 NFC**，verify 时两边都 NFC 化再比。中文名尤其容易踩」。M1a / M1b 只对 `name_fold` 做了 NFC（`Fold` 内部做的），**`name` 列本身存的是原样字节**——这是个真漏洞，导入才让它暴露出来：macOS 的 `os.ReadDir` 返回 NFD，所以同一个「café.jpg」从 Mac 导入存的是 NFD，从 Linux 导入存的是 NFC，`name_fold` 相同而 `name` 不同。
 
@@ -411,7 +411,7 @@ func TestConstructorsStoreNFC(t *testing.T) {
 }
 ```
 
-- [ ] **Step 8: 在 `internal/domain/folder.go` 加 `NewFolder`**
+- [x] **Step 8: 在 `internal/domain/folder.go` 加 `NewFolder`**
 
 ```go
 // NewFolder builds a named folder under a parent.
@@ -437,12 +437,12 @@ func NewFolder(id FolderID, box BoxID, parent FolderID, name string) (Folder, er
 
 同时把 `Folder` 的 doc 里那句「M1b only ever creates the root. Sub-folders arrive with import in M1c.」改成「The root has no name and no parent; every other folder has both.」
 
-- [ ] **Step 9: 跑全部 domain 测试**
+- [x] **Step 9: 跑全部 domain 测试**
 
 Run: `go test ./internal/domain/ -v`
 Expected: PASS，含 M1a / M1b 的既有测试
 
-- [ ] **Step 10: `make check` 并提交**
+- [x] **Step 10: `make check` 并提交**
 
 ```bash
 make check
