@@ -3530,7 +3530,7 @@ Sync 是 diff 不是重建：一个装了两万张照片的 box 加进一个文�
 1. **投影在事务提交之后做**（3.7 第 5 步、3.4.1）。它失败**永远不是数据丢失**——记日志、置脏标记、`kist relink` 修好
 2. **投影失败不让写操作失败。** 导入已经提交了，把错误往上抛会让用户以为导入没成功，然后再导一遍
 
-- [ ] **Step 1: 写 `Relink` 的失败测试**
+- [x] **Step 1: 写 `Relink` 的失败测试**
 
 ```go
 // relink is the correctness backstop for the whole projection layer: whatever
@@ -3584,12 +3584,12 @@ func TestRenamingABoxMovesItsDirectory(t *testing.T) {
 func TestProjectionFailureSetsTheDirtyFlag(t *testing.T) { /* … 用一个注入的失败 Syncer … */ }
 ```
 
-- [ ] **Step 2: 跑测试，确认失败**
+- [x] **Step 2: 跑测试，确认失败**
 
 Run: `go test ./internal/library/ -run 'TestRelink|TestRenamingABox'`
 Expected: FAIL, `undefined: Relink`
 
-- [ ] **Step 3: 实现 `Relink`**
+- [x] **Step 3: 实现 `Relink`**
 
 ```go
 // Relink rebuilds boxes/ from the database.
@@ -3643,7 +3643,7 @@ func (l *Library) Relink(ctx context.Context) (RelinkStats, error) {
 }
 ```
 
-- [ ] **Step 4: 实现增量维护**
+- [x] **Step 4: 实现增量维护**
 
 改名走 `os.Rename`，其余走一次 `syncBox`：
 
@@ -3675,7 +3675,7 @@ func (l *Library) projectBox(ctx context.Context, id domain.BoxID) error { … }
 	}
 ```
 
-- [ ] **Step 5: 实现脏标记**
+- [x] **Step 5: 实现脏标记**
 
 `boxes/.kist-projection-dirty`，内容是一行时间戳加错误原因。`Open` 时读一次，`ProjectionDirty()` 暴露给 CLI；`Relink` 成功后删掉。
 
@@ -3685,11 +3685,11 @@ func (l *Library) projectBox(ctx context.Context, id domain.BoxID) error { … }
 // every materialized view and would otherwise take the warning with it.
 ```
 
-- [ ] **Step 6: `Open` 里复检链接模式**
+- [x] **Step 6: `Open` 里复检链接模式**
 
 `config.Storage.LinkMode` 是 `init` 探测出来的，注释里就写着「Rechecked at startup: an external drive can come back mounted differently」。M1c 是第一个真的要用它的版本，所以现在实现这条：`Open` 时对 `blobs/` → `boxes/` 跑一次 `blob.Link`，失败就重新 `DetectLinkMode` 并写回 `kist.toml`，同时记一条日志。
 
-- [ ] **Step 7: 跑测试**
+- [x] **Step 7: 跑测试**
 
 Run: `go test ./internal/library/ -v`
 Expected: PASS
@@ -3698,7 +3698,7 @@ Expected: PASS
 
 计划里这一步写的是跑 `kist import`，但那条命令要到 Task 11 才存在。手工验证挪到 Task 11 的收尾，这里改为依赖 `TestImportProjectsIntoBoxes`：它用真实的临时目录和真实的文件系统跑完整条路，断言 `boxes/<dir>/a.txt` 和 `boxes/<dir>/day1/b.txt` 都在，且**通过链接读出来的内容是对的**——手工那一步能看到的东西它全都看了。
 
-- [ ] **Step 9: `make check` 并提交**
+- [x] **Step 9: `make check` 并提交**
 
 ```bash
 make check
