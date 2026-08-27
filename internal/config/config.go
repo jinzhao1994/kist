@@ -15,9 +15,24 @@ import (
 const CurrentVersion = 1
 
 type Config struct {
-	Version int     `toml:"version"`
-	Library Library `toml:"library"`
-	Storage Storage `toml:"storage"`
+	Version int      `toml:"version"`
+	Library Library  `toml:"library"`
+	Storage Storage  `toml:"storage"`
+	Remotes []Remote `toml:"remote"`
+}
+
+// Remote is somewhere else the same blobs live: another directory, a mounted
+// external drive, a network share.
+//
+// kist never writes to one. Backups are rsync's job (spec 3.11), and a remote
+// is only ever read from — which is why it needs nothing but a path, and why
+// mounting it read-only is the right thing to do.
+//
+// There is no `kist remote add`: the file says at the top that hand edits are
+// read back, and adding a remote is a once-in-a-library operation.
+type Remote struct {
+	Name string `toml:"name"`
+	Path string `toml:"path"`
 }
 
 type Library struct {
@@ -58,6 +73,22 @@ func Load(path string) (*Config, error) {
 	case blob.LinkReflink, blob.LinkHardlink, blob.LinkSymlink, blob.LinkCopy, "":
 	default:
 		return nil, fmt.Errorf("read %s: unknown link_mode %q", path, c.Storage.LinkMode)
+	}
+
+	// Remotes are hand-written, so they are checked here rather than trusted.
+	// A name is how repair says where a file came from, and two remotes with
+	// one name would make that sentence a lie.
+	seen := map[string]bool{}
+	for i, r := range c.Remotes {
+		switch {
+		case r.Name == "":
+			return nil, fmt.Errorf("read %s: remote %d has no name", path, i+1)
+		case r.Path == "":
+			return nil, fmt.Errorf("read %s: remote %q has no path", path, r.Name)
+		case seen[r.Name]:
+			return nil, fmt.Errorf("read %s: two remotes are called %q", path, r.Name)
+		}
+		seen[r.Name] = true
 	}
 	return &c, nil
 }

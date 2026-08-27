@@ -45,6 +45,8 @@ and a global tag tree cuts across them for retrieval.`,
 	root.AddCommand(newRelinkCmd())
 	root.AddCommand(newVerifyCmd())
 	root.AddCommand(newScrubCmd())
+	root.AddCommand(newRepairCmd())
+	root.AddCommand(newRemoteCmd())
 	root.AddCommand(newLogCmd())
 	root.AddCommand(newUndoCmd())
 	root.AddCommand(newVersionCmd())

@@ -9,6 +9,16 @@ import (
 	"github.com/jinzhao1994/kist/internal/blob"
 )
 
+// writeConfig writes a kist.toml and returns its path.
+func writeConfig(t *testing.T, body string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "kist.toml")
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
 func TestSaveLoadRoundTrip(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "kist.toml")
 	want := Default(blob.LinkReflink)
@@ -96,5 +106,70 @@ func TestLoadRejectsUnknownLinkMode(t *testing.T) {
 	}
 	if _, err := Load(path); err == nil {
 		t.Error("Load accepted an unknown link mode")
+	}
+}
+
+// Remotes are hand-written into kist.toml — there is no `kist remote add` —
+// so the file is the interface and it has to be checked rather than trusted.
+func TestLoadReadsRemotes(t *testing.T) {
+	path := writeConfig(t, `
+version = 1
+
+[library]
+id = "01234567-89ab-7def-8123-456789abcdef"
+
+[storage]
+link_mode = "hardlink"
+
+[[remote]]
+name = "外置硬盘"
+path = "/Volumes/Archive/kist/blobs"
+
+[[remote]]
+name = "nas"
+path = "/mnt/nas/kist/blobs"
+`)
+	c, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Remotes) != 2 {
+		t.Fatalf("read %d remotes, want 2", len(c.Remotes))
+	}
+	if c.Remotes[0].Name != "外置硬盘" || c.Remotes[0].Path != "/Volumes/Archive/kist/blobs" {
+		t.Errorf("first remote = %+v", c.Remotes[0])
+	}
+}
+
+func TestLoadRejectsBadRemotes(t *testing.T) {
+	cases := map[string]string{
+		"no name":     "[[remote]]\npath = \"/a\"\n",
+		"no path":     "[[remote]]\nname = \"a\"\n",
+		"a duplicate": "[[remote]]\nname = \"a\"\npath = \"/a\"\n\n[[remote]]\nname = \"a\"\npath = \"/b\"\n",
+	}
+	for what, body := range cases {
+		path := writeConfig(t, "version = 1\n\n"+body)
+		if _, err := Load(path); err == nil {
+			t.Errorf("a config with %s was accepted", what)
+		}
+	}
+}
+
+// Round-tripping matters because kist rewrites the file when it re-probes the
+// link mode, and losing somebody's remotes that way would be silent.
+func TestSaveKeepsRemotes(t *testing.T) {
+	c := Default(blob.LinkHardlink)
+	c.Remotes = []Remote{{Name: "backup", Path: "/backup/blobs"}}
+
+	path := filepath.Join(t.TempDir(), "kist.toml")
+	if err := Save(path, c); err != nil {
+		t.Fatal(err)
+	}
+	back, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(back.Remotes) != 1 || back.Remotes[0].Name != "backup" {
+		t.Errorf("remotes did not survive a save/load: %+v", back.Remotes)
 	}
 }
