@@ -94,6 +94,21 @@ func (l *Library) boxDirs() (map[domain.BoxID]string, []domain.Box, error) {
 // need global knowledge to disambiguate, but that is one small row each, and
 // files are loaded a box at a time.
 func (l *Library) Relink(ctx context.Context) (RelinkStats, error) {
+	release, err := l.lock.Acquire(ctx)
+	if err != nil {
+		return RelinkStats{}, err
+	}
+	defer release()
+	return l.relink(ctx)
+}
+
+// relink is Relink without the lock, for the callers that already hold it.
+//
+// The split exists because project falls back here, and project runs inside
+// write — taking the lock again there would deadlock against ourselves, which
+// the in-process semaphore would report five seconds later as "another kist
+// process is writing". The wrong answer and a slow one.
+func (l *Library) relink(ctx context.Context) (RelinkStats, error) {
 	var stats RelinkStats
 
 	if err := os.MkdirAll(l.layout.Boxes(), 0o755); err != nil {
@@ -182,7 +197,7 @@ func (l *Library) project(ctx context.Context, changed []domain.BoxID) error {
 	// spread (spec 3.4.1). That is the "complicated" case; take the backstop.
 	for id, name := range dirs {
 		if old, ok := l.dirs[id]; ok && old != name && !touched[id] {
-			_, err := l.Relink(ctx)
+			_, err := l.relink(ctx)
 			return err
 		}
 	}
@@ -212,7 +227,7 @@ func (l *Library) project(ctx context.Context, changed []domain.BoxID) error {
 		if old, had := l.dirs[id]; had && old != dirs[id] {
 			if err := syncer.Rename(old, dirs[id]); err != nil {
 				l.log.Warn("falling back to a full relink", "box", id, "err", err)
-				_, err := l.Relink(ctx)
+				_, err := l.relink(ctx)
 				return err
 			}
 		}

@@ -9,6 +9,7 @@ import (
 	"github.com/jinzhao1994/kist/internal/blob"
 	"github.com/jinzhao1994/kist/internal/config"
 	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/lockfile"
 	"github.com/jinzhao1994/kist/internal/oplog"
 	"github.com/jinzhao1994/kist/internal/store"
 )
@@ -22,10 +23,14 @@ type Library struct {
 	db     *sql.DB
 	blobs  *blob.Dir
 	tags   *TagTree
-	log    *slog.Logger
-	actor  string
-	now    func() time.Time
-	hooks  hooks
+	// lock serializes writes against every other process sharing this library
+	// — and, inside serve, against every other request (spec 2.7). Reads never
+	// take it.
+	lock  *lockfile.Locker
+	log   *slog.Logger
+	actor string
+	now   func() time.Time
+	hooks hooks
 	// dirs caches each box's projected directory name, so a write can tell a
 	// rename (move the directory, O(1)) from a first projection (build it).
 	dirs map[domain.BoxID]string
@@ -72,6 +77,7 @@ func Open(root string, opts ...Option) (*Library, error) {
 		log:    slog.Default(),
 		actor:  "cli",
 		now:    time.Now,
+		lock:   lockfile.New(layout.LockPath()),
 	}
 	for _, opt := range opts {
 		opt(l)

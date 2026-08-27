@@ -20,6 +20,15 @@ import (
 //
 // ops and blobs are not touched. The whole point is that they are the input.
 func (l *Library) Rebuild(ctx context.Context) error {
+	// A rebuild truncates every materialized view before replaying, so a write
+	// landing in the middle would be applied to tables that are about to be
+	// discarded. It takes the same lock as an ordinary write (spec 2.7).
+	release, err := l.lock.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
+
 	if err := rebuildInto(ctx, l.db); err != nil {
 		return err
 	}

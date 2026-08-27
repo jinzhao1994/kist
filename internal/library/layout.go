@@ -20,6 +20,10 @@ func (l Layout) Boxes() string      { return filepath.Join(l.Root, "boxes") }
 func (l Layout) Derived() string    { return filepath.Join(l.Root, "derived") }
 func (l Layout) Notice() string     { return filepath.Join(l.Root, "DO-NOT-EDIT.txt") }
 
+// LockPath is the write lock (spec 2.7). Its contents are diagnostic only —
+// the lock itself is held by the kernel, not by anything written in the file.
+func (l Layout) LockPath() string { return filepath.Join(l.Root, "kist.lock") }
+
 // OpenLayout resolves root and checks it actually holds a library.
 func OpenLayout(root string) (Layout, error) {
 	abs, err := filepath.Abs(root)

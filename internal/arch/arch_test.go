@@ -137,3 +137,17 @@ func TestQueryIsOnlyTheContract(t *testing.T) {
 		}
 	}
 }
+
+// TestLockfileIsSelfContained keeps the write lock free of kist.
+//
+// It is a wrapper over one OS primitive (spec 2.7), and the moment it can see
+// library or store it stops being that: it grows a notion of what a write is,
+// and the question "does this code path take the lock" becomes answerable in
+// two places instead of one.
+func TestLockfileIsSelfContained(t *testing.T) {
+	for _, imp := range imports(t, "internal/lockfile") {
+		t.Errorf("internal/lockfile imports %s.\n\n"+
+			"The lock wraps flock and LockFileEx and nothing else. Whether a given\n"+
+			"code path takes it is library's decision, made at library's call sites.", imp)
+	}
+}

@@ -48,7 +48,11 @@ Go 单二进制 + SQLite，Apache-2.0。
 
 **conformance suite 断言结果，从不断言查询计划。** 没有 `EXPLAIN`、没有关于索引的断言。v0.2 的 Postgres 实现只需要加一个和 `internal/store/conformance_test.go` 一模一样的文件。
 
-**B3（并发与多进程）已定**（2026-08-27，见设计文档 2.7）：`kist.lock` 上一把作用域为「一次逻辑写操作」的 OS 咨询锁，加上读路径比一次 `MAX(ops.id)`。**还没实现**——但其中一个 bug（导入的文件名分配 vs `files(folder_id, name)` 的 UNIQUE 索引）在今天两个 `kist import` 之间就已经能触发，不必等 serve。
+**B3（并发与多进程）已定并实现了一半**（2026-08-27，见设计文档 2.7）。
+
+**已实现**：新包 `internal/lockfile`（`flock` / `LockFileEx` + 进程内信号量 + 持锁者诊断），`write()` / `Relink` / `Rebuild` 加锁，`Relink` 拆成加锁的导出版本和不加锁的内部版本（因为投影的回退路径在 `write()` 里面，再拿一次会和自己死锁）。`verify` / `scrub` / `repair` 明确不持锁。
+
+**没实现**：① 读路径比 `MAX(ops.id)`——只有 serve 需要，等 serve。③ 导入的名字分配——它的窗口是整个导入，持锁到底代价太大，选了「撞了就整批失败」，真正的修法写在 2.7 的实现记录里。
 
 **A1（HEIC）的截止条件改了**：从「M3 开始前」改成「网格浏览成为主要界面时」。HEIC 只挡住缩略图 / 预览，存储和检索都不需要解码，所以 M3 可以开写——但要按「**降级是默认路径**」规划。
 

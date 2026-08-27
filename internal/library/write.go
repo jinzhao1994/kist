@@ -32,6 +32,17 @@ func (l *Library) write(
 	source oplog.Source,
 	revertsID *int64,
 ) (int64, error) {
+	// Everything below — the transaction, the in-memory tag tree, and the
+	// incremental projection at the end — is one logical write, and the lock
+	// covers all three (spec 2.7). Holding it across the projection is the
+	// point: two processes renaming directories under boxes/ at once is the
+	// silent failure that lock exists for.
+	release, err := l.lock.Acquire(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer release()
+
 	handler, err := oplog.Lookup(action)
 	if err != nil {
 		return 0, err
