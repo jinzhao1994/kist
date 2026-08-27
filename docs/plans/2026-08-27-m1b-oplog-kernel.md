@@ -5807,7 +5807,7 @@ ResolveBox 撞名时列出候选而不是随便挑一个。box 名没有唯一�
 
 **已经撤销过的 op 不能再撤。** `reverts_id` 是列而不是 payload 字段，正是为了这个热查询（spec 2.2）。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 ```go
 package library
@@ -6014,12 +6014,12 @@ func TestUndoBlockedByALaterTag(t *testing.T) {
 
 （测试文件顶部需要 `fmt`。）
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `go test ./internal/library/ -run 'TestUndo' -v`
 Expected: FAIL，`undefined: Undo`
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 `internal/library/undo.go`:
 
@@ -6123,12 +6123,12 @@ func (l *Library) explainBlockedUndo(ctx context.Context, target oplog.Op, cause
 }
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run: `go test ./internal/library/ -v`
 Expected: PASS
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add internal/library/undo.go internal/library/undo_test.go
