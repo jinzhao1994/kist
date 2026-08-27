@@ -1396,7 +1396,7 @@ FOREIGN KEY constraint failed (787)，跟 M1b 里 tag_boxes 那个是同
 
 这是 `boxtag.go` 的同构翻版，逐条对照着写即可。**唯一要小心的是同一条不变量：`FileIDs` 只列真正会变的文件**——`library` 在生成 op 之前过滤掉已经带这个 tag 的文件，否则 `Inverse` 会摘掉一个这条 op 从没加过的 tag。
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 `internal/oplog/filetag_test.go`：
 
@@ -1477,12 +1477,12 @@ func TestTagFilesTargets(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑测试，确认失败**
+- [x] **Step 2: 跑测试，确认失败**
 
 Run: `go test ./internal/oplog/ -run TestTagFiles`
 Expected: FAIL, `undefined: TagFilesPayload`
 
-- [ ] **Step 3: 实现 `internal/oplog/filetag.go`**
+- [x] **Step 3: 实现 `internal/oplog/filetag.go`**
 
 ```go
 package oplog
@@ -1597,12 +1597,12 @@ func fileTagTargets(payload []byte) (Targets, error) {
 }
 ```
 
-- [ ] **Step 4: 跑测试**
+- [x] **Step 4: 跑测试**
 
 Run: `go test ./internal/oplog/ -v`
 Expected: PASS，`AllActions` 现在是十三个
 
-- [ ] **Step 5: `make check` 并提交**
+- [x] **Step 5: `make check` 并提交**
 
 ```bash
 make check
