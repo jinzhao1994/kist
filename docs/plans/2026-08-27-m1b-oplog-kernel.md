@@ -6161,7 +6161,7 @@ op_boxes 把挡路的那条找出来。差别是用户拿到的是一条能采�
 
 **快照必须是确定性的**：每张表按主键排序，列全取，格式固定。否则这条测试会时灵时不灵，比没有还糟。
 
-- [ ] **Step 1: 写快照函数**
+- [x] **Step 1: 写快照函数**
 
 `internal/store/snapshot.go`:
 
@@ -6239,7 +6239,7 @@ func Snapshot(q Queryer) (string, error) {
 }
 ```
 
-- [ ] **Step 2: 写失败的测试**
+- [x] **Step 2: 写失败的测试**
 
 `internal/library/rebuild_test.go`:
 
@@ -6465,12 +6465,12 @@ func TestRebuildReloadsTheTagTree(t *testing.T) {
 
 （测试文件顶部需要 `fmt`。）
 
-- [ ] **Step 3: 跑测试确认失败**
+- [x] **Step 3: 跑测试确认失败**
 
 Run: `go test ./internal/library/ -run TestRebuild -v`
 Expected: FAIL，`undefined: Rebuild`
 
-- [ ] **Step 4: 实现**
+- [x] **Step 4: 实现**
 
 `internal/library/rebuild.go`:
 
@@ -6561,14 +6561,14 @@ func (l *Library) Rebuild(ctx context.Context) error {
 }
 ```
 
-- [ ] **Step 5: 跑测试确认通过**
+- [x] **Step 5: 跑测试确认通过**
 
 Run: `go test ./internal/library/ -v`
 Expected: PASS
 
 ⚠️ **如果 `TestRebuildReproducesTheLibraryExactly` 失败，不要改测试。** 它失败说明某个 `Apply` 违反了不变量 3，失败信息里的行号直接指向哪张表哪一行不同。按 2.3.1 的四类违反去查：生成了 ID、读了时钟、按当时状态算了名字、或者碰撞后缀是在 `Apply` 里定的。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add internal/library/rebuild.go internal/library/rebuild_test.go internal/store/snapshot.go
