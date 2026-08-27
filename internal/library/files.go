@@ -82,6 +82,40 @@ func (l *Library) ResolveFolder(ctx context.Context, box domain.BoxID, p string)
 	return current, nil
 }
 
+// FilePath renders where a file sits inside its box, as a slash path.
+//
+// Search results need it: a bare file name is not enough to go find the thing
+// under boxes/, and "IMG_0001.jpg" on its own is the least useful line a
+// search could print.
+//
+// The path is the database's names, not the projection's. The two differ
+// wherever a name had to be sanitized (spec 3.4), and the database's is the
+// real one — the projected name is what that becomes on this platform.
+func (l *Library) FilePath(ctx context.Context, f domain.File) (string, error) {
+	folders, err := store.FoldersOfBox(l.db, f.BoxID)
+	if err != nil {
+		return "", err
+	}
+	byID := make(map[domain.FolderID]domain.Folder, len(folders))
+	for _, fo := range folders {
+		byID[fo.ID] = fo
+	}
+
+	parts := []string{f.Name}
+	for id := f.FolderID; ; {
+		fo, ok := byID[id]
+		if !ok || fo.ParentID == nil {
+			break
+		}
+		parts = append(parts, fo.Name)
+		id = *fo.ParentID
+	}
+	for i, j := 0, len(parts)-1; i < j; i, j = i+1, j-1 {
+		parts[i], parts[j] = parts[j], parts[i]
+	}
+	return path.Join(parts...), nil
+}
+
 // ResolveTagRefs turns tag names or ids into one condition each, expanded to
 // include descendants.
 //
