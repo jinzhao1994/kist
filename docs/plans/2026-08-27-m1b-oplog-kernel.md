@@ -454,7 +454,7 @@ git commit -m "feat(domain): Box / Tag / Folder 实体与名字校验
 
 **`ErrUnknownAction` 的措辞很重要。** 设计文档 2.2 明确要求：读到未注册的 action 要报"这个库是更新版本的 kist 写的"，而不是崩溃或静默跳过。append-only 的历史表必须对未来宽容，而对过去的自己诚实。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 ```go
 package oplog
@@ -556,12 +556,12 @@ func TestSourcePropagatesUpdatedAt(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `go test ./internal/oplog/ -v`
 Expected: FAIL，`undefined: Lookup`
 
-- [ ] **Step 3: 写 Action 与 Source**
+- [x] **Step 3: 写 Action 与 Source**
 
 `internal/oplog/action.go`:
 
@@ -636,7 +636,7 @@ func (s Source) PropagatesUpdatedAt() bool {
 }
 ```
 
-- [ ] **Step 4: 写 Op、payload 编解码、Targets、Tx**
+- [x] **Step 4: 写 Op、payload 编解码、Targets、Tx**
 
 `internal/oplog/op.go`:
 
@@ -762,7 +762,7 @@ type Tx interface {
 }
 ```
 
-- [ ] **Step 5: 写注册表**
+- [x] **Step 5: 写注册表**
 
 `internal/oplog/registry.go`:
 
@@ -826,7 +826,7 @@ func Lookup(a Action) (Handler, error) {
 }
 ```
 
-- [ ] **Step 6: 把 `Inverse` 的签名同步进设计文档**
+- [x] **Step 6: 把 `Inverse` 的签名同步进设计文档**
 
 修改 `docs/design/2026-08-22-kist-v0.1-design.md` 的 2.3 节，把 `OpHandler` 改成：
 
@@ -846,12 +846,12 @@ type OpHandler interface {    // 处理器，按 action 注册
 >
 > **`Targets` 是不变量 4 的落点。** `op_boxes` / `op_files` 是 payload 的索引，必须能从 payload 单向重建；把这件事做成 handler 接口的一个方法，就没有哪条写入路径能绕过它——忘了实现是编译错误，实现错了是 `Rebuild` 的测试失败。
 
-- [ ] **Step 7: 跑测试确认通过**
+- [x] **Step 7: 跑测试确认通过**
 
 Run: `go test ./internal/oplog/ -v`
 Expected: PASS。注意 `TestLookupFindsRegisteredHandlers` 此时会失败——九个 handler 要到 Task 5–7 才注册。**这是预期的**：把 `AllActions()` 里尚未实现的项暂时注释掉，每完成一个 handler 就放回来一项，Task 7 结束时整份列表恢复。这条在 Task 5/6/7 的步骤里会逐个提醒。
 
-- [ ] **Step 8: 提交**
+- [x] **Step 8: 提交**
 
 ```bash
 git add internal/oplog/ docs/design/2026-08-22-kist-v0.1-design.md
