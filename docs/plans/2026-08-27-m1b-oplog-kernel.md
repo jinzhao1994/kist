@@ -891,7 +891,7 @@ create_box 的反向是 delete_box，是另一个 action。"
 
 **`ts` 的写入格式必须定宽。** `2006-01-02T15:04:05.000Z`——毫秒补零，末尾 `Z`。少写一位毫秒，字典序就不再等于时间序，而 `ORDER BY ts` 会静默给出错乱结果。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 ```go
 package store
@@ -1135,12 +1135,12 @@ func TestLastOpTouchingBox(t *testing.T) {
 
 （测试文件顶部需要 `database/sql`、`testing`、`time`、`domain`。）
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `go test ./internal/store/ -run 'TestAppendOp|TestGetOp|TestTimestamp|TestReverts|TestListOps|TestInsertOpBoxes|TestLastOp' -v`
 Expected: FAIL，`undefined: AppendOp`
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 ```go
 package store
@@ -1379,12 +1379,12 @@ func DeleteOpIndexes(tx *sql.Tx) error {
 }
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run: `go test ./internal/store/ -v`
 Expected: PASS
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add internal/store/ops.go internal/store/ops_test.go
