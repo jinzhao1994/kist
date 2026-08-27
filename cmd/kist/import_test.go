@@ -129,6 +129,9 @@ func TestImportSummaryNamesFailuresAndExitsNonZero(t *testing.T) {
 	// A name with a trailing space cannot be projected identically on every
 	// platform, so it is a per-file failure (spec 3.4).
 	src := writeTree(t, map[string]string{"fine.txt": "x", "bad ": "y"})
+	if !hasExactName(t, src, "bad ") {
+		t.Skip("this filesystem will not hold a name ending in a space — which is the rule being tested")
+	}
 
 	out, err := exec(t, lib, "import", "--box", "云南", src)
 	if err == nil {
@@ -200,4 +203,24 @@ func TestImportIntoASubfolder(t *testing.T) {
 	if !strings.Contains(filepath.ToSlash(rel), "/day1/") {
 		t.Errorf("b.txt is at %q, want it inside day1", rel)
 	}
+}
+
+// hasExactName reports whether the filesystem kept a name exactly as written.
+//
+// Windows silently drops trailing dots and spaces, so a fixture that needs one
+// cannot exist there — which is precisely why kist refuses such names on every
+// platform (spec 3.4). Checking the fixture rather than checking GOOS says that
+// out loud, and covers any other filesystem that normalizes names.
+func hasExactName(t *testing.T, dir, name string) bool {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if e.Name() == name {
+			return true
+		}
+	}
+	return false
 }

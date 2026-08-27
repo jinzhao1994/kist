@@ -254,6 +254,9 @@ func TestImportRejectsAnUnprojectableName(t *testing.T) {
 		"fine.txt":   "a",
 		"trailing. ": "b",
 	})
+	if !hasExactName(t, src, "trailing. ") {
+		t.Skip("this filesystem will not hold a name ending in a space — which is the rule being tested")
+	}
 
 	res, err := l.Import(t.Context(), src, ImportOptions{Box: box})
 	if err != nil {
@@ -380,4 +383,24 @@ func TestImportDoesNotReportTheInterruptedFileAsFailed(t *testing.T) {
 	if res.Remaining != 17 {
 		t.Errorf("Remaining = %d, want 17", res.Remaining)
 	}
+}
+
+// hasExactName reports whether the filesystem kept a name exactly as written.
+//
+// Windows silently drops trailing dots and spaces, so a fixture that needs one
+// cannot exist there — which is precisely why kist refuses such names on every
+// platform (spec 3.4). Checking the fixture rather than checking GOOS says that
+// out loud, and covers any other filesystem that normalizes names.
+func hasExactName(t *testing.T, dir, name string) bool {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if e.Name() == name {
+			return true
+		}
+	}
+	return false
 }

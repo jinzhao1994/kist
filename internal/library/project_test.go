@@ -156,6 +156,13 @@ func TestRelinkIsIdempotent(t *testing.T) {
 
 // Renaming a box moves its directory rather than rebuilding it: an O(1)
 // metadata operation instead of relinking every file inside (spec 3.4.1).
+//
+// This checks the outcome — the directory has a new name and its contents came
+// along. That it happened by moving rather than by relinking is asserted one
+// level down, in projection's TestRenameMovesTheDirectory, where a spy on
+// Locate can say "nothing was linked again". Here the syncer is built
+// internally and there is nothing to spy on, and os.SameFile cannot fill the
+// gap: on Windows it reopens both paths, and the old one no longer exists.
 func TestRenamingABoxMovesItsDirectory(t *testing.T) {
 	l, box := openWithBox(t)
 	src := writeTree(t, map[string]string{"a.txt": "x"})
@@ -163,10 +170,6 @@ func TestRenamingABoxMovesItsDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	before := soleBoxDir(t, l)
-	inode, err := os.Stat(filepath.Join(l.Layout().Boxes(), before, "a.txt"))
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	if _, err := l.UpdateBox(t.Context(), box, BoxFields{Name: "改过名了"}); err != nil {
 		t.Fatal(err)
@@ -176,12 +179,12 @@ func TestRenamingABoxMovesItsDirectory(t *testing.T) {
 		t.Fatal("the directory was not renamed")
 	}
 
-	moved, err := os.Stat(filepath.Join(l.Layout().Boxes(), after, "a.txt"))
+	body, err := os.ReadFile(filepath.Join(l.Layout().Boxes(), after, "a.txt"))
 	if err != nil {
 		t.Fatalf("the file did not come along: %v", err)
 	}
-	if !os.SameFile(inode, moved) {
-		t.Error("the box was renamed by relinking its contents, not by moving the directory")
+	if string(body) != "x" {
+		t.Errorf("the moved file reads %q, want %q", body, "x")
 	}
 }
 

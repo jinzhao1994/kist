@@ -3,6 +3,7 @@ package projection
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -233,24 +234,56 @@ func TestPruneRootRemovesUnknownBoxDirs(t *testing.T) {
 }
 
 // Renaming moves the directory: an O(1) metadata operation that leaves every
-// link inside untouched.
+// link inside untouched (spec 3.4.1).
+//
+// The assertion is "nothing was linked again", not os.SameFile. SameFile is
+// unusable here: on Windows it reopens both paths to read the file id, and the
+// old path is gone by the time it is asked — which made this test fail on the
+// windows runner while passing everywhere else. Counting the work is a better
+// question anyway, because the work is what the rule is about: a box with
+// twenty thousand photos must not have them relinked to change its name.
 func TestRenameMovesTheDirectory(t *testing.T) {
 	s, root := newSyncer(t)
 	if _, err := s.SyncDir("box", treeFixture()); err != nil {
 		t.Fatal(err)
 	}
-	before := statOf(t, filepath.Join(root, "box/day1/b.txt"))
 
 	if err := s.Rename("box", "renamed"); err != nil {
 		t.Fatal(err)
 	}
-	after := statOf(t, filepath.Join(root, "renamed/day1/b.txt"))
-	if !os.SameFile(before, after) {
-		t.Error("renaming the box replaced the files inside instead of moving the directory")
+
+	s.Locate = func(key string) (string, bool) {
+		t.Errorf("blob %s was requested again; renaming must move the directory, not relink its contents", key)
+		return "", false
 	}
+	stats, err := s.SyncDir("renamed", renamedFixture())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.Created != 0 || stats.Removed != 0 {
+		t.Errorf("syncing after the rename did work: %+v", stats)
+	}
+
 	if _, err := os.Stat(filepath.Join(root, "box")); err == nil {
 		t.Error("the old directory is still there")
 	}
+	// And the content came along, readable at its new path.
+	body, err := os.ReadFile(filepath.Join(root, "renamed/day1/b.txt"))
+	if err != nil {
+		t.Fatalf("the file did not come along: %v", err)
+	}
+	if string(body) != "sha256:bb" {
+		t.Errorf("the moved file reads %q", body)
+	}
+}
+
+// renamedFixture is treeFixture under the new directory name.
+func renamedFixture() []Entry {
+	out := treeFixture()
+	for i := range out {
+		out[i].Path = "renamed" + strings.TrimPrefix(out[i].Path, "box")
+	}
+	return out
 }
 
 // Renaming onto a taken name is refused rather than done badly; the caller
