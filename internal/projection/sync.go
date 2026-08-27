@@ -27,7 +27,8 @@ type Stats struct {
 	Failed int
 }
 
-func (s *Stats) add(o Stats) {
+// Add accumulates another sync's counts.
+func (s *Stats) Add(o Stats) {
 	s.Created += o.Created
 	s.Removed += o.Removed
 	s.Missing += o.Missing

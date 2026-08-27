@@ -108,6 +108,16 @@ func (l *Library) write(
 		}
 		l.tags = tags
 	}
+
+	// The transaction is committed and the library is correct; only the
+	// human-readable mirror can still be behind, and relink fixes that
+	// (spec 3.4.1). Failing the caller here would tell them their change did
+	// not happen when it did, and the next thing they would do is repeat it.
+	if err := l.project(ctx, targets.Boxes); err != nil {
+		l.log.Error("boxes/ could not be updated; run `kist relink`",
+			"op", opID, "action", action, "err", err)
+		l.markDirty(err)
+	}
 	return opID, nil
 }
 

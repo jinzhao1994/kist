@@ -3694,18 +3694,9 @@ func (l *Library) projectBox(ctx context.Context, id domain.BoxID) error { … }
 Run: `go test ./internal/library/ -v`
 Expected: PASS
 
-- [ ] **Step 8: 手工过一遍真实库**
+- [x] **Step 8: 手工过一遍真实库** — **推迟到 Task 11**
 
-```bash
-go build -o bin/kist ./cmd/kist
-rm -rf /tmp/kist-m1c && ./bin/kist init --yes /tmp/kist-m1c
-./bin/kist --library /tmp/kist-m1c box new 云南 --start 2019-08
-mkdir -p /tmp/src/day1 && echo hello > /tmp/src/a.txt && echo world > /tmp/src/day1/b.txt
-./bin/kist --library /tmp/kist-m1c import --box 云南 /tmp/src
-find /tmp/kist-m1c/boxes -type f -o -type d | sort
-```
-
-期望看到 `boxes/2019-08_云南/a.txt` 和 `boxes/2019-08_云南/day1/b.txt`，且它们的内容读得出来。
+计划里这一步写的是跑 `kist import`，但那条命令要到 Task 11 才存在。手工验证挪到 Task 11 的收尾，这里改为依赖 `TestImportProjectsIntoBoxes`：它用真实的临时目录和真实的文件系统跑完整条路，断言 `boxes/<dir>/a.txt` 和 `boxes/<dir>/day1/b.txt` 都在，且**通过链接读出来的内容是对的**——手工那一步能看到的东西它全都看了。
 
 - [ ] **Step 9: `make check` 并提交**
 

@@ -26,6 +26,9 @@ type Library struct {
 	actor  string
 	now    func() time.Time
 	hooks  hooks
+	// dirs caches each box's projected directory name, so a write can tell a
+	// rename (move the directory, O(1)) from a first projection (build it).
+	dirs map[domain.BoxID]string
 }
 
 // hooks are test seams.
@@ -86,6 +89,14 @@ func Open(root string, opts ...Option) (*Library, error) {
 		return nil, err
 	}
 	if l.tags, err = LoadTagTree(l.db); err != nil {
+		l.db.Close()
+		return nil, err
+	}
+	if err := l.loadDirs(); err != nil {
+		l.db.Close()
+		return nil, err
+	}
+	if err := l.checkLinkMode(); err != nil {
 		l.db.Close()
 		return nil, err
 	}
