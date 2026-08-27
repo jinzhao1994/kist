@@ -1,6 +1,6 @@
 # M2b Query 契约与 conformance suite 实现计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 把 4.2 的 `Query` 从一段设计文档里的伪代码变成**真的契约**——一个不含 SQL 的结构、一份任何实现都必须通过的 conformance suite、以及 `ls` / `find` 迁到它上面。**产出：DAL 的契约定死了**，v0.2 写 Postgres 实现时有现成的验收标准。
 
@@ -81,7 +81,7 @@ conformance suite 住在 `internal/query/querytest`，导出 `Run(t, newBackend)
 
 先把结构定死，再谈翻译。这一步不碰数据库，也不该碰。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 `internal/query/query_test.go`：
 
@@ -198,7 +198,7 @@ func TestNestingComposes(t *testing.T) {
 
 `tagID` 是个测试小工具，用 `domain.NewTagID()` 造几个不同的 ID 即可。
 
-- [ ] **Step 2: 跑一遍确认它红**
+- [x] **Step 2: 跑一遍确认它红**
 
 ```
 go test ./internal/query/
@@ -206,7 +206,7 @@ go test ./internal/query/
 
 Expected: FAIL，包不存在。
 
-- [ ] **Step 3: 实现 `tagexpr.go`**
+- [x] **Step 3: 实现 `tagexpr.go`**
 
 ```go
 package query
@@ -299,7 +299,7 @@ func Leaves(e TagExpr) []TagAny {
 }
 ```
 
-- [ ] **Step 4: 实现 `query.go`**
+- [x] **Step 4: 实现 `query.go`**
 
 ```go
 // Package query is the data access layer's contract.
@@ -431,13 +431,13 @@ func (q Query) PageSize() int {
 
 > **`SortCaptured` 是 iota 的 0，所以零值 Query 的排序键就是它；`Desc` 的零值是 false，也就是升序。** 但 Step 1 的测试要求零值是**降序**。两条路：把 `Desc` 换成 `Asc`（零值降序，但字段名读起来别扭），或者给 `Query.Sort` 一个规范化方法。**选前者**——`SortSpec{Key, Asc bool}`，零值就是「拍摄时间，最新在前」，这正是 4.5 假设的顺序，而且不需要任何人记得调用规范化。实现时把上面 `Desc` 全改成 `Asc` 并反转判断，测试同步改。
 
-- [ ] **Step 5: 跑测试确认绿**
+- [x] **Step 5: 跑测试确认绿**
 
 ```
 go test ./internal/query/
 ```
 
-- [ ] **Step 6: 加 arch 测试**
+- [x] **Step 6: 加 arch 测试**
 
 ```go
 // TestQueryIsOnlyTheContract keeps the data access layer's contract free of
@@ -460,13 +460,13 @@ func TestQueryIsOnlyTheContract(t *testing.T) {
 }
 ```
 
-- [ ] **Step 7: 确认 arch 测试会咬**
+- [x] **Step 7: 确认 arch 测试会咬**
 
 往 `internal/query/query.go` 的 import 块里加 `_ "github.com/jinzhao1994/kist/internal/store"`，跑 `go test ./internal/arch/ -run TestQueryIsOnlyTheContract`：必须红。删掉。
 
 > M2a 的经验：**import 一定要加进 import 块里**，加在文件末尾的话 `build.ImportDir` 读不到，测试会假绿。
 
-- [ ] **Step 8: 提交**
+- [x] **Step 8: 提交**
 
 ```bash
 git add internal/query/ internal/arch/arch_test.go
@@ -499,7 +499,7 @@ TagExpr 的叶子拿到的是**展开好的**后代 ID 集合。4.3 定的两步
 
 B1 里挂了很久的那条到这里落地。**游标住在 `query` 而不是 `store`**：它是契约的一部分——两个实现必须对「这个游标是什么意思」达成一致，否则换后端就要重新分页。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 ```go
 package query
@@ -601,13 +601,13 @@ func TestNameCursorCarriesTheFoldedName(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑一遍确认它红**
+- [x] **Step 2: 跑一遍确认它红**
 
 ```
 go test ./internal/query/ -run Cursor
 ```
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 `internal/query/cursor.go`：
 
@@ -694,15 +694,15 @@ func DecodeCursor(s SortSpec, cursor string) (string, domain.FileID, error) {
 }
 ```
 
-- [ ] **Step 4: 跑测试确认绿**
+- [x] **Step 4: 跑测试确认绿**
 
-- [ ] **Step 5: 确认排序标识真的会咬**
+- [x] **Step 5: 确认排序标识真的会咬**
 
 把 `EncodeCursor` 里的 `s.ID() + "\x00" +` 去掉、`DecodeCursor` 相应改成两段，跑 `TestCursorFromAnotherSortIsRefused`：必须红。恢复。
 
 **这一条特别值得验**：它守的是一个不会报错、不会崩、只会给出一页看起来完全正常的乱序结果的 bug。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add internal/query/cursor.go internal/query/cursor_test.go
@@ -736,7 +736,7 @@ ErrCursorSortMismatch。
 
 翻译是**纯函数**：同一个 Query 出同一串 SQL 和同一组参数。因此它可以在不开库的情况下被穷举测试，而 conformance suite 去管「跑出来的结果对不对」。两层分工要分清：**这里测的是形状，套件测的是语义。**
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 `internal/store/translate_test.go`。挑几条真正会写错的：
 
@@ -880,9 +880,9 @@ func TestTooManyTagIdsIsAClearError(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑一遍确认它红**
+- [x] **Step 2: 跑一遍确认它红**
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 `internal/store/translate.go`：
 
@@ -1059,19 +1059,19 @@ func timePredicate(column string, r query.DateRange) (string, []any) {
 
 > **`LocalDate.Start()` / `.End()` 要在 `domain` 里加**（如果还没有）：把变精度前缀补成完整的 `YYYY-MM-DD`，下界补最小、上界补当月最后一天。**闰年和月末天数要真算**，`2019-02` 的 `End()` 是 `2019-02-28`，`2020-02` 是 `2020-02-29`。这两个方法各写一个表驱动测试，含闰年、含 12 月、含只有年份和只有年月三种精度。
 
-- [ ] **Step 4: 跑测试确认绿**
+- [x] **Step 4: 跑测试确认绿**
 
 ```
 go test ./internal/store/ -run 'Translate|TagPredicate|TimeRange|TextSearch|TooManyTag'
 ```
 
-- [ ] **Step 5: 确认空集合的语义会咬**
+- [x] **Step 5: 确认空集合的语义会咬**
 
 把 `TagAll` 的 `empty` 从 `"1"` 改成 `"0"`，跑 `TestTagPredicateEmptySets`：必须红。改回去。
 
 再把 `join` 里的括号去掉，跑 `TestTagPredicateParenthesisesNesting`：必须红。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add internal/store/translate.go internal/store/translate_test.go internal/domain/
@@ -1106,7 +1106,7 @@ NULL 显式排除。没有拍摄时间的文件不属于任何时间范围（4.2
 
 M1c 的 `cursorPredicate` 只处理一个排序、一个方向。现在是**六种组合**，而且 `captured` 那两种还要跨 NULL 边界。**这是整个 M2b 最容易写出静默 bug 的地方**——写错不报错，只是某一页少几行或多几行。
 
-- [ ] **Step 1: 先把 M1c 的教训抄过来**
+- [x] **Step 1: 先把 M1c 的教训抄过来**
 
 M1c 那个 `TestListFilesCursorWalksEveryRowExactlyOnce` 是这样咬住 bug 的：**一次只取一行**，走完全表，断言「每行恰好出现一次」。把它推广成对**六种排序**都跑一遍的表驱动测试，fixture 里必须有：
 
@@ -1167,9 +1167,9 @@ func TestCursorWalksEveryRowExactlyOnceInEveryOrder(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑一遍确认它红**
+- [x] **Step 2: 跑一遍确认它红**
 
-- [ ] **Step 3: 实现 `orderBy`**
+- [x] **Step 3: 实现 `orderBy`**
 
 ```go
 // orderBy renders one ordering, with the tie-breaker that makes keyset paging
@@ -1202,7 +1202,7 @@ func orderBy(s query.SortSpec) string {
 }
 ```
 
-- [ ] **Step 4: 实现 `cursorPredicate`**
+- [x] **Step 4: 实现 `cursorPredicate`**
 
 **先在计划里把六种情况列清楚，再写代码。** 记 `k` 为游标里的排序键、`i` 为游标里的 id：
 
@@ -1248,13 +1248,13 @@ func cursorPredicate(s query.SortSpec, key string, id domain.FileID) (string, []
 }
 ```
 
-- [ ] **Step 5: 改 `ListFiles` 收 `query.Query`**
+- [x] **Step 5: 改 `ListFiles` 收 `query.Query`**
 
 删掉 `ListFilesOptions` 和 M1c 的 `EncodeCursor` / `decodeCursor` / `fileOrder`（游标搬到了 `query`）。`ListFiles` 变成：`Validate` → `translate` → `cursorPredicate` → `orderBy` → `LIMIT` → 取 `PageSize()+1` 行判断有没有下一页。
 
 > **取 `PageSize()+1` 行，而不是「取满一页就认为还有下一页」。** M1c 是后者，代价是最后一页恰好占满时会多给一个游标，翻过去是空页。功能上无害，但 UI 上是「还有更多」按钮点下去什么都没有。既然重写，顺手修掉，并在 `ListFiles` 的 godoc 里写明。
 
-- [ ] **Step 6: 跑测试确认绿，并确认边界会咬**
+- [x] **Step 6: 跑测试确认绿，并确认边界会咬**
 
 三处分别验：
 
@@ -1264,7 +1264,7 @@ func cursorPredicate(s query.SortSpec, key string, id domain.FileID) (string, []
 
 **三处都要看到红。** 第 2 条尤其重要：它是 M2b 里唯一一个能在 SQLite 上验证 `NULLS LAST` 有效性的机会。
 
-- [ ] **Step 7: 提交**
+- [x] **Step 7: 提交**
 
 ```bash
 git add internal/store/
@@ -1303,7 +1303,7 @@ M1c 只有一个排序一个方向，现在是六种组合，而 captured 那两
 
 **它是 `testing/fstest` 那个形状**：一个普通包，import `testing`，被实现方的测试调用。不是 `_test.go`——那样别的包就用不了它，而「别的包能用」正是 conformance suite 的定义。
 
-- [ ] **Step 1: 定 `Backend` 与 fixture**
+- [x] **Step 1: 定 `Backend` 与 fixture**
 
 `internal/query/querytest/suite.go`：
 
@@ -1385,7 +1385,7 @@ func (b *Builder) ID(name string) domain.FileID   // for assertions
 
 > **ID 由名字派生（例如对名字取 SHA-256 前 16 字节再打上 UUIDv7 的版本位），不用 `domain.NewFileID()`。** 两个理由：① 断言可以写 `want: []string{"a.txt", "b.txt"}` 而不是一串 UUID；② **导入序排序需要 id 有确定的先后**，随机 ID 会让 `SortImported` 的期望值每次都不一样。派生时要保证「后加的名字 id 更大」——最简单的做法是按加入顺序给一个递增的时间戳位。**这一条要在 `Builder` 的 godoc 里写明**，因为它是 `imported` 排序那几个 case 能有确定期望的唯一原因。
 
-- [ ] **Step 2: 写 cases**
+- [x] **Step 2: 写 cases**
 
 `internal/query/querytest/cases.go`，按 4.2.1 的字段分组。**每个 case 断言的是「哪些文件、什么顺序」**：
 
@@ -1404,7 +1404,7 @@ func (b *Builder) ID(name string) domain.FileID   // for assertions
 
 **「不递归」和「空集合语义」这两组要写得最细**，它们是最容易在第二个实现上写错、而且写错了不报错的两处。
 
-- [ ] **Step 3: 把 SQLite 接进去**
+- [x] **Step 3: 把 SQLite 接进去**
 
 `internal/store/conformance_test.go`：
 
@@ -1440,7 +1440,7 @@ func (b *sqliteBackend) Files(q query.Query) ([]domain.File, string, error) {
 
 `Seed` 直接 INSERT。它是测试代码，所以可以碰 `store` 的内部，而且**必须**——conformance suite 不该知道 `library` 的写路径存在。
 
-- [ ] **Step 4: 跑套件**
+- [x] **Step 4: 跑套件**
 
 ```
 go test ./internal/store/ -run TestSQLiteConformance -v
@@ -1448,7 +1448,7 @@ go test ./internal/store/ -run TestSQLiteConformance -v
 
 **预期第一次会红好几个。** 这是套件在干活——把每一个红都当成一个真问题去看，不要为了让它绿而改期望值。改期望值之前必须能说出「为什么原来的期望是错的」。
 
-- [ ] **Step 5: 确认套件真的会咬**
+- [x] **Step 5: 确认套件真的会咬**
 
 挑三处分别破坏实现，跑套件：
 
@@ -1456,7 +1456,7 @@ go test ./internal/store/ -run TestSQLiteConformance -v
 2. `translate` 里把 `q.Folder` 那个条件改成也匹配子目录（例如换成 `box_id = ?`）→ 「不递归」必须红
 3. `timePredicate` 里把重叠改成包含（下界那条换成 `column >= ?`）→ 「只知年份的值与范围重叠时必须命中」必须红
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add internal/query/querytest/ internal/store/conformance_test.go
@@ -1491,7 +1491,7 @@ fixture 的 ID 由名字派生而不是随机生成，两个理由：断言可�
 
 tag 展开留在 `library`（4.3 第一步），`cmd` 只管把命令行翻译成 `Query`。
 
-- [ ] **Step 1: `library` 侧**
+- [x] **Step 1: `library` 侧**
 
 ```go
 // Files answers a query (spec 4.2).
@@ -1526,7 +1526,7 @@ func (l *Library) TagCondition(refs []string) (query.TagExpr, error) {
 
 `ExcludeTags` 同理，返回 `query.TagNot{Expr: query.TagAnyOf{…}}`。
 
-- [ ] **Step 2: `cmd/kist/find.go` 加三个 flag**
+- [x] **Step 2: `cmd/kist/find.go` 加三个 flag**
 
 ```
 --sort   captured | imported | name          默认 captured
@@ -1542,13 +1542,13 @@ func (l *Library) TagCondition(refs []string) (query.TagExpr, error) {
 - 变精度是**重叠**匹配：`--since 2019-03 --until 2019-06` 会带出只标了「2019」的东西
 - **M3 之前文件没有拍摄时间**，所以带 `--since` / `--until` 的 `find` 现在返回空
 
-- [ ] **Step 3: `ls` 迁过去**
+- [x] **Step 3: `ls` 迁过去**
 
 `kist ls <box> <path>` 变成 `query.Query{Boxes: […], Folder: &id, Sort: {Key: SortName, Asc: true}}`。
 
 > **`ls` 的默认排序换成文件名升序。** 目录浏览按拍摄时间倒序是反直觉的——`ls` 就该像 `ls`。这是一处行为改变，要写进 commit message 和设计文档第 7 节的 CLI 说明。
 
-- [ ] **Step 4: 写 cmd 层测试**
+- [x] **Step 4: 写 cmd 层测试**
 
 `cmd/kist/find_test.go`，用 Task 9（M2a）留下的 `runKist` 帮手：
 
@@ -1566,13 +1566,13 @@ func TestFindRejectsAnUnknownSortWithAUsefulMessage(t *testing.T) { … }
 func TestFindRejectsAnUnknownTag(t *testing.T) { … }
 ```
 
-- [ ] **Step 5: 跑全部**
+- [x] **Step 5: 跑全部**
 
 ```
 make check
 ```
 
-- [ ] **Step 6: 手动走查**
+- [x] **Step 6: 手动走查**
 
 ```bash
 kist --library /tmp/m2b find --name img --sort name --asc
@@ -1581,19 +1581,19 @@ kist --library /tmp/m2b find --since 2019-03 --until 2019-06   # 期望：空，
 kist --library /tmp/m2b ls 云南 day1                            # 期望：按文件名升序
 ```
 
-- [ ] **Step 7: 提交**
+- [x] **Step 7: 提交**
 
 ---
 
 ### Task 7: 收尾
 
-- [ ] **Step 1: 把实现中冒出来的偏离写回设计文档**，每条附否掉另一条路的理由
-- [ ] **Step 2: `open-questions.md`** 划掉解决掉的，记下 M2b 新暴露的
-- [ ] **Step 3: `CLAUDE.md`** 写 M2a/M2b 已完成，下一步 M3（并提醒 A1 那个 HEIC / ffmpeg 的决定必须在 M3 开写前定）
-- [ ] **Step 4: 设计文档第 7 节** 的 CLI 清单补上 `--sort` / `--since` / `--until`，并记 `ls` 默认排序的改变
-- [ ] **Step 5: README 两份** 的检索例子更新
-- [ ] **Step 6: `make check`**，然后在 4000 文件的库上量一次带 tag 和文本的组合查询耗时，写回 4.4——**4.4 那句「实测 50 万行全扫 66ms」是在别处量的，本项目自己的库上还没量过**
-- [ ] **Step 7: 提交、推、等三平台 CI 绿**
+- [x] **Step 1: 把实现中冒出来的偏离写回设计文档**，每条附否掉另一条路的理由
+- [x] **Step 2: `open-questions.md`** 划掉解决掉的，记下 M2b 新暴露的
+- [x] **Step 3: `CLAUDE.md`** 写 M2a/M2b 已完成，下一步 M3（并提醒 A1 那个 HEIC / ffmpeg 的决定必须在 M3 开写前定）
+- [x] **Step 4: 设计文档第 7 节** 的 CLI 清单补上 `--sort` / `--since` / `--until`，并记 `ls` 默认排序的改变
+- [x] **Step 5: README 两份** 的检索例子更新
+- [x] **Step 6: `make check`**，然后在 4000 文件的库上量一次带 tag 和文本的组合查询耗时，写回 4.4——**4.4 那句「实测 50 万行全扫 66ms」是在别处量的，本项目自己的库上还没量过**
+- [x] **Step 7: 提交、推、等三平台 CI 绿**
 
 ---
 
@@ -1606,3 +1606,32 @@ kist --library /tmp/m2b ls 云南 day1                            # 期望：按
 **类型一致性：** `query.SortSpec` 用 `Asc` 而非 `Desc`（Task 1 Step 4 的说明），`ID()` / `Value()` / `EncodeCursor` / `orderBy` / `cursorPredicate` 六处都按 `Asc` 写；`TagExpr` 的四个构造子在 `tagPredicate` 的 type switch 里必须齐全。
 
 **每个 task 都有「确认守卫会咬」的步骤**（Task 1 Step 7、Task 2 Step 5、Task 3 Step 5、Task 4 Step 6 的三处、Task 5 Step 5 的三处）。Task 4 Step 6 的第 2 条是全计划唯一一次能在 SQLite 上验证 `NULLS LAST` 有效性的机会，别跳过。
+
+---
+
+## 执行记录（2026-08-27）
+
+七个 task 全部完成。**46 个 conformance case，全绿。**
+
+### 计划被实测修正的两处
+
+**① `NULLS LAST` 不是「本地永远测不出来」。** 4.7 一直这么写着，M2b 加了升序之后拿到了反证：SQLite 的 `ASC` 默认 `NULLS FIRST`，所以去掉显式的 `NULLS LAST`，`captured:desc` 全绿而 `captured:asc` 当场红。**这是 4.7 那条缓解办法第一次在本地拿到证据**，规范已改。
+
+**② 43 个 case 第一次跑就全绿，而其中一个是假的。** 按计划破坏三处实现验证套件会咬时，「空 `TagAll` 改成恒假」**一个 case 都没红**。查下去是真发现：`translate` 先问 `MatchesEverything`，`TagAll{}` 直接被短路，`tagPredicate` 的空 AND 分支**只有嵌套时才可达**——而套件里一个嵌套的空集合都没有。补了三个 case（嵌套的空 AND / 空 OR / 空叶子），再跑同一个破坏，当场红。
+
+> 规则被写下来但从来没被行使过，和没有这条规则是一回事。这是本里程碑最值得记的一条。
+
+### 实测数字（4000 文件 / 5 MB 的 `kist.db`）
+
+| | 端到端 |
+|---|---|
+| `kist version`（进程启动的地板） | 22 ms |
+| 任何一种 `find`（换页大小 1→1000、加 tag、换排序） | 19 ms |
+
+**这个规模上查询本身量不出来，全部成本是进程启动。** 不是「很快」，是「太小了」。有价值的是它排除了一件事：4.4 认下的全扫在四千个文件上不构成问题。写进了 4.4。
+
+### 一处行为改变
+
+**`kist ls` 的默认排序从拍摄时间倒序改成文件名升序。** `find` 保持拍摄时间倒序。写进了第 7 节。
+
+**最终数字**：12 个包，`make check` 绿。

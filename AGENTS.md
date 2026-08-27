@@ -42,7 +42,13 @@ Go 单二进制 + SQLite，Apache-2.0。
 
 **「修复不写 op」是结构保证**，不是约定：`internal/arch` 禁止 `internal/integrity` import `oplog`，所以它连一条 op 都写不出来。
 
-**下一步是 M2b**：4.2 的 `Query` AST 与 conformance suite。**开写前要先定 `open-questions.md` B1c 那四件事**——`Kinds` 现在连数据都没有，`Sort` 的四个键和写死的 keyset 游标冲突，`Time` 撞上变精度日期怎么混排。
+**M2b 已完成**（计划见 `docs/plans/2026-08-27-m2b-query-contract.md`）：新包 `internal/query`（4.2 的 `Query` AST、`TagExpr` 树、带排序标识的游标）、`store` 的纯函数翻译器与六种排序的 keyset 分页、`internal/query/querytest` 的 46 个 conformance case，以及 `find --sort/--asc/--since/--until`。
+
+**`internal/query` 只许依赖 `domain`**，arch 测试守着。契约不能住在 `store` 里，因为 `cmd` 要构造 `Query` 而 `cmd` 不许 import `store`——和 `oplog` 是同一个形状。
+
+**conformance suite 断言结果，从不断言查询计划。** 没有 `EXPLAIN`、没有关于索引的断言。v0.2 的 Postgres 实现只需要加一个和 `internal/store/conformance_test.go` 一模一样的文件。
+
+**下一步是 M3**（提取与派生）。**开写前必须先定 `open-questions.md` A1**——HEIC / ffmpeg 与单二进制的取舍，而 iPhone 默认拍出来就是 HEIC，这不是边角情况。
 
 里程碑拆分见设计文档第 7 节，明确的范围外清单见第 8 节，待决问题见 `open-questions.md`。
 

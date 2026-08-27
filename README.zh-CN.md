@@ -61,6 +61,7 @@ kist box new "云南" --start 2019-08-12      # 一个 box 就是一次出行、
 kist import --box 云南 ~/Pictures/2019/     # 把文件放进去；Ctrl-C 是安全的，重跑会跳过已导入的
 kist ls 云南                                # 看看里面有什么
 kist find --name jpg --tag 人物             # 跨 box 检索
+kist find --tag 人物 --not-tag 隐私 --sort name --asc
 kist file tag 人物 <file-id>                # 给文件打 tag
 kist relink                                # 重建 boxes/，那个人可读的镜像
 ```
@@ -106,8 +107,8 @@ kist 从不往远端写，也从不信任远端：取回来的内容边读边哈
 |---|---|---|
 | M0 | 仓库地基 | 已完成 |
 | M1 | 内核：op log、blob 存储、命令行导入与检索 | 已完成 |
-| **M2a** | 完整性：`verify`、`scrub`、`repair`、`rebuild` | ← 当前 |
-| M2b | Query 契约与 conformance suite | |
+| M2a | 完整性：`verify`、`scrub`、`repair`、`rebuild` | 已完成 |
+| **M2b** | Query 契约与 conformance suite | ← 当前 |
 | M3 | 提取：EXIF、缩略图、预览图 | |
 | M4 | Web UI | 第一个能给别人看的版本 |
 | M5 | 历史 UI：浏览并撤销任意历史操作 | |

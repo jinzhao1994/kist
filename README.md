@@ -71,6 +71,7 @@ kist box new "Yunnan" --start 2019-08-12   # a box is one trip, one visit, one b
 kist import --box Yunnan ~/Pictures/2019/  # copy files in; Ctrl-C is safe and resumable
 kist ls Yunnan                             # what is in there
 kist find --name jpg --tag people          # search across boxes
+kist find --tag people --not-tag private --sort name --asc
 kist file tag people <file-id>             # attach a tag
 kist relink                                # rebuild boxes/, the human-readable mirror
 ```
@@ -121,8 +122,8 @@ hashed on the way in and discarded if it is not what was asked for. Run
 |---|---|---|
 | M0 | repository groundwork | done |
 | M1 | kernel: op log, blob store, CLI import and search | done |
-| **M2a** | integrity: `verify`, `scrub`, `repair`, `rebuild` | ← here |
-| M2b | the query contract and its conformance suite | |
+| M2a | integrity: `verify`, `scrub`, `repair`, `rebuild` | done |
+| **M2b** | the query contract and its conformance suite | ← here |
 | M3 | extraction: EXIF, thumbnails, previews | |
 | M4 | web UI | first version worth showing anyone |
 | M5 | history UI: browse and undo any past operation | |
