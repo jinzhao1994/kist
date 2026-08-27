@@ -3,6 +3,7 @@ package exif
 import (
 	"bytes"
 	"context"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -145,6 +146,44 @@ func TestOutputIsOrderedAndStable(t *testing.T) {
 		if a[i-1].Key >= a[i].Key {
 			t.Errorf("output is not sorted: %q before %q", a[i-1].Key, a[i].Key)
 		}
+	}
+}
+
+// The one claim that needs a real container: EXIF is readable out of a HEIC in
+// pure Go. iPhones shoot HEIC by default, so this is the line between M3 being
+// complete for iPhone users and being a degraded path for them — ffmpeg is
+// needed for the pixels (M5), not for the metadata (spec 5.3).
+//
+// The fixture is synthetic, not a photograph. See testdata/README.md.
+func TestReadsExifFromAHEICContainer(t *testing.T) {
+	f, err := os.Open("testdata/synthetic.heic")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	kvs, err := New().Extract(context.Background(), f, "image/heic")
+	if err != nil {
+		t.Fatalf("Extract from HEIC: %v", err)
+	}
+	got := index(kvs)
+	for key, want := range map[string]string{
+		"exif:Make":               "kist",
+		"exif:DateTimeOriginal":   "2019:08:12 14:03:22",
+		"exif:OffsetTimeOriginal": "-08:00",
+	} {
+		if got[key].Value != want {
+			t.Errorf("%s = %q, want %q", key, got[key].Value, want)
+		}
+	}
+	// The zone offset in particular: it is the first rung of the timezone
+	// chain (spec 1.5.2), and an iPhone writes it. If it survives a HEIC, the
+	// GPS lookup that would otherwise be needed stays optional.
+	if _, ok := got["exif:OffsetTimeOriginal"]; !ok {
+		t.Error("no OffsetTimeOriginal: the timezone chain loses its first rung")
+	}
+	if err := extract.Check(New(), kvs); err != nil {
+		t.Errorf("HEIC extraction produced something Check refuses: %v", err)
 	}
 }
 

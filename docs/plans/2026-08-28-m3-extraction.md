@@ -1299,7 +1299,15 @@ conformance fixture 里的日期**仍然写成 `"2019-08-12"`**，由 `mustInsta
 
 **代价：HEIC 的容器解析没有被测试覆盖。** 那是关于 imagemeta 的断言而不是关于我们映射的断言，需要一张真实文件才能钉住，见下面的待办。
 
-### 待办
+### ~~待办：HEIC fixture~~ ✅ 已解决，而且比计划的办法好
 
-- [ ] 需要一张**自己拍的** HEIC 和 JPEG 进 `testdata/`，用来钉住「EXIF 能从 HEIC 里纯 Go 读出来」这条——它是 M3 对 iPhone 用户完不完整的分界线
+计划要求 fixture「自己拍的或明确公有领域」。**自己拍的是错的答案**——HEIC 的 EXIF 里带 GPS 坐标（也就是拍摄者家的位置）、设备序列号和精确时间，而公开仓库是永久的。而现成的候选都有自己的许可：手边唯一那张 iPhone HEIC 是 CC BY-SA 4.0；各种「sample HEIC」网站只说 free for testing，不说许可。
+
+**改成合成一张**：ImageMagick 生成 64×64 渐变 → `genfixture_test.go` 把 `fixture_test.go` 已经在造的 EXIF block 拼进去 → `heif-enc` 编码成 HEIC。**755 字节，没有照片、没有隐私、没有第三方许可**，而且可复现（三条命令写在 `testdata/README.md` 里）。
+
+实测 9 个标签全部读出，包括 `OffsetTimeOriginal = -08:00`——时区链的第一档在 HEIC 里活着。
+
+两处变异都验过会红：把 `image/heic` 从 `formats` 里删掉、把它映射成 `imagemeta.JPEG`（模拟容器解析坏掉）。
+
+**第一次做这个变异时它没生效**——`gofmt` 把 map 对齐了，我按未对齐的字符串去 replace，替换是空操作，测试显示 ok。差点把「变异没应用」当成「守护不咬」。变异脚本现在带 `assert s2 != s`。
 
