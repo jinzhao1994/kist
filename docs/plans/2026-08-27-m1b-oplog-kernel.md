@@ -3775,7 +3775,7 @@ payload 只记实际发生变化的 box：如果把本来就有这个 tag 的也
 
 **时钟可注入。** `WithClock` 让测试能给出确定的 ts。这不只是为了测试舒服：Task 12 的 `Rebuild` 要断言"重建结果逐字节相同"，而快照里含时间戳。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 `internal/library/write_test.go`:
 
@@ -4002,12 +4002,12 @@ func TestWriteRejectsAnUnknownAction(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `go test ./internal/library/ -run 'TestWrite|TestOpen|TestUserOps|TestMaintenance' -v`
 Expected: FAIL，`undefined: Open`（M1a 只有 `Create`）
 
-- [ ] **Step 3: 实现 Library**
+- [x] **Step 3: 实现 Library**
 
 `internal/library/library.go`:
 
@@ -4183,7 +4183,7 @@ var _ oplog.Tx = (*store.ViewTx)(nil)
 
 （`library.go` 不 import `fmt`——它的错误都是直接往上冒的。）
 
-- [ ] **Step 4: 实现写路径**
+- [x] **Step 4: 实现写路径**
 
 `internal/library/write.go`:
 
@@ -4291,17 +4291,17 @@ func (l *Library) readTx(ctx context.Context, fn func(*store.ViewTx) error) erro
 }
 ```
 
-- [ ] **Step 5: 跑测试确认通过**
+- [x] **Step 5: 跑测试确认通过**
 
 Run: `go test ./internal/library/ -v`
 Expected: PASS（`TestOpen...` 需要 Task 9 的 `LoadTagTree` 才能编过——两个 task 可以合并跑，或先写一个返回空树的桩，Task 9 再补全。**推荐先做 Task 9 再回来跑这一步**）
 
-- [ ] **Step 6: 确认 `write` 真的是私有的**
+- [x] **Step 6: 确认 `write` 真的是私有的**
 
 Run: `grep -rn "func (l \*Library) [A-Z]" internal/library/ | grep -i "write\|apply"`
 Expected: 无输出。任何导出的写方法都必须是 Task 10 里那些语义明确的命令，而不是一个通用的"写任意 op"入口。
 
-- [ ] **Step 7: 提交**
+- [x] **Step 7: 提交**
 
 ```bash
 git add internal/library/library.go internal/library/write.go internal/library/write_test.go
@@ -4341,7 +4341,7 @@ op 时不可能漏，handler 作者根本不需要知道这条规则存在。
 
 **计数缓存**：启动时一次 `GROUP BY` 拉全量直接挂载数，之后由 `library` 在 apply op 时增量更新。不在 `tags` 表上加冗余列——重启就重新推导，没有漂移风险。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 ```go
 package library
@@ -4589,12 +4589,12 @@ func TestLoadTagTreeFromStore(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `go test ./internal/library/ -run 'TagTree|Descendants|WouldCycle|Path|Counts' -v`
 Expected: FAIL，`undefined: NewTagTree`
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 `internal/library/tagtree.go`:
 
@@ -4909,7 +4909,7 @@ func sortedTags(m map[domain.TagID]*tagNode) []domain.Tag {
 
 （文件顶部需要 `sort`。）
 
-- [ ] **Step 4: 在 store 里补上计数查询**
+- [x] **Step 4: 在 store 里补上计数查询**
 
 在 `internal/store/queries.go` 追加：
 
@@ -4942,12 +4942,12 @@ func TagDirectCounts(q Queryer) (map[domain.TagID]int, error) {
 }
 ```
 
-- [ ] **Step 5: 跑测试确认通过**
+- [x] **Step 5: 跑测试确认通过**
 
 Run: `go test ./internal/library/ ./internal/store/ -v`
 Expected: PASS（Task 8 Step 5 那一步现在也该通过了）
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add internal/library/tagtree.go internal/library/tagtree_test.go internal/store/queries.go
