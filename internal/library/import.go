@@ -2,6 +2,7 @@ package library
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -209,7 +210,18 @@ func (l *Library) Import(ctx context.Context, src string, opt ImportOptions) (*I
 			res.Remaining = len(candidates) - i
 			break
 		}
-		res.Files = append(res.Files, l.importOne(ctx, c, tree, taken, &payload))
+		r := l.importOne(ctx, c, tree, taken, &payload)
+		// The file in flight when the signal arrived is not a failure — the
+		// user pressed Ctrl-C. Reporting it as one puts a frightening
+		// "failed: context canceled" line in front of somebody who did exactly
+		// what they meant to, and makes "I stopped it" indistinguishable from
+		// "something is wrong with my files". It counts as not looked at.
+		if r.Status == FileFailed && errors.Is(r.Err, context.Canceled) {
+			res.Interrupted = true
+			res.Remaining = len(candidates) - i
+			break
+		}
+		res.Files = append(res.Files, r)
 		if l.hooks.afterFile != nil {
 			l.hooks.afterFile()
 		}

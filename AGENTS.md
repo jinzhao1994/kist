@@ -28,9 +28,13 @@ Go 单二进制 + SQLite，Apache-2.0。
 
 **M1b 已完成**（计划见 `docs/plans/2026-08-27-m1b-oplog-kernel.md`）：`oplog`（九个 action 的 `Apply` / `Inverse` / `Targets`、注册表、`Tx` 接口）、`store` 的 ops 表与物化视图读写、`library` 的唯一写路径与内存 tag 树、`Undo`（严格模式）、`Rebuild`，以及 `box` / `tag` / `log` / `undo` 四组 CLI。
 
-**不变量 3 现在有测试撑着**：建一批数据 → 记全库快照 → `Rebuild` → 快照必须逐字节相同。不变量 2 和依赖方向由 `internal/arch` 的测试守着（`oplog` 不得 import `store`，`cmd` 不得 import `store` / `oplog`）。
+**M1c 已完成**（计划见 `docs/plans/2026-08-27-m1c-import-and-projection.md`）：`domain` 的 `File` / 子 `Folder` / 冲突改名、`oplog` 的 `import_files` / `delete_files` / `tag_files` / `untag_files`、`store` 的文件读写与 keyset 检索、`library.Import`（可中断、幂等、单文件失败不拖累整批）、新包 `internal/projection`（跨平台命名 + 期望树 + 磁盘 diff）、`Relink` 与写后增量投影，以及 `import` / `ls` / `find` / `file tag` / `relink` 五组 CLI。
 
-**下一步是 M1c**：`import --box`、`boxes/` 投影、`ls` / `find` / `relink`。M1b **一个文件都放不进去**——box 和 tag 都能建、能撤销，但 `files` 表还是空的。
+**不变量 3 现在有测试撑着，而且覆盖到了文件**：建一批数据（含两层目录的导入、去重的重复内容、被撤销的导入、文件的 tag）→ 记全库快照 → `Rebuild` → 快照必须逐字节相同。验证过它会红：往 `Apply` 里塞一个「跑了几次」的计数器，快照当场指出是 `files` 表哪一行的 name 不一样了。
+
+不变量 2 和依赖方向由 `internal/arch` 的测试守着（`oplog` 不得 import `store` / `blob`，`projection` 不得 import `store` / `oplog` / `library`，`cmd` 不得 import `store` / `oplog`）。
+
+**下一步是 M2**：`verify` / `scrub` / `rebuild` 的 CLI、`blobs/tmp/` 的崩溃残留清理、远端 `BlobStore` 第二实现与自动修复、以及围着 4.2 的 `Query` 写的 conformance test suite。设计文档里那句实践建议现在正当时——**M2 通过之前，别删掉导入源的原始副本**。
 
 里程碑拆分见设计文档第 7 节，明确的范围外清单见第 8 节，待决问题见 `open-questions.md`。
 

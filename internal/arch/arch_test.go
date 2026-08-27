@@ -73,6 +73,19 @@ func TestStoreDoesNotDependOnOplog(t *testing.T) {
 		"store satisfies oplog.Tx structurally; library is the seam between them.")
 }
 
+// TestProjectionKnowsOnlyDomain keeps the naming rules testable.
+//
+// Everything cross-platform about boxes/ is decided in projection, and half of
+// those rules are only ever exercised on Windows. Keeping the package free of
+// the database and the op log is what lets them be tested exhaustively
+// anywhere, without a library and without a disk — which is the only reason
+// the Windows-specific half gets executed on every run.
+func TestProjectionKnowsOnlyDomain(t *testing.T) {
+	forbid(t, "internal/projection", []string{"internal/store", "internal/oplog", "internal/library"},
+		"projection is a pure function of the entities it is given. Reaching for\n"+
+			"the database would make spec 3.4's naming rules untestable without one.")
+}
+
 // TestCommandsCannotWriteDirectly is invariant 2.
 //
 // library is the only package that may write to a library, because every write

@@ -4088,7 +4088,7 @@ M1b 里 payload 只有几百字节所以无所谓，导入把它变成几 MB：
 - Modify: `CLAUDE.md`
 - Modify: `docs/plans/2026-08-27-m1c-import-and-projection.md`（勾完所有框）
 
-- [ ] **Step 1: 给 `internal/arch` 加 `projection` 的依赖断言**
+- [x] **Step 1: 给 `internal/arch` 加 `projection` 的依赖断言**
 
 ```go
 // TestProjectionKnowsOnlyDomain keeps the naming rules testable.
@@ -4104,16 +4104,16 @@ func TestProjectionKnowsOnlyDomain(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 确认这个测试会红**
+- [x] **Step 2: 确认这个测试会红**
 
 临时给 `internal/projection` 加一行 `import _ "github.com/jinzhao1994/kist/internal/store"`，跑测试确认变红并打出那段解释，然后删掉。
 
-- [ ] **Step 3: 确认 `cmd` 依然碰不到 `store` / `oplog`**
+- [x] **Step 3: 确认 `cmd` 依然碰不到 `store` / `oplog`**
 
 Run: `go test ./internal/arch/ -v`
 Expected: PASS
 
-- [ ] **Step 4: 同步设计文档**
+- [x] **Step 4: 同步设计文档**
 
 逐条核对本计划开头那五处偏离都已经写回文档：
 
@@ -4125,7 +4125,7 @@ Expected: PASS
 | ④ `tag_files` 进 M1c | 第 7 节 M1 的 CLI 清单 | 这里 |
 | ⑤ 净化跨平台统一 | 3.4 | Task 8 Step 7 |
 
-- [ ] **Step 5: 更新 `open-questions.md`**
+- [x] **Step 5: 更新 `open-questions.md`**
 
 M1c 期间新暴露的、仍未决的东西记进去，至少这三条：
 
@@ -4133,11 +4133,11 @@ M1c 期间新暴露的、仍未决的东西记进去，至少这三条：
 - **`kist import` 的续传。** M1c 的中断语义是「停下并提交已完成的」，但没有断点续传——重跑靠的是幂等，会把已导入的文件重新哈希一遍。500 GB 的库上这不便宜。B2 的任务模型要一起解决
 - **跨 box / 跨 folder 移动文件还没有 op。** M1c 只有导入和删除。移动是 M2 之后的事，但 `write()` 里 folder 链前后各采样一次的设计已经为它留好了位置
 
-- [ ] **Step 6: 更新 `CLAUDE.md` 的「当前状态」**
+- [x] **Step 6: 更新 `CLAUDE.md` 的「当前状态」**
 
 把 M1c 标记为完成，列出实际产出，并写明下一步是 M2（`verify` / `scrub` / `rebuild` CLI / 远端 BlobStore / conformance suite）。同时更新那句「M1b 一个文件都放不进去」——它现在过时了。
 
-- [ ] **Step 7: 全平台构建与测试**
+- [x] **Step 7: 全平台构建与测试**
 
 ```bash
 make check
@@ -4146,7 +4146,7 @@ for t in darwin/arm64 darwin/amd64 linux/amd64 windows/amd64; do
 done
 ```
 
-- [ ] **Step 8: 在一个真实目录上跑一遍**
+- [x] **Step 8: 在一个真实目录上跑一遍**
 
 拿一个几百个文件的真实目录（照片、PDF 混合，含中文名和空格名）跑完整流程：
 
@@ -4164,7 +4164,11 @@ kist --library /tmp/kist-real relink
 
 **中途按一次 Ctrl-C 再重跑**，确认第二次几乎全是 skipped、库里没有 `(2)` 副本。
 
-- [ ] **Step 9: 勾完计划里所有的框并提交**
+**这一步抓到了一个真 bug**（实测 4000 个文件的导入，1.2 秒后 `kill -INT`）：中断到达时正在读的那个文件被报成 `failed: context canceled`，整条命令带着一段吓人的「failed:」退出。用户按的是 Ctrl-C——那不是文件的问题。修法是把它计入「未处理」，并把退出码分成两种（`some files were not imported` / `stopped before finishing`）。补了回归测试，也写进了设计文档 3.7.1 ①。
+
+修完之后的实测：中断在 116 个，重跑 `imported 3884, skipped 116`，`(2)` 副本零个，库里 4000 个文件对应源目录 4000 个文件；撤销那次 3884 个文件的导入耗时 0.45 秒。
+
+- [x] **Step 9: 勾完计划里所有的框并提交**
 
 ```bash
 git add -A
@@ -4172,7 +4176,7 @@ git commit -m "docs: 勾掉 M1c 全部 task，M1c 完成"
 git push
 ```
 
-- [ ] **Step 10: 确认 CI 三个平台全绿**
+- [x] **Step 10: 确认 CI 三个平台全绿**
 
 ```bash
 gh run list --limit 3

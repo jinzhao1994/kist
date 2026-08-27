@@ -120,7 +120,13 @@ converges instead of accumulating copies.`,
 					failed = true
 				}
 				if res.Interrupted {
-					break
+					// Stopping is still not finishing, so a script has to be
+					// able to tell — but it is a different thing from a file
+					// having gone wrong, and it gets a different message.
+					if failed {
+						return errSomeFilesFailed
+					}
+					return errInterrupted
 				}
 			}
 			if failed {
@@ -140,6 +146,10 @@ converges instead of accumulating copies.`,
 // errSomeFilesFailed makes the exit code non-zero without printing a second
 // message: the per-file report above already said what went wrong.
 var errSomeFilesFailed = &quietError{"some files were not imported"}
+
+// errInterrupted marks a run the user stopped. Non-zero so a script notices,
+// but not phrased as a failure: nothing went wrong.
+var errInterrupted = &quietError{"stopped before finishing"}
 
 // quietError is an error main prints as-is, with no "kist:" framing, because
 // the command has already explained itself.

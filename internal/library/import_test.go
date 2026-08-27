@@ -339,3 +339,45 @@ func TestImportRefusesAnUnknownBox(t *testing.T) {
 		t.Error("importing into a box that does not exist was accepted")
 	}
 }
+
+// The file in flight when the context is cancelled is not a failure.
+//
+// Found by interrupting a real 4000-file import: the summary said
+// "imported 116, skipped 0, failed 1" with a "failed: context canceled" line
+// and a non-zero exit. The user pressed Ctrl-C — nothing went wrong with their
+// file, and saying otherwise makes "I stopped it" look like "my data is bad".
+func TestImportDoesNotReportTheInterruptedFileAsFailed(t *testing.T) {
+	l, box := openWithBox(t)
+	files := map[string]string{}
+	for i := range 20 {
+		files[fmt.Sprintf("f%02d.txt", i)] = fmt.Sprintf("content %d", i)
+	}
+	src := writeTree(t, files)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	n := 0
+	l.hooks.afterFile = func() {
+		if n++; n == 3 {
+			cancel()
+		}
+	}
+
+	res, err := l.Import(ctx, src, ImportOptions{Box: box})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.Interrupted {
+		t.Fatal("Interrupted is false")
+	}
+	if got := res.Count(FileFailed); got != 0 {
+		t.Errorf("%d files reported as failed: %s", got, describe(res))
+	}
+	if got := res.Count(FileImported); got != 3 {
+		t.Errorf("%d imported, want the 3 that finished: %s", got, describe(res))
+	}
+	// The one that was cut short counts as not looked at, not as done.
+	if res.Remaining != 17 {
+		t.Errorf("Remaining = %d, want 17", res.Remaining)
+	}
+}
