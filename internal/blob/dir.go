@@ -37,6 +37,33 @@ func NewDir(root string, log *slog.Logger) (*Dir, error) {
 	return &Dir{root: abs, log: log}, nil
 }
 
+// OpenDir opens an existing blob directory without creating anything.
+//
+// A repair source is the case this exists for. Spec 3.8 makes remotes
+// read-only as far as kist is concerned — backups are rsync's job (3.11) — and
+// the sensible way to mount a backup drive is read-only, where NewDir's
+// MkdirAll of tmp/ fails before the caller gets to do anything.
+//
+// The returned Dir can Get, Stat, LocalPath, Walk and Rehash. Put will fail,
+// which is correct: nothing writes to a remote.
+func OpenDir(root string, log *slog.Logger) (*Dir, error) {
+	if log == nil {
+		log = slog.Default()
+	}
+	abs, err := filepath.Abs(root)
+	if err != nil {
+		return nil, fmt.Errorf("resolve blob root: %w", err)
+	}
+	info, err := os.Stat(abs)
+	if err != nil {
+		return nil, fmt.Errorf("open blob directory %s: %w", root, err)
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("open blob directory %s: not a directory", root)
+	}
+	return &Dir{root: abs, log: log}, nil
+}
+
 // Root is the directory this store writes into.
 func (d *Dir) Root() string { return d.root }
 
