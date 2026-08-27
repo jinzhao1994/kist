@@ -3279,7 +3279,7 @@ Sanitize 的幂等性单独测了。不幂等的话 relink 每跑一次就把全
 
 #### 9a. `Plan`：纯函数
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```go
 // Plan is a pure function of the entities it is handed: same input, same
@@ -3340,12 +3340,12 @@ func TestPlanResolvesCollisionsWithinADirectory(t *testing.T) {
 func TestPlanRejectsAnOrphanFile(t *testing.T) { /* … wants an error … */ }
 ```
 
-- [ ] **Step 2: 跑测试，确认失败**
+- [x] **Step 2: 跑测试，确认失败**
 
 Run: `go test ./internal/projection/ -run TestPlan`
 Expected: FAIL
 
-- [ ] **Step 3: 实现 `Plan`**
+- [x] **Step 3: 实现 `Plan`**
 
 要点：
 
@@ -3370,14 +3370,14 @@ type Entry struct {
 }
 ```
 
-- [ ] **Step 4: 跑测试**
+- [x] **Step 4: 跑测试**
 
 Run: `go test ./internal/projection/ -run TestPlan -v`
 Expected: PASS
 
 #### 9b. `Syncer`：把期望树 diff 到磁盘
 
-- [ ] **Step 5: 写失败测试**
+- [x] **Step 5: 写失败测试**
 
 ```go
 // Sync is a diff, not a rebuild: a box with 20,000 photos must not have every
@@ -3459,12 +3459,12 @@ func TestSyncStampsDirectoryTimes(t *testing.T) {
 func TestSyncReportsMissingBlobsAndKeepsGoing(t *testing.T) { /* … Stats.Missing … */ }
 ```
 
-- [ ] **Step 6: 跑测试，确认失败**
+- [x] **Step 6: 跑测试，确认失败**
 
 Run: `go test ./internal/projection/ -run TestSync`
 Expected: FAIL
 
-- [ ] **Step 7: 实现 `sync.go`**
+- [x] **Step 7: 实现 `sync.go`**
 
 顺序必须是这个顺序：
 
@@ -3485,12 +3485,12 @@ Expected: FAIL
 func (s *Syncer) SyncDir(dir string, want []Entry) (Stats, error) { … }
 ```
 
-- [ ] **Step 8: 跑测试**
+- [x] **Step 8: 跑测试**
 
 Run: `go test ./internal/projection/ -v`
 Expected: PASS，四个平台都要过（Windows 上 `os.Chtimes` 的精度不同，测试里用 `Truncate(time.Second)`）
 
-- [ ] **Step 9: `make check` 并提交**
+- [x] **Step 9: `make check` 并提交**
 
 ```bash
 make check
