@@ -75,7 +75,17 @@ func nullString(s string) any {
 	return s
 }
 
+// opColumns is everything about an op. GetOp and replay use it; both need the
+// payload.
 const opColumns = `id, ts, action, source, coalesce(actor, ''), payload, reverts_id`
+
+// opListColumns is the same, minus the payload.
+//
+// The history view renders id, time, action, source and whether the op was
+// undone — never the payload. Once imports exist, selecting it anyway means
+// `kist log -n 20` reads twenty megabytes to print twenty lines: a 5000-file
+// import's payload is about a megabyte (spec 2.2.1).
+const opListColumns = `id, ts, action, source, coalesce(actor, ''), reverts_id`
 
 func scanOp(scan func(...any) error) (OpRow, error) {
 	var r OpRow
@@ -89,6 +99,21 @@ func scanOp(scan func(...any) error) (OpRow, error) {
 	}
 	r.TS = t
 	r.Payload = []byte(payload)
+	return r, nil
+}
+
+// scanOpHeader reads everything but the payload.
+func scanOpHeader(scan func(...any) error) (OpRow, error) {
+	var r OpRow
+	var ts string
+	if err := scan(&r.ID, &ts, &r.Action, &r.Source, &r.Actor, &r.RevertsID); err != nil {
+		return OpRow{}, err
+	}
+	t, err := ParseTime(ts)
+	if err != nil {
+		return OpRow{}, err
+	}
+	r.TS = t
 	return r, nil
 }
 
@@ -114,13 +139,16 @@ type ListOpsOptions struct {
 	Limit  int
 }
 
-// ListOps returns ops newest first.
+// ListOps returns ops newest first, without their payloads.
+//
+// OpRow.Payload comes back empty on purpose; GetOp is how you ask for the
+// whole thing. See opListColumns.
 func ListOps(q Queryer, opt ListOpsOptions) ([]OpRow, error) {
 	var (
 		sb   strings.Builder
 		args []any
 	)
-	sb.WriteString(`SELECT ` + opColumns + ` FROM ops WHERE 1 = 1`)
+	sb.WriteString(`SELECT ` + opListColumns + ` FROM ops WHERE 1 = 1`)
 	if opt.Box != nil {
 		// The index table, not json_each over the payload: 0.11ms versus
 		// 94.63ms at 200k ops, and the gap widens forever (spec 2.2.1).
@@ -145,13 +173,38 @@ func ListOps(q Queryer, opt ListOpsOptions) ([]OpRow, error) {
 
 	var out []OpRow
 	for rows.Next() {
-		r, err := scanOp(rows.Scan)
+		r, err := scanOpHeader(rows.Scan)
 		if err != nil {
 			return nil, fmt.Errorf("list ops: %w", err)
 		}
 		out = append(out, r)
 	}
 	return out, rows.Err()
+}
+
+// IterOps calls fn for every op, oldest first, one row at a time.
+//
+// Rebuild is the only caller and it is the reason this exists: the
+// slice-returning ListOps would hold every payload in the library in memory at
+// once, which after a hundred thousand imported files is tens of megabytes for
+// no reason. A cursor keeps it to one op.
+func IterOps(q Queryer, fn func(OpRow) error) error {
+	rows, err := q.Query(`SELECT ` + opColumns + ` FROM ops ORDER BY id`)
+	if err != nil {
+		return fmt.Errorf("read the op log: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		r, err := scanOp(rows.Scan)
+		if err != nil {
+			return fmt.Errorf("read the op log: %w", err)
+		}
+		if err := fn(r); err != nil {
+			return err
+		}
+	}
+	return rows.Err()
 }
 
 // RevertedBy reports which op, if any, undid the given one. The history panel

@@ -2,6 +2,10 @@ package store
 
 import (
 	"database/sql"
+	"errors"
+	"fmt"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -249,5 +253,106 @@ func TestDeleteOpIndexesLeavesOpsAlone(t *testing.T) {
 	}
 	if ops != 1 {
 		t.Errorf("ops has %d rows, want 1 — it is authoritative and must survive", ops)
+	}
+}
+
+// ListOps deliberately leaves Payload empty: the history view never renders
+// it, and an import's payload is megabytes. GetOp is how you ask for the whole
+// thing.
+//
+// This is a test rather than a comment because the natural way to add a field
+// to the list query is to add it to opColumns, and that would silently undo
+// the decision.
+func TestListOpsDoesNotReadPayload(t *testing.T) {
+	db := migrated(t)
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := AppendOp(tx, OpRow{
+		TS: testTime, Action: "import_files", Source: "user",
+		Payload: []byte(`{"big":"` + strings.Repeat("x", 10000) + `"}`),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	list, err := ListOps(db, ListOpsOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("%d ops", len(list))
+	}
+	if len(list[0].Payload) != 0 {
+		t.Errorf("ListOps returned %d payload bytes; the history view never uses them", len(list[0].Payload))
+	}
+	// Everything else about the row must still be there.
+	if list[0].Action != "import_files" || list[0].ID != id || !list[0].TS.Equal(testTime) {
+		t.Errorf("the header is incomplete: %+v", list[0])
+	}
+
+	full, ok, err := GetOp(db, id)
+	if err != nil || !ok {
+		t.Fatal(err)
+	}
+	if len(full.Payload) == 0 {
+		t.Error("GetOp must still return the payload")
+	}
+}
+
+// IterOps is what Rebuild replays: oldest first, payload included, one row at
+// a time.
+func TestIterOpsWalksTheLogOldestFirst(t *testing.T) {
+	db := migrated(t)
+	for i := range 3 {
+		tx, err := db.Begin()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := AppendOp(tx, OpRow{
+			TS: testTime, Action: "create_box", Source: "user",
+			Payload: fmt.Appendf(nil, `{"n":%d}`, i),
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if err := tx.Commit(); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	var ids []int64
+	var payloads []string
+	if err := IterOps(db, func(r OpRow) error {
+		ids = append(ids, r.ID)
+		payloads = append(payloads, string(r.Payload))
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.IsSorted(ids) {
+		t.Errorf("ids = %v, want ascending — replay depends on it", ids)
+	}
+	if len(payloads) != 3 || payloads[0] != `{"n":0}` {
+		t.Errorf("payloads = %v", payloads)
+	}
+}
+
+// An error from the callback stops the walk and reaches the caller, so a
+// replay failure is not silently swallowed halfway through.
+func TestIterOpsStopsOnError(t *testing.T) {
+	db := migrated(t)
+	tx, _ := db.Begin()
+	if _, err := AppendOp(tx, OpRow{TS: testTime, Action: "create_box", Source: "user", Payload: []byte(`{}`)}); err != nil {
+		t.Fatal(err)
+	}
+	tx.Commit()
+
+	want := errors.New("stop")
+	if err := IterOps(db, func(OpRow) error { return want }); !errors.Is(err, want) {
+		t.Errorf("err = %v, want %v", err, want)
 	}
 }

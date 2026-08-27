@@ -247,8 +247,13 @@ func TestTagBoxesSkipsBoxesThatAlreadyHaveIt(t *testing.T) {
 		t.Errorf("TagBoxes reported %d changes, want 1 (a already had the tag)", n)
 	}
 
+	// Ops does not carry payloads (spec 2.2.1); read the whole row.
 	ops, _ := l.Ops(ctx, store.ListOpsOptions{Limit: 1})
-	p, err := oplog.Payload[oplog.TagBoxesPayload](ops[0].Payload)
+	row, ok, err := store.GetOp(l.db, ops[0].ID)
+	if err != nil || !ok {
+		t.Fatalf("GetOp: %v ok=%v", err, ok)
+	}
+	p, err := oplog.Payload[oplog.TagBoxesPayload](row.Payload)
 	if err != nil {
 		t.Fatal(err)
 	}

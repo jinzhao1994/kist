@@ -3,6 +3,9 @@ package library
 import (
 	"context"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"strings"
 	"testing"
 
@@ -203,6 +206,15 @@ func TestRebuildLeavesTheOpLogAlone(t *testing.T) {
 	ctx := context.Background()
 
 	before, _ := l.Ops(ctx, store.ListOpsOptions{})
+	payloads := map[int64][]byte{}
+	for _, op := range before {
+		row, ok, err := store.GetOp(l.db, op.ID)
+		if err != nil || !ok {
+			t.Fatalf("GetOp(%d): %v ok=%v", op.ID, err, ok)
+		}
+		payloads[op.ID] = row.Payload
+	}
+
 	if err := l.Rebuild(ctx); err != nil {
 		t.Fatalf("Rebuild: %v", err)
 	}
@@ -213,8 +225,19 @@ func TestRebuildLeavesTheOpLogAlone(t *testing.T) {
 	}
 	for i := range before {
 		if before[i].ID != after[i].ID || before[i].Action != after[i].Action ||
-			!before[i].TS.Equal(after[i].TS) || string(before[i].Payload) != string(after[i].Payload) {
+			!before[i].TS.Equal(after[i].TS) {
 			t.Errorf("op %d changed during the rebuild", before[i].ID)
+		}
+	}
+	// ListOps deliberately leaves the payload out, so comparing it there would
+	// only ever compare two empty slices. Read the real thing.
+	for i := range before {
+		row, ok, err := store.GetOp(l.db, before[i].ID)
+		if err != nil || !ok {
+			t.Fatalf("GetOp(%d): %v ok=%v", before[i].ID, err, ok)
+		}
+		if string(row.Payload) != string(payloads[before[i].ID]) {
+			t.Errorf("the payload of op %d changed during the rebuild", before[i].ID)
 		}
 	}
 }
@@ -280,5 +303,46 @@ func TestRebuildReloadsTheTagTree(t *testing.T) {
 	}
 	if _, ok := l.Tags().ByName("云南省"); !ok {
 		t.Error("the rebuilt tree lost a tag")
+	}
+}
+
+// Rebuild must stream the log rather than read it into a slice.
+//
+// The first attempt at this test measured the heap across a real rebuild of
+// 20 imports x 100 files. It does not work: the replay's own working set —
+// two thousand file rows, their domain values, the driver's buffers — is
+// larger than the payload it is supposed to be isolating, so the measurement
+// says nothing. It also took 23 seconds. Measured and discarded.
+//
+// What is left is structural, and it encodes the decision exactly: ListOps
+// does not read payloads (spec 2.2.1), so a Rebuild written on top of it would
+// have to switch back to a payload-carrying query, and holding the whole log
+// is the thing that follows. Reaching for ListOps here is the mistake; this
+// says so.
+func TestRebuildStreamsTheLog(t *testing.T) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "rebuild.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	calls := map[string]bool{}
+	ast.Inspect(file, func(n ast.Node) bool {
+		sel, ok := n.(*ast.SelectorExpr)
+		if !ok {
+			return true
+		}
+		if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "store" {
+			calls[sel.Sel.Name] = true
+		}
+		return true
+	})
+
+	if !calls["IterOps"] {
+		t.Error("Rebuild does not use store.IterOps; it has to replay one op at a time")
+	}
+	if calls["ListOps"] {
+		t.Error("Rebuild uses store.ListOps, which materializes every op — and, since\n" +
+			"ListOps does not read payloads, could not replay them anyway")
 	}
 }

@@ -141,6 +141,10 @@ func (l *Library) BoxTags(ctx context.Context, id domain.BoxID) ([]domain.TagID,
 }
 
 // Ops reads the history.
+//
+// The returned ops carry no payload: the history view never renders one, and
+// an import's payload runs to megabytes (spec 2.2.1). Undo reads the whole row
+// separately.
 func (l *Library) Ops(ctx context.Context, opt ListOpsOptions) ([]Op, error) {
 	rows, err := store.ListOps(l.db, opt)
 	if err != nil {

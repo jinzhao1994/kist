@@ -19,11 +19,6 @@ import (
 //
 // ops and blobs are not touched. The whole point is that they are the input.
 func (l *Library) Rebuild(ctx context.Context) error {
-	ops, err := store.ListOps(l.db, store.ListOpsOptions{})
-	if err != nil {
-		return err
-	}
-
 	tx, err := l.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin rebuild: %w", err)
@@ -37,9 +32,10 @@ func (l *Library) Rebuild(ctx context.Context) error {
 		return err
 	}
 
-	// ListOps returns newest first; replay wants oldest first.
-	for i := len(ops) - 1; i >= 0; i-- {
-		row := ops[i]
+	// One op at a time. Reading the whole log into a slice would hold every
+	// payload in memory at once, and after a hundred thousand imported files
+	// that is tens of megabytes for no reason (spec 2.2.1).
+	err = store.IterOps(l.db, func(row store.OpRow) error {
 		action := oplog.Action(row.Action)
 		handler, err := oplog.Lookup(action)
 		if err != nil {
@@ -74,6 +70,10 @@ func (l *Library) Rebuild(ctx context.Context) error {
 		if err := touchAfter(vtx, oplog.Source(row.Source), targets, chainBefore); err != nil {
 			return err
 		}
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
 	if err := tx.Commit(); err != nil {
