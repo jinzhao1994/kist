@@ -140,3 +140,58 @@ func (d *LocalDate) UnmarshalText(b []byte) error {
 	*d = parsed
 	return nil
 }
+
+// Start and End are the interval a variable-precision date denotes.
+//
+// A LocalDate is not an instant, it is however much was known: "2019" means
+// the whole of 2019, "2019-08" the whole of August (spec 1.3). Range matching
+// therefore compares intervals, not points (spec 4.2.1), and these are the two
+// ends of one.
+//
+// Both pad out to minute precision, the widest form there is, and that width
+// is load-bearing rather than tidy. Values in the database are prefixes of
+// varying width, and prefix strings compare lexicographically: an End of
+// "2019-06-30" would sort before the stored value "2019-06-30T14:00", so a
+// file captured that afternoon would fall outside a range that plainly
+// contains it.
+func (d LocalDate) Start() string {
+	switch d.Precision() {
+	case PrecMinute:
+		return d.s
+	case PrecDay:
+		return d.s + "T00:00"
+	case PrecMonth:
+		return d.s + "-01T00:00"
+	case PrecYear:
+		return d.s + "-01-01T00:00"
+	}
+	return ""
+}
+
+// End is the last minute of the interval this date denotes.
+func (d LocalDate) End() string {
+	switch d.Precision() {
+	case PrecMinute:
+		return d.s
+	case PrecDay:
+		return d.s + "T23:59"
+	case PrecMonth:
+		return fmt.Sprintf("%s-%02dT23:59", d.s, daysIn(d.s))
+	case PrecYear:
+		return d.s + "-12-31T23:59"
+	}
+	return ""
+}
+
+// daysIn returns the length of the month named by a "2006-01" prefix.
+//
+// It is computed rather than looked up so that February is right in leap
+// years — a table of month lengths is the kind of thing that is correct for
+// three years and then is not.
+func daysIn(month string) int {
+	t, err := time.Parse("2006-01", month)
+	if err != nil {
+		return 28 // unreachable: the value already parsed as a LocalDate
+	}
+	return t.AddDate(0, 1, -1).Day()
+}

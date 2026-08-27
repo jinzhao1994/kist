@@ -118,3 +118,22 @@ func TestIntegrityCannotWrite(t *testing.T) {
 			"correct by definition is not a state change, and Apply cannot touch\n"+
 			"blobs/ anyway — such an op would do nothing on replay, forever.")
 }
+
+// TestQueryIsOnlyTheContract keeps the data access layer's contract free of
+// its implementations.
+//
+// cmd builds queries and cmd may not import store (invariant 2), so the Query
+// type cannot live there. Keeping this package down at domain is also what
+// makes spec 4.1's "no SQL in the interface" something a test can hold you to,
+// rather than a habit.
+func TestQueryIsOnlyTheContract(t *testing.T) {
+	for _, imp := range imports(t, "internal/query") {
+		if imp != "internal/domain" {
+			t.Errorf("internal/query imports %s.\n\n"+
+				"The contract may depend on domain and nothing else. It is built by cmd,\n"+
+				"which cannot reach store (invariant 2), and translated by store — if it\n"+
+				"could see either, the contract and one implementation would be welded\n"+
+				"together.", imp)
+		}
+	}
+}
