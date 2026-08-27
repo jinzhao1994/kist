@@ -26,7 +26,11 @@ Go 单二进制 + SQLite，Apache-2.0。
 
 **M1a 已完成**（计划见 `docs/plans/2026-08-22-m1a-storage-kernel.md`）：`domain` 的纯类型（UUIDv7 ID、变精度日期、折叠函数）、`blob` 的内容寻址存储（原子写、去重、损坏自愈、碰撞分支、链接能力探测）、`store` 的连接与 v0.1 全量 schema、`config`、`library.Create`，以及一个能真跑的 `kist init`。
 
-**下一步是 M1b**：op log、`library` 的写入口、`boxes/` 投影，以及 `box new` / `tag` / `import --box` / `ls` / `find` / `relink`。M1a **一条 op 都没写**——现在这个库能建出来、能校验，但还进不去东西。
+**M1b 已完成**（计划见 `docs/plans/2026-08-27-m1b-oplog-kernel.md`）：`oplog`（九个 action 的 `Apply` / `Inverse` / `Targets`、注册表、`Tx` 接口）、`store` 的 ops 表与物化视图读写、`library` 的唯一写路径与内存 tag 树、`Undo`（严格模式）、`Rebuild`，以及 `box` / `tag` / `log` / `undo` 四组 CLI。
+
+**不变量 3 现在有测试撑着**：建一批数据 → 记全库快照 → `Rebuild` → 快照必须逐字节相同。不变量 2 和依赖方向由 `internal/arch` 的测试守着（`oplog` 不得 import `store`，`cmd` 不得 import `store` / `oplog`）。
+
+**下一步是 M1c**：`import --box`、`boxes/` 投影、`ls` / `find` / `relink`。M1b **一个文件都放不进去**——box 和 tag 都能建、能撤销，但 `files` 表还是空的。
 
 里程碑拆分见设计文档第 7 节，明确的范围外清单见第 8 节，待决问题见 `open-questions.md`。
 

@@ -9,10 +9,11 @@ passports, contracts and lab reports.
 
 One Go binary plus SQLite. Apache-2.0.
 
-> **Not usable yet.** The design is settled and written down. `kist init`
-> creates a real library — content-addressed storage, schema and all — but
-> nothing can be put into it until M1b brings the op log and `kist import`.
-> See [Milestones](#milestones).
+> **Not usable yet.** The design is settled and written down. You can create a
+> library, make boxes, build a tag tree, and undo any of it — every change is
+> an entry in an append-only log, and the whole library can be rebuilt from
+> that log alone. What you cannot do yet is put files in: `kist import` is
+> next. See [Milestones](#milestones).
 
 ## The idea
 

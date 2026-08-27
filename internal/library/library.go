@@ -109,7 +109,7 @@ func (l *Library) Box(ctx context.Context, id domain.BoxID) (domain.Box, bool, e
 }
 
 // Boxes lists boxes.
-func (l *Library) Boxes(ctx context.Context, opt store.ListBoxesOptions) ([]domain.Box, error) {
+func (l *Library) Boxes(ctx context.Context, opt ListBoxesOptions) ([]domain.Box, error) {
 	return store.ListBoxes(l.db, opt)
 }
 
@@ -119,12 +119,12 @@ func (l *Library) BoxTags(ctx context.Context, id domain.BoxID) ([]domain.TagID,
 }
 
 // Ops reads the history.
-func (l *Library) Ops(ctx context.Context, opt store.ListOpsOptions) ([]oplog.Op, error) {
+func (l *Library) Ops(ctx context.Context, opt ListOpsOptions) ([]Op, error) {
 	rows, err := store.ListOps(l.db, opt)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]oplog.Op, len(rows))
+	out := make([]Op, len(rows))
 	for i, r := range rows {
 		out[i] = toOp(r)
 	}
@@ -156,3 +156,22 @@ func toOp(r store.OpRow) oplog.Op {
 // Without this line, a missing method would surface as a confusing error deep
 // inside write() instead of right here.
 var _ oplog.Tx = (*store.ViewTx)(nil)
+
+// The types below let cmd and api speak to library without importing store or
+// oplog at all.
+//
+// They are aliases, not copies: there is one definition of each, and no
+// conversion layer that could drift. What they buy is the import boundary —
+// a command that cannot name store's package cannot call store's write side,
+// which is invariant 2 expressed as something the compiler and
+// internal/arch's test can both check.
+type (
+	// BoxFields are a box's user-editable fields.
+	BoxFields = oplog.BoxFields
+	// ListBoxesOptions controls the box listing.
+	ListBoxesOptions = store.ListBoxesOptions
+	// ListOpsOptions filters the history view.
+	ListOpsOptions = store.ListOpsOptions
+	// Op is one entry in the history.
+	Op = oplog.Op
+)

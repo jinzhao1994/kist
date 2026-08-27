@@ -46,6 +46,9 @@ func (tagBoxes) Apply(tx Tx, payload []byte) error {
 	if len(p.BoxIDs) == 0 {
 		return fmt.Errorf("tag_boxes: %w", errEmptyBatch)
 	}
+	if err := checkBoxesExist(tx, p.BoxIDs); err != nil {
+		return err
+	}
 	for _, box := range p.BoxIDs {
 		if err := tx.AddBoxTag(box, p.TagID, p.Source); err != nil {
 			return err
@@ -70,6 +73,9 @@ func (untagBoxes) Apply(tx Tx, payload []byte) error {
 	if len(p.BoxIDs) == 0 {
 		return fmt.Errorf("untag_boxes: %w", errEmptyBatch)
 	}
+	if err := checkBoxesExist(tx, p.BoxIDs); err != nil {
+		return err
+	}
 	for _, box := range p.BoxIDs {
 		if err := tx.RemoveBoxTag(box, p.TagID); err != nil {
 			return err
@@ -83,6 +89,25 @@ func (untagBoxes) Inverse(payload []byte) (Action, []byte, error) {
 }
 
 func (untagBoxes) Targets(payload []byte) (Targets, error) { return boxTagTargets(payload) }
+
+// checkBoxesExist is the strict-mode assertion for a batch.
+//
+// Without it, undoing an op whose boxes were deleted in the meantime fails
+// deep inside the database and the user is shown "FOREIGN KEY constraint
+// failed (787)". That is true, useless, and frightening. The foreign key is
+// still the backstop; this is the sentence that gets read (spec 2.5).
+func checkBoxesExist(tx Tx, boxes []domain.BoxID) error {
+	for _, box := range boxes {
+		_, ok, err := tx.GetBox(box)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return fmt.Errorf("box %s no longer exists: %w", box, ErrStaleBefore)
+		}
+	}
+	return nil
+}
 
 func boxTagTargets(payload []byte) (Targets, error) {
 	p, err := Payload[TagBoxesPayload](payload)

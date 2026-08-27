@@ -1,0 +1,95 @@
+package main
+
+import (
+	"fmt"
+	"strconv"
+	"text/tabwriter"
+
+	"github.com/spf13/cobra"
+
+	"github.com/jinzhao1994/kist/internal/library"
+)
+
+func newLogCmd() *cobra.Command {
+	var (
+		limit int
+		box   string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "log",
+		Short: "Show what has happened to this library",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			l, err := openLibrary(cmd)
+			if err != nil {
+				return err
+			}
+			defer l.Close()
+
+			opt := library.ListOpsOptions{Limit: limit}
+			if box != "" {
+				b, err := l.ResolveBox(cmd.Context(), box)
+				if err != nil {
+					return err
+				}
+				opt.Box = &b.ID
+			}
+
+			ops, err := l.Ops(cmd.Context(), opt)
+			if err != nil {
+				return err
+			}
+
+			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
+			for _, op := range ops {
+				// Marking reverted ops is what reverts_id being an indexed
+				// column is for (spec 2.2).
+				status := ""
+				if by, ok, err := l.RevertedBy(cmd.Context(), op.ID); err == nil && ok {
+					status = fmt.Sprintf("(undone by %d)", by)
+				}
+				if op.RevertsID != nil {
+					status = fmt.Sprintf("(undoes %d)", *op.RevertsID)
+				}
+				fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\n",
+					op.ID, op.TS.Format("2006-01-02 15:04:05"), op.Action, op.Source, status)
+			}
+			return w.Flush()
+		},
+	}
+	cmd.Flags().IntVarP(&limit, "limit", "n", 20, "how many ops to show")
+	cmd.Flags().StringVar(&box, "box", "", "only ops that touched this box")
+	return cmd
+}
+
+func newUndoCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "undo <op-id>",
+		Short: "Undo an operation",
+		Long: `Undo appends the inverse of an operation; it does not erase anything.
+The undo is itself an operation and can be undone in turn.
+
+If later changes touched the same things, the undo is refused rather than
+partly applied, and the operation in the way is named.`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			opID, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return fmt.Errorf("%q is not an operation id; `kist log` lists them", args[0])
+			}
+			l, err := openLibrary(cmd)
+			if err != nil {
+				return err
+			}
+			defer l.Close()
+
+			undoID, err := l.Undo(cmd.Context(), opID)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "op %d undone by op %d\n", opID, undoID)
+			return nil
+		},
+	}
+}

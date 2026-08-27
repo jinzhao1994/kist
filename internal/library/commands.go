@@ -49,7 +49,7 @@ func (l *Library) CreateBox(ctx context.Context, name, description string, start
 // UpdateBox rewrites a box's user-editable fields. The before state is read
 // here and written into the payload, which is what makes Inverse a pure swap
 // and strict undo possible (spec 2.3, 2.5).
-func (l *Library) UpdateBox(ctx context.Context, id domain.BoxID, f oplog.BoxFields) (domain.Box, error) {
+func (l *Library) UpdateBox(ctx context.Context, id domain.BoxID, f BoxFields) (domain.Box, error) {
 	if err := domain.ValidateName(f.Name); err != nil {
 		return domain.Box{}, err
 	}

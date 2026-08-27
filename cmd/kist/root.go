@@ -32,7 +32,14 @@ and a global tag tree cuts across them for retrieval.`,
 	// template would prefix it with "kist version ".
 	root.SetVersionTemplate("{{.Version}}\n")
 
+	root.PersistentFlags().StringVar(&libraryFlag, "library", "",
+		"path to the kist library (default ~/kist)")
+
 	root.AddCommand(newInitCmd())
+	root.AddCommand(newBoxCmd())
+	root.AddCommand(newTagCmd())
+	root.AddCommand(newLogCmd())
+	root.AddCommand(newUndoCmd())
 	root.AddCommand(newVersionCmd())
 	return root
 }

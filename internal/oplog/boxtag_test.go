@@ -1,6 +1,8 @@
 package oplog
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/jinzhao1994/kist/internal/domain"
@@ -139,5 +141,33 @@ func TestTagBoxesSourceSurvivesReplay(t *testing.T) {
 
 	if got := tx.boxTags[btKey(boxes[0], tag)]; got != "derived" {
 		t.Errorf("source = %q, want %q", got, "derived")
+	}
+}
+
+func TestBoxTagOpsRefuseADeletedBox(t *testing.T) {
+	// Found by walking the CLI by hand: undo a tagging, undo the box's
+	// creation, then undo the first undo. The last step tries to re-tag a box
+	// that is gone, and without this check the user is shown
+	// "FOREIGN KEY constraint failed (787)" instead of a sentence.
+	tx := newFakeTx(opTime)
+	boxes := threeBoxes(t, tx)
+	tag := createTag(t, tx, nil, "云南")
+
+	// Delete one of the boxes out from under the op.
+	tx.DeleteFoldersOfBox(boxes[1])
+	tx.DeleteBox(boxes[1])
+
+	for _, action := range []Action{ActionTagBoxes, ActionUntagBoxes} {
+		raw, _ := Marshal(TagBoxesPayload{TagID: tag, BoxIDs: boxes, Source: "user"})
+		err := apply(t, tx, action, raw)
+		if err == nil {
+			t.Fatalf("%s on a deleted box succeeded", action)
+		}
+		if !errors.Is(err, ErrStaleBefore) {
+			t.Errorf("%s error = %v, want ErrStaleBefore", action, err)
+		}
+		if strings.Contains(err.Error(), "FOREIGN KEY") {
+			t.Errorf("%s leaked a database constraint error: %v", action, err)
+		}
 	}
 }
