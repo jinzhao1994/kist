@@ -1,17 +1,27 @@
 // Command kist is the kist CLI.
-//
-// M0 ships only "version" — enough to prove the single-binary build works on
-// every target platform. The real commands (init, import, find, ...) land in M1.
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 )
 
+// exitCoder is an error that names the status to exit with. verify uses it to
+// separate "the mirror is stale" from "your content is damaged", which is the
+// distinction a cron job needs to act on.
+type exitCoder interface{ ExitCode() int }
+
 func main() {
-	if err := newRootCmd().Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, "kist:", err)
-		os.Exit(1)
+	err := newRootCmd().Execute()
+	if err == nil {
+		return
 	}
+	fmt.Fprintln(os.Stderr, "kist:", err)
+
+	var coder exitCoder
+	if errors.As(err, &coder) {
+		os.Exit(coder.ExitCode())
+	}
+	os.Exit(1)
 }

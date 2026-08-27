@@ -95,8 +95,8 @@ func runInit(cmd *cobra.Command, given string, yes bool) error {
 
 	p.Printf("  Link mode  %s — %s\n\n", res.Probe.LinkMode, linkModeExplanation(res.Probe.LinkMode))
 	p.Printf("Library created at %s.\n\n", res.Layout.Root)
-	p.Printf("Next: `kist box new <name>` to make a box, `kist tag new <name>` to start\n")
-	p.Printf("the tag tree. Putting files in comes with `kist import`, which is not built yet.\n")
+	p.Printf("Next: `kist box new <name>` to make a box, then `kist import --box <name> <path>`\n")
+	p.Printf("to put files in it. `kist verify` checks at any time that nothing has gone wrong.\n")
 	return nil
 }
 

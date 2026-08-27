@@ -143,3 +143,53 @@ func TestCheckBlobsDoesNotNoticeSameLengthCorruption(t *testing.T) {
 		t.Errorf("verify read the content: %d findings", r.Total())
 	}
 }
+
+// Spec 3.8 puts naming the damaged files first among the things verify is for.
+// A bare digest is not the sentence "your 2019 passport scan is damaged", and
+// a report nobody can act on is a report that wasted the check.
+func TestDamageReportsNameTheFilesNotJustTheHash(t *testing.T) {
+	db, d := emptyLibrary(t), blobDir(t)
+	k := storeBlob(t, db, d, "passport scan")
+
+	box := []byte("0123456789abcdef")
+	folder := []byte("fedcba9876543210")
+	mustExec(t, db, `INSERT INTO boxes (id, name, name_fold, created_at, updated_at) VALUES (?, '云南', '云南', 't', 't')`, box)
+	mustExec(t, db, `INSERT INTO folders (id, box_id, parent_id, name, name_fold, created_at, updated_at) VALUES (?, ?, NULL, '', '', 't', 't')`, folder, box)
+	mustExec(t, db, `INSERT INTO files (id, box_id, folder_id, name, name_fold, blob_key, created_at, updated_at)
+	                 VALUES (randomblob(16), ?, ?, 'passport.jpg', 'passport.jpg', ?, 't', 't')`, box, folder, string(k))
+
+	p, _ := d.LocalPath(k)
+	if err := os.Chmod(p, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(p); err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := CheckBlobs(t.Context(), db, d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sb strings.Builder
+	if err := r.Write(&sb); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(sb.String(), "云南/passport.jpg") {
+		t.Errorf("the report does not name the file:\n%s", sb.String())
+	}
+	// The key is still there, shortened — you need it once you have decided to
+	// do something, and not before.
+	if !strings.Contains(sb.String(), k.Hex()[:8]) {
+		t.Errorf("the report does not identify the content:\n%s", sb.String())
+	}
+	if strings.Contains(sb.String(), k.Hex()) {
+		t.Errorf("the full digest took a whole line:\n%s", sb.String())
+	}
+}
+
+func mustExec(t *testing.T, db *sql.DB, query string, args ...any) {
+	t.Helper()
+	if _, err := db.Exec(query, args...); err != nil {
+		t.Fatal(err)
+	}
+}

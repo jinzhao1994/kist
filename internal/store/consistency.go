@@ -136,3 +136,44 @@ func AllBlobs(q Queryer) ([]BlobRow, error) {
 	}
 	return out, rows.Err()
 }
+
+// FilesUsingBlobs maps blob keys onto the files that reference them, as
+// "<box>/<file>".
+//
+// This exists so a damage report can say "云南/passport.jpg" instead of
+// "sha256:94bacd25…". Spec 3.8 puts naming the damaged files first among the
+// things verify is for — "your 2019 passport scan is damaged" is the sentence
+// that lets somebody go and look for another copy, and a bare digest is not
+// that sentence.
+//
+// The full folder path is left out deliberately: it needs a recursive walk per
+// file, and the box plus the name is already enough to recognise something.
+func FilesUsingBlobs(q Queryer, keys []string) (map[string][]string, error) {
+	if len(keys) == 0 {
+		return nil, nil
+	}
+	args := make([]any, len(keys))
+	for i, k := range keys {
+		args[i] = k
+	}
+	rows, err := q.Query(`
+		SELECT f.blob_key, b.name || '/' || f.name
+		FROM files f
+		JOIN boxes b ON b.id = f.box_id
+		WHERE f.blob_key IN (`+placeholders(len(keys))+`)
+		ORDER BY f.blob_key, f.id`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("look up the files behind damaged content: %w", err)
+	}
+	defer rows.Close()
+
+	out := map[string][]string{}
+	for rows.Next() {
+		var key, name string
+		if err := rows.Scan(&key, &name); err != nil {
+			return nil, fmt.Errorf("look up the files behind damaged content: %w", err)
+		}
+		out[key] = append(out[key], name)
+	}
+	return out, rows.Err()
+}

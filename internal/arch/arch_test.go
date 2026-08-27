@@ -99,3 +99,22 @@ func TestCommandsCannotWriteDirectly(t *testing.T) {
 			"transaction that appends an op and applies it; reaching store directly\n"+
 			"would change state without leaving a trace in the log.")
 }
+
+// TestIntegrityCannotWrite is the structural half of spec 3.8's "repair does
+// not write an op".
+//
+// A repair restores content that is correct by definition — you fetched it by
+// its hash and verified it — so nothing about the library's state changed and
+// there is nothing to record. More to the point, Apply is a pure function that
+// cannot touch blobs/ (invariant 3), so such an op would have to do nothing on
+// replay, and both `kist rebuild` and `verify --deep` would need a special case
+// for it forever.
+//
+// Not importing oplog is how that stays true without anyone having to remember
+// it.
+func TestIntegrityCannotWrite(t *testing.T) {
+	forbid(t, "internal/integrity", []string{"internal/oplog", "internal/library"},
+		"integrity reads and reports; it never writes. Restoring content that is\n"+
+			"correct by definition is not a state change, and Apply cannot touch\n"+
+			"blobs/ anyway — such an op would do nothing on replay, forever.")
+}

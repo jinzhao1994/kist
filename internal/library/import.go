@@ -175,6 +175,12 @@ func scan(src string, hidden bool) ([]scanned, error) {
 // That is also why the commit runs on a context.WithoutCancel — the context
 // that told us to stop cannot be the one we ask to write with.
 func (l *Library) Import(ctx context.Context, src string, opt ImportOptions) (*ImportResult, error) {
+	// Import is the only thing that writes to blobs/tmp, so it is also the
+	// only thing that leaves residue there when it crashes. Clearing it here
+	// costs one ReadDir and keeps the mess bounded by one interrupted run
+	// rather than by how long it has been since somebody ran verify (spec 3.9).
+	l.cleanTmp()
+
 	box, ok, err := l.Box(ctx, opt.Box)
 	if err != nil {
 		return nil, err
