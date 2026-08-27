@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/query"
 )
 
 // spec 1.5.1: updated_at means "something happened under here", and it
@@ -221,7 +222,7 @@ func TestResolveFolderWalksAPath(t *testing.T) {
 
 // spec 4.3 step 1: a tag condition includes the tag's descendants, resolved
 // against the in-memory tree.
-func TestResolveTagRefsExpandsDescendants(t *testing.T) {
+func TestTagConditionExpandsDescendants(t *testing.T) {
 	l, box := openWithBox(t)
 	people, _ := l.CreateTag(t.Context(), "人物", nil)
 	dad, _ := l.CreateTag(t.Context(), "爸", &people.ID)
@@ -231,11 +232,11 @@ func TestResolveTagRefsExpandsDescendants(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	conds, err := l.ResolveTagRefs([]string{"人物"})
+	conds, err := l.TagCondition([]string{"人物"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, _, err := l.Files(t.Context(), ListFilesOptions{AllOf: conds})
+	got, _, err := l.Files(t.Context(), query.Query{Tags: conds})
 	if err != nil {
 		t.Fatal(err)
 	}

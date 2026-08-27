@@ -1,161 +1,124 @@
 package store
 
 import (
-	"encoding/base64"
 	"fmt"
 	"strings"
 
 	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/query"
 )
 
-// fileOrder is the one sort order for file listings (spec 4.5.1).
-//
-// NULLS LAST is written out even though SQLite would do it anyway: Postgres
-// defaults DESC to NULLS FIRST, so leaving it implicit means the two engines
-// return opposite results and no test run on SQLite can ever notice
-// (spec 4.7).
-//
-// id DESC is not only a tie-breaker. Ids are UUIDv7, so it is also created_at
-// DESC — which is why files with no captured_at fall into import order without
-// a COALESCE, and without the expression index a COALESCE would have needed.
+// fileOrder is the ordering used by the listings that do not take a Query:
+// directory browsing and the projection's whole-box reads.
 const fileOrder = ` ORDER BY captured_at DESC NULLS LAST, id DESC`
 
-// EncodeCursor renders the sort tuple of the last row on a page.
+// orderBy renders one ordering, with the tie-breaker that makes keyset paging
+// possible at all.
 //
-// The cursor carries the whole tuple, not just the id, because the predicate
-// has to reconstruct "everything after this row in this order". It is opaque
-// base64 so that changing the sort key later invalidates old cursors loudly
-// instead of paging through a different order (spec 4.5).
-func EncodeCursor(f domain.File) string {
-	return base64.RawURLEncoding.EncodeToString([]byte(f.CapturedAt.String() + "\x00" + f.ID.String()))
+// NULLS LAST is written out in both directions. SQLite puts nulls last under
+// DESC anyway and first under ASC, and Postgres does the opposite for DESC —
+// so leaving it implicit means the two engines disagree and no test run on
+// SQLite can ever notice (spec 4.7). Unknown belongs at the end whichever way
+// you are reading, so both directions say LAST.
+//
+// The id tie-breaker is not decoration: without it two files sharing a capture
+// time can swap places between pages, and keyset paging then repeats one and
+// drops the other (spec 4.5).
+func orderBy(s query.SortSpec) string {
+	dir := " DESC"
+	if s.Asc {
+		dir = " ASC"
+	}
+	switch s.Key {
+	case query.SortImported:
+		// The id is the key, so there is nothing left to break ties between.
+		return ` ORDER BY id` + dir
+	case query.SortName:
+		// name_fold is NOT NULL, so no NULLS clause is needed or emitted.
+		return ` ORDER BY name_fold` + dir + `, id` + dir
+	default:
+		return ` ORDER BY captured_at` + dir + ` NULLS LAST, id` + dir
+	}
 }
 
-func decodeCursor(s string) (captured string, id domain.FileID, err error) {
-	raw, err := base64.RawURLEncoding.DecodeString(s)
-	if err != nil {
-		return "", domain.FileID{}, fmt.Errorf("bad cursor: %w", err)
+// cursorPredicate is "strictly after this row, in this order".
+//
+// The nulls block is the part that is easy to get wrong, and it is not
+// symmetric with intuition: nulls sort last in BOTH directions (see orderBy),
+// so from a non-null cursor the remainder always still contains the whole
+// nulls block, and from a null cursor it contains nothing but the rest of that
+// block.
+//
+// Getting this wrong does not error. It silently drops or repeats a page,
+// which is why TestCursorWalksEveryRowExactlyOnceInEveryOrder steps one row at
+// a time across the boundary in all six orderings.
+func cursorPredicate(s query.SortSpec, key string, id domain.FileID) (string, []any) {
+	cmp := " < ?"
+	if s.Asc {
+		cmp = " > ?"
 	}
-	before, after, ok := strings.Cut(string(raw), "\x00")
-	if !ok {
-		return "", domain.FileID{}, fmt.Errorf("bad cursor: missing separator")
+
+	switch s.Key {
+	case query.SortImported:
+		return ` AND id` + cmp, []any{id}
+
+	case query.SortName:
+		return ` AND (name_fold` + cmp + ` OR (name_fold = ? AND id` + cmp + `))`,
+			[]any{key, key, id}
+
+	default:
+		if key == "" {
+			// The cursor is inside the nulls block, which is last in both
+			// directions — so everything not yet visited is inside it too.
+			return ` AND captured_at IS NULL AND id` + cmp, []any{id}
+		}
+		return ` AND (captured_at IS NULL OR captured_at` + cmp +
+				` OR (captured_at = ? AND id` + cmp + `))`,
+			[]any{key, key, id}
 	}
-	parsed, err := domain.ParseID(after)
-	if err != nil {
-		return "", domain.FileID{}, fmt.Errorf("bad cursor: %w", err)
-	}
-	return before, domain.FileID{ID: parsed}, nil
 }
 
-// cursorPredicate is "strictly after this row, in fileOrder".
-//
-// The NULL block is the part that is easy to get wrong. Under DESC NULLS LAST
-// every null sorts after every non-null, so:
-//
-//   - from a non-null cursor, the remainder is "smaller captured_at, or equal
-//     captured_at with smaller id, or null captured_at"
-//   - from a null cursor, the remainder is null captured_at with smaller id
-//     and nothing else — the non-null block is already behind us
-//
-// Getting this wrong does not error; it silently drops or repeats a page,
-// which is why TestListFilesCursorWalksEveryRowExactlyOnce steps one row at a
-// time across the boundary.
-func cursorPredicate(captured string, id domain.FileID) (string, []any) {
-	if captured == "" {
-		return ` AND captured_at IS NULL AND id < ?`, []any{id}
-	}
-	return ` AND (captured_at IS NULL OR captured_at < ? OR (captured_at = ? AND id < ?))`,
-		[]any{captured, captured, id}
-}
-
-// ListFilesOptions is the M1c subset of spec 4.2's Query.
-//
-// The full AST — time ranges, media kinds, arbitrary AND/OR/NOT nesting —
-// arrives with the conformance suite in M2. What is here is what the CLI can
-// actually ask for, which is also the shape the UI exposes in v0.1: several
-// tags intersected, plus an exclusion list (spec 4.3).
-type ListFilesOptions struct {
-	Box    *domain.BoxID
-	Folder *domain.FolderID
-	// Text is matched as a folded substring against name_fold. Callers pass it
-	// raw; ListFiles folds it with the same function that built the column.
-	Text string
-	// AllOf is one entry per condition; a file must carry at least one tag
-	// from each. library expands each condition to its descendants first
-	// (spec 4.3 step 1) — that expansion is a memory-tree walk, not a join.
-	AllOf [][]domain.TagID
-	// NoneOf excludes files carrying any of these.
-	NoneOf []domain.TagID
-	Cursor string
-	Limit  int
-}
-
-// ListFiles runs the query and returns the page plus the cursor for the next
+// ListFiles answers a query and returns the page plus the cursor for the next
 // one. An empty next cursor means this was the last page.
-func ListFiles(q Queryer, opt ListFilesOptions) ([]domain.File, string, error) {
-	var (
-		sb   strings.Builder
-		args []any
-	)
-	sb.WriteString(`SELECT ` + fileColumns + ` FROM files WHERE 1 = 1`)
+//
+// It reads one row more than the page size to decide whether there is a next
+// page, rather than assuming a full page has more behind it. The assumption is
+// wrong exactly when the last page is exactly full, and the symptom is a "more"
+// control that leads to an empty page.
+func ListFiles(q Queryer, qry query.Query) ([]domain.File, string, error) {
+	where, args, err := translate(qry)
+	if err != nil {
+		return nil, "", err
+	}
 
-	if opt.Box != nil {
-		sb.WriteString(` AND box_id = ?`)
-		args = append(args, *opt.Box)
-	}
-	if opt.Folder != nil {
-		sb.WriteString(` AND folder_id = ?`)
-		args = append(args, *opt.Folder)
-	}
-	if opt.Text != "" {
-		// ESCAPE is not optional: without it a search for "100%" matches
-		// everything, and a search for "a_b" matches "axb".
-		sb.WriteString(` AND name_fold LIKE ? ESCAPE '\'`)
-		args = append(args, "%"+escapeLike(domain.Fold(opt.Text))+"%")
-	}
-	for _, cond := range opt.AllOf {
-		if len(cond) == 0 {
-			continue
-		}
-		sb.WriteString(` AND EXISTS (SELECT 1 FROM file_tags WHERE file_id = files.id AND tag_id IN (` +
-			placeholders(len(cond)) + `))`)
-		for _, id := range cond {
-			args = append(args, id)
-		}
-	}
-	if len(opt.NoneOf) > 0 {
-		sb.WriteString(` AND NOT EXISTS (SELECT 1 FROM file_tags WHERE file_id = files.id AND tag_id IN (` +
-			placeholders(len(opt.NoneOf)) + `))`)
-		for _, id := range opt.NoneOf {
-			args = append(args, id)
-		}
-	}
-	if opt.Cursor != "" {
-		captured, id, err := decodeCursor(opt.Cursor)
+	var sb strings.Builder
+	sb.WriteString(`SELECT ` + fileColumns + ` FROM files WHERE 1 = 1`)
+	sb.WriteString(where)
+
+	if qry.Cursor != "" {
+		key, id, err := query.DecodeCursor(qry.Sort, qry.Cursor)
 		if err != nil {
 			return nil, "", err
 		}
-		pred, pargs := cursorPredicate(captured, id)
+		pred, pargs := cursorPredicate(qry.Sort, key, id)
 		sb.WriteString(pred)
 		args = append(args, pargs...)
 	}
 
-	sb.WriteString(fileOrder)
-	if opt.Limit > 0 {
-		sb.WriteString(` LIMIT ?`)
-		args = append(args, opt.Limit)
-	}
+	size := qry.PageSize()
+	sb.WriteString(orderBy(qry.Sort))
+	sb.WriteString(` LIMIT ?`)
+	args = append(args, size+1)
 
 	out, err := queryFiles(q, sb.String(), args...)
 	if err != nil {
 		return nil, "", err
 	}
-
-	// A short page is the last page; only a full one can have more behind it.
-	next := ""
-	if opt.Limit > 0 && len(out) == opt.Limit {
-		next = EncodeCursor(out[len(out)-1])
+	if len(out) <= size {
+		return out, "", nil
 	}
-	return out, next, nil
+	out = out[:size]
+	return out, query.EncodeCursor(qry.Sort, out[len(out)-1]), nil
 }
 
 // escapeLike neutralizes LIKE's wildcards so a pattern matches literally.

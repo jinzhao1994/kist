@@ -11,6 +11,7 @@ import (
 
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/oplog"
+	"github.com/jinzhao1994/kist/internal/query"
 	"github.com/jinzhao1994/kist/internal/store"
 )
 
@@ -76,7 +77,7 @@ func busyLibrary(t *testing.T) *Library {
 
 	// Tag some of those files, so file_tags is covered too — and untag one, so
 	// the replay handles both directions.
-	imported, _, err := store.ListFiles(l.db, store.ListFilesOptions{Box: &boxes[1]})
+	imported, _, err := store.ListFiles(l.db, query.Query{Boxes: []domain.BoxID{boxes[1]}})
 	if err != nil {
 		t.Fatal(err)
 	}

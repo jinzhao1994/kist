@@ -8,6 +8,7 @@ import (
 
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/oplog"
+	"github.com/jinzhao1994/kist/internal/query"
 	"github.com/jinzhao1994/kist/internal/store"
 )
 
@@ -17,10 +18,52 @@ var ErrNoSuchFile = fmt.Errorf("no such file")
 // ErrNoSuchFolder means the path names nothing in this box.
 var ErrNoSuchFolder = fmt.Errorf("no such folder")
 
-// Files runs a file query and returns the page plus the cursor for the next
-// one (spec 4.2, the M1c subset).
-func (l *Library) Files(ctx context.Context, opt ListFilesOptions) ([]domain.File, string, error) {
-	return store.ListFiles(l.db, opt)
+// Files answers a query (spec 4.2).
+//
+// The tag expression arriving here already holds expanded id sets: spec 4.3's
+// first step is a walk of the in-memory tag tree, and it belongs to whoever
+// owns that tree, which is this package. TagCondition and ExcludeTags are how
+// a caller gets from tag names to that expression.
+func (l *Library) Files(ctx context.Context, q query.Query) ([]domain.File, string, error) {
+	return store.ListFiles(l.db, q)
+}
+
+// TagCondition turns tag names into "carries all of these, each including its
+// descendants" — the shape v0.1's UI and CLI expose (spec 4.3).
+//
+// No names gives nil rather than an empty TagAll. Both mean "do not filter",
+// but nil says "there is no condition" while TagAll{} says "the conjunction of
+// zero conditions", and the first is what actually happened.
+func (l *Library) TagCondition(refs []string) (query.TagExpr, error) {
+	var all query.TagAll
+	for _, ref := range refs {
+		tag, err := l.ResolveTag(ref)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, query.TagAny(l.tags.Descendants(tag.ID)))
+	}
+	if len(all) == 0 {
+		return nil, nil
+	}
+	return all, nil
+}
+
+// ExcludeTags turns tag names into "carries none of these, descendants
+// included".
+func (l *Library) ExcludeTags(refs []string) (query.TagExpr, error) {
+	var any query.TagAnyOf
+	for _, ref := range refs {
+		tag, err := l.ResolveTag(ref)
+		if err != nil {
+			return nil, err
+		}
+		any = append(any, query.TagAny(l.tags.Descendants(tag.ID)))
+	}
+	if len(any) == 0 {
+		return nil, nil
+	}
+	return query.TagNot{Expr: any}, nil
 }
 
 // File reads one file.
@@ -114,24 +157,6 @@ func (l *Library) FilePath(ctx context.Context, f domain.File) (string, error) {
 		parts[i], parts[j] = parts[j], parts[i]
 	}
 	return path.Join(parts...), nil
-}
-
-// ResolveTagRefs turns tag names or ids into one condition each, expanded to
-// include descendants.
-//
-// This is step 1 of spec 4.3, and it is deliberately a memory-tree walk rather
-// than a closure table: the tree is a few thousand nodes and already resident,
-// while a closure table would turn "move a tag" into a library-wide rewrite.
-func (l *Library) ResolveTagRefs(refs []string) ([][]domain.TagID, error) {
-	out := make([][]domain.TagID, 0, len(refs))
-	for _, ref := range refs {
-		tag, err := l.ResolveTag(ref)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, l.tags.Descendants(tag.ID))
-	}
-	return out, nil
 }
 
 // TagFiles attaches one tag to many files in a single op.

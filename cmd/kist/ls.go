@@ -10,6 +10,7 @@ import (
 
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/library"
+	"github.com/jinzhao1994/kist/internal/query"
 )
 
 func newLsCmd() *cobra.Command {
@@ -80,7 +81,7 @@ func listFolder(cmd *cobra.Command, l *library.Library, b domain.Box, path strin
 	}
 	slices.SortFunc(subs, func(x, y domain.Folder) int { return cmp.Compare(x.Name, y.Name) })
 
-	files, _, err := l.Files(cmd.Context(), library.ListFilesOptions{Folder: &folder.ID})
+	files, _, err := l.Files(cmd.Context(), query.Query{Folder: &folder.ID, Sort: query.SortSpec{Key: query.SortName, Asc: true}})
 	if err != nil {
 		return err
 	}

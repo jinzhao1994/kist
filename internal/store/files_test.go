@@ -2,11 +2,14 @@ package store
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/query"
 )
 
 // putFile inserts one file, optionally with a captured_at, and returns its id.
@@ -77,7 +80,7 @@ func TestListFilesSortsCapturedFirstThenNewest(t *testing.T) {
 	captured := putFile(t, db, box, root, "photo.jpg", "2019-08-12")
 	noCapture2 := putFile(t, db, box, root, "c.pdf", "")
 
-	got, _, err := ListFiles(db, ListFilesOptions{})
+	got, _, err := ListFiles(db, query.Query{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,38 +94,170 @@ func TestListFilesSortsCapturedFirstThenNewest(t *testing.T) {
 	}
 }
 
-// A cursor that loses rows at the NULL boundary is the classic keyset bug: the
-// second page starts among the non-null values again, or skips the whole null
-// block. Paging one row at a time through a mixed set is the cheapest way to
-// catch it.
-func TestListFilesCursorWalksEveryRowExactlyOnce(t *testing.T) {
-	db := migrated(t)
-	box, root := seedBoxWithRoot(t, db)
-	for i, c := range []string{"2019-08-12", "", "2020", "", "2019-08-12"} {
-		putFile(t, db, box, root, fmt.Sprintf("f%d.jpg", i), c)
+// allSortSpecs is every ordering the contract offers.
+func allSortSpecs() []query.SortSpec {
+	var out []query.SortSpec
+	for _, k := range []query.SortKey{query.SortCaptured, query.SortImported, query.SortName} {
+		out = append(out, query.SortSpec{Key: k}, query.SortSpec{Key: k, Asc: true})
 	}
+	return out
+}
 
-	seen := map[domain.FileID]bool{}
-	cursor := ""
-	for range 10 {
-		page, next, err := ListFiles(db, ListFilesOptions{Limit: 1, Cursor: cursor})
+// seedPagingFixture builds the set that makes every ordering interesting:
+// repeated capture times (so the tie-breaker matters), missing ones (so the
+// nulls boundary is crossed), and names that differ only by case (so the
+// folded ordering has a tie of its own).
+func seedPagingFixture(t *testing.T, db *sql.DB) int {
+	t.Helper()
+	box, root := seedBoxWithRoot(t, db)
+	rows := []struct{ name, captured string }{
+		{"b.pdf", ""},
+		{"IMG_1.jpg", "2019-08-12"},
+		{"img_2.jpg", "2019-08-12"}, // same capture time as the one above
+		{"a.pdf", ""},
+		{"IMG_3.jpg", "2020"},
+		{"c.pdf", ""},
+		{"Img_4.jpg", "2019-08-12"}, // and again, three-way tie
+	}
+	for _, r := range rows {
+		putFile(t, db, box, root, r.name, r.captured)
+	}
+	return len(rows)
+}
+
+// Paging must visit every row exactly once, in every order the contract
+// offers, and in the same order a single whole-page query produces.
+//
+// This is the shape of bug that does not error: a predicate that is wrong at a
+// boundary silently drops or repeats a page, and the only way to see it is to
+// walk the whole table one row at a time and count. M1c caught the nulls
+// boundary this way with one ordering; there are six now, and the two
+// captured ones both cross that boundary.
+func TestCursorWalksEveryRowExactlyOnceInEveryOrder(t *testing.T) {
+	db := migrated(t)
+	total := seedPagingFixture(t, db)
+
+	for _, s := range allSortSpecs() {
+		t.Run(s.ID(), func(t *testing.T) {
+			seen := map[domain.FileID]int{}
+			var paged []domain.FileID
+			cursor := ""
+			for range total + 5 {
+				page, next, err := ListFiles(db, query.Query{Sort: s, Cursor: cursor, Limit: 1})
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(page) == 0 {
+					break
+				}
+				seen[page[0].ID]++
+				paged = append(paged, page[0].ID)
+				if next == "" {
+					break
+				}
+				cursor = next
+			}
+
+			if len(paged) != total {
+				t.Errorf("walked %d rows, want %d", len(paged), total)
+			}
+			for id, n := range seen {
+				if n != 1 {
+					t.Errorf("%s was returned %d times", id, n)
+				}
+			}
+
+			whole, next, err := ListFiles(db, query.Query{Sort: s, Limit: total})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if next != "" {
+				t.Errorf("a page holding every row still offered a next cursor")
+			}
+			for i := range whole {
+				if i < len(paged) && whole[i].ID != paged[i] {
+					t.Errorf("row %d: paging gave %s, one whole page gave %s (%s)",
+						i, paged[i], whole[i].ID, whole[i].Name)
+					break
+				}
+			}
+		})
+	}
+}
+
+// Files with no capture time sort last in BOTH directions. Unknown is unknown,
+// and it belongs at the end whichever way you are reading (spec 4.5.1) — which
+// is also why orderBy writes NULLS LAST out even under ASC, where SQLite would
+// otherwise put them first (spec 4.7).
+func TestNullCaptureTimesSortLastInBothDirections(t *testing.T) {
+	db := migrated(t)
+	seedPagingFixture(t, db)
+
+	for _, s := range []query.SortSpec{{Key: query.SortCaptured}, {Key: query.SortCaptured, Asc: true}} {
+		got, _, err := ListFiles(db, query.Query{Sort: s, Limit: 100})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(page) == 0 {
-			break
-		}
-		if seen[page[0].ID] {
-			t.Fatalf("%s came back twice", page[0].Name)
-		}
-		seen[page[0].ID] = true
-		cursor = next
-		if cursor == "" {
-			break
+		seenNull := false
+		for _, f := range got {
+			if f.CapturedAt.IsZero() {
+				seenNull = true
+				continue
+			}
+			if seenNull {
+				t.Errorf("%s: %s has a capture time but came after one that does not: %v",
+					s.ID(), f.Name, fileNames(got))
+				break
+			}
 		}
 	}
-	if len(seen) != 5 {
-		t.Errorf("walked %d of 5 files", len(seen))
+}
+
+// The name ordering is on the folded name, so case does not scatter a
+// directory listing (spec 4.8).
+func TestNameOrderIsFolded(t *testing.T) {
+	db := migrated(t)
+	seedPagingFixture(t, db)
+
+	got, _, err := ListFiles(db, query.Query{Sort: query.SortSpec{Key: query.SortName, Asc: true}, Limit: 100})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"a.pdf", "b.pdf", "c.pdf", "IMG_1.jpg", "img_2.jpg", "IMG_3.jpg", "Img_4.jpg"}
+	if got := fileNames(got); !slices.Equal(got, want) {
+		t.Errorf("name order = %v, want %v", got, want)
+	}
+}
+
+// A page that happens to be exactly full is still the last page. Assuming
+// otherwise gives a "more" control that leads somewhere empty.
+func TestAnExactlyFullLastPageOffersNoCursor(t *testing.T) {
+	db := migrated(t)
+	total := seedPagingFixture(t, db)
+
+	_, next, err := ListFiles(db, query.Query{Limit: total})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if next != "" {
+		t.Error("a page holding every row still offered a next cursor")
+	}
+}
+
+// A cursor from another ordering must be refused rather than approximated
+// (spec 4.2.1). The refusal happens in query; this checks it survives the trip
+// through the store.
+func TestListFilesRefusesACursorFromAnotherSort(t *testing.T) {
+	db := migrated(t)
+	seedPagingFixture(t, db)
+
+	_, next, err := ListFiles(db, query.Query{Sort: query.SortSpec{Key: query.SortCaptured}, Limit: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = ListFiles(db, query.Query{Sort: query.SortSpec{Key: query.SortName}, Cursor: next, Limit: 1})
+	if !errors.Is(err, query.ErrCursorSortMismatch) {
+		t.Errorf("err = %v, want ErrCursorSortMismatch", err)
 	}
 }
 
@@ -134,7 +269,7 @@ func TestListFilesTextIsCaseInsensitive(t *testing.T) {
 	putFile(t, db, box, root, "IMG_0001.JPG", "")
 	putFile(t, db, box, root, "notes.txt", "")
 
-	got, _, err := ListFiles(db, ListFilesOptions{Text: "img_00"})
+	got, _, err := ListFiles(db, query.Query{Text: "img_00"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,7 +286,7 @@ func TestListFilesEscapesLikeWildcards(t *testing.T) {
 	putFile(t, db, box, root, "100%.txt", "")
 	putFile(t, db, box, root, "1000.txt", "")
 
-	got, _, err := ListFiles(db, ListFilesOptions{Text: "100%"})
+	got, _, err := ListFiles(db, query.Query{Text: "100%"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +294,7 @@ func TestListFilesEscapesLikeWildcards(t *testing.T) {
 		t.Errorf("got %v, want only 100%%.txt", fileNames(got))
 	}
 
-	got, _, err = ListFiles(db, ListFilesOptions{Text: "10_0"})
+	got, _, err = ListFiles(db, query.Query{Text: "10_0"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,9 +321,12 @@ func TestListFilesCombinesTagConditions(t *testing.T) {
 	attach(t, db, c, dad)
 	attach(t, db, c, private)
 
-	got, _, err := ListFiles(db, ListFilesOptions{
-		AllOf:  [][]domain.TagID{{yunnan}, {dad}},
-		NoneOf: []domain.TagID{private},
+	got, _, err := ListFiles(db, query.Query{
+		Tags: query.TagAll{
+			query.TagAny{yunnan},
+			query.TagAny{dad},
+			query.TagNot{Expr: query.TagAny{private}},
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -214,7 +352,7 @@ func TestListFilesFiltersByBoxAndFolder(t *testing.T) {
 	putFile(t, db, box, sub, "in-sub.jpg", "")
 	putFile(t, db, other, otherRoot, "elsewhere.jpg", "")
 
-	got, _, err := ListFiles(db, ListFilesOptions{Box: &box})
+	got, _, err := ListFiles(db, query.Query{Boxes: []domain.BoxID{box}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,7 +360,7 @@ func TestListFilesFiltersByBoxAndFolder(t *testing.T) {
 		t.Errorf("by box: %v", fileNames(got))
 	}
 
-	got, _, err = ListFiles(db, ListFilesOptions{Folder: &sub})
+	got, _, err = ListFiles(db, query.Query{Folder: &sub})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -233,7 +371,7 @@ func TestListFilesFiltersByBoxAndFolder(t *testing.T) {
 
 func TestListFilesRejectsABadCursor(t *testing.T) {
 	db := migrated(t)
-	if _, _, err := ListFiles(db, ListFilesOptions{Cursor: "not base64!!"}); err == nil {
+	if _, _, err := ListFiles(db, query.Query{Cursor: "not base64!!"}); err == nil {
 		t.Error("a corrupt cursor was accepted")
 	}
 }
