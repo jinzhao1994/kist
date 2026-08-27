@@ -4993,7 +4993,7 @@ Descendants 会一直递归到栈溢出，而决策必须在生成 op 时做完�
 
 **`ResolveBox` 接受 id、id 前缀、或精确名字。** box 名不唯一（schema 里 `boxes.name_fold` 只有普通索引），所以名字撞了要报 `ErrAmbiguousRef` 并列出候选，而不是随便挑一个。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 ```go
 package library
@@ -5340,12 +5340,12 @@ func TestResolveTag(t *testing.T) {
 
 （测试文件顶部需要 `strings`。）
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `go test ./internal/library/ -run 'TestCreateBox|TestUpdateBox|TestCreateTag|TestRename|TestMoveTag|TestDeleteTag|TestTagBoxes|TestUntag|TestResolve' -v`
 Expected: FAIL，`undefined: CreateBox`
 
-- [ ] **Step 3: 在写路径上挂 tag 树的同步**
+- [x] **Step 3: 在写路径上挂 tag 树的同步**
 
 在 `internal/library/write.go` 的 `write` 里，`tx.Commit()` 成功之后加：
 
@@ -5442,7 +5442,7 @@ func (l *Library) refreshTagState(action oplog.Action, payload []byte) error {
 
 （`write.go` 顶部需要补 `domain`。）
 
-- [ ] **Step 4: 实现命令方法**
+- [x] **Step 4: 实现命令方法**
 
 `internal/library/commands.go`:
 
@@ -5767,12 +5767,12 @@ func sameTagID(a, b *domain.TagID) bool {
 }
 ```
 
-- [ ] **Step 5: 跑测试确认通过**
+- [x] **Step 5: 跑测试确认通过**
 
 Run: `go test ./internal/library/ -v`
 Expected: PASS
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add internal/library/commands.go internal/library/write.go internal/library/commands_test.go
