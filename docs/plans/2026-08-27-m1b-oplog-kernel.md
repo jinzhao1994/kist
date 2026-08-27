@@ -1420,7 +1420,7 @@ ts 定宽写入（毫秒补零 + Z）。少写一位毫秒，字典序就不再�
 
 **`ListBoxes` 的排序是字节序**（设计文档 4.8）。默认按 `updated_at DESC`（1.5.1 说它直接就是"最近有活动"），`--sort name` 时按 `name` 字节序。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 ```go
 package store
@@ -1782,12 +1782,12 @@ func TestListBoxes(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `go test ./internal/store/ -run 'TestInsertAndGetBox|TestUpdateBox|TestTag|TestBoxTags|TestTouch|TestClearViews|TestListBoxes|TestDeleteBox|TestAddBoxTag|TestGetBoxMissing|TestBoxDates' -v`
 Expected: FAIL，`undefined: NewViewTx`
 
-- [ ] **Step 3: 实现 ViewTx**
+- [x] **Step 3: 实现 ViewTx**
 
 `internal/store/views.go`:
 
@@ -2078,7 +2078,7 @@ func ClearViews(tx *sql.Tx) error {
 }
 ```
 
-- [ ] **Step 4: 实现读函数**
+- [x] **Step 4: 实现读函数**
 
 `internal/store/queries.go`:
 
@@ -2172,12 +2172,12 @@ func BoxTags(q Queryer, box domain.BoxID) ([]domain.TagID, error) {
 }
 ```
 
-- [ ] **Step 5: 跑测试确认通过**
+- [x] **Step 5: 跑测试确认通过**
 
 Run: `go test ./internal/store/ -v`
 Expected: PASS
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add internal/store/views.go internal/store/queries.go internal/store/views_test.go
