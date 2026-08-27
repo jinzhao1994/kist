@@ -2216,7 +2216,7 @@ ClearViews 的删除顺序由外键决定，且刻意不含 ops 和 blobs：前�
 
 **比对时只看语义字段，不看 `updated_at`。** spec 1.5.1 ④ 说得很清楚：`updated_at` 是被维护的派生状态，不参与 `Inverse`。把它纳入比对的话，任何一次撤销都会因为"时间戳对不上"而失败。
 
-- [ ] **Step 1: 写一个假的 Tx**
+- [x] **Step 1: 写一个假的 Tx**
 
 `internal/oplog/faketx_test.go`——handler 的测试不该需要一个数据库：
 
@@ -2386,7 +2386,7 @@ func (f *fakeTx) HasBoxTag(b domain.BoxID, t domain.TagID) (bool, error) {
 var _ Tx = (*fakeTx)(nil)
 ```
 
-- [ ] **Step 2: 写失败的测试**
+- [x] **Step 2: 写失败的测试**
 
 `internal/oplog/box_test.go`:
 
@@ -2687,12 +2687,12 @@ func h2Inverse(t *testing.T, a Action, raw []byte) (Action, []byte, error) {
 }
 ```
 
-- [ ] **Step 3: 跑测试确认失败**
+- [x] **Step 3: 跑测试确认失败**
 
 Run: `go test ./internal/oplog/ -run 'Box' -v`
 Expected: FAIL，`undefined: CreateBoxPayload`
 
-- [ ] **Step 4: 实现**
+- [x] **Step 4: 实现**
 
 `internal/oplog/box.go`:
 
@@ -2889,21 +2889,21 @@ func boxTargets(payload []byte) (Targets, error) {
 }
 ```
 
-- [ ] **Step 5: 把三个 action 放回 `AllActions()`**
+- [x] **Step 5: 把三个 action 放回 `AllActions()`**
 
 Task 2 的 Step 7 说过，`AllActions()` 里未实现的项要暂时注释掉。现在把 `ActionCreateBox` / `ActionDeleteBox` / `ActionUpdateBox` 三项放回来。
 
-- [ ] **Step 6: 跑测试确认通过**
+- [x] **Step 6: 跑测试确认通过**
 
 Run: `go test ./internal/oplog/ -v`
 Expected: PASS
 
-- [ ] **Step 7: 确认依赖方向没有被破坏**
+- [x] **Step 7: 确认依赖方向没有被破坏**
 
 Run: `go list -deps ./internal/oplog/ | grep kist`
 Expected: 只出现 `github.com/jinzhao1994/kist/internal/domain`。**如果出现 `store`，这个 task 就没做对**——`Apply` 必须够不到数据库。
 
-- [ ] **Step 8: 把严格模式的位置写进设计文档**
+- [x] **Step 8: 把严格模式的位置写进设计文档**
 
 在 `docs/design/2026-08-22-kist-v0.1-design.md` 的 2.5 节末尾补一段：
 
@@ -2917,7 +2917,7 @@ Expected: 只出现 `github.com/jinzhao1994/kist/internal/domain`。**如果出�
 >
 > **比对只看语义字段。** `created_at` 不可变，`updated_at` 是派生状态且按 1.5.1 ④ 不参与 `Inverse`——把它纳入比对的话，任何一次撤销都会因为"时间戳对不上"而失败。
 
-- [ ] **Step 9: 提交**
+- [x] **Step 9: 提交**
 
 ```bash
 git add internal/oplog/ docs/design/2026-08-22-kist-v0.1-design.md
