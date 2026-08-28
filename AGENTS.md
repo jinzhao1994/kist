@@ -26,7 +26,7 @@ Go 单二进制 + SQLite，Apache-2.0。
 
 **M1a 已完成**（计划见 `docs/plans/2026-08-22-m1a-storage-kernel.md`）：`domain` 的纯类型（UUIDv7 ID、变精度日期、折叠函数）、`blob` 的内容寻址存储（原子写、去重、损坏自愈、碰撞分支、链接能力探测）、`store` 的连接与 v0.1 全量 schema、`config`、`library.Create`，以及一个能真跑的 `kist init`。
 
-**M1b 已完成**（计划见 `docs/plans/2026-08-27-m1b-oplog-kernel.md`）：`oplog`（九个 action 的 `Apply` / `Inverse` / `Targets`、注册表、`Tx` 接口）、`store` 的 ops 表与物化视图读写、`library` 的唯一写路径与内存 tag 树、`Undo`（严格模式）、`Rebuild`，以及 `box` / `tag` / `log` / `undo` 四组 CLI。
+**M1b 已完成**（计划见 `docs/plans/2026-08-27-m1b-oplog-kernel.md`）：`oplog`（九个 action 的 `Apply` / `Inverse` / `Targets`、注册表、`Tx` 接口）、`store` 的 ops 表与物化视图读写、`library` 的唯一写路径与 tag 树、`Undo`（严格模式）、`Rebuild`，以及 `box` / `tag` / `log` / `undo` 四组 CLI。
 
 **M1c 已完成**（计划见 `docs/plans/2026-08-27-m1c-import-and-projection.md`）：`domain` 的 `File` / 子 `Folder` / 冲突改名、`oplog` 的 `import_files` / `delete_files` / `tag_files` / `untag_files`、`store` 的文件读写与 keyset 检索、`library.Import`（可中断、幂等、单文件失败不拖累整批）、新包 `internal/projection`（跨平台命名 + 期望树 + 磁盘 diff）、`Relink` 与写后增量投影，以及 `import` / `ls` / `find` / `file tag` / `relink` 五组 CLI。
 
@@ -48,11 +48,20 @@ Go 单二进制 + SQLite，Apache-2.0。
 
 **conformance suite 断言结果，从不断言查询计划。** 没有 `EXPLAIN`、没有关于索引的断言。v0.2 的 Postgres 实现只需要加一个和 `internal/store/conformance_test.go` 一模一样的文件。
 
-**B3（并发与多进程）已定并实现了一半**（2026-08-27，见设计文档 2.7）。
+**B3（并发与多进程）已定并实现完**（2026-08-27 / 08-28，见设计文档 2.7）。
 
-**已实现**：新包 `internal/lockfile`（`flock` / `LockFileEx` + 进程内信号量 + 持锁者诊断），`write()` / `Relink` / `Rebuild` 加锁，`Relink` 拆成加锁的导出版本和不加锁的内部版本（因为投影的回退路径在 `write()` 里面，再拿一次会和自己死锁）。`verify` / `scrub` / `repair` 明确不持锁。
+**决定 ①：`kist.lock` 上一把作用域为「一次逻辑写操作」的 OS 咨询锁。** 新包 `internal/lockfile`（`flock` / `LockFileEx` + 进程内信号量 + 持锁者诊断），`write()` / `Relink` / `Rebuild` 加锁，`Relink` 拆成加锁的导出版本和不加锁的内部版本（因为投影的回退路径在 `write()` 里面，再拿一次会和自己死锁）。`verify` / `scrub` / `repair` 明确不持锁。
 
-**没实现**：① 读路径比 `MAX(ops.id)`——只有 serve 需要，等 serve。③ 导入的名字分配——它的窗口是整个导入，持锁到底代价太大，选了「撞了就整批失败」，真正的修法写在 2.7 的实现记录里。
+**决定 ②：进程内不放任何「别的进程能让它作废」的状态。** 这条推翻了原来的「读路径比 `MAX(ops.id)`，不同就重载缓存」——版本号方案要求每一处状态都记得挂上检查，漏一处是个静默 bug 而且**没有任何测试会发现**（测试跑在一个进程里，那正是缓存永远正确的那种情况）。前提是 kist 部署在用户自己的设备上，没有吞吐量在替缓存说话。
+
+落地两处：
+
+- **投影目录名根本不是缓存**（`boxDirs()` 每次写都会重算），它存的是「上一次写之后的状态」。改成在 `write()` 里持锁期间取一次
+- **tag 树改成按需的定点查询**：名字 / id 走索引 lookup，子树展开走递归 CTE（`store.TagDescendants`），环检查走向上的 CTE（`store.TagAncestors`）。同一份 SQL 在 SQLite 和 PG 上都能跑。**用 `UNION` 不用 `UNION ALL`**——去重是递归能终止的原因，有测试拿手工造的环证明这条
+
+版本号没被否掉，它**降级**成一个可选的新鲜度特性（浏览器里那个页面新不新），不再是 M4 的前置条件。
+
+**没实现**：③ 导入的名字分配——它的窗口是整个导入，持锁到底代价太大，选了「撞了就整批失败」，真正的修法写在 2.7 的实现记录里。**同一个形状在 tag 命令上也有**（`MoveTag` 先读祖先链再拿锁），修法相同。
 
 **A1（HEIC）的截止条件改了**：从「M3 开始前」改成「网格浏览成为主要界面时」。HEIC 只挡住缩略图 / 预览，存储和检索都不需要解码，所以 M3 可以开写——但要按「**降级是默认路径**」规划。
 
