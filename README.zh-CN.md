@@ -60,6 +60,8 @@ kist init                                  # 交互式建库
 kist box new "云南" --start 2019-08-12      # 一个 box 就是一次出行、一次就诊、一批档案
 kist import --box 云南 ~/Pictures/2019/     # 把文件放进去；Ctrl-C 是安全的，重跑会跳过已导入的
 kist ls 云南                                # 看看里面有什么
+kist extract                               # 读 EXIF，让 --sort captured 有真实结果
+kist file show <id>                        # 一个文件的全部已知信息
 kist find --name jpg --tag 人物             # 跨 box 检索
 kist find --tag 人物 --not-tag 隐私 --sort name --asc
 kist file tag 人物 <file-id>                # 给文件打 tag

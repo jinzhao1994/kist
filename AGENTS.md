@@ -65,7 +65,11 @@ Go 单二进制 + SQLite，Apache-2.0。
 
 **schema 要改三处**（`file_metadata`、`source` 存提取器 id、`file_extractions`），**但那张表现在一行数据都没有**，所以改的是初始迁移而不是加一个新迁移。
 
-**下一步是 M3（提取），计划见 `docs/plans/2026-08-28-m3-extraction.md`（8 个 task）。** 里程碑顺序讨论过一轮：把 HTTP API 单独拆成一个里程碑被否掉了（没有客户端的 API 不构成可交付产出，而前端恰恰是 API 的压力测试），理由写进了 §7 的 M4。
+**M3 已完成**（计划见 `docs/plans/2026-08-28-m3-extraction.md`）：新包 `internal/extract`（提取器契约、命名空间所有权、`captured_at` 的解析规则）、内置的 `exif` 提取器（`bep/imagemeta`，**HEIC 的 EXIF 纯 Go 可读**）、`oplog` 的 `extract_metadata`、`store` 的 `file_metadata` / `file_extractions`、`library.Extract`，以及 `extract` / `file show` 两组 CLI。
+
+**`find --sort captured` 现在对照片是真的了。** 但**对没有 EXIF 的文件还不是**——见下面那条缺口。
+
+**一个已知缺口：`file:size` / `file:mtime` 还没有人抓。** 设计文档 1.7 说 mtime「对 PDF、扫描件、录音往往是唯一可用的时间信号……丢了就再也拿不回来——**导入时必须抓**」，而现在没有任何东西抓它。后果是这类文件的 `captured_at` 永远为空。它不能做成提取器：导入之后源文件的 mtime 就没了，blob 的 mtime 是 blob 的。所以要改 `Import` 和 `ImportFilesPayload`。 里程碑顺序讨论过一轮：把 HTTP API 单独拆成一个里程碑被否掉了（没有客户端的 API 不构成可交付产出，而前端恰恰是 API 的压力测试），理由写进了 §7 的 M4。
 
 里程碑拆分见设计文档第 7 节，明确的范围外清单见第 8 节，待决问题见 `open-questions.md`。
 

@@ -13,7 +13,7 @@ func newFileCmd() *cobra.Command {
 		Use:   "file",
 		Short: "Work with individual files",
 	}
-	cmd.AddCommand(newFileTagCmd(false), newFileTagCmd(true))
+	cmd.AddCommand(newFileTagCmd(false), newFileTagCmd(true), newFileShowCmd())
 	return cmd
 }
 

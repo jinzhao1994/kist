@@ -70,6 +70,8 @@ kist init                                  # create a library, interactively
 kist box new "Yunnan" --start 2019-08-12   # a box is one trip, one visit, one batch
 kist import --box Yunnan ~/Pictures/2019/  # copy files in; Ctrl-C is safe and resumable
 kist ls Yunnan                             # what is in there
+kist extract                               # read EXIF; makes --sort captured real
+kist file show <id>                        # everything known about one file
 kist find --name jpg --tag people          # search across boxes
 kist find --tag people --not-tag private --sort name --asc
 kist file tag people <file-id>             # attach a tag

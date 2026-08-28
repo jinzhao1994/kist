@@ -90,6 +90,26 @@ func FileMetadata(q Queryer, file domain.FileID) ([]MetadataRow, error) {
 	return out, rows.Err()
 }
 
+// Extractions reports which extractors have seen a file, and at what version.
+func Extractions(q Queryer, file domain.FileID) (map[string]int, error) {
+	rows, err := q.Query(`SELECT extractor, version FROM file_extractions WHERE file_id = ?`, file)
+	if err != nil {
+		return nil, fmt.Errorf("read extractions of %s: %w", file, err)
+	}
+	defer rows.Close()
+
+	out := map[string]int{}
+	for rows.Next() {
+		var name string
+		var version int
+		if err := rows.Scan(&name, &version); err != nil {
+			return nil, err
+		}
+		out[name] = version
+	}
+	return out, rows.Err()
+}
+
 // FilesNeedingExtraction lists files an extractor has not seen at this version.
 //
 // This is the query file_extractions exists for (spec 1.7.6 ③). The same
@@ -97,16 +117,22 @@ func FileMetadata(q Queryer, file domain.FileID) ([]MetadataRow, error) {
 // (invariant 4) — and at a hundred thousand files that would mean parsing tens
 // of megabytes of JSON to decide there is nothing to do.
 //
-// Ordering by id makes a run resumable in the ordinary way: the next batch is
-// whatever is still missing, and an interrupted run leaves the finished
-// batches recorded.
-func FilesNeedingExtraction(q Queryer, extractor string, version, limit int) ([]domain.FileID, error) {
+// after is a cursor: pass the zero FileID for the first batch, then the last
+// id of the previous one. It is not an optimisation.
+//
+// Relying on the recorded version to advance instead would loop forever the
+// first time a file failed to extract — a failure is deliberately not
+// recorded, so that a later run retries it (spec 3.7.1 ③), which means the
+// same batch would come back unchanged for as long as the process lived.
+func FilesNeedingExtraction(
+	q Queryer, extractor string, version int, after domain.FileID, limit int,
+) ([]domain.FileID, error) {
 	rows, err := q.Query(`
 		SELECT f.id FROM files f
 		LEFT JOIN file_extractions e ON e.file_id = f.id AND e.extractor = ?
-		WHERE e.version IS NULL OR e.version < ?
+		WHERE (e.version IS NULL OR e.version < ?) AND f.id > ?
 		ORDER BY f.id
-		LIMIT ?`, extractor, version, limit)
+		LIMIT ?`, extractor, version, after, limit)
 	if err != nil {
 		return nil, fmt.Errorf("find files needing %s: %w", extractor, err)
 	}

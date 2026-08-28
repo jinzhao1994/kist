@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -79,11 +80,50 @@ type Storage struct {
 }
 
 // Default builds the configuration for a fresh library.
+//
+// The timezone is written out rather than left empty, for the same reason 3.5
+// writes the link mode out: an empty value means "whatever this machine says",
+// and this one decides the order the user sees. A library created on a laptop
+// and later opened on a server set to UTC must not reorder itself.
 func Default(linkMode blob.LinkMode) *Config {
 	c := &Config{Version: CurrentVersion}
 	c.Library.ID = domain.NewID()
+	c.Library.Timezone = localZoneName()
 	c.Storage.LinkMode = linkMode
 	return c
+}
+
+// localZoneName is the machine's zone as an IANA name, or "" when it cannot be
+// named.
+//
+// time.Local is no help: its String is always "Local", and time.Now().Zone()
+// gives an abbreviation like "CST" that several real zones share. So the name
+// has to come from where the operating system keeps it — $TZ, or what
+// /etc/localtime points at.
+//
+// Empty is a working configuration: Zone falls back to the machine. It is just
+// not a portable one, which is why `kist init` shows what it found and says so
+// when it found nothing.
+func localZoneName() string {
+	if tz := os.Getenv("TZ"); tz != "" {
+		if _, err := time.LoadLocation(tz); err == nil {
+			return tz
+		}
+	}
+	target, err := os.Readlink("/etc/localtime")
+	if err != nil {
+		return ""
+	}
+	// .../zoneinfo/Asia/Shanghai -> Asia/Shanghai
+	i := strings.Index(target, "zoneinfo/")
+	if i < 0 {
+		return ""
+	}
+	name := target[i+len("zoneinfo/"):]
+	if _, err := time.LoadLocation(name); err != nil {
+		return ""
+	}
+	return name
 }
 
 func Load(path string) (*Config, error) {

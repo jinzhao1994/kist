@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/extract"
 	"github.com/jinzhao1994/kist/internal/oplog"
 	"github.com/jinzhao1994/kist/internal/query"
 	"github.com/jinzhao1994/kist/internal/store"
@@ -110,7 +111,73 @@ func busyLibrary(t *testing.T) *Library {
 	if _, err := l.Undo(ctx, lastOpID(t, l)); err != nil {
 		t.Fatal(err)
 	}
+
+	seedExtractions(t, l)
 	return l
+}
+
+// seedExtractions puts M3's tables into the proof.
+//
+// Four shapes, because each one replays differently:
+//
+//   - a first extraction, where the before state is empty
+//   - a second at a higher version, where Set and Was are both populated and
+//     one key disappears
+//   - an extraction that is then undone, so the replay has to run the inverse
+//     including its version rollback
+//   - a second extractor's rows alongside the first's, so the replay has to
+//     keep two sources apart in one file's row set
+//
+// A negative captured_at is in there too: a 1960 photograph is exactly what an
+// archive holds, and it is the value a TEXT column used to get wrong.
+func seedExtractions(t *testing.T, l *Library) {
+	t.Helper()
+	ctx := context.Background()
+
+	first := &fakeExtractor{id: "seed", version: 1, ns: []string{"seed"}, tags: []extract.KV{
+		{Key: "seed:Make", Value: "Apple", Type: extract.TypeText},
+		{Key: "seed:Junk", Value: "x", Type: extract.TypeText},
+		{Key: "exif:DateTimeOriginal", Value: "1960:03:04 09:00:00", Type: extract.TypeText},
+	}}
+	first.ns = []string{"seed", "exif"}
+	if _, err := l.extractUsing(ctx, []extract.Extractor{first}, ExtractOptions{BatchSize: 2}, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	second := &fakeExtractor{id: "seed", version: 2, ns: []string{"seed", "exif"}, tags: []extract.KV{
+		{Key: "seed:Make", Value: "APPLE", Type: extract.TypeText},
+		{Key: "seed:ISO", Value: "400", Type: extract.TypeInt},
+		{Key: "exif:DateTimeOriginal", Value: "1960:03:04 09:00:00", Type: extract.TypeText},
+	}}
+	if _, err := l.extractUsing(ctx, []extract.Extractor{second}, ExtractOptions{BatchSize: 100}, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	undone := &fakeExtractor{id: "undone", version: 1, ns: []string{"undone"}, tags: []extract.KV{
+		{Key: "undone:x", Value: "1", Type: extract.TypeReal},
+	}}
+	if _, err := l.extractUsing(ctx, []extract.Extractor{undone}, ExtractOptions{BatchSize: 100}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.Undo(ctx, lastOpID(t, l)); err != nil {
+		t.Fatal(err)
+	}
+
+	// A second extractor, so every file ends up with rows from two sources.
+	// The replay has to put each row back under the source that wrote it, and
+	// a mix-up would be invisible in any test that only ever had one.
+	//
+	// A row a person wrote would be the sharper case, and v0.1 cannot make
+	// one: the only writer of file_metadata is extract_metadata, whose Apply
+	// takes source from the payload's extractor — and the registry refuses an
+	// extractor called "user". That is 1.7's "表结构就位，功能留空" showing up
+	// as a thing the fixture cannot express yet, not as an oversight.
+	other := &fakeExtractor{id: "other", version: 1, ns: []string{"other"}, tags: []extract.KV{
+		{Key: "other:note", Value: "2029-08-12", Type: extract.TypeText},
+	}}
+	if _, err := l.extractUsing(ctx, []extract.Extractor{other}, ExtractOptions{BatchSize: 100}, nil); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // The fixture is only a proof if it actually populated the file tables.
@@ -127,7 +194,8 @@ func busyLibrary(t *testing.T) *Library {
 //     nothing else
 func TestBusyLibraryCoversTheFileTables(t *testing.T) {
 	l := busyLibrary(t)
-	for table, want := range map[string]int{"files": 5, "folders": 5, "blobs": 5, "file_tags": 4} {
+	for table, want := range map[string]int{"files": 5, "folders": 5, "blobs": 5, "file_tags": 4,
+		"file_metadata": 20, "file_extractions": 10} {
 		var n int
 		if err := l.db.QueryRow(`SELECT count(*) FROM ` + table).Scan(&n); err != nil {
 			t.Fatal(err)

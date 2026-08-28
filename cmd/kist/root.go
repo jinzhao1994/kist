@@ -39,6 +39,7 @@ and a global tag tree cuts across them for retrieval.`,
 	root.AddCommand(newBoxCmd())
 	root.AddCommand(newTagCmd())
 	root.AddCommand(newImportCmd())
+	root.AddCommand(newExtractCmd())
 	root.AddCommand(newLsCmd())
 	root.AddCommand(newFindCmd())
 	root.AddCommand(newFileCmd())
