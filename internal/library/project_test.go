@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/jinzhao1994/kist/internal/domain"
@@ -297,5 +298,48 @@ func TestProjectionFailureSetsTheDirtyFlag(t *testing.T) {
 	}
 	if len(projected(t, l)) != 1 {
 		t.Errorf("relink did not rebuild the projection: %v", projected(t, l))
+	}
+}
+
+// Two processes share a library (spec 2.7), and one of them must not act on a
+// directory name it remembered from before the other wrote.
+//
+// The remembered value is not a cache: boxDirs() is recomputed from the boxes
+// table on every write anyway. It is the *previous* state, held across a write
+// boundary so that the incremental projection can tell a rename (move the
+// directory) from a first projection (build it). Held in process memory it is
+// simply wrong as soon as anybody else writes.
+//
+// Renaming away and back is what makes the damage visible rather than
+// self-healing: the two names match, so the incremental path concludes nothing
+// moved and builds a second directory beside the one the other process left.
+// Syncer.Rename returns nil when the source is missing, so there is no error
+// to fall back on — spec 2.7 called this silent, and it is.
+func TestAStaleProjectedNameDoesNotStrandADirectory(t *testing.T) {
+	first, box := openWithBox(t)
+	ctx := t.Context()
+
+	second, err := Open(first.Layout().Root, WithClock(fixedClock()), WithActor("second"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer second.Close()
+	// second is now open, and has seen the box under its original name.
+
+	if _, err := first.UpdateBox(ctx, box, BoxFields{Name: "旅行"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := soleBoxDir(t, first); !strings.HasSuffix(got, "旅行") {
+		t.Fatalf("the first process projected %q, want a directory named 旅行", got)
+	}
+
+	// The person preferred the old name and changed it back, from the other
+	// process. What "the name before this write" is has to come from the
+	// database, not from what this process happened to see at Open.
+	if _, err := second.UpdateBox(ctx, box, BoxFields{Name: "云南"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := soleBoxDir(t, second); !strings.HasSuffix(got, "云南") {
+		t.Errorf("the second process projected %q, want a directory named 云南", got)
 	}
 }

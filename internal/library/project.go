@@ -142,7 +142,6 @@ func (l *Library) relink(ctx context.Context) (RelinkStats, error) {
 	}
 	stats.Removed += removed
 
-	l.dirs = dirs
 	l.clearDirty()
 	return stats, nil
 }
@@ -176,7 +175,13 @@ func (l *Library) syncBox(s *projection.Syncer, b domain.Box, dir string) (proje
 // tangled than "this box's name changed" — a collision chain that moved
 // another box, a rename that failed — falls back to a full Relink, which is
 // the rule spec 3.4.1 sets out.
-func (l *Library) project(ctx context.Context, changed []domain.BoxID) error {
+//
+// before is what the projected names were when this write started. It is a
+// parameter rather than a field because a field would be this process's
+// opinion of a directory tree that every other process can also write to
+// (spec 2.7): the projection is shared state, so "what it was before" has to
+// be read, under the lock, as part of the write that is about to change it.
+func (l *Library) project(ctx context.Context, changed []domain.BoxID, before map[domain.BoxID]string) error {
 	if len(changed) == 0 {
 		return nil
 	}
@@ -196,7 +201,7 @@ func (l *Library) project(ctx context.Context, changed []domain.BoxID) error {
 	// A box nobody touched whose name moved anyway means the collision suffix
 	// spread (spec 3.4.1). That is the "complicated" case; take the backstop.
 	for id, name := range dirs {
-		if old, ok := l.dirs[id]; ok && old != name && !touched[id] {
+		if old, ok := before[id]; ok && old != name && !touched[id] {
 			_, err := l.relink(ctx)
 			return err
 		}
@@ -206,12 +211,11 @@ func (l *Library) project(ctx context.Context, changed []domain.BoxID) error {
 
 	// Boxes that no longer exist — an undone create_box, say — leave their
 	// directory behind.
-	for id, old := range l.dirs {
+	for id, old := range before {
 		if _, ok := dirs[id]; !ok {
 			if err := os.RemoveAll(filepath.Join(l.layout.Boxes(), old)); err != nil {
 				return err
 			}
-			delete(l.dirs, id)
 		}
 	}
 
@@ -224,7 +228,7 @@ func (l *Library) project(ctx context.Context, changed []domain.BoxID) error {
 		if !ok {
 			continue // deleted above
 		}
-		if old, had := l.dirs[id]; had && old != dirs[id] {
+		if old, had := before[id]; had && old != dirs[id] {
 			if err := syncer.Rename(old, dirs[id]); err != nil {
 				l.log.Warn("falling back to a full relink", "box", id, "err", err)
 				_, err := l.relink(ctx)
@@ -235,19 +239,6 @@ func (l *Library) project(ctx context.Context, changed []domain.BoxID) error {
 			return err
 		}
 	}
-
-	l.dirs = dirs
-	return nil
-}
-
-// loadDirs seeds the cached box-directory names at Open, so the first write of
-// a session can tell a rename from a first projection.
-func (l *Library) loadDirs() error {
-	dirs, _, err := l.boxDirs()
-	if err != nil {
-		return err
-	}
-	l.dirs = dirs
 	return nil
 }
 

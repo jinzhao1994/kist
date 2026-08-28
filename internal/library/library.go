@@ -31,9 +31,6 @@ type Library struct {
 	actor string
 	now   func() time.Time
 	hooks hooks
-	// dirs caches each box's projected directory name, so a write can tell a
-	// rename (move the directory, O(1)) from a first projection (build it).
-	dirs map[domain.BoxID]string
 	// loc is the library's timezone, resolved once at Open. It interprets a
 	// date range against capture instants and renders one back (spec 1.5.2).
 	loc *time.Location
@@ -101,10 +98,6 @@ func Open(root string, opts ...Option) (*Library, error) {
 		return nil, err
 	}
 	if l.tags, err = LoadTagTree(l.db); err != nil {
-		l.db.Close()
-		return nil, err
-	}
-	if err := l.loadDirs(); err != nil {
 		l.db.Close()
 		return nil, err
 	}

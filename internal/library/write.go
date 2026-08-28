@@ -43,6 +43,16 @@ func (l *Library) write(
 	}
 	defer release()
 
+	// What boxes/ currently reflects, read under the lock. The incremental
+	// projection at the end needs to tell a rename from a first projection,
+	// and that answer is a property of the shared library rather than of this
+	// process — another process may have renamed a box since we opened
+	// (spec 2.7).
+	before, _, err := l.boxDirs()
+	if err != nil {
+		return 0, err
+	}
+
 	handler, err := oplog.Lookup(action)
 	if err != nil {
 		return 0, err
@@ -124,7 +134,7 @@ func (l *Library) write(
 	// human-readable mirror can still be behind, and relink fixes that
 	// (spec 3.4.1). Failing the caller here would tell them their change did
 	// not happen when it did, and the next thing they would do is repeat it.
-	if err := l.project(ctx, targets.Boxes); err != nil {
+	if err := l.project(ctx, targets.Boxes, before); err != nil {
 		l.log.Error("boxes/ could not be updated; run `kist relink`",
 			"op", opID, "action", action, "err", err)
 		l.markDirty(err)
