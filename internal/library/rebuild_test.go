@@ -125,8 +125,9 @@ func busyLibrary(t *testing.T) *Library {
 //     one key disappears
 //   - an extraction that is then undone, so the replay has to run the inverse
 //     including its version rollback
-//   - a second extractor's rows alongside the first's, so the replay has to
-//     keep two sources apart in one file's row set
+//   - a second extractor's rows alongside the first's, and the import's own
+//     file:size / file:mtime rows, so the replay has to keep three sources
+//     apart inside one file's row set
 //
 // A negative captured_at is in there too: a 1960 photograph is exactly what an
 // archive holds, and it is the value a TEXT column used to get wrong.
@@ -195,7 +196,7 @@ func seedExtractions(t *testing.T, l *Library) {
 func TestBusyLibraryCoversTheFileTables(t *testing.T) {
 	l := busyLibrary(t)
 	for table, want := range map[string]int{"files": 5, "folders": 5, "blobs": 5, "file_tags": 4,
-		"file_metadata": 20, "file_extractions": 10} {
+		"file_metadata": 30, "file_extractions": 10} {
 		var n int
 		if err := l.db.QueryRow(`SELECT count(*) FROM ` + table).Scan(&n); err != nil {
 			t.Fatal(err)

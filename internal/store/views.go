@@ -357,7 +357,23 @@ func (v *ViewTx) GetFile(id domain.FileID) (domain.File, bool, error) {
 	return f, true, nil
 }
 
+// DeleteFile removes a file and everything hanging off it.
+//
+// The metadata and extraction rows go too, and deliberately without asking:
+// unlike a tag, nothing in them is a person's decision. They are observations
+// that `kist extract` can produce again, so refusing the delete until they are
+// cleared — the way delete_files refuses a file that has been tagged — would
+// be a demand nobody could act on for no gain.
+//
+// The cascade is written out rather than left to ON DELETE CASCADE, because
+// the schema states its foreign keys plainly and one clause that behaves
+// differently from the others is a thing to trip over later.
 func (v *ViewTx) DeleteFile(id domain.FileID) error {
+	for _, table := range []string{"file_metadata", "file_extractions"} {
+		if _, err := v.tx.Exec(`DELETE FROM `+table+` WHERE file_id = ?`, id); err != nil {
+			return fmt.Errorf("delete %s of file %s: %w", table, id, err)
+		}
+	}
 	if _, err := v.tx.Exec(`DELETE FROM files WHERE id = ?`, id); err != nil {
 		return fmt.Errorf("delete file %s: %w", id, err)
 	}

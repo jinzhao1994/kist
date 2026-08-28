@@ -58,13 +58,30 @@ const (
 	// person wrote. No extractor may claim it, and no extraction may
 	// overwrite such a row (spec 1.7 rule ②).
 	UserSource = "user"
-	// ReservedNamespace is the key prefix that belongs to people.
-	ReservedNamespace = "user"
+	// ImportSource marks the rows the import pipeline records: a file's own
+	// size and modification time (spec 1.7).
+	//
+	// It is not an extractor and cannot be one. mtime has to be read from the
+	// source file, and once a file is in blobs/ that reading is gone — the
+	// stored copy's mtime is when it was written. "Capture it at import or
+	// never" is a property of the fact, not a design choice.
+	ImportSource = "file"
 	// MaxValueLen bounds one value. A scalar tag is never this long; anything
 	// that is has been mistaken for a string, and spec 1.7.2 does not expand
 	// binary blobs.
 	MaxValueLen = 1024
 )
+
+// reserved are the namespaces and source ids no extractor may claim.
+//
+// "user" belongs to people and "file" to the importer. Both are enforced at
+// registration rather than trusted, because the failure is silent: an
+// extractor writing into either would overwrite something nothing else can
+// reproduce.
+var reserved = map[string]string{
+	UserSource:   "people",
+	ImportSource: "the import pipeline",
+}
 
 // Extractor reads a file and reports what it observed.
 type Extractor interface {

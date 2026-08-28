@@ -41,8 +41,8 @@ func (r *registry) register(e Extractor) error {
 	switch {
 	case id == "":
 		return fmt.Errorf("an extractor with no id")
-	case id == UserSource:
-		return fmt.Errorf("an extractor may not be called %q: that value marks rows a person wrote", UserSource)
+	case reserved[id] != "":
+		return fmt.Errorf("an extractor may not be called %q: that source marks rows written by %s", id, reserved[id])
 	case len(namespaces) == 0:
 		return fmt.Errorf("extractor %s owns no namespace, so nothing it produces could be placed", id)
 	case e.Version() < 1:
@@ -60,8 +60,8 @@ func (r *registry) register(e Extractor) error {
 			return fmt.Errorf("extractor %s declares an empty namespace", id)
 		case strings.ContainsAny(ns, ":"):
 			return fmt.Errorf("extractor %s declares namespace %q; the colon is the separator, not part of the name", id, ns)
-		case ns == ReservedNamespace:
-			return fmt.Errorf("extractor %s claims the %q namespace, which belongs to people (spec 1.7 rule ②)", id, ReservedNamespace)
+		case reserved[ns] != "":
+			return fmt.Errorf("extractor %s claims the %q namespace, which belongs to %s (spec 1.7 rule ②)", id, ns, reserved[ns])
 		}
 		if other, taken := r.owner[ns]; taken {
 			return fmt.Errorf("extractor %s claims namespace %q, which %s already owns", id, ns, other)

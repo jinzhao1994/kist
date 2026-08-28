@@ -2,8 +2,10 @@ package oplog
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/extract"
 )
 
 func init() {
@@ -35,6 +37,20 @@ type ImportedFile struct {
 	BlobKey  string          `json:"blob_key"`
 	Sha256   string          `json:"sha256"`
 	Size     int64           `json:"size"`
+	// MTime is the source file's modification time, in unix seconds.
+	//
+	// It is captured here because it cannot be captured anywhere else: once
+	// the content is in blobs/, the stored copy's mtime is when it was
+	// written. For a PDF, a scan or a voice memo it is often the only time
+	// signal there is (spec 1.7), and it is what captured_at falls back to.
+	MTime int64 `json:"mtime,omitempty"`
+	// CapturedAt is the kernel's conclusion at import time (spec 1.5.2).
+	//
+	// It is resolved when the op is generated, not inside Apply: the
+	// resolution needs the library's timezone, which is configuration rather
+	// than payload, and a decision that reads configuration during a replay
+	// would break invariant 3. Extraction refines it later.
+	CapturedAt domain.Instant `json:"captured_at,omitempty"`
 }
 
 // ImportFilesPayload is one import: one box, the folders it had to create, and
@@ -84,7 +100,33 @@ func (importFiles) Apply(tx Tx, payload []byte) error {
 		if err != nil {
 			return err
 		}
+		file.CapturedAt = f.CapturedAt
 		if err := tx.InsertFile(file); err != nil {
+			return err
+		}
+		if err := applyFileFacts(tx, f); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// applyFileFacts records what the file itself said about itself.
+//
+// Under extract.ImportSource rather than an extractor id, because nothing can
+// re-derive these: a later run would read the blob's mtime, which is when kist
+// wrote it. Marking them as some extractor's would invite exactly that re-run.
+func applyFileFacts(tx Tx, f ImportedFile) error {
+	facts := []extract.KV{
+		{Key: "file:size", Value: strconv.FormatInt(f.Size, 10), Type: extract.TypeInt},
+	}
+	if f.MTime != 0 {
+		facts = append(facts, extract.KV{
+			Key: "file:mtime", Value: strconv.FormatInt(f.MTime, 10), Type: extract.TypeInt,
+		})
+	}
+	for _, kv := range facts {
+		if err := tx.SetFileMetadata(f.FileID, kv, extract.ImportSource); err != nil {
 			return err
 		}
 	}

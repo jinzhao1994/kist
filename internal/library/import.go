@@ -8,10 +8,12 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/jinzhao1994/kist/internal/blob"
 	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/extract"
 	"github.com/jinzhao1994/kist/internal/oplog"
 	"github.com/jinzhao1994/kist/internal/store"
 )
@@ -288,6 +290,15 @@ func (l *Library) importOne(
 	}
 	defer f.Close()
 
+	// The source file's own facts, read while the source still exists. Once
+	// the content is in blobs/ this is gone: the stored copy's mtime is when
+	// kist wrote it, so "capture it now or never" is a property of the fact
+	// rather than a choice about where to put the code (spec 1.7).
+	var mtime int64
+	if info, err := f.Stat(); err == nil {
+		mtime = info.ModTime().Unix()
+	}
+
 	put, err := l.blobs.Put(ctx, f)
 	if err != nil {
 		r.Err = err
@@ -303,12 +314,14 @@ func (l *Library) importOne(
 	r.Name = name
 
 	payload.Files = append(payload.Files, oplog.ImportedFile{
-		FileID:   domain.NewFileID(),
-		FolderID: folder,
-		Name:     name,
-		BlobKey:  string(put.Key),
-		Sha256:   put.Key.Hex(),
-		Size:     put.Size,
+		FileID:     domain.NewFileID(),
+		FolderID:   folder,
+		Name:       name,
+		BlobKey:    string(put.Key),
+		Sha256:     put.Key.Hex(),
+		Size:       put.Size,
+		MTime:      mtime,
+		CapturedAt: l.capturedFromFacts(put.Size, mtime),
 	})
 	r.Status = FileImported
 	return r
@@ -431,4 +444,30 @@ func (t *importTree) folderFor(rel string, payload *oplog.ImportFilesPayload) (d
 	})
 	t.byPath[rel] = id
 	return id, nil
+}
+
+// capturedFromFacts resolves a capture time from what the import knows.
+//
+// At import there is no EXIF yet — extraction is a separate op — so this is
+// only ever the modification time. That is a poor answer for a photograph and
+// the only one there is for a scan, a contract or a voice memo, which is most
+// of what an archive holds (spec 1.7).
+//
+// It runs here, while the op is being generated, because the resolution needs
+// the library's timezone: configuration is not payload, and a decision that
+// read configuration during a replay would break invariant 3. `kist extract`
+// overwrites this the moment it finds something better.
+func (l *Library) capturedFromFacts(size, mtime int64) domain.Instant {
+	if mtime == 0 {
+		return domain.Instant{}
+	}
+	facts := []extract.KV{
+		{Key: "file:size", Value: strconv.FormatInt(size, 10), Type: extract.TypeInt},
+		{Key: "file:mtime", Value: strconv.FormatInt(mtime, 10), Type: extract.TypeInt},
+	}
+	c := extract.ResolveCaptured(facts, l.zone())
+	if !c.Known {
+		return domain.Instant{}
+	}
+	return domain.NewInstant(c.Unix)
 }

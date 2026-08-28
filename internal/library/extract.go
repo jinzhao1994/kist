@@ -218,8 +218,19 @@ func (l *Library) extractOne(
 		// Not a failure and not a change: a PDF has no EXIF, and most of an
 		// archive is not photographs. It still counts as seen, so the next
 		// run does not read it again.
+		//
+		// captured_at is carried through unchanged rather than left at its
+		// zero value. Apply writes whatever the payload says, and a zero
+		// Instant is a real value meaning NULL — so an empty one here would
+		// wipe the time the import resolved from mtime. That is precisely
+		// what happened the first time this was run by hand: every
+		// non-photograph in the library lost its capture time to a skip.
 		r.Status = FileSkipped
-		return &oplog.FileExtraction{FileID: id}, r
+		return &oplog.FileExtraction{
+			FileID:      id,
+			CapturedAt:  file.CapturedAt,
+			CapturedWas: file.CapturedAt,
+		}, r
 	}
 	if _, err := f.Seek(0, 0); err != nil {
 		r.Err = err

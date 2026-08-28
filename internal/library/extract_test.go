@@ -3,6 +3,7 @@ package library
 import (
 	"context"
 	"io"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -200,6 +201,20 @@ func TestAnUnwantedFileIsRecordedAsSeen(t *testing.T) {
 	if e.calls != 0 {
 		t.Errorf("the extractor was called %d times for a file it does not want", e.calls)
 	}
+
+	// And a skip must not take the capture time with it. Import resolved one
+	// from mtime; an extractor that has nothing to say about this file has
+	// nothing to say about that either.
+	after, _, err := l.File(t.Context(), file.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.CapturedAt != file.CapturedAt {
+		t.Errorf("a skip changed captured_at from %v to %v", file.CapturedAt, after.CapturedAt)
+	}
+	if after.CapturedAt.IsZero() {
+		t.Error("captured_at was wiped by a skip; every non-photograph in a library would lose its time")
+	}
 }
 
 // spec 1.5.2: captured_at is the kernel's conclusion, written in the same op
@@ -267,3 +282,75 @@ var errFake = errFakeType{}
 type errFakeType struct{}
 
 func (errFakeType) Error() string { return "fake extractor failure" }
+
+// spec 1.7: mtime is captured at import because it cannot be captured later —
+// once the content is in blobs/, the stored copy's mtime is when kist wrote it.
+//
+// This is what makes "find --sort captured" mean anything for the files an
+// archive is mostly made of: a scan, a contract, a voice memo. Without it the
+// milestone's deliverable would hold for photographs only.
+func TestImportRecordsTheSourcesOwnFacts(t *testing.T) {
+	l, box := openWithBox(t)
+	file := importOneFile(t, l, box, "合同.pdf", "x")
+
+	rows := metaOf(t, l, file.ID)
+	mtime, ok := rows["file:mtime"]
+	if !ok {
+		t.Fatalf("no file:mtime was recorded; got %v", keysOf(rows))
+	}
+	if mtime.Source != extract.ImportSource {
+		t.Errorf("file:mtime source = %q, want %q", mtime.Source, extract.ImportSource)
+	}
+	if mtime.Type != extract.TypeInt {
+		t.Errorf("file:mtime type = %q, want int", mtime.Type)
+	}
+	if size, ok := rows["file:size"]; !ok || size.Value != "1" {
+		t.Errorf("file:size = %+v, want the byte count", size)
+	}
+
+	// And it becomes a capture time, resolved while the op was generated.
+	if file.CapturedAt.IsZero() {
+		t.Error("a file with no EXIF got no capture time; mtime is the fallback (spec 1.5.2)")
+	}
+	sec, _ := file.CapturedAt.Unix()
+	if want, _ := strconv.ParseInt(mtime.Value, 10, 64); sec != want {
+		t.Errorf("captured_at = %d, want the mtime %d", sec, want)
+	}
+}
+
+// An extractor may not touch the import's rows, the same way it may not touch
+// a person's. Nothing can re-derive them, so an overwrite is unrecoverable.
+func TestExtractionNeverOverwritesTheImportsFacts(t *testing.T) {
+	l, box := openWithBox(t)
+	file := importOneFile(t, l, box, "a.jpg", "x")
+	before := metaOf(t, l, file.ID)["file:mtime"]
+
+	// A misbehaving extractor: it declares its own namespace but produces a
+	// key in the import's. Check refuses this at the contract, and the diff
+	// refuses it again here — the two guard different callers.
+	e := &fakeExtractor{id: "rogue", version: 1, ns: []string{"rogue", "file"},
+		tags: []extract.KV{{Key: "file:mtime", Value: "1", Type: extract.TypeInt}}}
+	extractWith(t, l, e)
+
+	if got := metaOf(t, l, file.ID)["file:mtime"]; got != before {
+		t.Errorf("an extractor overwrote the import's mtime: %+v, was %+v", got, before)
+	}
+}
+
+// The registry refuses to hand out the reserved namespaces at all, which is
+// the cheaper place to stop it.
+func TestTheImportNamespaceIsReserved(t *testing.T) {
+	for _, name := range []string{extract.ImportSource, extract.UserSource} {
+		if _, err := extract.Lookup(name); err == nil {
+			t.Errorf("an extractor is registered under the reserved id %q", name)
+		}
+	}
+}
+
+func keysOf(m map[string]store.MetadataRow) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
+}

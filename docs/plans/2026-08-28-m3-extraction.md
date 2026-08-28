@@ -1346,3 +1346,17 @@ conformance fixture 里的日期**仍然写成 `"2019-08-12"`**，由 `mustInsta
 
 **它不能做成提取器**：导入之后源文件的 mtime 就没了，`blobs/` 里那份的 mtime 是写入时间。所以要改 `Import` 与 `ImportFilesPayload`——一个 op 格式的改动，越早越好。计划的八个 task 里没有它，这是计划的遗漏而不是实现的取舍。
 
+### ✅ 已补进 M3（Task 9）
+
+`ImportedFile` 长出 `MTime` 和 `CapturedAt`，`importOne` 在源文件还在的时候 `Stat` 一次，`Apply` 写出 `file:size` / `file:mtime` 两行，source 是新的保留值 `file`。
+
+**`captured_at` 的解析在生成 op 时做，不在 `Apply` 里**——解析要库时区，而配置不是 payload，重放时读配置就破了不变量 3。
+
+**`file:` 成了第三个保留命名空间**（`user:` 归人、`file:` 归导入管线），注册表拒绝提取器认领它，`diffExtraction` 再拒一次。理由是同一条：没有任何东西能重新推导它们。
+
+**手工走查抓到一个单元测试没覆盖的 bug：跳过的文件会把 `captured_at` 清空。** `extractOne` 的 skip 分支返回了一个零值的 `FileExtraction`，而 `Apply` 照payload 写——零值 `Instant` 是一个真实的值，意思是 NULL。后果是**每个非照片文件都会在 `kist extract` 之后丢掉导入时解析出的时间**。
+
+`TestAnUnwantedFileIsRecordedAsSeen` 本来就在测跳过路径，但它没断言 `captured_at`。补上之后变异当场变红。
+
+一条 CLI 测试的前提消失了：`TestFindWithATimeRangeIsEmptyForNow` 断言的是「现在没有文件有拍摄时间，所以时间筛选返回空」。**那正是 M3 要交付的东西**，改成断言范围真的能筛。
+
