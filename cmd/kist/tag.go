@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/wire"
 )
 
 func newTagCmd() *cobra.Command {
@@ -74,18 +76,31 @@ func newTagTreeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var print func(tags []domain.Tag, depth int)
-			print = func(tags []domain.Tag, depth int) {
-				for _, tag := range tags {
-					// The count is the subtree total, which is what the tag
-					// selector will show later (spec 1.6).
-					fmt.Fprintf(cmd.OutOrStdout(), "%s%s (%d)\n",
-						strings.Repeat("  ", depth), tag.Name, totals[tag.ID])
-					print(tree.Children(tag.ID), depth+1)
+			// The count is the subtree total, which is what a tag selector
+			// shows next to a node (spec 1.6).
+			var build func(tags []domain.Tag) []wire.Tag
+			build = func(tags []domain.Tag) []wire.Tag {
+				out := make([]wire.Tag, len(tags))
+				for i, tag := range tags {
+					out[i] = wire.NewTag(tag, totals[tag.ID])
+					out[i].Children = build(tree.Children(tag.ID))
 				}
+				return out
 			}
-			print(tree.Roots(), 0)
-			return nil
+			out := wire.TagTree{Tags: build(tree.Roots())}
+
+			return emit(cmd, out, func(w io.Writer) error {
+				var print func(tags []wire.Tag, depth int)
+				print = func(tags []wire.Tag, depth int) {
+					for _, tag := range tags {
+						fmt.Fprintf(w, "%s%s (%d)\n",
+							strings.Repeat("  ", depth), tag.Name, tag.Count)
+						print(tag.Children, depth+1)
+					}
+				}
+				print(out.Tags, 0)
+				return nil
+			})
 		},
 	}
 }

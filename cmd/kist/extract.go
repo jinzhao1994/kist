@@ -12,6 +12,7 @@ import (
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/extract"
 	"github.com/jinzhao1994/kist/internal/library"
+	"github.com/jinzhao1994/kist/internal/wire"
 )
 
 const extractStopMessage = "stopping — the batches already recorded will be kept; press Ctrl-C again to discard them"
@@ -135,29 +136,47 @@ func newFileShowCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
-			w := cmd.OutOrStdout()
-			fmt.Fprintf(w, "%s\n%s\n\n", file.ID, path)
-			l.DescribeCapturedAt(cmd.Context(), w, file)
-
 			rows, err := l.FileMetadata(cmd.Context(), id)
 			if err != nil {
 				return err
 			}
-			if len(rows) == 0 {
-				fmt.Fprintln(w, "\nno metadata — nothing this build can read out of this file")
-				return nil
+			info, err := l.CapturedInfo(cmd.Context(), file)
+			if err != nil {
+				return err
 			}
-			fmt.Fprintln(w)
-			tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-			for _, r := range rows {
-				source := r.Source
-				if r.Source == extract.UserSource {
-					source = "you"
+
+			out := wire.FileDetail{
+				File:         wire.NewFile(file, path, l.Zone()),
+				CapturedFrom: info.From,
+				CapturedZone: info.Zone,
+				Extracted:    info.Extracted,
+				Metadata:     make([]wire.Metadata, len(rows)),
+			}
+			for i, r := range rows {
+				out.Metadata[i] = wire.Metadata{
+					Key: r.Key, Value: r.Value, Type: string(r.Type), Source: r.Source,
 				}
-				fmt.Fprintf(tw, "%s\t%s\t%s\n", r.Key, r.Value, source)
 			}
-			return tw.Flush()
+
+			return emit(cmd, out, func(w io.Writer) error {
+				fmt.Fprintf(w, "%s\n%s\n\n", file.ID, path)
+				l.DescribeCapturedAt(cmd.Context(), w, file)
+
+				if len(rows) == 0 {
+					fmt.Fprintln(w, "\nno metadata — nothing this build can read out of this file")
+					return nil
+				}
+				fmt.Fprintln(w)
+				tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+				for _, r := range rows {
+					source := r.Source
+					if r.Source == extract.UserSource {
+						source = "you"
+					}
+					fmt.Fprintf(tw, "%s\t%s\t%s\n", r.Key, r.Value, source)
+				}
+				return tw.Flush()
+			})
 		},
 	}
 }

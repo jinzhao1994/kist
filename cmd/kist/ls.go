@@ -3,6 +3,7 @@ package main
 import (
 	"cmp"
 	"fmt"
+	"io"
 	"slices"
 	"text/tabwriter"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/library"
 	"github.com/jinzhao1994/kist/internal/query"
+	"github.com/jinzhao1994/kist/internal/wire"
 )
 
 func newLsCmd() *cobra.Command {
@@ -53,15 +55,17 @@ func listBoxes(cmd *cobra.Command, l *library.Library) error {
 	if err != nil {
 		return err
 	}
-	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-	for _, b := range boxes {
-		date := b.StartAt.String()
-		if date == "" {
-			date = "—"
+	return emit(cmd, wire.BoxList{Boxes: wire.NewBoxes(boxes)}, func(w io.Writer) error {
+		tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+		for _, b := range boxes {
+			date := b.StartAt.String()
+			if date == "" {
+				date = "—"
+			}
+			fmt.Fprintf(tw, "%s\t%s\t%s\n", b.ID, date, b.Name)
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\n", b.ID, date, b.Name)
-	}
-	return w.Flush()
+		return tw.Flush()
+	})
 }
 
 func listFolder(cmd *cobra.Command, l *library.Library, b domain.Box, path string) error {
@@ -87,14 +91,31 @@ func listFolder(cmd *cobra.Command, l *library.Library, b domain.Box, path strin
 	}
 	slices.SortFunc(files, func(x, y domain.File) int { return cmp.Compare(x.Name, y.Name) })
 
-	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-	for _, f := range subs {
-		fmt.Fprintf(w, "%s\t%s/\n", f.UpdatedAt.Format("2006-01-02 15:04"), f.Name)
+	out := wire.FolderList{
+		Box:     wire.NewBox(b),
+		Folder:  wire.NewFolder(folder),
+		Folders: make([]wire.Folder, len(subs)),
+		Files:   make([]wire.File, len(files)),
 	}
-	for _, f := range files {
-		fmt.Fprintf(w, "%s\t%s\t%s\n", f.UpdatedAt.Format("2006-01-02 15:04"), f.Name, f.ID)
+	for i, f := range subs {
+		out.Folders[i] = wire.NewFolder(f)
 	}
-	return w.Flush()
+	for i, f := range files {
+		// No path: inside one folder the name is the whole answer, and
+		// resolving a path costs a walk up the chain per file.
+		out.Files[i] = wire.NewFile(f, "", l.Zone())
+	}
+
+	return emit(cmd, out, func(w io.Writer) error {
+		tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+		for _, f := range subs {
+			fmt.Fprintf(tw, "%s\t%s/\n", f.UpdatedAt.Format("2006-01-02 15:04"), f.Name)
+		}
+		for _, f := range files {
+			fmt.Fprintf(tw, "%s\t%s\t%s\n", f.UpdatedAt.Format("2006-01-02 15:04"), f.Name, f.ID)
+		}
+		return tw.Flush()
+	})
 }
 
 // warnIfProjectionStale puts the dirty marker in front of a person.

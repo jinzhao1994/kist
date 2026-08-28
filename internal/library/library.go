@@ -134,6 +134,13 @@ func (l *Library) TagTree() (*TagTree, map[domain.TagID]int, error) {
 // range against capture instants and renders one back.
 func (l *Library) zone() *time.Location { return l.loc }
 
+// Zone is the timezone this library renders instants in.
+//
+// It is exported because a capture time is an instant and rendering it is the
+// caller's decision (spec 1.5.2): cmd needs it to put an offset on the JSON,
+// and api will need it for the same reason.
+func (l *Library) Zone() *time.Location { return l.loc }
+
 // Box reads one box.
 func (l *Library) Box(ctx context.Context, id domain.BoxID) (domain.Box, bool, error) {
 	var (

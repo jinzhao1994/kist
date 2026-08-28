@@ -2,12 +2,14 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/library"
+	"github.com/jinzhao1994/kist/internal/wire"
 )
 
 func newBoxCmd() *cobra.Command {
@@ -85,15 +87,17 @@ func newBoxListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-			for _, b := range boxes {
-				when := b.StartAt.String()
-				if when == "" {
-					when = "-"
+			return emit(cmd, wire.BoxList{Boxes: wire.NewBoxes(boxes)}, func(w io.Writer) error {
+				tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+				for _, b := range boxes {
+					when := b.StartAt.String()
+					if when == "" {
+						when = "-"
+					}
+					fmt.Fprintf(tw, "%s\t%s\t%s\n", b.ID, when, b.Name)
 				}
-				fmt.Fprintf(w, "%s\t%s\t%s\n", b.ID, when, b.Name)
-			}
-			return w.Flush()
+				return tw.Flush()
+			})
 		},
 	}
 	// Default is most-recently-active first; --sort-name is byte order

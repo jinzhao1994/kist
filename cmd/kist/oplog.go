@@ -2,12 +2,14 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"strconv"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
 	"github.com/jinzhao1994/kist/internal/library"
+	"github.com/jinzhao1994/kist/internal/wire"
 )
 
 func newLogCmd() *cobra.Command {
@@ -41,21 +43,41 @@ func newLogCmd() *cobra.Command {
 				return err
 			}
 
-			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-			for _, op := range ops {
+			out := wire.OpList{Ops: make([]wire.Op, len(ops))}
+			for i, op := range ops {
 				// Marking reverted ops is what reverts_id being an indexed
 				// column is for (spec 2.2).
-				status := ""
-				if by, ok, err := l.RevertedBy(cmd.Context(), op.ID); err == nil && ok {
-					status = fmt.Sprintf("(undone by %d)", by)
+				row := wire.Op{
+					ID:        op.ID,
+					TS:        op.TS,
+					Action:    string(op.Action),
+					Source:    string(op.Source),
+					Actor:     op.Actor,
+					RevertsID: op.RevertsID,
 				}
-				if op.RevertsID != nil {
-					status = fmt.Sprintf("(undoes %d)", *op.RevertsID)
+				if by, ok, err := l.RevertedBy(cmd.Context(), op.ID); err != nil {
+					return err
+				} else if ok {
+					row.UndoneBy = &by
 				}
-				fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\n",
-					op.ID, op.TS.Format("2006-01-02 15:04:05"), op.Action, op.Source, status)
+				out.Ops[i] = row
 			}
-			return w.Flush()
+
+			return emit(cmd, out, func(w io.Writer) error {
+				tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+				for _, op := range out.Ops {
+					status := ""
+					if op.UndoneBy != nil {
+						status = fmt.Sprintf("(undone by %d)", *op.UndoneBy)
+					}
+					if op.RevertsID != nil {
+						status = fmt.Sprintf("(undoes %d)", *op.RevertsID)
+					}
+					fmt.Fprintf(tw, "%d\t%s\t%s\t%s\t%s\n",
+						op.ID, op.TS.Format("2006-01-02 15:04:05"), op.Action, op.Source, status)
+				}
+				return tw.Flush()
+			})
 		},
 	}
 	cmd.Flags().IntVarP(&limit, "limit", "n", 20, "how many ops to show")

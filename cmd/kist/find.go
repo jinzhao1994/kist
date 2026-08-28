@@ -2,12 +2,14 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/query"
+	"github.com/jinzhao1994/kist/internal/wire"
 )
 
 func newFindCmd() *cobra.Command {
@@ -17,6 +19,7 @@ func newFindCmd() *cobra.Command {
 		notTags []string
 		box     string
 		sort    string
+		cursor  string
 		asc     bool
 		since   string
 		until   string
@@ -36,18 +39,16 @@ files tagged with any person.
   --sort   captured (default), imported, or name
   --asc    oldest or A-Z first, instead of newest or Z-A
 
-Time filtering takes --since and --until, and two things about it surprise
-people:
+Time filtering takes --since and --until. Give the dates as precisely as you
+like — "2019", "2019-08", "2019-08-12" — and each one is read as the whole
+period it names: --since 2019-03 --until 2019-06 means from the first moment
+of March to the last of June.
 
-  Dates are as precise as you knew at the time — "2019", "2019-08",
-  "2019-08-12" — and matching is by overlap. --since 2019-03 --until 2019-06
-  therefore also finds things dated only "2019", because they might be from
-  the spring. An archive is for finding your things, so it would rather show
-  you one too many than hide one.
-
-  Files do not have a capture time yet. Reading it out of EXIF is a later
-  milestone, so today a --since or --until search finds nothing at all. Box
-  dates, which you set yourself, are unaffected.`,
+A file's capture time is a real instant, not a period (it comes from EXIF, or
+failing that from the file's own timestamp), so a file is either inside that
+range or it is not. Run ` + "`kist extract`" + ` after importing to read
+capture times out of photographs; until then a file is dated by when its bytes
+were last written.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			l, err := openLibrary(cmd)
@@ -83,22 +84,39 @@ people:
 			}
 			q.Tags = combineTagConditions(required, excluded)
 
-			files, _, err := l.Files(cmd.Context(), q)
+			q.Cursor = cursor
+
+			files, next, err := l.Files(cmd.Context(), q)
 			if err != nil {
 				return err
 			}
 
-			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-			for _, f := range files {
-				// The path inside the box, not just the name: a bare file name
-				// is not enough to go find the thing under boxes/.
+			// The path inside the box, not just the name: a bare file name is
+			// not enough to go find the thing under boxes/.
+			out := wire.FileList{Files: make([]wire.File, len(files)), Cursor: next}
+			for i, f := range files {
 				path, err := l.FilePath(cmd.Context(), f)
 				if err != nil {
 					return err
 				}
-				fmt.Fprintf(w, "%s\t%s\n", f.ID, path)
+				out.Files[i] = wire.NewFile(f, path, l.Zone())
 			}
-			return w.Flush()
+
+			return emit(cmd, out, func(w io.Writer) error {
+				tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+				for _, f := range out.Files {
+					fmt.Fprintf(tw, "%s\t%s\n", f.ID, f.Path)
+				}
+				if err := tw.Flush(); err != nil {
+					return err
+				}
+				// A cursor is only useful to a script, and a script uses
+				// --json. Saying "there is more" is useful to a person.
+				if out.Cursor != "" {
+					fmt.Fprintf(w, "\n(more results; raise --limit or use --json to page)\n")
+				}
+				return nil
+			})
 		},
 	}
 	cmd.Flags().StringVar(&name, "name", "", "match this substring of the file name")
@@ -110,6 +128,7 @@ people:
 	cmd.Flags().StringVar(&since, "since", "", "only files captured on or after this date (2019, 2019-08, 2019-08-12)")
 	cmd.Flags().StringVar(&until, "until", "", "only files captured on or before this date")
 	cmd.Flags().IntVarP(&limit, "limit", "n", 50, "how many results to show")
+	cmd.Flags().StringVar(&cursor, "cursor", "", "continue from a previous page (see the cursor in --json output)")
 	return cmd
 }
 

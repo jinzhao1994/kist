@@ -34,6 +34,8 @@ and a global tag tree cuts across them for retrieval.`,
 
 	root.PersistentFlags().StringVar(&libraryFlag, "library", "",
 		"path to the kist library (default ~/kist)")
+	root.PersistentFlags().BoolVar(&jsonFlag, "json", false,
+		"print results as JSON")
 
 	root.AddCommand(newInitCmd())
 	root.AddCommand(newBoxCmd())

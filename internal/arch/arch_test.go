@@ -173,3 +173,22 @@ func TestExtractKnowsOnlyDomain(t *testing.T) {
 		}
 	}
 }
+
+// TestWireIsOnlyTheShape keeps the JSON contract reachable from both surfaces.
+//
+// cmd and api both render it (spec 2.8), and cmd may not import store
+// (invariant 2). If wire could see store or library it would only be usable
+// from one side, and the CLI and the API would end up with two definitions of
+// a box that drift apart at exactly the moment somebody adds a field.
+//
+// It is the same rule as query and oplog, for the same reason.
+func TestWireIsOnlyTheShape(t *testing.T) {
+	for _, imp := range imports(t, "internal/wire") {
+		if imp != "internal/domain" {
+			t.Errorf("internal/wire imports %s.\n\n"+
+				"The JSON shape may depend on domain and nothing else. It is rendered by\n"+
+				"cmd, which cannot reach store (invariant 2), and by api — if it could see\n"+
+				"either, one surface would own the contract and the other would copy it.", imp)
+		}
+	}
+}

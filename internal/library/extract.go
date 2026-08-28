@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"slices"
 	"sort"
 
 	"github.com/jinzhao1994/kist/internal/domain"
@@ -394,6 +395,47 @@ func (r *ExtractResult) Count(s FileStatus) int {
 // FileMetadata reads everything recorded about a file.
 func (l *Library) FileMetadata(ctx context.Context, id domain.FileID) ([]store.MetadataRow, error) {
 	return store.FileMetadata(l.db, id)
+}
+
+// CapturedInfo says how a file's capture time was established.
+//
+// It is the structured form of what DescribeCapturedAt says in prose, so that
+// the JSON output and the human one cannot disagree about a file (spec 2.8).
+// From names the metadata key the time came from; Zone how the timezone was
+// established (spec 1.5.2); Extracted which extractors have run, which is what
+// separates "nothing has looked yet" from "nothing in this file says when".
+type CapturedInfo struct {
+	From      string
+	Zone      string
+	Extracted []string
+}
+
+// CapturedInfo resolves the provenance of one file's capture time.
+func (l *Library) CapturedInfo(ctx context.Context, f domain.File) (CapturedInfo, error) {
+	seen, err := store.Extractions(l.db, f.ID)
+	if err != nil {
+		return CapturedInfo{}, err
+	}
+	info := CapturedInfo{Extracted: make([]string, 0, len(seen))}
+	for id := range seen {
+		info.Extracted = append(info.Extracted, id)
+	}
+	slices.Sort(info.Extracted)
+
+	if _, ok := f.CapturedAt.Time(l.zone()); !ok {
+		return info, nil
+	}
+	rows, err := store.FileMetadata(l.db, f.ID)
+	if err != nil {
+		return CapturedInfo{}, err
+	}
+	kvs := make([]extract.KV, len(rows))
+	for i, r := range rows {
+		kvs[i] = r.KV
+	}
+	c := extract.ResolveCaptured(kvs, l.zone())
+	info.From, info.Zone = c.From, string(c.Zone)
+	return info, nil
 }
 
 // DescribeCapturedAt writes the capture time in a form that says how much of
