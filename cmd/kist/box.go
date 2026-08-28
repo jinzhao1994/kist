@@ -59,8 +59,10 @@ func newBoxNewCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "%s  %s\n", b.ID, b.Name)
-			return nil
+			return emit(cmd, wire.BoxResult{Box: wire.NewBox(b)}, func(w io.Writer) error {
+				_, err := fmt.Fprintf(w, "%s  %s\n", b.ID, b.Name)
+				return err
+			})
 		},
 	}
 	cmd.Flags().StringVar(&start, "start", "", "when it started: 2019, 2019-08, 2019-08-12, or 2019-08-12T14:30")
@@ -152,8 +154,10 @@ func newBoxEditCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "%s  %s\n", updated.ID, updated.Name)
-			return nil
+			return emit(cmd, wire.BoxResult{Box: wire.NewBox(updated)}, func(w io.Writer) error {
+				_, err := fmt.Fprintf(w, "%s  %s\n", updated.ID, updated.Name)
+				return err
+			})
 		},
 	}
 	cmd.Flags().StringVar(&name, "name", "", "new name")
@@ -197,6 +201,9 @@ func runBoxTag(cmd *cobra.Command, args []string, attach bool) error {
 	// so tagging one box with three tags is three ops. The CLI shape here is
 	// the mirror image of the batching the data model is built for; the web UI
 	// will use the other direction.
+	box := wire.NewBox(b)
+	out := wire.TagChanges{Box: &box, Attach: attach}
+	names := make([]string, 0, len(args)-1)
 	for _, ref := range args[1:] {
 		tag, err := l.ResolveTag(ref)
 		if err != nil {
@@ -211,19 +218,27 @@ func runBoxTag(cmd *cobra.Command, args []string, attach bool) error {
 		if err != nil {
 			return err
 		}
-
-		var verb string
-		switch {
-		case n > 0 && attach:
-			verb = "tagged"
-		case n > 0:
-			verb = "untagged"
-		case attach:
-			verb = "already had"
-		default:
-			verb = "did not have"
-		}
-		fmt.Fprintf(cmd.OutOrStdout(), "%s %s %s\n", b.Name, verb, tag.Name)
+		out.Changes = append(out.Changes, wire.TagChange{Tag: wire.NewTag(tag), Changed: n})
+		names = append(names, tag.Name)
 	}
-	return nil
+
+	return emit(cmd, out, func(w io.Writer) error {
+		for i, c := range out.Changes {
+			var verb string
+			switch {
+			case c.Changed > 0 && attach:
+				verb = "tagged"
+			case c.Changed > 0:
+				verb = "untagged"
+			case attach:
+				verb = "already had"
+			default:
+				verb = "did not have"
+			}
+			if _, err := fmt.Fprintf(w, "%s %s %s\n", b.Name, verb, names[i]); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }

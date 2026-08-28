@@ -5,6 +5,7 @@ import (
 
 	"github.com/jinzhao1994/kist/internal/integrity"
 	"github.com/jinzhao1994/kist/internal/library"
+	"github.com/jinzhao1994/kist/internal/wire"
 )
 
 func newVerifyCmd() *cobra.Command {
@@ -41,7 +42,7 @@ Exit status:
 			if err != nil {
 				return err
 			}
-			if err := r.Write(cmd.OutOrStdout()); err != nil {
+			if err := emit(cmd, report(r), r.Write); err != nil {
 				return err
 			}
 			return verifyExit(r.Worst())
@@ -76,3 +77,29 @@ type exitError struct {
 
 func (e *exitError) Error() string { return e.msg }
 func (e *exitError) ExitCode() int { return e.code }
+
+// report renders an integrity report for JSON.
+//
+// It is built from Groups rather than from Write's output, so the two cannot
+// disagree about a library (spec 2.8) — Groups is the same content in the same
+// order, as data.
+func report(r integrity.Report) wire.Report {
+	groups := r.Groups()
+	out := wire.Report{
+		Findings: make([]wire.Finding, len(groups)),
+		Worst:    r.Worst().String(),
+		Checked:  r.Checked,
+	}
+	for i, g := range groups {
+		out.Findings[i] = wire.Finding{
+			Kind:      g.Kind.String(),
+			Severity:  g.Severity.String(),
+			Headline:  g.Headline,
+			Count:     g.Count,
+			Examples:  g.Examples,
+			Truncated: g.Truncated,
+			Fix:       g.Fix,
+		}
+	}
+	return out
+}

@@ -71,7 +71,26 @@ changed, so an ordinary re-run over an unchanged library does nothing at all.`,
 			if !quiet {
 				fmt.Fprintln(cmd.ErrOrStderr())
 			}
-			printExtractSummary(cmd.OutOrStdout(), res)
+			out := wire.ExtractResult{
+				OpIDs:       res.OpIDs,
+				Extracted:   res.Count(library.FileImported),
+				Skipped:     res.Count(library.FileSkipped),
+				Failed:      res.Count(library.FileFailed),
+				Interrupted: res.Interrupted,
+				Files:       make([]wire.FileOutcome, len(res.Files)),
+			}
+			for i, f := range res.Files {
+				out.Files[i] = wire.FileOutcome{Name: f.Name, Status: f.Status.String()}
+				if f.Err != nil {
+					out.Files[i].Error = f.Err.Error()
+				}
+			}
+			if err := emit(cmd, out, func(w io.Writer) error {
+				printExtractSummary(w, res)
+				return nil
+			}); err != nil {
+				return err
+			}
 
 			if res.Count(library.FileFailed) > 0 {
 				return errSomeFilesFailed

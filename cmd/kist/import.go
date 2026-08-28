@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/jinzhao1994/kist/internal/library"
+	"github.com/jinzhao1994/kist/internal/wire"
 )
 
 // importStopMessage is what the first Ctrl-C prints. It has to say that the
@@ -68,29 +69,51 @@ converges instead of accumulating copies.`,
 				os.Exit)
 			defer cancel()
 
-			failed := false
+			// Collected rather than printed as they go: --json has to produce
+			// one document, and an import of three directories is three ops.
+			// A person still wants each summary, so the human renderer walks
+			// the same list.
+			var (
+				out         wire.ImportResults
+				results     []*library.ImportResult
+				failed      bool
+				interrupted bool
+			)
 			for _, src := range args {
 				res, err := l.Import(ctx, src, opt)
 				if err != nil {
 					return err
 				}
-				printImportSummary(cmd.OutOrStdout(), src, res)
+				out.Imports = append(out.Imports, importResult(src, res))
+				results = append(results, res)
 				if res.Count(library.FileFailed) > 0 {
 					failed = true
 				}
 				if res.Interrupted {
-					// Stopping is still not finishing, so a script has to be
-					// able to tell — but it is a different thing from a file
-					// having gone wrong, and it gets a different message.
-					if failed {
-						return errSomeFilesFailed
-					}
-					return errInterrupted
+					interrupted = true
+					break
 				}
 			}
+
+			err = emit(cmd, out, func(w io.Writer) error {
+				for i, res := range results {
+					printImportSummary(w, args[i], res)
+				}
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+
+			// Stopping is still not finishing, so a script has to be able to
+			// tell — but it is a different thing from a file having gone
+			// wrong, and it gets a different message.
 			if failed {
 				// A script has to be able to notice (spec 3.7.1 ③).
 				return errSomeFilesFailed
+			}
+			if interrupted {
+				return errInterrupted
 			}
 			return nil
 		},
@@ -144,4 +167,31 @@ func printImportSummary(w io.Writer, src string, res *library.ImportResult) {
 		fmt.Fprintf(w, "\nstopped early: %d files were not looked at. "+
 			"Everything above is committed and can be undone as one operation.\n", res.Remaining)
 	}
+}
+
+// importResult renders one source's outcome.
+func importResult(src string, res *library.ImportResult) wire.ImportResult {
+	out := wire.ImportResult{
+		Source:      src,
+		OpID:        res.OpID,
+		Imported:    res.Count(library.FileImported),
+		Skipped:     res.Count(library.FileSkipped),
+		Failed:      res.Count(library.FileFailed),
+		Interrupted: res.Interrupted,
+		Remaining:   res.Remaining,
+		Files:       make([]wire.FileOutcome, len(res.Files)),
+	}
+	for i, f := range res.Files {
+		out.Files[i] = wire.FileOutcome{
+			Source:  f.Source,
+			Path:    f.Rel,
+			Name:    f.Name,
+			Status:  f.Status.String(),
+			Outcome: f.Outcome.String(),
+		}
+		if f.Err != nil {
+			out.Files[i].Error = f.Err.Error()
+		}
+	}
+	return out
 }

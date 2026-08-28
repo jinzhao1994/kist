@@ -13,6 +13,7 @@ import (
 	"github.com/jinzhao1994/kist/internal/blob"
 	"github.com/jinzhao1994/kist/internal/cliutil"
 	"github.com/jinzhao1994/kist/internal/library"
+	"github.com/jinzhao1994/kist/internal/wire"
 )
 
 func newInitCmd() *cobra.Command {
@@ -47,7 +48,15 @@ func runInit(cmd *cobra.Command, given string, yes bool) error {
 	// which is precisely what spec 3.1 asks us to avoid. Reading a
 	// non-terminal stdin cannot hang — the writer closes and we see EOF — so
 	// the hazard it was guarding against does not exist.
-	p := cliutil.NewPrompter(cmd.InOrStdin(), cmd.OutOrStdout(), yes)
+	// In --json mode the conversation moves to stderr: stdout carries one
+	// document and nothing else (spec 2.8). The questions still get asked, so
+	// an interactive `kist init --json` works; a script passes --yes as it
+	// would anyway.
+	prose := cmd.OutOrStdout()
+	if jsonFlag {
+		prose = cmd.ErrOrStderr()
+	}
+	p := cliutil.NewPrompter(cmd.InOrStdin(), prose, yes)
 
 	path := given
 	if path == "" {
@@ -85,7 +94,10 @@ func runInit(cmd *cobra.Command, given string, yes bool) error {
 	}
 	if !create {
 		p.Printf("Nothing was created.\n")
-		return nil
+		// Nothing was created, so there is no result. JSON says so with an
+		// empty path rather than with no document at all — a script that got
+		// nothing on stdout could not tell this from a crash.
+		return emitResult(cmd, wire.InitResult{})
 	}
 
 	res, err := library.Create(cmd.Context(), path)
@@ -93,11 +105,16 @@ func runInit(cmd *cobra.Command, given string, yes bool) error {
 		return err
 	}
 
+	// Every line of this goes through the prompter, which --json has already
+	// pointed at stderr. init's human output is a conversation rather than a
+	// result line, so it is not emit's human branch: the advice at the end is
+	// as much part of it as the questions were.
 	p.Printf("  Link mode  %s — %s\n\n", res.Probe.LinkMode, linkModeExplanation(res.Probe.LinkMode))
 	p.Printf("Library created at %s.\n\n", res.Layout.Root)
 	p.Printf("Next: `kist box new <name>` to make a box, then `kist import --box <name> <path>`\n")
 	p.Printf("to put files in it. `kist verify` checks at any time that nothing has gone wrong.\n")
-	return nil
+
+	return emitResult(cmd, wire.InitResult{Path: res.Layout.Root, LinkMode: string(res.Probe.LinkMode)})
 }
 
 // nearestExistingDir walks up until it finds a directory that exists, so that

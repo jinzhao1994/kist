@@ -3,12 +3,14 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
 	"github.com/jinzhao1994/kist/internal/library"
+	"github.com/jinzhao1994/kist/internal/wire"
 )
 
 func newRepairCmd() *cobra.Command {
@@ -66,33 +68,52 @@ Remotes are configured by hand in kist.toml:
 }
 
 func printRepair(cmd *cobra.Command, res library.RepairResult) error {
-	w := cmd.OutOrStdout()
-
+	// Unreachable remotes go to stderr in both modes: they are a warning about
+	// the run, not part of its result, and JSON carries them as a field.
 	for name, err := range res.Unreachable {
 		fmt.Fprintf(cmd.ErrOrStderr(), "remote %q cannot be read: %v\n", name, err)
 	}
-	if len(res.Broken) == 0 {
-		fmt.Fprintln(w, "nothing needs repairing")
-		return nil
-	}
 
-	verb := "would repair"
-	if !res.DryRun {
-		verb = "repaired"
+	out := wire.RepairResult{
+		DryRun:    res.DryRun,
+		Remotes:   res.Remotes,
+		Broken:    res.Broken,
+		Repaired:  contents(res.Repaired),
+		Unfixable: contents(res.Unfixable),
 	}
-	fmt.Fprintf(w, "%d damaged, %s %d\n", len(res.Broken), verb, len(res.Repaired))
-	for _, r := range res.Repaired {
-		fmt.Fprintf(w, "    %s  from %s\n", describeContent(r), r.Remote)
-	}
-
-	if len(res.Unfixable) > 0 {
-		fmt.Fprintf(w, "\nno remote has a good copy of these — this content is gone:\n")
-		for _, r := range res.Unfixable {
-			fmt.Fprintf(w, "    %s\n", describeContent(r))
+	if len(res.Unreachable) > 0 {
+		out.Unreachable = make(map[string]string, len(res.Unreachable))
+		for name, err := range res.Unreachable {
+			out.Unreachable[name] = err.Error()
 		}
 	}
-	if res.DryRun && len(res.Repaired) > 0 {
-		fmt.Fprintln(w, "\nthis was a dry run; rerun with --yes to write it")
+
+	err := emit(cmd, out, func(w io.Writer) error {
+		if len(res.Broken) == 0 {
+			fmt.Fprintln(w, "nothing needs repairing")
+			return nil
+		}
+		verb := "would repair"
+		if !res.DryRun {
+			verb = "repaired"
+		}
+		fmt.Fprintf(w, "%d damaged, %s %d\n", len(res.Broken), verb, len(res.Repaired))
+		for _, r := range res.Repaired {
+			fmt.Fprintf(w, "    %s  from %s\n", describeContent(r), r.Remote)
+		}
+		if len(res.Unfixable) > 0 {
+			fmt.Fprintf(w, "\nno remote has a good copy of these — this content is gone:\n")
+			for _, r := range res.Unfixable {
+				fmt.Fprintf(w, "    %s\n", describeContent(r))
+			}
+		}
+		if res.DryRun && len(res.Repaired) > 0 {
+			fmt.Fprintln(w, "\nthis was a dry run; rerun with --yes to write it")
+		}
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
 	if len(res.Unfixable) > 0 {
@@ -110,6 +131,15 @@ func printRepair(cmd *cobra.Command, res library.RepairResult) error {
 // that need it, with the digest shortened behind them. The digest still has to
 // be there — it is what you would grep a backup index for — but it is not what
 // tells you whether this matters.
+// contents renders repair sources for JSON.
+func contents(srcs []library.RepairSource) []wire.Content {
+	out := make([]wire.Content, len(srcs))
+	for i, r := range srcs {
+		out[i] = wire.Content{Key: r.Key, Files: r.Files, Remote: r.Remote}
+	}
+	return out
+}
+
 func describeContent(r library.RepairSource) string {
 	key := r.Key
 	if i := strings.IndexByte(key, ':'); i >= 0 && len(key) > i+13 {
@@ -173,8 +203,17 @@ something is damaged.`,
 			defer l.Close()
 
 			remotes := l.CheckRemotes()
-			if len(remotes) == 0 {
-				fmt.Fprint(cmd.OutOrStdout(), `No remotes are configured, so "kist repair" has nowhere to fetch from.
+			out := wire.RemoteList{Remotes: make([]wire.Remote, len(remotes))}
+			for i, r := range remotes {
+				out.Remotes[i] = wire.Remote{Name: r.Name, Path: r.Path, Blobs: r.Blobs}
+				if r.Err != nil {
+					out.Remotes[i].Error = r.Err.Error()
+				}
+			}
+
+			return emit(cmd, out, func(w io.Writer) error {
+				if len(remotes) == 0 {
+					fmt.Fprint(w, `No remotes are configured, so "kist repair" has nowhere to fetch from.
 
 Add one to kist.toml:
 
@@ -182,19 +221,19 @@ Add one to kist.toml:
     name = "backup"
     path = "/Volumes/Archive/kist/blobs"
 `)
-				return nil
-			}
-
-			tw := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-			fmt.Fprintln(tw, "NAME\tPATH\tSTATUS")
-			for _, r := range remotes {
-				status := fmt.Sprintf("%d blobs", r.Blobs)
-				if r.Err != nil {
-					status = "cannot be read: " + r.Err.Error()
+					return nil
 				}
-				fmt.Fprintf(tw, "%s\t%s\t%s\n", r.Name, r.Path, status)
-			}
-			return tw.Flush()
+				tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+				fmt.Fprintln(tw, "NAME\tPATH\tSTATUS")
+				for _, r := range remotes {
+					status := fmt.Sprintf("%d blobs", r.Blobs)
+					if r.Err != nil {
+						status = "cannot be read: " + r.Err.Error()
+					}
+					fmt.Fprintf(tw, "%s\t%s\t%s\n", r.Name, r.Path, status)
+				}
+				return tw.Flush()
+			})
 		},
 	}
 }

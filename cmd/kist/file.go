@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/spf13/cobra"
 
 	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/wire"
 )
 
 func newFileCmd() *cobra.Command {
@@ -61,12 +63,18 @@ Files that would not change are left out of that operation entirely.`,
 			if err != nil {
 				return err
 			}
-			verb := "tagged"
-			if remove {
-				verb = "untagged"
+			out := wire.TagChanges{
+				Attach:  !remove,
+				Changes: []wire.TagChange{{Tag: wire.NewTag(tag), Changed: n}},
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "%s %d file(s) with %s\n", verb, n, tag.Name)
-			return nil
+			return emit(cmd, out, func(w io.Writer) error {
+				verb := "tagged"
+				if remove {
+					verb = "untagged"
+				}
+				_, err := fmt.Fprintf(w, "%s %d file(s) with %s\n", verb, n, tag.Name)
+				return err
+			})
 		},
 	}
 }

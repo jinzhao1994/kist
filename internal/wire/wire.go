@@ -130,21 +130,31 @@ func NewFolder(f domain.Folder) Folder {
 // still there so a single tag out of context knows where it sits.
 //
 // Count is the subtree total — the tag itself plus everything under it — which
-// is what a selector shows (spec 1.6).
+// is what a selector shows (spec 1.6). It is a pointer because computing it
+// costs a GROUP BY over the largest table in the library, so most places do
+// not: null means "not counted", which zero would have claimed to mean "empty".
 type Tag struct {
 	ID       string  `json:"id"`
 	ParentID *string `json:"parent_id"`
 	Name     string  `json:"name"`
-	Count    int     `json:"count"`
+	Count    *int    `json:"count"`
 	Children []Tag   `json:"children,omitempty"`
 }
 
-func NewTag(t domain.Tag, count int) Tag {
-	out := Tag{ID: t.ID.String(), Name: t.Name, Count: count}
+// NewTag renders a tag without a count.
+func NewTag(t domain.Tag) Tag {
+	out := Tag{ID: t.ID.String(), Name: t.Name}
 	if t.ParentID != nil {
 		s := t.ParentID.String()
 		out.ParentID = &s
 	}
+	return out
+}
+
+// NewTagCounted renders a tag with its subtree total.
+func NewTagCounted(t domain.Tag, count int) Tag {
+	out := NewTag(t)
+	out.Count = &count
 	return out
 }
 

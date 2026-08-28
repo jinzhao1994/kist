@@ -49,8 +49,10 @@ func newTagNewCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "%s  %s\n", tag.ID, tag.Name)
-			return nil
+			return emit(cmd, wire.TagResult{Tag: wire.NewTag(tag)}, func(w io.Writer) error {
+				_, err := fmt.Fprintf(w, "%s  %s\n", tag.ID, tag.Name)
+				return err
+			})
 		},
 	}
 	cmd.Flags().StringVar(&parent, "parent", "", "put it under this tag")
@@ -82,7 +84,7 @@ func newTagTreeCmd() *cobra.Command {
 			build = func(tags []domain.Tag) []wire.Tag {
 				out := make([]wire.Tag, len(tags))
 				for i, tag := range tags {
-					out[i] = wire.NewTag(tag, totals[tag.ID])
+					out[i] = wire.NewTagCounted(tag, totals[tag.ID])
 					out[i].Children = build(tree.Children(tag.ID))
 				}
 				return out
@@ -94,7 +96,7 @@ func newTagTreeCmd() *cobra.Command {
 				print = func(tags []wire.Tag, depth int) {
 					for _, tag := range tags {
 						fmt.Fprintf(w, "%s%s (%d)\n",
-							strings.Repeat("  ", depth), tag.Name, tag.Count)
+							strings.Repeat("  ", depth), tag.Name, *tag.Count)
 						print(tag.Children, depth+1)
 					}
 				}
@@ -124,8 +126,14 @@ func newTagRenameCmd() *cobra.Command {
 			if err := l.RenameTag(cmd.Context(), tag.ID, args[1]); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "%s is now %s\n", tag.Name, args[1])
-			return nil
+			renamed, err := l.ResolveTag(tag.ID.String())
+			if err != nil {
+				return err
+			}
+			return emit(cmd, wire.TagResult{Tag: wire.NewTag(renamed)}, func(w io.Writer) error {
+				_, err := fmt.Fprintf(w, "%s is now %s\n", tag.Name, renamed.Name)
+				return err
+			})
 		},
 	}
 }
@@ -163,8 +171,14 @@ func newTagMoveCmd() *cobra.Command {
 			if err := l.MoveTag(cmd.Context(), tag.ID, parentID); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "moved %s\n", tag.Name)
-			return nil
+			moved, err := l.ResolveTag(tag.ID.String())
+			if err != nil {
+				return err
+			}
+			return emit(cmd, wire.TagResult{Tag: wire.NewTag(moved)}, func(w io.Writer) error {
+				_, err := fmt.Fprintf(w, "moved %s\n", moved.Name)
+				return err
+			})
 		},
 	}
 	cmd.Flags().StringVar(&parent, "parent", "", `the new parent, or "" for the top level`)
@@ -193,8 +207,12 @@ mistyped command is not a recoverable kind of mistake.`,
 			if err := l.DeleteTag(cmd.Context(), tag.ID); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "deleted %s\n", tag.Name)
-			return nil
+			// The tag as it was: it does not exist any more, and a caller
+			// undoing this needs to know what was there.
+			return emit(cmd, wire.TagResult{Tag: wire.NewTag(tag)}, func(w io.Writer) error {
+				_, err := fmt.Fprintf(w, "deleted %s\n", tag.Name)
+				return err
+			})
 		},
 	}
 }

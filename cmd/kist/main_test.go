@@ -9,17 +9,27 @@ import (
 // exec runs the root command with args and returns stdout+stderr and the error.
 func exec(t *testing.T, args ...string) (string, error) {
 	t.Helper()
+	out, errOut, err := execSplit(t, args...)
+	return out + errOut, err
+}
 
-	var out bytes.Buffer
+// execSplit is exec with the two streams kept apart, which is what --json
+// needs: stdout carries one document and everything else goes to stderr
+// (spec 2.8). Merging them, as exec does, would hide a command printing prose
+// into the middle of its own JSON.
+func execSplit(t *testing.T, args ...string) (string, string, error) {
+	t.Helper()
+
+	var out, errOut bytes.Buffer
 	root := newRootCmd()
 	root.SetOut(&out)
-	root.SetErr(&out)
+	root.SetErr(&errOut)
 	root.SetArgs(args)
 
-	// Execute must run before the buffer is read; return operands are
+	// Execute must run before the buffers are read; return operands are
 	// evaluated left to right.
 	err := root.Execute()
-	return out.String(), err
+	return out.String(), errOut.String(), err
 }
 
 func TestVersion(t *testing.T) {

@@ -112,10 +112,11 @@ func TestACleanReportSaysSo(t *testing.T) {
 	}
 }
 
-// Every kind must carry a sentence and a severity. A finding that prints as
-// "kind 7" is a finding nobody can act on, and the compiler will not notice
-// that a new constant was added to the list but not to the table.
+// Every kind must carry a name, a sentence and a severity. A finding that
+// prints as "kind 7" is a finding nobody can act on, and the compiler will not
+// notice that a new constant was added to the list but not to the table.
 func TestEveryKindHasASentence(t *testing.T) {
+	seen := map[string]Kind{}
 	for k := Kind(0); k < numKinds; k++ {
 		if k.Headline() == "" {
 			t.Errorf("kind %d has no headline", k)
@@ -123,5 +124,16 @@ func TestEveryKindHasASentence(t *testing.T) {
 		if k.Severity() == SeverityNone {
 			t.Errorf("kind %d (%s) has no severity", k, k.Headline())
 		}
+		// The name is what scripts and the JSON output match on (spec 2.8),
+		// so a duplicate would silently merge two different problems.
+		name := k.String()
+		if name == "" {
+			t.Errorf("kind %d (%s) has no machine-readable name", k, k.Headline())
+			continue
+		}
+		if other, dup := seen[name]; dup {
+			t.Errorf("kinds %d and %d are both called %q", other, k, name)
+		}
+		seen[name] = k
 	}
 }

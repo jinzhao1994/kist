@@ -110,8 +110,11 @@ partly applied, and the operation in the way is named.`,
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "op %d undone by op %d\n", opID, undoID)
-			return nil
+			out := wire.UndoResult{Undone: opID, UndoneBy: undoID}
+			return emit(cmd, out, func(w io.Writer) error {
+				_, err := fmt.Fprintf(w, "op %d undone by op %d\n", opID, undoID)
+				return err
+			})
 		},
 	}
 }

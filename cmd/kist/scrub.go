@@ -58,7 +58,7 @@ Exit status:
 			if err != nil {
 				return err
 			}
-			if err := r.Write(cmd.OutOrStdout()); err != nil {
+			if err := emit(cmd, report(r), r.Write); err != nil {
 				return err
 			}
 			return verifyExit(r.Worst())

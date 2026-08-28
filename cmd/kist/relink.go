@@ -2,8 +2,12 @@ package main
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/spf13/cobra"
+
+	"github.com/jinzhao1994/kist/internal/library"
+	"github.com/jinzhao1994/kist/internal/wire"
 )
 
 func newRelinkCmd() *cobra.Command {
@@ -30,19 +34,33 @@ deleted by hand.`,
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "%d box(es): created %d, removed %d\n",
-				stats.Boxes, stats.Created, stats.Removed)
-			if stats.Missing > 0 {
-				fmt.Fprintf(cmd.OutOrStdout(),
-					"%d file(s) could not be linked: their content is not on local disk\n", stats.Missing)
-			}
-			if stats.Failed > 0 {
-				fmt.Fprintf(cmd.OutOrStdout(), "%d file(s) failed; see the log above\n", stats.Failed)
-			}
-			if wasDirty {
-				fmt.Fprintln(cmd.OutOrStdout(), "the stale-projection warning is cleared")
-			}
-			return nil
+			return emit(cmd, relinkResult(stats, wasDirty), func(w io.Writer) error {
+				fmt.Fprintf(w, "%d box(es): created %d, removed %d\n",
+					stats.Boxes, stats.Created, stats.Removed)
+				if stats.Missing > 0 {
+					fmt.Fprintf(w,
+						"%d file(s) could not be linked: their content is not on local disk\n", stats.Missing)
+				}
+				if stats.Failed > 0 {
+					fmt.Fprintf(w, "%d file(s) failed; see the log above\n", stats.Failed)
+				}
+				if wasDirty {
+					fmt.Fprintln(w, "the stale-projection warning is cleared")
+				}
+				return nil
+			})
 		},
+	}
+}
+
+// relinkResult is shared with rebuild, which relinks as its last step.
+func relinkResult(stats library.RelinkStats, wasDirty bool) wire.RelinkResult {
+	return wire.RelinkResult{
+		Boxes:    stats.Boxes,
+		Created:  stats.Created,
+		Removed:  stats.Removed,
+		Missing:  stats.Missing,
+		Failed:   stats.Failed,
+		WasDirty: wasDirty,
 	}
 }

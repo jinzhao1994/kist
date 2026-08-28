@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/spf13/cobra"
 
 	"github.com/jinzhao1994/kist/internal/cliutil"
+	"github.com/jinzhao1994/kist/internal/wire"
 )
 
 func newRebuildCmd() *cobra.Command {
@@ -47,15 +49,17 @@ Replaying takes minutes on a large library, so it asks first.`,
 					return err
 				}
 				if !ok {
-					fmt.Fprintln(cmd.OutOrStdout(), "nothing was changed")
-					return nil
+					return emit(cmd, wire.RebuildResult{Ops: ops}, func(w io.Writer) error {
+						_, err := fmt.Fprintln(w, "nothing was changed")
+						return err
+					})
 				}
 			}
 
+			wasDirty := l.ProjectionDirty()
 			if err := l.Rebuild(cmd.Context()); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "replayed %d operations\n", ops)
 
 			// The tables boxes/ is projected from were just rebuilt, so the
 			// projection has to follow. A rebuild that leaves boxes/ wrong is
@@ -64,9 +68,18 @@ Replaying takes minutes on a large library, so it asks first.`,
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "relinked %d boxes: created %d, removed %d\n",
-				stats.Boxes, stats.Created, stats.Removed)
-			return nil
+
+			out := wire.RebuildResult{
+				Confirmed: true,
+				Ops:       ops,
+				Relink:    relinkResult(stats, wasDirty),
+			}
+			return emit(cmd, out, func(w io.Writer) error {
+				fmt.Fprintf(w, "replayed %d operations\n", ops)
+				fmt.Fprintf(w, "relinked %d boxes: created %d, removed %d\n",
+					stats.Boxes, stats.Created, stats.Removed)
+				return nil
+			})
 		},
 	}
 	cmd.Flags().BoolVar(&yes, "yes", false, "do not ask before rebuilding")

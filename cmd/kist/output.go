@@ -30,3 +30,10 @@ func emit(cmd *cobra.Command, v any, human func(io.Writer) error) error {
 	enc.SetIndent("", "  ")
 	return enc.Encode(v)
 }
+
+// emitResult is emit for a command whose human output is not a rendering of
+// the result — init talks the user through what it is doing, and there is no
+// summary line left to print afterwards.
+func emitResult(cmd *cobra.Command, v any) error {
+	return emit(cmd, v, func(io.Writer) error { return nil })
+}

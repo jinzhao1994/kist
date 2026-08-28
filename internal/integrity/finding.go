@@ -86,27 +86,36 @@ const (
 
 var kindInfo = map[Kind]struct {
 	severity Severity
+	name     string
 	headline string
 }{
-	BlobMissing:       {SeverityError, "content is missing from blobs/"},
-	BlobWrongSize:     {SeverityError, "content is the wrong size"},
-	BlobCorrupt:       {SeverityError, "content no longer matches its hash"},
-	BlobOrphan:        {SeverityInfo, "blobs/ holds content the database does not know about"},
-	BlobKeyMalformed:  {SeverityError, "the blobs table holds a row whose key is not a valid key"},
-	FileOrphanFolder:  {SeverityError, "a file is in a folder that does not exist"},
-	FileBoxMismatch:   {SeverityError, "a file and its folder disagree about which box they are in"},
-	FileUnknownBlob:   {SeverityError, "a file points at content the database does not know about"},
-	FolderUnreachable: {SeverityError, "a folder cannot be reached from its box's root"},
-	FolderCrossBox:    {SeverityError, "a folder's parent belongs to a different box"},
-	LinkMissing:       {SeverityWarn, "boxes/ is missing something"},
-	LinkStray:         {SeverityWarn, "boxes/ holds something that belongs to no file"},
-	LinkWrongTarget:   {SeverityWarn, "a link under boxes/ points at the wrong content"},
-	ScrubIncomplete:   {SeverityWarn, "the scrub did not finish"},
-	ViewDrift:         {SeverityError, "a table does not match what replaying the log produces"},
+	BlobMissing:       {SeverityError, "blob_missing", "content is missing from blobs/"},
+	BlobWrongSize:     {SeverityError, "blob_wrong_size", "content is the wrong size"},
+	BlobCorrupt:       {SeverityError, "blob_corrupt", "content no longer matches its hash"},
+	BlobOrphan:        {SeverityInfo, "blob_orphan", "blobs/ holds content the database does not know about"},
+	BlobKeyMalformed:  {SeverityError, "blob_key_malformed", "the blobs table holds a row whose key is not a valid key"},
+	FileOrphanFolder:  {SeverityError, "file_orphan_folder", "a file is in a folder that does not exist"},
+	FileBoxMismatch:   {SeverityError, "file_box_mismatch", "a file and its folder disagree about which box they are in"},
+	FileUnknownBlob:   {SeverityError, "file_unknown_blob", "a file points at content the database does not know about"},
+	FolderUnreachable: {SeverityError, "folder_unreachable", "a folder cannot be reached from its box's root"},
+	FolderCrossBox:    {SeverityError, "folder_cross_box", "a folder's parent belongs to a different box"},
+	LinkMissing:       {SeverityWarn, "link_missing", "boxes/ is missing something"},
+	LinkStray:         {SeverityWarn, "link_stray", "boxes/ holds something that belongs to no file"},
+	LinkWrongTarget:   {SeverityWarn, "link_wrong_target", "a link under boxes/ points at the wrong content"},
+	ScrubIncomplete:   {SeverityWarn, "scrub_incomplete", "the scrub did not finish"},
+	ViewDrift:         {SeverityError, "view_drift", "a table does not match what replaying the log produces"},
 }
 
 // Severity reports how bad this kind of finding is.
 func (k Kind) Severity() Severity { return kindInfo[k].severity }
+
+// String is the stable machine-readable name, for JSON and for anything that
+// matches on the kind (spec 2.8).
+//
+// It is separate from Headline because Headline is prose that will be
+// reworded: a script matching on "content is missing from blobs/" would break
+// the first time somebody improves that sentence. These names never change.
+func (k Kind) String() string { return kindInfo[k].name }
 
 // Headline is the sentence printed once per kind, above the examples.
 func (k Kind) Headline() string { return kindInfo[k].headline }
@@ -186,6 +195,56 @@ func (r *Report) Merge(o Report) {
 // Count returns how many findings of one kind there are.
 func (r *Report) Count(k Kind) int { return r.counts[k] }
 
+// Group is one kind of finding, with what was recorded about it.
+type Group struct {
+	Kind     Kind
+	Severity Severity
+	Headline string
+	Count    int
+	// Examples is bounded at examplesPerKind: a library with fifty thousand
+	// missing blobs has one problem, not fifty thousand.
+	Examples []string
+	// Truncated is how many findings of this kind have no example here.
+	Truncated int
+	// Fix is the command that would repair this, when there is one.
+	Fix string
+}
+
+// Groups is the report as data, worst first — the same content and the same
+// order as Write, so the JSON output and the human one cannot disagree about a
+// library (spec 2.8).
+func (r *Report) Groups() []Group {
+	out := make([]Group, 0, len(r.counts))
+	for _, k := range r.sortedKinds() {
+		out = append(out, Group{
+			Kind:      k,
+			Severity:  k.Severity(),
+			Headline:  k.Headline(),
+			Count:     r.counts[k],
+			Examples:  r.examples[k],
+			Truncated: r.counts[k] - len(r.examples[k]),
+			Fix:       r.fixes[k],
+		})
+	}
+	return out
+}
+
+// sortedKinds orders what is present: worst severity first, then declaration
+// order, which groups the blob / structure / projection layers together.
+func (r *Report) sortedKinds() []Kind {
+	kinds := make([]Kind, 0, len(r.counts))
+	for k := range r.counts {
+		kinds = append(kinds, k)
+	}
+	slices.SortFunc(kinds, func(a, b Kind) int {
+		if d := int(b.Severity()) - int(a.Severity()); d != 0 {
+			return d
+		}
+		return int(a) - int(b)
+	})
+	return kinds
+}
+
 // Total is how many findings there are altogether.
 func (r *Report) Total() int {
 	n := 0
@@ -212,16 +271,7 @@ func (r *Report) Worst() Severity {
 func (r *Report) Write(w io.Writer) error {
 	var sb strings.Builder
 
-	kinds := make([]Kind, 0, len(r.counts))
-	for k := range r.counts {
-		kinds = append(kinds, k)
-	}
-	slices.SortFunc(kinds, func(a, b Kind) int {
-		if d := int(b.Severity()) - int(a.Severity()); d != 0 {
-			return d
-		}
-		return int(a) - int(b)
-	})
+	kinds := r.sortedKinds()
 
 	for _, k := range kinds {
 		n := r.counts[k]
