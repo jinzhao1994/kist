@@ -192,3 +192,25 @@ func TestWireIsOnlyTheShape(t *testing.T) {
 		}
 	}
 }
+
+// TestErrCodesDoesNotLeakIntoTheKernel keeps the wire format at the boundary.
+//
+// errcodes maps errors to stable codes (spec 2.9), so it necessarily sees
+// every package that produces one — it sits above library, not below. The
+// invariant worth holding is the other direction: nothing in the kernel may
+// import it. The moment library or oplog can name a code, the code list stops
+// being a boundary concern and starts being something a handler has an opinion
+// about, and the errors that carry data would grow a dependency on the wire
+// format they are meant to be independent of.
+func TestErrCodesDoesNotLeakIntoTheKernel(t *testing.T) {
+	for _, dir := range []string{
+		"internal/domain", "internal/blob", "internal/oplog",
+		"internal/store", "internal/library", "internal/query",
+		"internal/projection", "internal/integrity", "internal/extract",
+	} {
+		forbid(t, dir, []string{"internal/errcodes"},
+			"Codes belong to the wire format, which belongs to the boundary (spec 2.9).\n"+
+				"An error that needs to carry data does so with its own type and fields;\n"+
+				"errcodes reads it from above with errors.As.")
+	}
+}

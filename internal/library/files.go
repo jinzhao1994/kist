@@ -110,7 +110,7 @@ func (l *Library) ResolveFolder(ctx context.Context, box domain.BoxID, p string)
 		return domain.Folder{}, err
 	}
 	if len(folders) == 0 {
-		return domain.Folder{}, fmt.Errorf("box %s has no root folder", box)
+		return domain.Folder{}, fmt.Errorf("box %s has no root folder: %w", box, ErrInvariantViolated)
 	}
 	current := folders[0] // FoldersOfBox puts the root first
 	p = path.Clean("/" + strings.ReplaceAll(p, "\\", "/"))

@@ -384,7 +384,7 @@ func newImportTree(box domain.BoxID, folders []domain.Folder, into domain.Folder
 		base = root
 	}
 	if _, ok := byID[base]; !ok {
-		return nil, fmt.Errorf("folder %s is not in box %s", base, box)
+		return nil, fmt.Errorf("folder %s is not in box %s: %w", base, box, ErrFolderNotInBox)
 	}
 
 	t := &importTree{box: box, base: base, byPath: map[string]domain.FolderID{".": base}}

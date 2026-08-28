@@ -32,7 +32,7 @@ func OpenLayout(root string) (Layout, error) {
 	}
 	l := Layout{Root: abs}
 	if _, err := os.Stat(l.ConfigPath()); err != nil {
-		return Layout{}, fmt.Errorf("%s is not a kist library (no kist.toml)", abs)
+		return Layout{}, fmt.Errorf("%s is not a kist library (no kist.toml): %w", abs, ErrNotALibrary)
 	}
 	return l, nil
 }

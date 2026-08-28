@@ -96,7 +96,7 @@ func (l *Library) CreateTag(ctx context.Context, name string, parent *domain.Tag
 		return domain.Tag{}, err
 	}
 	if taken {
-		return domain.Tag{}, fmt.Errorf("%q is already a tag (%s): %w", existing.Name, existing.ID, ErrTagNameTaken)
+		return domain.Tag{}, &NameTakenError{Name: existing.Name, ExistingID: existing.ID.String()}
 	}
 	if parent != nil {
 		if _, ok, err := store.TagByID(l.db, *parent); err != nil {
@@ -143,7 +143,7 @@ func (l *Library) RenameTag(ctx context.Context, id domain.TagID, name string) e
 		return err
 	}
 	if exists && other.ID != id {
-		return fmt.Errorf("%q is already a tag (%s): %w", other.Name, other.ID, ErrTagNameTaken)
+		return &NameTakenError{Name: other.Name, ExistingID: other.ID.String()}
 	}
 
 	raw, err := oplog.Marshal(oplog.RenameTagPayload{TagID: id, Before: current.Name, After: name})
@@ -319,12 +319,9 @@ func (l *Library) ResolveBox(ctx context.Context, ref string) (domain.Box, error
 	case 1:
 		return matches[0], nil
 	default:
-		var sb strings.Builder
-		for _, b := range matches {
-			fmt.Fprintf(&sb, "\n  %s  %s", b.ID, b.Name)
+		return domain.Box{}, &AmbiguousRefError{
+			Ref: ref, Kind: "box", Candidates: boxCandidates(matches),
 		}
-		return domain.Box{}, fmt.Errorf("%q matches %d boxes; use an id instead:%s: %w",
-			ref, len(matches), sb.String(), ErrAmbiguousRef)
 	}
 }
 

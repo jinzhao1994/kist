@@ -2,8 +2,6 @@
 package main
 
 import (
-	"errors"
-	"fmt"
 	"os"
 )
 
@@ -17,11 +15,6 @@ func main() {
 	if err == nil {
 		return
 	}
-	fmt.Fprintln(os.Stderr, "kist:", err)
-
-	var coder exitCoder
-	if errors.As(err, &coder) {
-		os.Exit(coder.ExitCode())
-	}
-	os.Exit(1)
+	writeError(os.Stderr, err)
+	os.Exit(exitCodeFor(err))
 }

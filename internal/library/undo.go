@@ -31,7 +31,7 @@ func (l *Library) Undo(ctx context.Context, opID int64) (int64, error) {
 		return 0, err
 	}
 	if !ok {
-		return 0, fmt.Errorf("op %d does not exist", opID)
+		return 0, fmt.Errorf("op %d: %w", opID, ErrNoSuchOp)
 	}
 	target := toOp(row)
 
@@ -40,7 +40,7 @@ func (l *Library) Undo(ctx context.Context, opID int64) (int64, error) {
 	if by, reverted, err := store.RevertedBy(l.db, opID); err != nil {
 		return 0, err
 	} else if reverted {
-		return 0, fmt.Errorf("op %d was already undone by op %d: %w", opID, by, ErrAlreadyReverted)
+		return 0, &AlreadyRevertedError{OpID: opID, RevertedBy: by}
 	}
 
 	handler, err := oplog.Lookup(target.Action)
@@ -83,9 +83,7 @@ func (l *Library) explainBlockedUndo(target oplog.Op, cause error) error {
 		if err != nil || !ok {
 			continue
 		}
-		return fmt.Errorf(
-			"cannot undo op %d: op %d changed the same box afterwards; undo that first if you want this one back: %w",
-			target.ID, blocker, ErrUndoBlocked)
+		return &BlockedUndoError{OpID: target.ID, BlockingOp: blocker}
 	}
-	return fmt.Errorf("cannot undo op %d: the library has changed since it ran: %w", target.ID, ErrUndoBlocked)
+	return &BlockedUndoError{OpID: target.ID}
 }

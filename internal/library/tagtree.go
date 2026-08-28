@@ -46,7 +46,7 @@ func NewTagTree(tags []domain.Tag) (*TagTree, error) {
 	byFold := make(map[string]bool, len(tags))
 	for _, tag := range tags {
 		if byFold[tag.NameFold] {
-			return nil, fmt.Errorf("two tags are both named %q; the unique index on name_fold should have prevented this", tag.Name)
+			return nil, fmt.Errorf("two tags are both named %q; the unique index on name_fold should have prevented this: %w", tag.Name, ErrInvariantViolated)
 		}
 		byFold[tag.NameFold] = true
 		t.byID[tag.ID] = &tagNode{tag: tag, children: map[domain.TagID]*tagNode{}}
@@ -59,7 +59,7 @@ func NewTagTree(tags []domain.Tag) (*TagTree, error) {
 		}
 		parent, ok := t.byID[*n.tag.ParentID]
 		if !ok {
-			return nil, fmt.Errorf("tag %q points at parent %s, which does not exist", n.tag.Name, *n.tag.ParentID)
+			return nil, fmt.Errorf("tag %q points at parent %s, which does not exist: %w", n.tag.Name, *n.tag.ParentID, ErrInvariantViolated)
 		}
 		parent.children[n.tag.ID] = n
 	}
