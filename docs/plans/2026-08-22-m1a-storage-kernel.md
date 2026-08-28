@@ -1,6 +1,6 @@
 # M1a 存储内核 实现计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 让 `kist init` 能建出一个真实的库，且底下的内容寻址存储经过完整校验——字节存得进、取得出、动过手脚查得出来。
 
@@ -2435,7 +2435,7 @@ git commit -m "feat(store): SQLite 连接，pragma 走 DSN 以覆盖连接池每
 
 测试的重点不是"表建出来了"，而是**约束真的会咬**。spec 1.4 自己警告过的 NULL 坑（`UNIQUE(parent_id, name)` 对根行不生效）就是那种"两个引擎上都看起来能跑、实际两边都漏"的问题，必须有测试钉住。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 ```go
 package store
@@ -2959,7 +2959,7 @@ git commit -m "feat(store): v0.1 全量 schema，约束用测试钉住
 
 **未知字段要报错而不是忽略。** 一个拼错的 key 被静默丢掉，用户会以为配置生效了。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 ```go
 package config
@@ -3189,7 +3189,7 @@ git commit -m "feat(config): kist.toml，未知字段与未来版本一律报错
 
 **已存在目录的处理分三种：** 不存在 → 建；存在且是个库 → `ErrAlreadyLibrary`；存在且非空但不是库 → `ErrNotEmpty`。**不往一个有别人东西的目录里铺库**——那会把用户的文件和 `blobs/` 混在一起，而 `kist relink` 将来会重建 `boxes/`。
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 ```go
 package library

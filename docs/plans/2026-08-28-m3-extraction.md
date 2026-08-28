@@ -1,6 +1,6 @@
 # M3 提取实现计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 让 `find --sort captured` 第一次返回真实结果。在此之前 `captured_at` 整列是 NULL，那个排序退化成纯 `id DESC`。附带一个能接第三方提取器的契约。
 
@@ -134,7 +134,7 @@ internal/arch/arch_test.go        改：加 extract 的依赖规则
 
 **为什么改初始迁移而不是加一个新的：`metadata` 表现在一行数据都没有**，`captured_at` 整列是 NULL。没有任何现存库需要迁移，而多一个迁移文件是永久的阅读成本。这是这个决定唯一的窗口期。
 
-- [ ] **Step 1: 先写会红的测试**
+- [x] **Step 1: 先写会红的测试**
 
 `internal/store/migrate_test.go` 里加：
 
@@ -182,12 +182,12 @@ func TestCapturedAtIsAnInteger(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑一遍，确认三条都红**
+- [x] **Step 2: 跑一遍，确认三条都红**
 
 `go test ./internal/store/ -run 'FileMetadata|FileExtractions|CapturedAtIsAnInteger'`
 预期：编译通过但三条都失败（表不存在 / 列类型不对）。
 
-- [ ] **Step 3: 改迁移**
+- [x] **Step 3: 改迁移**
 
 `00001_init.sql` 里把 `metadata` 整块换掉：
 
@@ -227,7 +227,7 @@ CREATE TABLE file_extractions (
 
 `-- +goose Down` 里 `DROP TABLE metadata` 换成两条 `DROP TABLE file_metadata` / `file_extractions`。
 
-- [ ] **Step 4: 改 `ClearViews` 和 `snapshotTables`**
+- [x] **Step 4: 改 `ClearViews` 和 `snapshotTables`**
 
 `views.go`：
 
@@ -249,17 +249,17 @@ for _, table := range []string{
 
 原来那行 `{"metadata", …}` 删掉。
 
-- [ ] **Step 5: 跑测试，三条转绿**
+- [x] **Step 5: 跑测试，三条转绿**
 
 `go test ./internal/store/`
 
-- [ ] **Step 6: 验证守护会红**
+- [x] **Step 6: 验证守护会红**
 
 把 `file_metadata` 的 `REFERENCES files(id)` 去掉，`TestFileMetadataHasARealForeignKey` 必须红。改回来。
 
 把 `snapshotTables` 里的 `file_metadata` 那行注释掉，`internal/library` 的 rebuild 快照测试**应该仍然绿**（因为还没有 metadata 数据）——**这是预期的**，Task 8 会补上真正咬得住的那一版。记在这里免得有人以为快照已经覆盖了。
 
-- [ ] **Step 7: `make check` + commit**
+- [x] **Step 7: `make check` + commit**
 
 ```bash
 git add -A
@@ -307,7 +307,7 @@ file_extractions 是索引表不是 payload 字段，因为「哪些文件还没
   const ReservedNamespace = "user"
   ```
 
-- [ ] **Step 1: 写会红的测试**
+- [x] **Step 1: 写会红的测试**
 
 ```go
 // spec 1.7.6 ②：命名空间归提取器所有，不许重叠。没有这条，一个用户插件
@@ -385,9 +385,9 @@ func TestCheckRejectsAValueThatDoesNotParse(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑，确认全红（编译失败即可）**
+- [x] **Step 2: 跑，确认全红（编译失败即可）**
 
-- [ ] **Step 3: 实现 `extract.go`**
+- [x] **Step 3: 实现 `extract.go`**
 
 ```go
 // Package extract defines what an extractor is: what it owns, what it
@@ -454,13 +454,13 @@ type Extractor interface {
 
 **为什么写入前再查一遍而不是信任声明**：外部进程插件（1.7.6）的产出是不可信输入。而且一个内置提取器的 bug 在这里被拦下，比在 `Apply` 里重放时炸掉便宜得多。
 
-- [ ] **Step 4: 实现 `registry.go`**
+- [x] **Step 4: 实现 `registry.go`**
 
 包级注册表 + 一个可测的 `newRegistry()`，形状抄 `oplog/registry.go`。`register` 校验：id 非空、id ≠ `UserSource`、至少一个命名空间、命名空间不含 `ReservedNamespace`、不与已注册的重叠。
 
-- [ ] **Step 5: 跑测试，全绿**
+- [x] **Step 5: 跑测试，全绿**
 
-- [ ] **Step 6: 加 arch 规则并验证它会咬**
+- [x] **Step 6: 加 arch 规则并验证它会咬**
 
 ```go
 // TestExtractKnowsOnlyDomain keeps the extractor contract testable without a
@@ -484,7 +484,7 @@ func TestExtractKnowsOnlyDomain(t *testing.T) {
 
 **验证方式**：往 `internal/extract/extract.go` 的 **import 块里**（不是文件末尾——`build.ImportDir` 看不到那里，M2b 踩过）加一个 `_ "…/internal/store"`，测试必须红。
 
-- [ ] **Step 7: `make check` + commit**
+- [x] **Step 7: `make check` + commit**
 
 ---
 
@@ -534,13 +534,13 @@ func TestExtractKnowsOnlyDomain(t *testing.T) {
 - **`dsoprea/go-exif`** —— HEIC 要再配一个 `go-heic-exif-extractor`，两个包两套 API，而 HEIC 是主流情况不是边角
 - **`rwcarlsen/goexif`** —— 事实上停止维护，不支持 HEIC
 
-- [ ] **Step 1: 准备 fixture**
+- [x] **Step 1: 准备 fixture**
 
 `internal/extract/exif/testdata/` 放三个文件：一张带完整 EXIF 的 JPEG、一张 HEIC、一张没有任何 EXIF 的 PNG。
 
 **许可要求：必须是自己拍的或明确公有领域的**，并在 `testdata/README.md` 里写明出处。不要从依赖的 testdata 里拷——那些有自己的 license。图片要小（各 < 200 KB，必要时裁剪）。
 
-- [ ] **Step 2: 写会红的测试**
+- [x] **Step 2: 写会红的测试**
 
 ```go
 // 实测过 iPhone 15 Pro 的 HEIC：EXIF 是纯 Go 读得出来的，不需要 ffmpeg。
@@ -625,9 +625,9 @@ func TestExtractionIsDeterministic(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: 跑，确认全红**
+- [x] **Step 3: 跑，确认全红**
 
-- [ ] **Step 4: 实现 `tags.go`——命名空间与类型的映射**
+- [x] **Step 4: 实现 `tags.go`——命名空间与类型的映射**
 
 imagemeta 给的是 `IFD0:Make`、`IFD0/ExifIFDP:ISO`、`IFD0/GPSInfoIFD:GPSLatitude`。映射规则：
 
@@ -669,7 +669,7 @@ func typeOf(v any) (string, extract.Type, bool) {
 
 `printable` 拒绝任何控制字符（`\t` / `\n` 除外）和超过上限的长度。**上限设 1 KB**：真正的标量标签没有这么长的，超过它的一定是被当成字符串的二进制块。
 
-- [ ] **Step 5: 实现 `exif.go`**
+- [x] **Step 5: 实现 `exif.go`**
 
 ```go
 func New() extract.Extractor { return exifExtractor{} }
@@ -684,15 +684,15 @@ func (exifExtractor) Wants(mime string) bool { … }
 
 **`Wants` 按 MIME 而不是扩展名**，因为导入的文件名可能骗人。MIME 从内容嗅探得到（`http.DetectContentType` 够用；HEIC 要自己认 ISO-BMFF 的 `ftyp` box，写一个小函数）。
 
-- [ ] **Step 6: 跑测试，全绿**
+- [x] **Step 6: 跑测试，全绿**
 
-- [ ] **Step 7: 验证守护会红**
+- [x] **Step 7: 验证守护会红**
 
 - 把 `printable` 的长度上限拿掉 → `TestSkipsBinaryBlobs` 必须红
 - 把 `typeOf` 里整数那一支改成返回 `TypeText` → `TestEveryValueSurvivesCheck` **不会**红（text 什么都能装）。**这说明那条测试对类型正确性没有约束力**——补一条断言 `exif:ISO` 的 `Type` 必须是 `int`，再验证它会红
 - 把输出排序去掉 → `TestExtractionIsDeterministic` 大概率红（map 遍历顺序）。如果**没有**红，说明 `HandleTag` 的顺序本来就稳定，那就把测试改成直接断言输出有序，并把这条发现写进注释
 
-- [ ] **Step 8: `make check` + commit**
+- [x] **Step 8: `make check` + commit**
 
 ---
 
@@ -719,7 +719,7 @@ func (exifExtractor) Wants(mime string) bool { … }
 
 **这是内核，不是提取器。** 它不注册进 Task 2 的注册表，`Namespaces()` 之类一概没有。放在 `internal/extract` 里只是因为它的输入是 `[]KV`——**一个插件永远碰不到排序键**（1.5.2 的信任边界）。
 
-- [ ] **Step 1: 写会红的测试**
+- [x] **Step 1: 写会红的测试**
 
 ```go
 // spec 1.5.2 的墙钟链：EXIF → 视频 → file:mtime → 没有。
@@ -850,9 +850,9 @@ func TestAnUnparsableExifTimeFallsThrough(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 跑，确认全红**
+- [x] **Step 2: 跑，确认全红**
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 要点：
 
@@ -862,15 +862,15 @@ func TestAnUnparsableExifTimeFallsThrough(t *testing.T) {
 - `geo:timezone` 是 IANA 名字，`time.LoadLocation`。**加载失败退到库时区**——Go 的 tzdata 在某些精简系统上可能缺失，而这不该让一个文件失去拍摄时间。若要彻底消除这个变数，`cmd` 侧 `import _ "time/tzdata"`（约 +450 KB，Task 7 决定）
 - **秒是精度终点**，亚秒（`exif:SubSecTimeOriginal`）不参与——1.5.2 已经论证过连拍顺序由 tiebreaker 决定
 
-- [ ] **Step 4: 跑测试，全绿**
+- [x] **Step 4: 跑测试，全绿**
 
-- [ ] **Step 5: 验证守护会红**
+- [x] **Step 5: 验证守护会红**
 
 把兜底时区改成 `time.UTC` → `TestTheFallbackZoneIsNotUTC` 和 `TestTimezoneFallbackChain` 必须红。
 
 把 `AnUnparsableExifTime` 那一档改成返回错误 → 对应测试必须红。
 
-- [ ] **Step 6: `make check` + commit**
+- [x] **Step 6: `make check` + commit**
 
 ---
 
@@ -905,7 +905,7 @@ func TestAnUnparsableExifTimeFallsThrough(t *testing.T) {
 
 **`oplog` 会因此 import `internal/extract`。** 这是允许的——`extract` 只依赖 `domain`，所以依赖方向没有反转。arch 测试要显式允许它，并写清楚理由。
 
-- [ ] **Step 1: 写会红的测试**
+- [x] **Step 1: 写会红的测试**
 
 ```go
 // spec 2.3：Inverse 要能把状态换回去，所以 before 值必须在 payload 里。
@@ -967,11 +967,11 @@ func TestTargetsListsEveryFile(t *testing.T) { … }
 func TestApplyRejectsAnUnknownType(t *testing.T) { … }
 ```
 
-- [ ] **Step 2: 跑，确认全红**
+- [x] **Step 2: 跑，确认全红**
 
-- [ ] **Step 3: 扩 `oplog.Tx` 和 `faketx_test.go`**
+- [x] **Step 3: 扩 `oplog.Tx` 和 `faketx_test.go`**
 
-- [ ] **Step 4: 实现 `metadata.go`**
+- [x] **Step 4: 实现 `metadata.go`**
 
 `Apply`：按 `Set` 写、按 `Removed` 删、写 `SetFileExtraction(file, p.Extractor, p.Version)`、按 `CapturedAt` 写列。**`source` 取 `p.Extractor`**，不是常量。
 
@@ -981,15 +981,15 @@ func TestApplyRejectsAnUnknownType(t *testing.T) { … }
 
 `Targets`：`Files` 里每个 `FileID`。**boxes 为空**——metadata 不改变 box 的任何东西，而 1.5.1 ② 说提取器源的 op 本来就不传播 `updated_at`（`SourceExtractor` 在 M1b 就定好了）。
 
-- [ ] **Step 5: 跑测试，全绿**
+- [x] **Step 5: 跑测试，全绿**
 
-- [ ] **Step 6: 验证守护会红**
+- [x] **Step 6: 验证守护会红**
 
 - 把 `Inverse` 里的 `Version` 换回去那一步删掉 → 对应测试必须红
 - 把 `Apply` 的 `source` 从 `p.Extractor` 改成常量 `"extracted"` → 加一条断言 `source` 的测试并验证它红
 - 往 `Apply` 里塞一个「跑了几次」的计数器 → `internal/library` 的 rebuild 快照测试必须红（Task 8 之后）
 
-- [ ] **Step 7: `make check` + commit**
+- [x] **Step 7: `make check` + commit**
 
 ---
 
@@ -1006,7 +1006,7 @@ func TestApplyRejectsAnUnknownType(t *testing.T) { … }
 **Interfaces:**
 - Produces：`store.FileMetadata(q Queryer, file domain.FileID) ([]extract.KV, string, error)`、`store.Extractions(q Queryer, file domain.FileID) (map[string]int, error)`、`store.FilesNeedingExtraction(q Queryer, extractor string, version int, limit int) ([]domain.FileID, error)`
 
-- [ ] **Step 1: 写会红的测试**
+- [x] **Step 1: 写会红的测试**
 
 ```go
 // spec 1.7.6 ③：这就是 file_extractions 存在的理由。没有它，「哪些文件
@@ -1039,11 +1039,11 @@ func TestBoxTimePredicateStillOverlaps(t *testing.T) { … }
 func TestNullCapturedAtSortsLastInBothDirections(t *testing.T) { … }
 ```
 
-- [ ] **Step 2: 跑，确认全红**
+- [x] **Step 2: 跑，确认全红**
 
-- [ ] **Step 3: 实现 `metadata.go` 与 `ViewTx` 的新方法**
+- [x] **Step 3: 实现 `metadata.go` 与 `ViewTx` 的新方法**
 
-- [ ] **Step 4: 改 `timePredicate`**
+- [x] **Step 4: 改 `timePredicate`**
 
 它现在是：
 
@@ -1061,7 +1061,7 @@ AND col IS NOT NULL AND col >= ? AND col <= ?
 
 **库时区从哪来**：`translate` 是纯函数，所以时区是参数，由 `library` 从配置传进来（和 `ResolveCaptured` 同形）。**不要在 `store` 里读 `time.Local`**——那会让同一个查询在不同机器上返回不同结果，而 4.7 说的正是这件事。
 
-- [ ] **Step 5: 改 conformance suite 的时间那一组**
+- [x] **Step 5: 改 conformance suite 的时间那一组**
 
 `internal/query/querytest/cases.go` 里，文件时间的 case 从「变精度重叠」改成「瞬时区间」。**box 那一组不动。**
 
@@ -1072,14 +1072,14 @@ fixture 也要改：`Builder` 现在拿 `LocalDate` 塞 `captured_at`，改成�
 - 一张 `captured_at` 为负数的文件（1960 年的扫描件），验证它排在 1970 年之后的文件前面。**这是 TEXT 列时会错的那个案例**，用它把这次改动钉死
 - `--since 2019` 匹配的是那一年的第一秒到最后一秒，边界包含
 
-- [ ] **Step 6: 跑测试，全绿**
+- [x] **Step 6: 跑测试，全绿**
 
-- [ ] **Step 7: 验证守护会红**
+- [x] **Step 7: 验证守护会红**
 
 - 把 `captured_at` 列改回 TEXT 并把负数写进去 → 那条 1960 年的 conformance case 必须红
 - 把库时区参数换成 `time.Local` → `TestTimePredicate…` 在非目标时区的机器上会红。**如果本地时区恰好一样测不出来，就在测试里显式用两个不同的时区跑两遍**，像 `TestResolutionDoesNotReadTheEnvironment` 那样
 
-- [ ] **Step 8: `make check` + commit**
+- [x] **Step 8: `make check` + commit**
 
 ---
 
@@ -1110,7 +1110,7 @@ fixture 也要改：`Builder` 现在拿 `LocalDate` 塞 `captured_at`，改成�
   func (l *Library) Extract(ctx context.Context, opt ExtractOptions, progress func(done, total int)) (*ExtractResult, error)
   ```
 
-- [ ] **Step 1: 库时区进配置**
+- [x] **Step 1: 库时区进配置**
 
 ```toml
 [library]
@@ -1120,7 +1120,7 @@ timezone = "Asia/Shanghai"   # 空表示用机器的本地时区，并在 init �
 
 **`kist init` 把探测到的时区写实**，而不是留空。理由和 3.5 的 link mode 一样：留空意味着同一个库在另一台机器上打开会改变行为，而这一列决定用户看见的排序。`init` 时展示它，让用户能改。
 
-- [ ] **Step 2: 写会红的测试**
+- [x] **Step 2: 写会红的测试**
 
 ```go
 // spec 1.7.6 ④ + 原则 ②：同一个提取器同一个版本重跑，一条 op 都不写。
@@ -1153,9 +1153,9 @@ func TestANewExtractorTriggersACapturedAtRecompute(t *testing.T) {
 func TestExtractionNeverOverwritesAUserRow(t *testing.T) { … }
 ```
 
-- [ ] **Step 3: 跑，确认全红**
+- [x] **Step 3: 跑，确认全红**
 
-- [ ] **Step 4: 实现 `library.Extract`**
+- [x] **Step 4: 实现 `library.Extract`**
 
 流程：
 
@@ -1170,7 +1170,7 @@ func TestExtractionNeverOverwritesAUserRow(t *testing.T) { … }
 
 **`captured_at` 的重算要覆盖那些「这次没提到但受影响」的文件吗？** 不。重算只发生在这条 op 碰到的文件上，因为解析规则的输入只有那个文件自己的行。`kist:captured` 的版本变了时，用同一个 `FilesNeedingExtraction` 机制走一遍即可——**规则版本和提取器版本共用一张表，这正是 1.7.6 ③ 那个设计的收益。**
 
-- [ ] **Step 5: 实现 CLI**
+- [x] **Step 5: 实现 CLI**
 
 ```
 kist extract [--box 云南] [--extractor exif] [--force]
@@ -1187,15 +1187,15 @@ kist file show <id>        # 列出 metadata，标注 source
 
 1.5.2 说了这是必须做对的一条——用户要能看出「这是我缺信息」而不是「这个时间是准的」。
 
-- [ ] **Step 6: 跑测试，全绿**
+- [x] **Step 6: 跑测试，全绿**
 
-- [ ] **Step 7: 验证守护会红 + 手工走一遍**
+- [x] **Step 7: 验证守护会红 + 手工走一遍**
 
 手工：建库 → 导入几张真照片（含 iPhone 的 HEIC）→ `kist extract` → `kist find --sort captured` → `kist file show` → `kist undo` → 确认 metadata 和 `captured_at` 都回去了 → `kist extract` 再跑一遍 → 确认它把撤销掉的又提了回来（因为 `Inverse` 把 `file_extractions` 的版本也换回去了）。
 
 **最后那一步是 Task 5 那个「最容易漏的地方」的端到端验证。**
 
-- [ ] **Step 8: `make check` + commit**
+- [x] **Step 8: `make check` + commit**
 
 ---
 
@@ -1206,7 +1206,7 @@ kist file show <id>        # 列出 metadata，标注 source
 - Modify: `README.md`, `README.zh-CN.md`, `AGENTS.md`
 - Modify: `docs/plans/2026-08-28-m3-extraction.md`（执行记录）
 
-- [ ] **Step 1: 把 metadata 加进 rebuild 的快照证明**
+- [x] **Step 1: 把 metadata 加进 rebuild 的快照证明**
 
 现有的证明是：建一批数据 → 记全库快照 → `Rebuild` → 快照必须逐字节相同。**fixture 要加上提取**：
 
@@ -1216,24 +1216,24 @@ kist file show <id>        # 列出 metadata，标注 source
 - 一个 `source='user'` 的行，验证重放不会碰它
 - 一个 `captured_at` 为负数的文件
 
-- [ ] **Step 2: 验证它会红**
+- [x] **Step 2: 验证它会红**
 
 往 `extract_metadata` 的 `Apply` 里塞一个「跑了几次」的计数器，快照必须指出是 `file_metadata` 或 `file_extractions` 哪一行不一样。
 
 **M1c 的记录里写过：这个证明验证过它会红，指出的是 `files` 表哪一行的 name 不一样。** 这次要确认它同样指得出新表。
 
-- [ ] **Step 3: 更新文档**
+- [x] **Step 3: 更新文档**
 
 - `AGENTS.md` 的「当前状态」加 M3
 - 两个 README 的功能列表加 `kist extract`
 - **设计文档 5.1 的技术选型表加一行 `bep/imagemeta`**，并写明否掉 `dsoprea/go-exif`（HEIC 要再配一个包）和 `rwcarlsen/goexif`（停止维护、不支持 HEIC）的理由
 - **设计文档 5.3 要更新一个乐观的发现**：EXIF 能从 HEIC 里纯 Go 读出来，ffmpeg 只挡像素不挡元数据。这比 5.3 原来暗示的好
 
-- [ ] **Step 4: 写执行记录**
+- [x] **Step 4: 写执行记录**
 
 按 M2a / M2b 的惯例，在本文件末尾记下**哪些地方实测推翻了计划**。如果一处都没有，那八成是没认真验证守护会红。
 
-- [ ] **Step 5: `make check` + commit + push，等 CI 三平台绿**
+- [x] **Step 5: `make check` + commit + push，等 CI 三平台绿**
 
 ---
 
