@@ -32,11 +32,10 @@ func (l *Library) write(
 	source oplog.Source,
 	revertsID *int64,
 ) (int64, error) {
-	// Everything below — the transaction, the in-memory tag tree, and the
-	// incremental projection at the end — is one logical write, and the lock
-	// covers all three (spec 2.7). Holding it across the projection is the
-	// point: two processes renaming directories under boxes/ at once is the
-	// silent failure that lock exists for.
+	// Everything below — the transaction and the incremental projection at
+	// the end — is one logical write, and the lock covers both (spec 2.7).
+	// Holding it across the projection is the point: two processes renaming
+	// directories under boxes/ at once is the silent failure it exists for.
 	release, err := l.lock.Acquire(ctx)
 	if err != nil {
 		return 0, err
@@ -117,19 +116,6 @@ func (l *Library) write(
 		return 0, fmt.Errorf("commit %s: %w", action, err)
 	}
 
-	if err := l.refreshTagState(action, payload); err != nil {
-		// The database is already committed and correct; only the in-memory
-		// mirror is behind. Reloading it is always safe, so recover rather
-		// than fail a write that actually succeeded.
-		l.log.Error("the in-memory tag tree fell out of step; reloading it",
-			"op", opID, "action", action, "err", err)
-		tags, rerr := LoadTagTree(l.db)
-		if rerr != nil {
-			return opID, fmt.Errorf("op %d committed but the tag tree could not be reloaded: %w", opID, rerr)
-		}
-		l.tags = tags
-	}
-
 	// The transaction is committed and the library is correct; only the
 	// human-readable mirror can still be behind, and relink fixes that
 	// (spec 3.4.1). Failing the caller here would tell them their change did
@@ -184,92 +170,6 @@ func unionFolders(a, b []domain.FolderID) []domain.FolderID {
 		}
 	}
 	return out
-}
-
-// refreshTagState mirrors a committed op into the in-memory tag tree.
-//
-// It is driven by the action rather than by the command that produced it, so
-// undo gets the same treatment for free: an inverse op is just another action
-// arriving at this switch.
-func (l *Library) refreshTagState(action oplog.Action, payload []byte) error {
-	switch action {
-	case oplog.ActionCreateTag:
-		p, err := oplog.Payload[oplog.CreateTagPayload](payload)
-		if err != nil {
-			return err
-		}
-		tag, err := domain.NewTag(p.TagID, p.ParentID, p.Name)
-		if err != nil {
-			return err
-		}
-		return l.tags.Insert(tag)
-
-	case oplog.ActionDeleteTag:
-		p, err := oplog.Payload[oplog.DeleteTagPayload](payload)
-		if err != nil {
-			return err
-		}
-		return l.tags.Remove(p.TagID)
-
-	case oplog.ActionRenameTag:
-		p, err := oplog.Payload[oplog.RenameTagPayload](payload)
-		if err != nil {
-			return err
-		}
-		current, ok := l.tags.ByID(p.TagID)
-		if !ok {
-			return fmt.Errorf("tag %s is not in the tree", p.TagID)
-		}
-		renamed, err := domain.NewTag(p.TagID, current.ParentID, p.After)
-		if err != nil {
-			return err
-		}
-		return l.tags.Update(renamed)
-
-	case oplog.ActionMoveTag:
-		p, err := oplog.Payload[oplog.MoveTagPayload](payload)
-		if err != nil {
-			return err
-		}
-		current, ok := l.tags.ByID(p.TagID)
-		if !ok {
-			return fmt.Errorf("tag %s is not in the tree", p.TagID)
-		}
-		moved, err := domain.NewTag(p.TagID, p.NewParent, current.Name)
-		if err != nil {
-			return err
-		}
-		return l.tags.Update(moved)
-
-	case oplog.ActionTagBoxes:
-		p, err := oplog.Payload[oplog.TagBoxesPayload](payload)
-		if err != nil {
-			return err
-		}
-		l.tags.AddDirectCount(p.TagID, len(p.BoxIDs))
-
-	case oplog.ActionUntagBoxes:
-		p, err := oplog.Payload[oplog.UntagBoxesPayload](payload)
-		if err != nil {
-			return err
-		}
-		l.tags.AddDirectCount(p.TagID, -len(p.BoxIDs))
-
-	case oplog.ActionTagFiles:
-		p, err := oplog.Payload[oplog.TagFilesPayload](payload)
-		if err != nil {
-			return err
-		}
-		l.tags.AddDirectCount(p.TagID, len(p.FileIDs))
-
-	case oplog.ActionUntagFiles:
-		p, err := oplog.Payload[oplog.UntagFilesPayload](payload)
-		if err != nil {
-			return err
-		}
-		l.tags.AddDirectCount(p.TagID, -len(p.FileIDs))
-	}
-	return nil
 }
 
 // readTx runs fn against a read-only transaction.

@@ -1,9 +1,11 @@
 package library
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/store"
 )
 
 // buildTree makes a tree without a database:
@@ -41,7 +43,7 @@ func buildTree(t *testing.T) (*TagTree, map[string]domain.TagID) {
 	add("丽江", "云南")
 	add("爸", "人物")
 
-	tree, err := NewTagTree(tags, nil)
+	tree, err := NewTagTree(tags)
 	if err != nil {
 		t.Fatalf("NewTagTree: %v", err)
 	}
@@ -54,30 +56,6 @@ func names(tags []domain.Tag) []string {
 		out[i] = t.Name
 	}
 	return out
-}
-
-func TestTagTreeLookup(t *testing.T) {
-	tree, ids := buildTree(t)
-
-	if got, ok := tree.ByID(ids["云南"]); !ok || got.Name != "云南" {
-		t.Errorf("ByID = %+v ok=%v", got, ok)
-	}
-	// spec 1.6: names are globally unique, so name lookup is unambiguous —
-	// that is the whole point of the constraint.
-	if got, ok := tree.ByName("大理"); !ok || got.ID != ids["大理"] {
-		t.Errorf("ByName = %+v ok=%v", got, ok)
-	}
-	// Lookup goes through the same fold function the unique index is built on
-	// (spec 4.7), and folding deliberately does not trim.
-	if _, ok := tree.ByName("大理 "); ok {
-		t.Error("ByName matched a name with trailing space; folding must not trim")
-	}
-	if _, ok := tree.ByName("没有这个"); ok {
-		t.Error("ByName found a tag that does not exist")
-	}
-	if tree.Len() != 7 {
-		t.Errorf("Len = %d, want 7", tree.Len())
-	}
 }
 
 func TestTagTreeStructure(t *testing.T) {
@@ -94,119 +72,10 @@ func TestTagTreeStructure(t *testing.T) {
 	}
 }
 
-func TestDescendantsIncludesSelf(t *testing.T) {
-	// spec 4.3: selecting 人物 should return everyone's photos — which
-	// includes anything hanging directly off 人物 itself.
-	tree, ids := buildTree(t)
-
-	got := tree.Descendants(ids["云南"])
-	if len(got) != 3 {
-		t.Fatalf("Descendants(云南) has %d entries, want 3 (self + 大理 + 丽江)", len(got))
-	}
-	found := map[domain.TagID]bool{}
-	for _, id := range got {
-		found[id] = true
-	}
-	for _, want := range []string{"云南", "大理", "丽江"} {
-		if !found[ids[want]] {
-			t.Errorf("Descendants(云南) is missing %s", want)
-		}
-	}
-
-	if got := tree.Descendants(ids["地点"]); len(got) != 5 {
-		t.Errorf("Descendants(地点) has %d entries, want 5", len(got))
-	}
-	if got := tree.Descendants(ids["爸"]); len(got) != 1 {
-		t.Errorf("Descendants of a leaf has %d entries, want just itself", len(got))
-	}
-}
-
-func TestPath(t *testing.T) {
-	tree, ids := buildTree(t)
-	got := names(tree.Path(ids["大理"]))
-	want := []string{"地点", "云南", "大理"}
-	if len(got) != len(want) {
-		t.Fatalf("Path = %v, want %v", got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("Path = %v, want %v", got, want)
-		}
-	}
-}
-
-func TestWouldCycle(t *testing.T) {
-	// Moving a node under its own descendant creates a loop, and a loop in the
-	// tag tree makes Descendants recurse forever. The check belongs here, at
-	// command time, because Apply is not allowed to make decisions.
-	tree, ids := buildTree(t)
-
-	if !tree.WouldCycle(ids["地点"], ids["大理"]) {
-		t.Error("moving 地点 under its own grandchild was not detected as a cycle")
-	}
-	if !tree.WouldCycle(ids["云南"], ids["云南"]) {
-		t.Error("moving a node under itself was not detected as a cycle")
-	}
-	if tree.WouldCycle(ids["云南"], ids["人物"]) {
-		t.Error("a legitimate move was reported as a cycle")
-	}
-}
-
-func TestTagTreeIncrementalMaintenance(t *testing.T) {
-	tree, ids := buildTree(t)
-
-	// insert
-	newID := domain.NewTagID()
-	parent := ids["人物"]
-	mom, _ := domain.NewTag(newID, &parent, "妈")
-	if err := tree.Insert(mom); err != nil {
-		t.Fatalf("Insert: %v", err)
-	}
-	if len(tree.Children(parent)) != 2 {
-		t.Error("Insert did not attach the node to its parent")
-	}
-
-	// rename
-	renamed, _ := domain.NewTag(newID, &parent, "母亲")
-	if err := tree.Update(renamed); err != nil {
-		t.Fatalf("Update: %v", err)
-	}
-	if _, ok := tree.ByName("妈"); ok {
-		t.Error("the old name still resolves after a rename")
-	}
-	if _, ok := tree.ByName("母亲"); !ok {
-		t.Error("the new name does not resolve after a rename")
-	}
-
-	// move
-	places := ids["地点"]
-	moved, _ := domain.NewTag(newID, &places, "母亲")
-	if err := tree.Update(moved); err != nil {
-		t.Fatalf("Update (move): %v", err)
-	}
-	if len(tree.Children(parent)) != 1 {
-		t.Error("the node was not detached from its old parent")
-	}
-	if len(tree.Children(places)) != 3 {
-		t.Error("the node was not attached to its new parent")
-	}
-
-	// remove
-	if err := tree.Remove(newID); err != nil {
-		t.Fatalf("Remove: %v", err)
-	}
-	if _, ok := tree.ByID(newID); ok {
-		t.Error("the node survived Remove")
-	}
-	if len(tree.Children(places)) != 2 {
-		t.Error("Remove did not detach the node from its parent")
-	}
-}
-
 func TestTagTreeRejectsADuplicateName(t *testing.T) {
-	tree, _ := buildTree(t)
 	dup, _ := domain.NewTag(domain.NewTagID(), nil, "云南")
-	if err := tree.Insert(dup); err == nil {
+	other, _ := domain.NewTag(domain.NewTagID(), nil, "云南")
+	if _, err := NewTagTree([]domain.Tag{dup, other}); err == nil {
 		t.Error("the tree accepted a duplicate name; global uniqueness is a lie")
 	}
 }
@@ -214,24 +83,25 @@ func TestTagTreeRejectsADuplicateName(t *testing.T) {
 func TestCountsAggregateUpTheTree(t *testing.T) {
 	// spec 1.6: the selector shows 人物 (1,204), which is the subtree total.
 	tree, ids := buildTree(t)
-	tree.SetDirectCount(ids["大理"], 10)
-	tree.SetDirectCount(ids["丽江"], 5)
-	tree.SetDirectCount(ids["云南"], 1)
-	tree.SetDirectCount(ids["四川"], 3)
+	totals := tree.Totals(map[domain.TagID]int{
+		ids["大理"]: 10,
+		ids["丽江"]: 5,
+		ids["云南"]: 1,
+		ids["四川"]: 3,
+	})
 
-	if got := tree.Count(ids["云南"]); got != 16 {
-		t.Errorf("Count(云南) = %d, want 16", got)
+	if got := totals[ids["云南"]]; got != 16 {
+		t.Errorf("云南 = %d, want 16", got)
 	}
-	if got := tree.Count(ids["地点"]); got != 19 {
-		t.Errorf("Count(地点) = %d, want 19", got)
+	if got := totals[ids["地点"]]; got != 19 {
+		t.Errorf("地点 = %d, want 19", got)
 	}
-	if got := tree.Count(ids["人物"]); got != 0 {
-		t.Errorf("Count(人物) = %d, want 0", got)
+	if got := totals[ids["人物"]]; got != 0 {
+		t.Errorf("人物 = %d, want 0", got)
 	}
-
-	tree.AddDirectCount(ids["大理"], -4)
-	if got := tree.Count(ids["地点"]); got != 15 {
-		t.Errorf("after AddDirectCount, Count(地点) = %d, want 15", got)
+	// A tag nobody used is still in the map, at zero — the selector shows it.
+	if _, ok := totals[ids["爸"]]; !ok {
+		t.Error("an unused tag is missing from the totals")
 	}
 }
 
@@ -248,7 +118,95 @@ func TestTagTreeSortsByByteOrder(t *testing.T) {
 
 func TestLoadTagTreeFromStore(t *testing.T) {
 	l := openTestLibrary(t)
-	if l.Tags().Len() != 0 {
-		t.Errorf("a fresh library has %d tags, want 0", l.Tags().Len())
+	tree, totals, err := l.TagTree()
+	if err != nil {
+		t.Fatal(err)
 	}
+	if got := tree.Roots(); len(got) != 0 {
+		t.Errorf("a fresh library has roots %v, want none", names(got))
+	}
+	if len(totals) != 0 {
+		t.Errorf("a fresh library has %d totals, want none", len(totals))
+	}
+}
+
+// Two processes share a library (spec 2.7), so a tag tree held in process
+// memory is stale the moment anybody else writes. This is the reason the tree
+// is loaded per operation rather than kept as a field.
+//
+// The duplicate is the sharp half. Name uniqueness is checked against the tree
+// before an op is written, so that the user gets a sentence instead of a
+// constraint violation (spec 1.6) — against a stale tree that check passes,
+// the op is written, and the failure surfaces from the unique index inside the
+// transaction with nothing useful to say.
+func TestATagCreatedByAnotherProcessIsVisible(t *testing.T) {
+	first := openTestLibrary(t)
+	ctx := t.Context()
+
+	second, err := Open(first.Layout().Root, WithClock(fixedClock()), WithActor("second"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer second.Close()
+
+	if _, err := first.CreateTag(ctx, "护照", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := second.ResolveTag("护照"); err != nil {
+		t.Errorf("the other process's tag does not resolve: %v", err)
+	}
+	if _, err := second.CreateTag(ctx, "护照", nil); !errors.Is(err, ErrTagNameTaken) {
+		t.Errorf("a duplicate tag was accepted; err = %v", err)
+	}
+}
+
+// The helpers below read through the same paths production does, so that a
+// test asserting "the tag is gone" is asserting it about the database rather
+// than about a copy the test happens to hold.
+
+func tagByName(t *testing.T, l *Library, name string) (domain.Tag, bool) {
+	t.Helper()
+	tag, ok, err := store.TagByName(l.db, name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return tag, ok
+}
+
+func tagByID(t *testing.T, l *Library, id domain.TagID) (domain.Tag, bool) {
+	t.Helper()
+	tag, ok, err := store.TagByID(l.db, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return tag, ok
+}
+
+func tagChildren(t *testing.T, l *Library, id domain.TagID) []domain.Tag {
+	t.Helper()
+	tree, _, err := l.TagTree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return tree.Children(id)
+}
+
+// tagCount is the subtree total the tag selector would show.
+func tagCount(t *testing.T, l *Library, id domain.TagID) int {
+	t.Helper()
+	_, totals, err := l.TagTree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return totals[id]
+}
+
+func tagTotal(t *testing.T, l *Library) int {
+	t.Helper()
+	tags, err := store.ListTags(l.db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return len(tags)
 }

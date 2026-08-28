@@ -47,8 +47,13 @@ func ListBoxes(q Queryer, opt ListBoxesOptions) ([]domain.Box, error) {
 	return out, rows.Err()
 }
 
-// ListTags returns every tag. The tree is a few thousand nodes and lives in
-// memory (spec 1.6), so there is no paging and no path column.
+// ListTags returns every tag, for the one caller that wants the whole tree to
+// render it. Asking about one tag or one subtree goes through TagByName,
+// TagByID or TagDescendants instead.
+//
+// There is no paging and no path column: the tree is a few thousand nodes, and
+// spec 1.6 trades the path column for a recursive query so that moving a
+// subtree stays one row.
 func ListTags(q Queryer) ([]domain.Tag, error) {
 	rows, err := q.Query(`SELECT id, parent_id, name, name_fold FROM tags ORDER BY id`)
 	if err != nil {
@@ -107,9 +112,10 @@ func FileTags(q Queryer, file domain.FileID) ([]domain.TagID, error) {
 
 // TagDirectCounts returns how many things hang directly off each tag.
 //
-// One GROUP BY at startup, then library keeps it up to date incrementally
-// (spec 1.6). The counts are deliberately not a column on tags: a restart
-// re-derives them, so there is nothing to drift.
+// The counts are deliberately not a column on tags: they are derived on
+// demand, so there is nothing to drift (spec 1.6). This is the one query in
+// the tag path that scales with the size of file_tags rather than with the
+// tree, which is why only the tag selector asks for it.
 func TagDirectCounts(q Queryer) (map[domain.TagID]int, error) {
 	rows, err := q.Query(
 		`SELECT tag_id, count(*) FROM box_tags GROUP BY tag_id

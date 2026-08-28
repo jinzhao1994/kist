@@ -67,14 +67,20 @@ func newTagTreeCmd() *cobra.Command {
 			}
 			defer l.Close()
 
-			tree := l.Tags()
+			// Printing the whole tree is the one thing that really wants the
+			// whole tree; everything else asks about one tag or one subtree
+			// and goes to the database for it (spec 1.6).
+			tree, totals, err := l.TagTree()
+			if err != nil {
+				return err
+			}
 			var print func(tags []domain.Tag, depth int)
 			print = func(tags []domain.Tag, depth int) {
 				for _, tag := range tags {
 					// The count is the subtree total, which is what the tag
 					// selector will show later (spec 1.6).
 					fmt.Fprintf(cmd.OutOrStdout(), "%s%s (%d)\n",
-						strings.Repeat("  ", depth), tag.Name, tree.Count(tag.ID))
+						strings.Repeat("  ", depth), tag.Name, totals[tag.ID])
 					print(tree.Children(tag.ID), depth+1)
 				}
 			}

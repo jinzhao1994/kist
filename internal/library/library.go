@@ -22,7 +22,6 @@ type Library struct {
 	cfg    *config.Config
 	db     *sql.DB
 	blobs  *blob.Dir
-	tags   *TagTree
 	// lock serializes writes against every other process sharing this library
 	// — and, inside serve, against every other request (spec 2.7). Reads never
 	// take it.
@@ -97,10 +96,6 @@ func Open(root string, opts ...Option) (*Library, error) {
 		l.db.Close()
 		return nil, err
 	}
-	if l.tags, err = LoadTagTree(l.db); err != nil {
-		l.db.Close()
-		return nil, err
-	}
 	if err := l.checkLinkMode(); err != nil {
 		l.db.Close()
 		return nil, err
@@ -118,8 +113,22 @@ func (l *Library) Close() error {
 // Layout exposes where things live, for commands that print paths.
 func (l *Library) Layout() Layout { return l.layout }
 
-// Tags is the in-memory tag tree.
-func (l *Library) Tags() *TagTree { return l.tags }
+// TagTree reads the whole tag tree, together with each tag's subtree total.
+//
+// This is the only thing in the library that reads every tag, and it is read
+// per call rather than kept on Library — see TagTree's own documentation for
+// why both of those are deliberate.
+func (l *Library) TagTree() (*TagTree, map[domain.TagID]int, error) {
+	tree, err := LoadTagTree(l.db)
+	if err != nil {
+		return nil, nil, err
+	}
+	direct, err := store.TagDirectCounts(l.db)
+	if err != nil {
+		return nil, nil, err
+	}
+	return tree, tree.Totals(direct), nil
+}
 
 // zone is the library's configured timezone (spec 1.5.2). It interprets a date
 // range against capture instants and renders one back.

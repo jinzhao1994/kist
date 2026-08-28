@@ -106,7 +106,7 @@ func TestUndoTagBoxesRestoresTheWholeBatch(t *testing.T) {
 			t.Errorf("box %s still carries %d tag(s)", id, len(tags))
 		}
 	}
-	if got := l.Tags().Count(tag.ID); got != 0 {
+	if got := tagCount(t, l, tag.ID); got != 0 {
 		t.Errorf("the count cache says %d after the undo, want 0", got)
 	}
 }
@@ -120,7 +120,7 @@ func TestUndoTagOpsKeepTheTreeInStep(t *testing.T) {
 	if _, err := l.Undo(ctx, createOp); err != nil {
 		t.Fatalf("Undo: %v", err)
 	}
-	if _, ok := l.Tags().ByID(tag.ID); ok {
+	if _, ok := tagByID(t, l, tag.ID); ok {
 		t.Error("the in-memory tree still holds a tag that was undone")
 	}
 	// The name is free again, which is only true if the tree really dropped it.

@@ -149,13 +149,13 @@ func TestTagFilesUpdatesTheTreeCounts(t *testing.T) {
 	if _, err := l.TagFiles(t.Context(), tag.ID, []domain.FileID{f.ID}); err != nil {
 		t.Fatal(err)
 	}
-	if got := l.Tags().Count(tag.ID); got != 1 {
+	if got := tagCount(t, l, tag.ID); got != 1 {
 		t.Errorf("count = %d, want 1", got)
 	}
 	if _, err := l.UntagFiles(t.Context(), tag.ID, []domain.FileID{f.ID}); err != nil {
 		t.Fatal(err)
 	}
-	if got := l.Tags().Count(tag.ID); got != 0 {
+	if got := tagCount(t, l, tag.ID); got != 0 {
 		t.Errorf("count after untagging = %d, want 0", got)
 	}
 
@@ -163,7 +163,7 @@ func TestTagFilesUpdatesTheTreeCounts(t *testing.T) {
 	if err := l.Rebuild(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	if got := l.Tags().Count(tag.ID); got != 0 {
+	if got := tagCount(t, l, tag.ID); got != 0 {
 		t.Errorf("count after a rebuild = %d, want 0", got)
 	}
 }

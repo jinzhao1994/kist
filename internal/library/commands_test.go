@@ -89,10 +89,10 @@ func TestCreateTagAndTree(t *testing.T) {
 	}
 
 	// The in-memory tree must track the database without a reload.
-	if got, ok := l.Tags().ByName("云南"); !ok || got.ID != yunnan.ID {
+	if got, ok := tagByName(t, l, "云南"); !ok || got.ID != yunnan.ID {
 		t.Error("the tag tree does not know about 云南")
 	}
-	if kids := l.Tags().Children(places.ID); len(kids) != 1 {
+	if kids := tagChildren(t, l, places.ID); len(kids) != 1 {
 		t.Errorf("地点 has %d children in the tree, want 1", len(kids))
 	}
 }
@@ -134,20 +134,20 @@ func TestRenameAndMoveTag(t *testing.T) {
 	if err := l.RenameTag(ctx, yunnan.ID, "云南省"); err != nil {
 		t.Fatalf("RenameTag: %v", err)
 	}
-	if _, ok := l.Tags().ByName("云南省"); !ok {
+	if _, ok := tagByName(t, l, "云南省"); !ok {
 		t.Error("the tree did not pick up the rename")
 	}
-	if _, ok := l.Tags().ByName("云南"); ok {
+	if _, ok := tagByName(t, l, "云南"); ok {
 		t.Error("the old name still resolves")
 	}
 
 	if err := l.MoveTag(ctx, yunnan.ID, &people.ID); err != nil {
 		t.Fatalf("MoveTag: %v", err)
 	}
-	if kids := l.Tags().Children(people.ID); len(kids) != 1 {
+	if kids := tagChildren(t, l, people.ID); len(kids) != 1 {
 		t.Errorf("人物 has %d children after the move, want 1", len(kids))
 	}
-	if kids := l.Tags().Children(places.ID); len(kids) != 0 {
+	if kids := tagChildren(t, l, places.ID); len(kids) != 0 {
 		t.Errorf("地点 still has %d children after the move", len(kids))
 	}
 }
@@ -177,7 +177,7 @@ func TestDeleteTag(t *testing.T) {
 	if err := l.DeleteTag(ctx, tag.ID); err != nil {
 		t.Fatalf("DeleteTag: %v", err)
 	}
-	if _, ok := l.Tags().ByID(tag.ID); ok {
+	if _, ok := tagByID(t, l, tag.ID); ok {
 		t.Error("the tree still knows about the deleted tag")
 	}
 }
@@ -226,7 +226,7 @@ func TestTagBoxes(t *testing.T) {
 	}
 
 	// The count cache followed along.
-	if got := l.Tags().Count(tag.ID); got != 3 {
+	if got := tagCount(t, l, tag.ID); got != 3 {
 		t.Errorf("tag count = %d, want 3", got)
 	}
 }
@@ -299,7 +299,7 @@ func TestUntagBoxes(t *testing.T) {
 	if n != 1 {
 		t.Errorf("UntagBoxes reported %d changes, want 1", n)
 	}
-	if got := l.Tags().Count(tag.ID); got != 0 {
+	if got := tagCount(t, l, tag.ID); got != 0 {
 		t.Errorf("tag count = %d after untagging, want 0", got)
 	}
 }

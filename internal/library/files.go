@@ -37,11 +37,11 @@ func (l *Library) Files(ctx context.Context, q query.Query) ([]domain.File, stri
 func (l *Library) TagCondition(refs []string) (query.TagExpr, error) {
 	var all query.TagAll
 	for _, ref := range refs {
-		tag, err := l.ResolveTag(ref)
+		ids, err := l.tagSubtree(ref)
 		if err != nil {
 			return nil, err
 		}
-		all = append(all, query.TagAny(l.tags.Descendants(tag.ID)))
+		all = append(all, query.TagAny(ids))
 	}
 	if len(all) == 0 {
 		return nil, nil
@@ -54,16 +54,25 @@ func (l *Library) TagCondition(refs []string) (query.TagExpr, error) {
 func (l *Library) ExcludeTags(refs []string) (query.TagExpr, error) {
 	var any query.TagAnyOf
 	for _, ref := range refs {
-		tag, err := l.ResolveTag(ref)
+		ids, err := l.tagSubtree(ref)
 		if err != nil {
 			return nil, err
 		}
-		any = append(any, query.TagAny(l.tags.Descendants(tag.ID)))
+		any = append(any, query.TagAny(ids))
 	}
 	if len(any) == 0 {
 		return nil, nil
 	}
 	return query.TagNot{Expr: any}, nil
+}
+
+// tagSubtree resolves a name or id to that tag and everything under it.
+func (l *Library) tagSubtree(ref string) ([]domain.TagID, error) {
+	tag, err := l.ResolveTag(ref)
+	if err != nil {
+		return nil, err
+	}
+	return store.TagDescendants(l.db, []domain.TagID{tag.ID})
 }
 
 // File reads one file.
@@ -203,7 +212,9 @@ func (l *Library) filterFileTags(
 	files []domain.FileID,
 	wantPresent bool,
 ) ([]domain.FileID, error) {
-	if _, ok := l.tags.ByID(tag); !ok {
+	if _, ok, err := store.TagByID(l.db, tag); err != nil {
+		return nil, err
+	} else if !ok {
 		return nil, fmt.Errorf("%s: %w", tag, ErrNoSuchTag)
 	}
 	var changed []domain.FileID

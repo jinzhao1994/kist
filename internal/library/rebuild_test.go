@@ -364,15 +364,15 @@ func TestRebuildRepairsAWreckedView(t *testing.T) {
 func TestRebuildReloadsTheTagTree(t *testing.T) {
 	l := busyLibrary(t)
 	ctx := context.Background()
-	before := l.Tags().Len()
+	before := tagTotal(t, l)
 
 	if err := l.Rebuild(ctx); err != nil {
 		t.Fatalf("Rebuild: %v", err)
 	}
-	if got := l.Tags().Len(); got != before {
+	if got := tagTotal(t, l); got != before {
 		t.Errorf("the tag tree has %d nodes after the rebuild, want %d", got, before)
 	}
-	if _, ok := l.Tags().ByName("云南省"); !ok {
+	if _, ok := tagByName(t, l, "云南省"); !ok {
 		t.Error("the rebuilt tree lost a tag")
 	}
 }

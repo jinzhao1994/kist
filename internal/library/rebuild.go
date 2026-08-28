@@ -32,11 +32,6 @@ func (l *Library) Rebuild(ctx context.Context) error {
 	if err := rebuildInto(ctx, l.db); err != nil {
 		return err
 	}
-	tags, err := LoadTagTree(l.db)
-	if err != nil {
-		return fmt.Errorf("reload the tag tree after rebuild: %w", err)
-	}
-	l.tags = tags
 	return nil
 }
 
