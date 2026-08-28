@@ -75,6 +75,19 @@ kist log            # 这个库都发生过什么
 kist undo <op-id>   # 把其中一条收回来
 ```
 
+### 脚本
+
+每个命令都接受 `--json` 并打印一个对象，所以 kist 能和别的工具串起来：
+
+```sh
+kist box new 四川 --json | jq -r .box.id
+kist find --tag 人物 --json | jq -r '.files[].id' | xargs kist file tag 已扫描
+kist verify --json | jq -e '.findings | length == 0'   # 有问题就退出 1
+```
+
+`find` 用游标分页：`--json` 给你 `.cursor`，`--cursor` 把它传回去。出错仍然
+是 stderr 上一行纯文本加一个非零退出码。
+
 ### 确认没出事
 
 ```sh

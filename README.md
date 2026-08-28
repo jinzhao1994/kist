@@ -85,6 +85,20 @@ kist log            # what has happened to this library
 kist undo <op-id>   # take one of them back
 ```
 
+### Scripting
+
+Every command takes `--json` and prints one object, so kist composes with the
+rest of your tools:
+
+```sh
+kist box new "Sichuan" --json | jq -r .box.id
+kist find --tag people --json | jq -r '.files[].id' | xargs kist file tag scanned
+kist verify --json | jq -e '.findings | length == 0'   # exit 1 if anything is wrong
+```
+
+`find` pages with a cursor: `--json` gives you `.cursor`, and `--cursor` takes
+it back. Errors stay as plain text on stderr with a non-zero exit status.
+
 ### Checking that nothing has gone wrong
 
 ```sh
