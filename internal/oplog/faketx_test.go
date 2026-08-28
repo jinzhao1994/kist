@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/extract"
 )
 
 // fakeTx is an in-memory stand-in for the real transaction. Handlers are pure
@@ -19,6 +20,14 @@ type fakeTx struct {
 	blobs    map[string]fakeBlob
 	boxTags  map[[2]string]string // box|tag -> source
 	fileTags map[[2]string]string // file|tag -> source
+	meta     map[[2]string]metaRow
+	extracts map[[2]string]int
+}
+
+// metaRow mirrors a row of file_metadata.
+type metaRow struct {
+	kv     extract.KV
+	source string
 }
 
 // fakeBlob mirrors a row of the blobs index.
@@ -37,6 +46,8 @@ func newFakeTx(ts time.Time) *fakeTx {
 		blobs:    map[string]fakeBlob{},
 		boxTags:  map[[2]string]string{},
 		fileTags: map[[2]string]string{},
+		meta:     map[[2]string]metaRow{},
+		extracts: map[[2]string]int{},
 	}
 }
 
@@ -269,3 +280,36 @@ func (f *fakeTx) HasFileTag(file domain.FileID, t domain.TagID) (bool, error) {
 
 // compile-time proof that the fake covers the whole interface
 var _ Tx = (*fakeTx)(nil)
+
+func (f *fakeTx) SetFileMetadata(file domain.FileID, kv extract.KV, source string) error {
+	if _, ok := f.files[file]; !ok {
+		return fmt.Errorf("no such file %s", file)
+	}
+	f.meta[[2]string{file.String(), kv.Key}] = metaRow{kv: kv, source: source}
+	return nil
+}
+
+func (f *fakeTx) DeleteFileMetadata(file domain.FileID, key string) error {
+	delete(f.meta, [2]string{file.String(), key})
+	return nil
+}
+
+func (f *fakeTx) SetFileExtraction(file domain.FileID, extractor string, version int) error {
+	f.extracts[[2]string{file.String(), extractor}] = version
+	return nil
+}
+
+func (f *fakeTx) DeleteFileExtraction(file domain.FileID, extractor string) error {
+	delete(f.extracts, [2]string{file.String(), extractor})
+	return nil
+}
+
+func (f *fakeTx) SetCapturedAt(file domain.FileID, at domain.Instant) error {
+	got, ok := f.files[file]
+	if !ok {
+		return fmt.Errorf("no such file %s", file)
+	}
+	got.CapturedAt = at
+	f.files[file] = got
+	return nil
+}

@@ -31,6 +31,8 @@ const (
 	ActionImportFiles Action = "import_files"
 	ActionDeleteFiles Action = "delete_files"
 
+	ActionExtractMetadata Action = "extract_metadata"
+
 	ActionTagFiles   Action = "tag_files"
 	ActionUntagFiles Action = "untag_files"
 )

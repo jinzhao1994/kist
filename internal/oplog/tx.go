@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/extract"
 )
 
 // Tx is everything Apply is allowed to do.
@@ -65,4 +66,22 @@ type Tx interface {
 	AddFileTag(file domain.FileID, tag domain.TagID, source string) error
 	RemoveFileTag(file domain.FileID, tag domain.TagID) error
 	HasFileTag(file domain.FileID, tag domain.TagID) (bool, error)
+
+	// SetFileMetadata writes one observation, replacing any row with the same
+	// key. source is the extractor's id (spec 1.7.6 ①), which is how a re-run
+	// of one extractor leaves every other extractor's rows alone.
+	SetFileMetadata(file domain.FileID, kv extract.KV, source string) error
+	DeleteFileMetadata(file domain.FileID, key string) error
+
+	// SetFileExtraction records that an extractor at a version has seen this
+	// file. It is what makes "which files still need extracting" an indexed
+	// query rather than a scan of payloads (spec 1.7.6 ③, invariant 4).
+	SetFileExtraction(file domain.FileID, extractor string, version int) error
+	DeleteFileExtraction(file domain.FileID, extractor string) error
+
+	// SetCapturedAt writes the kernel's conclusion about when a file was
+	// captured (spec 1.5.2). It is here rather than on InsertFile because it
+	// is resolved long after the import, and re-resolved whenever its inputs
+	// change.
+	SetCapturedAt(file domain.FileID, at domain.Instant) error
 }
