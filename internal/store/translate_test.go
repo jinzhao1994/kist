@@ -143,10 +143,10 @@ func TestTimeRangeTurnsDatesIntoInstants(t *testing.T) {
 	}
 	// The bounds are the ends of the interval the caller named, not the ends
 	// of the day they happen to start on.
-	if want := time.Date(2019, 6, 30, 23, 59, 0, 0, time.UTC).Unix(); args[0] != want {
+	if want := time.Date(2019, 6, 30, 23, 59, 0, 0, time.UTC).UnixNano(); args[0] != want {
 		t.Errorf("upper bound = %v, want %d (the end of June)", args[0], want)
 	}
-	if want := time.Date(2019, 3, 1, 0, 0, 0, 0, time.UTC).Unix(); args[1] != want {
+	if want := time.Date(2019, 3, 1, 0, 0, 0, 0, time.UTC).UnixNano(); args[1] != want {
 		t.Errorf("lower bound = %v, want %d (the start of March)", args[1], want)
 	}
 }
@@ -169,8 +169,9 @@ func TestTimeRangeIsInterpretedInTheGivenZone(t *testing.T) {
 	if west[0] == east[0] {
 		t.Errorf("the zone had no effect: both bounds are %v", west[0])
 	}
-	if diff := west[0].(int64) - east[0].(int64); diff != 16*3600 {
-		t.Errorf("the two zones differ by %ds, want %d", diff, 16*3600)
+	want := int64(16*3600) * int64(time.Second)
+	if diff := west[0].(int64) - east[0].(int64); diff != want {
+		t.Errorf("the two zones differ by %dns, want %d", diff, want)
 	}
 }
 

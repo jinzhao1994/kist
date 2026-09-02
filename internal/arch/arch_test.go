@@ -49,6 +49,22 @@ func TestDomainDependsOnNothing(t *testing.T) {
 	}
 }
 
+// TestBlobDependsOnNothing keeps the other half of the authoritative pair at
+// the bottom.
+//
+// blobs/ is authoritative alongside ops (invariant 1). verify --deep, scrub and
+// repair all rest on it being checkable without the database, which is only
+// true while the blob layer cannot read the database either. store does not
+// import blob, so blob -> store would compile.
+func TestBlobDependsOnNothing(t *testing.T) {
+	if got := imports(t, "internal/blob"); len(got) != 0 {
+		t.Errorf("internal/blob imports %v.\n\n"+
+			"blobs/ is authoritative on its own (invariant 1). verify --deep, scrub and\n"+
+			"repair all rest on it being checkable without the database; a blob layer\n"+
+			"that could read the views would no longer be able to contradict them.", got)
+	}
+}
+
 // TestOplogCannotReachTheDatabase is the structural half of invariant 3.
 //
 // Apply is required to be a pure function of (tx, payload). That is enforced

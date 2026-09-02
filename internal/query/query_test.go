@@ -26,7 +26,7 @@ func instant(t *testing.T, s string) domain.Instant {
 	if err != nil {
 		t.Fatalf("bad date %q: %v", s, err)
 	}
-	return domain.NewInstant(start.Unix())
+	return domain.NewInstant(start.UnixNano())
 }
 
 // The zero Query is "everything, newest first". A query type whose zero value

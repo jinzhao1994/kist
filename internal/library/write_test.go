@@ -28,7 +28,7 @@ func openTestLibrary(t *testing.T) *Library {
 	if _, err := Create(context.Background(), root); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	l, err := Open(root, WithClock(fixedClock()), WithActor("test"))
+	l, err := Open(root, WithClock(fixedClock()))
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -68,9 +68,6 @@ func TestWriteRecordsAnOpAndAppliesIt(t *testing.T) {
 	if len(ops) != 1 || ops[0].Action != oplog.ActionCreateBox || ops[0].Source != oplog.SourceUser {
 		t.Fatalf("ops = %+v", ops)
 	}
-	if ops[0].Actor != "test" {
-		t.Errorf("Actor = %q, want %q", ops[0].Actor, "test")
-	}
 
 	// The materialized view moved in the same transaction.
 	b, ok, err := l.Box(ctx, p.BoxID)
@@ -109,10 +106,10 @@ func TestWriteIsAtomic(t *testing.T) {
 	}
 }
 
-func TestWriteTruncatesTimestampsToMilliseconds(t *testing.T) {
-	// The storage format has exactly three fractional digits. A ts carrying
-	// nanoseconds would not survive the round trip, and every comparison
-	// against it would fail in ways that look like a clock bug.
+func TestWriteStoresTheClockExactly(t *testing.T) {
+	// Rebuild's snapshot proof compares timestamps, so a write path that
+	// rounded the clock off would produce a library its own replay cannot
+	// reproduce.
 	root := t.TempDir()
 	if _, err := Create(context.Background(), root); err != nil {
 		t.Fatal(err)
@@ -132,9 +129,8 @@ func TestWriteTruncatesTimestampsToMilliseconds(t *testing.T) {
 	}
 
 	ops, _ := l.Ops(context.Background(), store.ListOpsOptions{Limit: 1})
-	want := odd.Truncate(time.Millisecond)
-	if !ops[0].TS.Equal(want) {
-		t.Errorf("stored ts = %v, want %v", ops[0].TS, want)
+	if !ops[0].TS.Equal(odd) {
+		t.Errorf("stored ts = %v, want %v", ops[0].TS, odd)
 	}
 }
 
@@ -224,5 +220,53 @@ func TestWriteRejectsAnUnknownAction(t *testing.T) {
 	_, err := l.write(context.Background(), oplog.Action("teleport"), []byte(`{}`), oplog.SourceUser, nil)
 	if err == nil {
 		t.Error("writing an unregistered action succeeded")
+	}
+}
+
+func TestTaggingIsHistoryNotContent(t *testing.T) {
+	// spec 1.5.1: updated_at tracks content, and a tag is a label on content.
+	// spec 2.2.1: op_boxes exists so `log --box` finds cross-box tagging, which
+	// is the first reason that table is many-to-many. The two rules pull in
+	// opposite directions on purpose.
+	l, box := openWithBox(t)
+	src := writeTree(t, map[string]string{"a/deep.txt": "x"})
+	if _, err := l.Import(t.Context(), src, ImportOptions{Box: box}); err != nil {
+		t.Fatal(err)
+	}
+	before, _, err := l.Box(t.Context(), box)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	files := listAll(t, l, box)
+	tag, err := l.CreateTag(t.Context(), "deep", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.TagFiles(t.Context(), tag.ID, []domain.FileID{files[0].ID}); err != nil {
+		t.Fatal(err)
+	}
+
+	after, _, err := l.Box(t.Context(), box)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !after.UpdatedAt.Equal(before.UpdatedAt) {
+		t.Errorf("tagging moved the box's updated_at from %v to %v; nothing under boxes/ changed",
+			before.UpdatedAt, after.UpdatedAt)
+	}
+
+	ops, err := l.Ops(t.Context(), store.ListOpsOptions{Box: &box, Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var tagged bool
+	for _, op := range ops {
+		if op.Action == oplog.ActionTagFiles {
+			tagged = true
+		}
+	}
+	if !tagged {
+		t.Errorf("the box's history has %d op(s) and none of them is the tagging", len(ops))
 	}
 }

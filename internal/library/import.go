@@ -296,7 +296,7 @@ func (l *Library) importOne(
 	// rather than a choice about where to put the code (spec 1.7).
 	var mtime int64
 	if info, err := f.Stat(); err == nil {
-		mtime = info.ModTime().Unix()
+		mtime = info.ModTime().UnixNano()
 	}
 
 	put, err := l.blobs.Put(ctx, f)
@@ -469,5 +469,5 @@ func (l *Library) capturedFromFacts(size, mtime int64) domain.Instant {
 	if !c.Known {
 		return domain.Instant{}
 	}
-	return domain.NewInstant(c.Unix)
+	return domain.NewInstant(c.UnixNano)
 }

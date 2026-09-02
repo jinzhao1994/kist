@@ -25,8 +25,8 @@ func TestWallClockPrefersExifOverMtime(t *testing.T) {
 	if got.From != "exif:DateTimeOriginal" {
 		t.Errorf("From = %q, want the EXIF tag", got.From)
 	}
-	if want := time.Date(2019, 8, 12, 14, 3, 22, 0, lib).Unix(); got.Unix != want {
-		t.Errorf("Unix = %d, want %d", got.Unix, want)
+	if want := time.Date(2019, 8, 12, 14, 3, 22, 0, lib).UnixNano(); got.UnixNano != want {
+		t.Errorf("UnixNano = %d, want %d", got.UnixNano, want)
 	}
 }
 
@@ -34,7 +34,7 @@ func TestWallClockPrefersExifOverMtime(t *testing.T) {
 // claiming one would be a lie the UI would then repeat to the user.
 func TestMtimeIsUsedDirectlyWithNoZone(t *testing.T) {
 	got := ResolveCaptured([]KV{mtime(1700000000)}, lib)
-	if !got.Known || got.Unix != 1700000000 {
+	if !got.Known || got.UnixNano != 1700000000 {
 		t.Fatalf("got %+v, want the mtime itself", got)
 	}
 	if got.From != "file:mtime" {
@@ -54,8 +54,8 @@ func TestZoneChain(t *testing.T) {
 	if fromOffset.Zone != ZoneFromFile {
 		t.Errorf("Zone = %q, want %q", fromOffset.Zone, ZoneFromFile)
 	}
-	if want := time.Date(2019, 8, 12, 14, 3, 22, 0, time.FixedZone("", -8*3600)).Unix(); fromOffset.Unix != want {
-		t.Errorf("Unix = %d, want %d", fromOffset.Unix, want)
+	if want := time.Date(2019, 8, 12, 14, 3, 22, 0, time.FixedZone("", -8*3600)).UnixNano(); fromOffset.UnixNano != want {
+		t.Errorf("UnixNano = %d, want %d", fromOffset.UnixNano, want)
 	}
 
 	// geo:timezone has no producer in v0.1. The rule reads it anyway, so that
@@ -70,8 +70,8 @@ func TestZoneChain(t *testing.T) {
 	if fallback.Zone != ZoneAssumed {
 		t.Errorf("Zone = %q, want %q", fallback.Zone, ZoneAssumed)
 	}
-	if want := time.Date(2019, 8, 12, 14, 3, 22, 0, lib).Unix(); fallback.Unix != want {
-		t.Errorf("Unix = %d, want %d", fallback.Unix, want)
+	if want := time.Date(2019, 8, 12, 14, 3, 22, 0, lib).UnixNano(); fallback.UnixNano != want {
+		t.Errorf("UnixNano = %d, want %d", fallback.UnixNano, want)
 	}
 }
 
@@ -96,7 +96,7 @@ func TestAnOffsetTagBeatsALocation(t *testing.T) {
 // do carry a zone.
 func TestTheAssumedZoneIsTheLibrarysNotUTC(t *testing.T) {
 	got := ResolveCaptured([]KV{exifTime("2019:08:12 14:03:22")}, lib)
-	if utc := time.Date(2019, 8, 12, 14, 3, 22, 0, time.UTC).Unix(); got.Unix == utc {
+	if utc := time.Date(2019, 8, 12, 14, 3, 22, 0, time.UTC).UnixNano(); got.UnixNano == utc {
 		t.Error("the unknown-zone fallback resolved to UTC")
 	}
 }
@@ -108,11 +108,11 @@ func TestResolutionReadsNothingFromTheEnvironment(t *testing.T) {
 	tags := []KV{exifTime("2019:08:12 14:03:22")}
 	a := ResolveCaptured(tags, time.FixedZone("a", 3600))
 	b := ResolveCaptured(tags, time.FixedZone("b", 7200))
-	if a.Unix == b.Unix {
+	if a.UnixNano == b.UnixNano {
 		t.Error("the library zone had no effect; something else is being read")
 	}
-	if a.Unix-b.Unix != 3600 {
-		t.Errorf("the two zones differ by %ds, want 3600", a.Unix-b.Unix)
+	if want := int64(3600) * int64(time.Second); a.UnixNano-b.UnixNano != want {
+		t.Errorf("the two zones differ by %dns, want %d", a.UnixNano-b.UnixNano, want)
 	}
 }
 
@@ -139,8 +139,8 @@ func TestAnUnloadableZoneFallsBackToTheLibrarys(t *testing.T) {
 	if got.Zone != ZoneAssumed {
 		t.Errorf("Zone = %q, want the library fallback", got.Zone)
 	}
-	if want := time.Date(2019, 8, 12, 14, 3, 22, 0, lib).Unix(); got.Unix != want {
-		t.Errorf("Unix = %d, want the library zone applied", got.Unix)
+	if want := time.Date(2019, 8, 12, 14, 3, 22, 0, lib).UnixNano(); got.UnixNano != want {
+		t.Errorf("UnixNano = %d, want the library zone applied", got.UnixNano)
 	}
 }
 
@@ -162,8 +162,8 @@ func TestSubSecondIsIgnored(t *testing.T) {
 		kv("exif:SubSecTimeOriginal", "146", TypeInt),
 	}, lib)
 	without := ResolveCaptured([]KV{exifTime("2019:08:12 14:03:22")}, lib)
-	if with.Unix != without.Unix {
-		t.Errorf("sub-second changed the answer: %d vs %d", with.Unix, without.Unix)
+	if with.UnixNano != without.UnixNano {
+		t.Errorf("sub-second changed the answer: %d vs %d", with.UnixNano, without.UnixNano)
 	}
 }
 
@@ -174,7 +174,7 @@ func TestANegativeInstantIsAnOrdinaryAnswer(t *testing.T) {
 	if !got.Known {
 		t.Fatal("a 1960 capture time was treated as unknown")
 	}
-	if got.Unix >= 0 {
-		t.Errorf("Unix = %d, want a negative instant", got.Unix)
+	if got.UnixNano >= 0 {
+		t.Errorf("UnixNano = %d, want a negative instant", got.UnixNano)
 	}
 }

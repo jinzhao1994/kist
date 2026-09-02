@@ -2,6 +2,10 @@ package oplog
 
 import (
 	"errors"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -125,20 +129,108 @@ func TestSourcePropagatesUpdatedAt(t *testing.T) {
 // declared as a constant and then left without an implementation. A constant
 // with no handler reads as supported everywhere it appears, and only fails on
 // a user's library.
+//
+// The constants are read out of action.go rather than repeated here: a list
+// that has to be updated by the same edit it guards against is not a guard.
+// Reading the source is what internal/arch and internal/errcodes do, for the
+// same reason — package-level declarations cannot be enumerated at run time.
 func TestEveryDeclaredActionHasAHandler(t *testing.T) {
-	declared := []Action{
-		ActionCreateBox, ActionDeleteBox, ActionUpdateBox,
-		ActionCreateTag, ActionDeleteTag, ActionRenameTag, ActionMoveTag,
-		ActionTagBoxes, ActionUntagBoxes,
-		ActionImportFiles, ActionDeleteFiles,
-		ActionTagFiles, ActionUntagFiles,
+	declared := declaredActions(t)
+	if len(declared) == 0 {
+		t.Fatal("no Action constants found in action.go; the scanner is broken, not the code")
 	}
 	for _, a := range declared {
 		if _, err := Lookup(a); err != nil {
 			t.Errorf("action %q is declared but has no handler: %v", a, err)
 		}
 	}
+	// AllActions may legitimately be longer: TestRegisterRejectsDuplicates
+	// registers a probe into this same global registry. Shorter is the
+	// direction that means something went missing.
 	if len(AllActions()) < len(declared) {
 		t.Errorf("AllActions has %d entries but %d actions are declared", len(AllActions()), len(declared))
+	}
+}
+
+// declaredActions reads the Action constants out of action.go.
+//
+// It collects the string values rather than the Go identifiers, because the
+// value is what ends up in ops.action and what Lookup is keyed by. An
+// identifier that was renamed without its value changing is not a bug; a value
+// that nothing can apply is.
+func declaredActions(t *testing.T) []Action {
+	t.Helper()
+
+	f, err := parser.ParseFile(token.NewFileSet(), "action.go", nil, 0)
+	if err != nil {
+		t.Fatalf("parse action.go: %v", err)
+	}
+
+	var out []Action
+	for _, d := range f.Decls {
+		gen, ok := d.(*ast.GenDecl)
+		if !ok || gen.Tok != token.CONST {
+			continue
+		}
+		// The type is carried forward across a group. That is deliberately
+		// more generous than Go's own rule — an untyped string constant sitting
+		// among the actions is something a reviewer should be shown, not
+		// something the scanner should quietly skip.
+		var typ string
+		for _, spec := range gen.Specs {
+			vs, ok := spec.(*ast.ValueSpec)
+			if !ok {
+				continue
+			}
+			if id, ok := vs.Type.(*ast.Ident); ok {
+				typ = id.Name
+			}
+			if typ != "Action" {
+				continue
+			}
+			for _, v := range vs.Values {
+				lit, ok := v.(*ast.BasicLit)
+				if !ok || lit.Kind != token.STRING {
+					continue
+				}
+				val, err := strconv.Unquote(lit.Value)
+				if err != nil {
+					t.Fatalf("unquote %s: %v", lit.Value, err)
+				}
+				out = append(out, Action(val))
+			}
+		}
+	}
+	return out
+}
+
+// TestEveryActionDeclaresWhetherItChangesContent forces a decision per action.
+//
+// spec 1.5.1 splits the updated_at rule in two: source says whether a person
+// did it, ChangesContent says whether there was anything to see. A new action
+// that falls through to false would silently stop propagating, and the field
+// would decay one action at a time with nothing to notice it.
+func TestEveryActionDeclaresWhetherItChangesContent(t *testing.T) {
+	want := map[Action]bool{
+		ActionCreateBox: true, ActionDeleteBox: true, ActionUpdateBox: true,
+		ActionImportFiles: true, ActionDeleteFiles: true,
+
+		ActionCreateTag: false, ActionDeleteTag: false,
+		ActionRenameTag: false, ActionMoveTag: false,
+		ActionTagBoxes: false, ActionUntagBoxes: false,
+		ActionTagFiles: false, ActionUntagFiles: false,
+		ActionExtractMetadata: false,
+	}
+	for _, a := range declaredActions(t) {
+		expected, listed := want[a]
+		if !listed {
+			t.Errorf("action %q has no entry here.\n\n"+
+				"Decide whether it changes what boxes/ mirrors (spec 1.5.1), add it to\n"+
+				"ChangesContent if it does, and record the answer here either way.", a)
+			continue
+		}
+		if got := a.ChangesContent(); got != expected {
+			t.Errorf("%q.ChangesContent() = %v, want %v", a, got, expected)
+		}
 	}
 }

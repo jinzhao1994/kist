@@ -16,7 +16,6 @@ type Op struct {
 	TS        time.Time
 	Action    Action
 	Source    Source
-	Actor     string
 	Payload   []byte
 	RevertsID *int64
 }

@@ -233,8 +233,8 @@ func TestExtractSetsCapturedAt(t *testing.T) {
 	if got.CapturedAt.IsZero() {
 		t.Fatal("captured_at was not set")
 	}
-	sec, _ := got.CapturedAt.Unix()
-	if sec == 0 {
+	ns, _ := got.CapturedAt.UnixNano()
+	if ns == 0 {
 		t.Error("captured_at is the epoch")
 	}
 }
@@ -264,8 +264,8 @@ func TestANewExtractorRecomputesCapturedAt(t *testing.T) {
 	if err != nil {
 		t.Skip("no tzdata on this system")
 	}
-	want := time.Date(2019, 8, 12, 14, 3, 22, 0, la).Unix()
-	got, ok := second.CapturedAt.Unix()
+	want := time.Date(2019, 8, 12, 14, 3, 22, 0, la).UnixNano()
+	got, ok := second.CapturedAt.UnixNano()
 	if !ok {
 		t.Fatal("captured_at was cleared; the recompute lost the EXIF wall clock")
 	}
@@ -312,9 +312,9 @@ func TestImportRecordsTheSourcesOwnFacts(t *testing.T) {
 	if file.CapturedAt.IsZero() {
 		t.Error("a file with no EXIF got no capture time; mtime is the fallback (spec 1.5.2)")
 	}
-	sec, _ := file.CapturedAt.Unix()
-	if want, _ := strconv.ParseInt(mtime.Value, 10, 64); sec != want {
-		t.Errorf("captured_at = %d, want the mtime %d", sec, want)
+	ns, _ := file.CapturedAt.UnixNano()
+	if want, _ := strconv.ParseInt(mtime.Value, 10, 64); ns != want {
+		t.Errorf("captured_at = %d, want the mtime %d", ns, want)
 	}
 }
 

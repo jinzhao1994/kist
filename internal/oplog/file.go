@@ -37,7 +37,7 @@ type ImportedFile struct {
 	BlobKey  string          `json:"blob_key"`
 	Sha256   string          `json:"sha256"`
 	Size     int64           `json:"size"`
-	// MTime is the source file's modification time, in unix seconds.
+	// MTime is the source file's modification time, in unix nanoseconds.
 	//
 	// It is captured here because it cannot be captured anywhere else: once
 	// the content is in blobs/, the stored copy's mtime is when it was
@@ -221,6 +221,7 @@ func fileTargets(payload []byte) (Targets, error) {
 	t := Targets{Boxes: []domain.BoxID{p.BoxID}}
 	for _, f := range p.Files {
 		t.Files = append(t.Files, f.FileID)
+		t.Blobs = append(t.Blobs, f.BlobKey)
 	}
 	return t, nil
 }

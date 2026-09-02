@@ -2,8 +2,8 @@ package oplog
 
 import "github.com/jinzhao1994/kist/internal/domain"
 
-// Targets are the entities an op touched. They become rows in op_boxes and
-// op_files.
+// Targets are the entities an op touched. They become rows in op_boxes,
+// op_files and op_blobs.
 //
 // Those tables are indexes over the payload, nothing more (spec 2.2.1), which
 // is why every handler must be able to produce them from the payload alone:
@@ -12,4 +12,6 @@ import "github.com/jinzhao1994/kist/internal/domain"
 type Targets struct {
 	Boxes []domain.BoxID
 	Files []domain.FileID
+	// Blobs are content keys, as strings: oplog cannot import blob.
+	Blobs []string
 }

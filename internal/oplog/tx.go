@@ -59,12 +59,18 @@ type Tx interface {
 	CountTagChildren(id domain.TagID) (int, error)
 	CountTagUsage(id domain.TagID) (int, error)
 
-	AddBoxTag(box domain.BoxID, tag domain.TagID, source string) error
+	AddBoxTag(box domain.BoxID, tag domain.TagID) error
 	RemoveBoxTag(box domain.BoxID, tag domain.TagID) error
 	HasBoxTag(box domain.BoxID, tag domain.TagID) (bool, error)
 
+	// AddFileTag records that source claims this tag on this file. The tag
+	// itself is present once; the claim is one row per source (spec 1.6.1).
 	AddFileTag(file domain.FileID, tag domain.TagID, source string) error
-	RemoveFileTag(file domain.FileID, tag domain.TagID) error
+	// RemoveFileTag withdraws one source's claim, and drops the tag when no
+	// claim is left. Naming the source is what makes it the exact inverse of
+	// AddFileTag — withdrawing every claim is a different, future operation
+	// (a person overruling an extractor, spec 1.6.1 ④).
+	RemoveFileTag(file domain.FileID, tag domain.TagID, source string) error
 	HasFileTag(file domain.FileID, tag domain.TagID) (bool, error)
 
 	// SetFileMetadata writes one observation, replacing any row with the same

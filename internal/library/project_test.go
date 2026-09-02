@@ -319,7 +319,7 @@ func TestAStaleProjectedNameDoesNotStrandADirectory(t *testing.T) {
 	first, box := openWithBox(t)
 	ctx := t.Context()
 
-	second, err := Open(first.Layout().Root, WithClock(fixedClock()), WithActor("second"))
+	second, err := Open(first.Layout().Root, WithClock(fixedClock()))
 	if err != nil {
 		t.Fatal(err)
 	}

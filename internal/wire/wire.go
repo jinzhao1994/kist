@@ -8,10 +8,9 @@
 //
 // Two rules the types below follow.
 //
-// Folded columns never appear. NameFold and DescriptionFold are how spec 4.7
-// gets case-insensitive matching without asking the database for a collation;
-// they are a storage decision, and a client that saw them would be tempted to
-// match on them.
+// Folded columns never appear. NameFold is how spec 4.7 gets case-insensitive
+// matching without asking the database for a collation; it is a storage
+// decision, and a client that saw it would be tempted to match on it.
 //
 // Ids are strings, never numbers. They are UUIDv7 (spec 1.2) and a JSON number
 // could not hold one anyway, but the rule also covers op ids, which are int64:
@@ -168,7 +167,6 @@ type Op struct {
 	TS     time.Time `json:"ts"`
 	Action string    `json:"action"`
 	Source string    `json:"source"`
-	Actor  string    `json:"actor,omitempty"`
 	// RevertsID is the op this one undoes; UndoneBy is the op that undid this
 	// one. Both are here because a history view needs both directions, and
 	// reverts_id being an indexed column rather than payload is what makes the

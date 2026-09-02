@@ -18,9 +18,6 @@ func TestNewBoxFoldsItsName(t *testing.T) {
 	if b.NameFold != Fold("Yunnan 2019") {
 		t.Errorf("NameFold = %q, want %q", b.NameFold, Fold("Yunnan 2019"))
 	}
-	if b.DescriptionFold != Fold("the long way round") {
-		t.Errorf("DescriptionFold = %q, want the folded description", b.DescriptionFold)
-	}
 }
 
 func TestNewBoxRejectsBadNames(t *testing.T) {

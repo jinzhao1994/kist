@@ -41,8 +41,12 @@ const (
 
 // Captured is the resolved capture time and where it came from.
 type Captured struct {
-	Unix  int64
-	Known bool
+	// UnixNano is the instant, in the one unit every instant in the library
+	// uses (see domain.Instant). A wall clock from EXIF lands on a whole
+	// second because that is all EXIF has; file:mtime keeps whatever the
+	// filesystem recorded.
+	UnixNano int64
+	Known    bool
 	// From is the metadata key the wall clock or instant came from.
 	From string
 	// Zone is how the timezone was decided. Meaningless when Known is false.
@@ -61,7 +65,7 @@ var wallClockKeys = []string{
 	"video:CreationTime",
 }
 
-// instantKeys are sources that are already unix seconds, best first.
+// instantKeys are sources that are already unix nanoseconds, best first.
 //
 // file:mtime is last overall because it answers a different question — when
 // the file was last written — and for anything copied off a camera it is the
@@ -124,10 +128,10 @@ func ResolveCaptured(tags []KV, libraryZone *time.Location) Captured {
 		}
 		loc, zone := resolveZone(byKey, libraryZone)
 		return Captured{
-			Unix:  time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), 0, loc).Unix(),
-			Known: true,
-			From:  key,
-			Zone:  zone,
+			UnixNano: time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), 0, loc).UnixNano(),
+			Known:    true,
+			From:     key,
+			Zone:     zone,
 		}
 	}
 
@@ -136,14 +140,14 @@ func ResolveCaptured(tags []KV, libraryZone *time.Location) Captured {
 		if !ok {
 			continue
 		}
-		sec, err := strconv.ParseInt(raw, 10, 64)
+		ns, err := strconv.ParseInt(raw, 10, 64)
 		if err != nil {
 			continue
 		}
 		// No zone was involved and none is claimed. Saying "assumed" here
 		// would be a hedge the interface would then repeat to the user about
 		// a value that is exact.
-		return Captured{Unix: sec, Known: true, From: key, Zone: ZoneExact}
+		return Captured{UnixNano: ns, Known: true, From: key, Zone: ZoneExact}
 	}
 
 	return Captured{}

@@ -28,7 +28,7 @@ func TestTagBoxesIsOneOpForManyTargets(t *testing.T) {
 	boxes := threeBoxes(t, tx)
 	tag := createTag(t, tx, nil, "云南")
 
-	raw, _ := Marshal(TagBoxesPayload{TagID: tag, BoxIDs: boxes, Source: "user"})
+	raw, _ := Marshal(TagBoxesPayload{TagID: tag, BoxIDs: boxes})
 	if err := apply(t, tx, ActionTagBoxes, raw); err != nil {
 		t.Fatalf("Apply: %v", err)
 	}
@@ -54,7 +54,7 @@ func TestTagBoxesInverseIsUntag(t *testing.T) {
 	boxes := threeBoxes(t, tx)
 	tag := createTag(t, tx, nil, "云南")
 
-	raw, _ := Marshal(TagBoxesPayload{TagID: tag, BoxIDs: boxes, Source: "user"})
+	raw, _ := Marshal(TagBoxesPayload{TagID: tag, BoxIDs: boxes})
 	apply(t, tx, ActionTagBoxes, raw)
 
 	action, inv := inverseOf(t, ActionTagBoxes, raw)
@@ -76,10 +76,10 @@ func TestUntagBoxesInverseIsTag(t *testing.T) {
 	boxes := threeBoxes(t, tx)
 	tag := createTag(t, tx, nil, "云南")
 	for _, b := range boxes {
-		tx.AddBoxTag(b, tag, "user")
+		tx.AddBoxTag(b, tag)
 	}
 
-	raw, _ := Marshal(UntagBoxesPayload{TagID: tag, BoxIDs: boxes, Source: "user"})
+	raw, _ := Marshal(UntagBoxesPayload{TagID: tag, BoxIDs: boxes})
 	apply(t, tx, ActionUntagBoxes, raw)
 
 	action, inv := inverseOf(t, ActionUntagBoxes, raw)
@@ -104,9 +104,9 @@ func TestTagBoxesPayloadOnlyNamesRealChanges(t *testing.T) {
 
 	// The first box already carries the tag; library would have filtered it
 	// out when building the op, so the payload holds only the other two.
-	tx.AddBoxTag(boxes[0], tag, "user")
+	tx.AddBoxTag(boxes[0], tag)
 
-	raw, _ := Marshal(TagBoxesPayload{TagID: tag, BoxIDs: boxes[1:], Source: "user"})
+	raw, _ := Marshal(TagBoxesPayload{TagID: tag, BoxIDs: boxes[1:]})
 	apply(t, tx, ActionTagBoxes, raw)
 
 	action, inv := inverseOf(t, ActionTagBoxes, raw)
@@ -122,25 +122,9 @@ func TestTagBoxesRejectsAnEmptyBatch(t *testing.T) {
 	// through would litter the history with entries that undo to nothing.
 	tx := newFakeTx(opTime)
 	tag := createTag(t, tx, nil, "云南")
-	raw, _ := Marshal(TagBoxesPayload{TagID: tag, Source: "user"})
+	raw, _ := Marshal(TagBoxesPayload{TagID: tag})
 	if err := apply(t, tx, ActionTagBoxes, raw); err == nil {
 		t.Error("an empty batch was accepted")
-	}
-}
-
-func TestTagBoxesSourceSurvivesReplay(t *testing.T) {
-	// spec 1.6.1: source distinguishes what a person did from what an
-	// extractor did, and the distinction must survive a rebuild — so it lives
-	// in the payload, not in a constant inside Apply.
-	tx := newFakeTx(opTime)
-	boxes := threeBoxes(t, tx)
-	tag := createTag(t, tx, nil, "自动")
-
-	raw, _ := Marshal(TagBoxesPayload{TagID: tag, BoxIDs: boxes[:1], Source: "derived"})
-	apply(t, tx, ActionTagBoxes, raw)
-
-	if got := tx.boxTags[btKey(boxes[0], tag)]; got != "derived" {
-		t.Errorf("source = %q, want %q", got, "derived")
 	}
 }
 
@@ -158,7 +142,7 @@ func TestBoxTagOpsRefuseADeletedBox(t *testing.T) {
 	tx.DeleteBox(boxes[1])
 
 	for _, action := range []Action{ActionTagBoxes, ActionUntagBoxes} {
-		raw, _ := Marshal(TagBoxesPayload{TagID: tag, BoxIDs: boxes, Source: "user"})
+		raw, _ := Marshal(TagBoxesPayload{TagID: tag, BoxIDs: boxes})
 		err := apply(t, tx, action, raw)
 		if err == nil {
 			t.Fatalf("%s on a deleted box succeeded", action)

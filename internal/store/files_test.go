@@ -26,7 +26,7 @@ func testInstant(t *testing.T, s string) domain.Instant {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return domain.NewInstant(start.Unix())
+	return domain.NewInstant(start.UnixNano())
 }
 
 // putFile inserts one file, optionally with a captured_at, and returns its id.

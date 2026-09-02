@@ -21,9 +21,14 @@ func init() {
 type TagFilesPayload struct {
 	TagID   domain.TagID    `json:"tag_id"`
 	FileIDs []domain.FileID `json:"file_ids"`
-	// Source is "user" or "derived" (spec 1.6.1). It lives in the payload
-	// rather than being a constant inside Apply because a rebuild has to
-	// reproduce it.
+	// BoxIDs are the boxes those files were in, so the op lands in op_boxes
+	// and `kist log --box` can find it. Tagging across boxes is the first
+	// reason that table is many-to-many (spec 2.2.1).
+	BoxIDs []domain.BoxID `json:"box_ids"`
+	// Source is the extractor's id, or extract.UserSource for a person —
+	// the same values file_metadata.source takes (spec 1.6.1 ①). It lives in
+	// the payload rather than being a constant inside Apply because a rebuild
+	// has to reproduce it.
 	Source string `json:"source"`
 }
 
@@ -71,7 +76,7 @@ func (untagFiles) Apply(tx Tx, payload []byte) error {
 		return err
 	}
 	for _, id := range p.FileIDs {
-		if err := tx.RemoveFileTag(id, p.TagID); err != nil {
+		if err := tx.RemoveFileTag(id, p.TagID, p.Source); err != nil {
 			return err
 		}
 	}
@@ -109,5 +114,5 @@ func fileTagTargets(payload []byte) (Targets, error) {
 	if err != nil {
 		return Targets{}, err
 	}
-	return Targets{Files: p.FileIDs}, nil
+	return Targets{Files: p.FileIDs, Boxes: p.BoxIDs}, nil
 }

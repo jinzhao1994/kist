@@ -27,7 +27,6 @@ type Library struct {
 	// take it.
 	lock  *lockfile.Locker
 	log   *slog.Logger
-	actor string
 	now   func() time.Time
 	hooks hooks
 	// loc is the library's timezone, resolved once at Open. It interprets a
@@ -52,10 +51,6 @@ type Option func(*Library)
 // which matters because Rebuild's proof compares snapshots that contain them.
 func WithClock(now func() time.Time) Option { return func(l *Library) { l.now = now } }
 
-// WithActor records who is acting. v0.1 has one user, so this is mostly a
-// label; it becomes meaningful when sharing arrives (spec 2.2).
-func WithActor(actor string) Option { return func(l *Library) { l.actor = actor } }
-
 // WithLogger sets the logger.
 func WithLogger(log *slog.Logger) Option { return func(l *Library) { l.log = log } }
 
@@ -74,7 +69,6 @@ func Open(root string, opts ...Option) (*Library, error) {
 		layout: layout,
 		cfg:    cfg,
 		log:    slog.Default(),
-		actor:  "cli",
 		now:    time.Now,
 		lock:   lockfile.New(layout.LockPath()),
 	}
@@ -195,7 +189,6 @@ func toOp(r store.OpRow) oplog.Op {
 		TS:        r.TS,
 		Action:    oplog.Action(r.Action),
 		Source:    oplog.Source(r.Source),
-		Actor:     r.Actor,
 		Payload:   r.Payload,
 		RevertsID: r.RevertsID,
 	}

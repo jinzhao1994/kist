@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/extract"
 	"github.com/jinzhao1994/kist/internal/oplog"
 	"github.com/jinzhao1994/kist/internal/query"
 	"github.com/jinzhao1994/kist/internal/store"
@@ -174,11 +175,12 @@ func (l *Library) FilePath(ctx context.Context, f domain.File) (string, error) {
 // carries the tag is left out, or the inverse would strip a tag this op never
 // added — the same rule M1b established for boxes.
 func (l *Library) TagFiles(ctx context.Context, tag domain.TagID, files []domain.FileID) (int, error) {
-	changed, err := l.filterFileTags(ctx, tag, files, false)
+	changed, boxes, err := l.filterFileTags(ctx, tag, files, false)
 	if err != nil || len(changed) == 0 {
 		return 0, err
 	}
-	raw, err := oplog.Marshal(oplog.TagFilesPayload{TagID: tag, FileIDs: changed, Source: "user"})
+	raw, err := oplog.Marshal(oplog.TagFilesPayload{
+		TagID: tag, FileIDs: changed, BoxIDs: boxes, Source: extract.UserSource})
 	if err != nil {
 		return 0, err
 	}
@@ -190,11 +192,12 @@ func (l *Library) TagFiles(ctx context.Context, tag domain.TagID, files []domain
 
 // UntagFiles is the mirror image.
 func (l *Library) UntagFiles(ctx context.Context, tag domain.TagID, files []domain.FileID) (int, error) {
-	changed, err := l.filterFileTags(ctx, tag, files, true)
+	changed, boxes, err := l.filterFileTags(ctx, tag, files, true)
 	if err != nil || len(changed) == 0 {
 		return 0, err
 	}
-	raw, err := oplog.Marshal(oplog.UntagFilesPayload{TagID: tag, FileIDs: changed, Source: "user"})
+	raw, err := oplog.Marshal(oplog.UntagFilesPayload{
+		TagID: tag, FileIDs: changed, BoxIDs: boxes, Source: extract.UserSource})
 	if err != nil {
 		return 0, err
 	}
@@ -205,27 +208,33 @@ func (l *Library) UntagFiles(ctx context.Context, tag domain.TagID, files []doma
 }
 
 // filterFileTags keeps the files for which the operation would actually change
-// something. wantPresent is what the file must currently look like to qualify.
+// something, and reports the boxes they are in. wantPresent is what the file
+// must currently look like to qualify.
 func (l *Library) filterFileTags(
 	ctx context.Context,
 	tag domain.TagID,
 	files []domain.FileID,
 	wantPresent bool,
-) ([]domain.FileID, error) {
+) ([]domain.FileID, []domain.BoxID, error) {
 	if _, ok, err := store.TagByID(l.db, tag); err != nil {
-		return nil, err
+		return nil, nil, err
 	} else if !ok {
-		return nil, fmt.Errorf("%s: %w", tag, ErrNoSuchTag)
+		return nil, nil, fmt.Errorf("%s: %w", tag, ErrNoSuchTag)
 	}
-	var changed []domain.FileID
-	seen := map[domain.FileID]bool{}
+	var (
+		changed []domain.FileID
+		boxes   []domain.BoxID
+		seen    = map[domain.FileID]bool{}
+		seenBox = map[domain.BoxID]bool{}
+	)
 	err := l.readTx(ctx, func(vtx *store.ViewTx) error {
 		for _, id := range files {
 			if seen[id] {
 				continue
 			}
 			seen[id] = true
-			if _, ok, err := vtx.GetFile(id); err != nil {
+			f, ok, err := vtx.GetFile(id)
+			if err != nil {
 				return err
 			} else if !ok {
 				return fmt.Errorf("%s: %w", id, ErrNoSuchFile)
@@ -236,9 +245,13 @@ func (l *Library) filterFileTags(
 			}
 			if has == wantPresent {
 				changed = append(changed, id)
+				if !seenBox[f.BoxID] {
+					seenBox[f.BoxID] = true
+					boxes = append(boxes, f.BoxID)
+				}
 			}
 		}
 		return nil
 	})
-	return changed, err
+	return changed, boxes, err
 }

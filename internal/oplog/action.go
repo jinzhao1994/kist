@@ -50,7 +50,24 @@ func AllActions() []Action {
 	return out
 }
 
-// Source is what kind of executor produced an op — not who (that is actor).
+// ChangesContent reports whether an action alters what boxes/ mirrors: the
+// files and folders themselves, or a box's name.
+//
+// It is the second half of the updated_at rule (spec 1.5.1). Source says
+// whether a person did it; this says whether there was anything to see. Tags
+// and metadata are labels on content rather than content, and a directory
+// whose mtime moved because a photo inside it was tagged is a lie told to
+// Finder.
+func (a Action) ChangesContent() bool {
+	switch a {
+	case ActionCreateBox, ActionDeleteBox, ActionUpdateBox,
+		ActionImportFiles, ActionDeleteFiles:
+		return true
+	}
+	return false
+}
+
+// Source is what kind of executor produced an op.
 type Source string
 
 const (

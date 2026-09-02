@@ -406,3 +406,45 @@ func hasExactName(t *testing.T, dir, name string) bool {
 	}
 	return false
 }
+
+func TestImportIndexesBlobsAndTheyOutliveTheFiles(t *testing.T) {
+	l, box := openWithBox(t)
+	src := writeTree(t, map[string]string{
+		"a.txt":     "alpha",
+		"sub/a.txt": "alpha", // same content, deduplicated to one blob
+		"b.txt":     "beta",
+	})
+
+	res, err := l.Import(t.Context(), src, ImportOptions{Box: box})
+	if err != nil {
+		t.Fatal(err)
+	}
+	opID := res.OpID
+
+	var blobs int
+	if err := l.db.QueryRow(`SELECT count(*) FROM op_blobs WHERE op_id = ?`, opID).Scan(&blobs); err != nil {
+		t.Fatal(err)
+	}
+	if blobs != 2 {
+		t.Errorf("op_blobs has %d rows for 3 files of 2 distinct contents, want 2", blobs)
+	}
+
+	if _, err := l.Undo(t.Context(), opID); err != nil {
+		t.Fatal(err)
+	}
+	if got := listAll(t, l, box); len(got) != 0 {
+		t.Fatalf("undo left %d file(s)", len(got))
+	}
+
+	// The point of the table: with every file gone, the content still names the
+	// op that first brought it in.
+	var first int64
+	err = l.db.QueryRow(
+		`SELECT min(op_id) FROM op_blobs WHERE blob_key = (SELECT key FROM blobs LIMIT 1)`).Scan(&first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first != opID {
+		t.Errorf("first op for the content = %d, want the import %d", first, opID)
+	}
+}

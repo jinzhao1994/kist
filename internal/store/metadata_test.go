@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"testing"
+	"time"
 
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/extract"
@@ -161,7 +162,7 @@ func TestSetCapturedAtRoundTrips(t *testing.T) {
 	file := seedFile(t, db, "a.jpg")
 
 	// A 1960 photograph: negative, and ordinary.
-	want := domain.NewInstant(-315619200)
+	want := domain.NewInstantFromTime(time.Date(1960, 1, 1, 0, 0, 0, 0, time.UTC))
 	viewTx(t, db, testTime, func(vtx *ViewTx) {
 		if err := vtx.SetCapturedAt(file, want); err != nil {
 			t.Fatal(err)

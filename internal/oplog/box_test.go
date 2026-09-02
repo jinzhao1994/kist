@@ -161,7 +161,7 @@ func TestDeleteBoxRefusesWhenTagged(t *testing.T) {
 	apply(t, tx, ActionCreateBox, raw)
 	tag, _ := domain.NewTag(domain.NewTagID(), nil, "云南")
 	tx.InsertTag(tag)
-	tx.AddBoxTag(p.BoxID, tag.ID, "user")
+	tx.AddBoxTag(p.BoxID, tag.ID)
 
 	action, inverse := inverseOf(t, ActionCreateBox, raw)
 	err := apply(t, tx, action, inverse)

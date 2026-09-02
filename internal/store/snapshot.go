@@ -17,17 +17,19 @@ var snapshotTables = []struct {
 	order   string
 }{
 	{"blobs", "key, sha256, size", "key"},
-	{"boxes", "hex(id), name, name_fold, description, description_fold, created_at, updated_at, coalesce(start_at,''), coalesce(end_at,'')", "id"},
+	{"boxes", "hex(id), name, name_fold, description, created_at, updated_at, coalesce(start_at,''), coalesce(end_at,'')", "id"},
 	{"folders", "hex(id), hex(box_id), coalesce(hex(parent_id),''), name, name_fold, created_at, updated_at", "id"},
 	{"files", "hex(id), hex(box_id), hex(folder_id), name, name_fold, blob_key, coalesce(captured_at,''), created_at, updated_at", "id"},
 	{"tags", "hex(id), coalesce(hex(parent_id),''), name, name_fold", "id"},
-	{"box_tags", "hex(box_id), hex(tag_id), source", "box_id, tag_id"},
-	{"file_tags", "hex(file_id), hex(tag_id), source", "file_id, tag_id"},
+	{"box_tags", "hex(box_id), hex(tag_id)", "box_id, tag_id"},
+	{"file_tags", "hex(file_id), hex(tag_id)", "file_id, tag_id"},
+	{"file_tag_sources", "hex(file_id), hex(tag_id), source", "file_id, tag_id, source"},
 	{"tag_rejections", "hex(file_id), hex(tag_id)", "file_id, tag_id"},
 	{"file_metadata", "hex(file_id), key, value, type, source", "file_id, key"},
 	{"file_extractions", "hex(file_id), extractor, version", "file_id, extractor"},
 	{"op_boxes", "op_id, hex(box_id)", "op_id, box_id"},
 	{"op_files", "op_id, hex(file_id)", "op_id, file_id"},
+	{"op_blobs", "op_id, blob_key", "op_id, blob_key"},
 }
 
 // Snapshot renders every rebuildable table as deterministic text.

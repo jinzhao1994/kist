@@ -225,7 +225,7 @@ func (l *Library) TagBoxes(ctx context.Context, tag domain.TagID, boxes []domain
 	if err != nil || len(changed) == 0 {
 		return 0, err
 	}
-	raw, err := oplog.Marshal(oplog.TagBoxesPayload{TagID: tag, BoxIDs: changed, Source: "user"})
+	raw, err := oplog.Marshal(oplog.TagBoxesPayload{TagID: tag, BoxIDs: changed})
 	if err != nil {
 		return 0, err
 	}
@@ -241,7 +241,7 @@ func (l *Library) UntagBoxes(ctx context.Context, tag domain.TagID, boxes []doma
 	if err != nil || len(changed) == 0 {
 		return 0, err
 	}
-	raw, err := oplog.Marshal(oplog.UntagBoxesPayload{TagID: tag, BoxIDs: changed, Source: "user"})
+	raw, err := oplog.Marshal(oplog.UntagBoxesPayload{TagID: tag, BoxIDs: changed})
 	if err != nil {
 		return 0, err
 	}

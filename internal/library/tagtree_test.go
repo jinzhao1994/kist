@@ -143,7 +143,7 @@ func TestATagCreatedByAnotherProcessIsVisible(t *testing.T) {
 	first := openTestLibrary(t)
 	ctx := t.Context()
 
-	second, err := Open(first.Layout().Root, WithClock(fixedClock()), WithActor("second"))
+	second, err := Open(first.Layout().Root, WithClock(fixedClock()))
 	if err != nil {
 		t.Fatal(err)
 	}

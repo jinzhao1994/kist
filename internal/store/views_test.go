@@ -220,7 +220,7 @@ func TestBoxTagsCRUD(t *testing.T) {
 		if has, _ := vtx.HasBoxTag(b.ID, tag.ID); has {
 			t.Error("HasBoxTag before adding = true")
 		}
-		if err := vtx.AddBoxTag(b.ID, tag.ID, "user"); err != nil {
+		if err := vtx.AddBoxTag(b.ID, tag.ID); err != nil {
 			t.Fatalf("AddBoxTag: %v", err)
 		}
 		if has, _ := vtx.HasBoxTag(b.ID, tag.ID); !has {
@@ -256,10 +256,10 @@ func TestAddBoxTagIsIdempotent(t *testing.T) {
 	})
 
 	viewTx(t, db, testTime, func(vtx *ViewTx) {
-		if err := vtx.AddBoxTag(b.ID, tag.ID, "user"); err != nil {
+		if err := vtx.AddBoxTag(b.ID, tag.ID); err != nil {
 			t.Fatal(err)
 		}
-		if err := vtx.AddBoxTag(b.ID, tag.ID, "user"); err != nil {
+		if err := vtx.AddBoxTag(b.ID, tag.ID); err != nil {
 			t.Errorf("adding an existing box tag: %v", err)
 		}
 		if n, _ := vtx.CountBoxTags(b.ID); n != 1 {
@@ -379,7 +379,7 @@ func TestTagDirectCounts(t *testing.T) {
 	viewTx(t, db, testTime, func(vtx *ViewTx) {
 		vtx.InsertBox(b)
 		vtx.InsertTag(tag)
-		vtx.AddBoxTag(b.ID, tag.ID, "user")
+		vtx.AddBoxTag(b.ID, tag.ID)
 	})
 
 	counts, err := TagDirectCounts(db)
@@ -595,7 +595,7 @@ func TestFileTagRoundTrip(t *testing.T) {
 		if err != nil || n != 1 {
 			t.Errorf("CountFileTags = %d, err %v", n, err)
 		}
-		if err := vtx.RemoveFileTag(f.ID, tag.ID); err != nil {
+		if err := vtx.RemoveFileTag(f.ID, tag.ID, "user"); err != nil {
 			t.Fatal(err)
 		}
 		if has, _ := vtx.HasFileTag(f.ID, tag.ID); has {
@@ -638,6 +638,63 @@ func TestFolderAndBoxCounts(t *testing.T) {
 		}
 		if n, err := vtx.CountFolderChildren(sub); err != nil || n != 0 {
 			t.Errorf("CountFolderChildren(sub) = %d, err %v", n, err)
+		}
+	})
+}
+
+// Two sources can claim one tag, and the tag survives until the last one goes.
+// This is the whole reason the claim lives in its own table (spec 1.6.1 ①):
+// re-running exif must not remove what OCR still asserts.
+func TestFileTagSurvivesUntilTheLastClaimGoes(t *testing.T) {
+	db := migrated(t)
+	f := seedFile(t, db, "cat.jpg")
+	tag, err := domain.NewTag(domain.NewTagID(), nil, "猫")
+	if err != nil {
+		t.Fatal(err)
+	}
+	viewTx(t, db, testTime, func(vtx *ViewTx) {
+		if err := vtx.InsertTag(tag); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	viewTx(t, db, testTime, func(vtx *ViewTx) {
+		if err := vtx.AddFileTag(f, tag.ID, "exif"); err != nil {
+			t.Fatal(err)
+		}
+		if err := vtx.AddFileTag(f, tag.ID, "ocr"); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	// One row in file_tags however many sources claim it, or every count in
+	// the tag tree doubles.
+	var rows int
+	if err := db.QueryRow(`SELECT count(*) FROM file_tags`).Scan(&rows); err != nil {
+		t.Fatal(err)
+	}
+	if rows != 1 {
+		t.Errorf("file_tags has %d rows for one tag claimed twice, want 1", rows)
+	}
+
+	viewTx(t, db, testTime, func(vtx *ViewTx) {
+		if err := vtx.RemoveFileTag(f, tag.ID, "exif"); err != nil {
+			t.Fatal(err)
+		}
+		has, err := vtx.HasFileTag(f, tag.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !has {
+			t.Error("withdrawing exif's claim removed a tag ocr still claims")
+		}
+		if err := vtx.RemoveFileTag(f, tag.ID, "ocr"); err != nil {
+			t.Fatal(err)
+		}
+		if has, err = vtx.HasFileTag(f, tag.ID); err != nil {
+			t.Fatal(err)
+		} else if has {
+			t.Error("the tag outlived its last claim")
 		}
 	})
 }

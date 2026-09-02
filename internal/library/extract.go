@@ -319,7 +319,7 @@ func (l *Library) diffExtraction(
 	captured := extract.ResolveCaptured(merged, l.zone())
 	var at domain.Instant
 	if captured.Known {
-		at = domain.NewInstant(captured.Unix)
+		at = domain.NewInstant(captured.UnixNano)
 	}
 	if at != file.CapturedAt {
 		change.CapturedAt = at

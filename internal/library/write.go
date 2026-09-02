@@ -61,10 +61,7 @@ func (l *Library) write(
 		return 0, fmt.Errorf("extract targets for %s: %w", action, err)
 	}
 
-	// Truncated to milliseconds because that is the resolution the storage
-	// format keeps. Without this, what is written and what is read back
-	// differ, and every timestamp comparison becomes mysteriously flaky.
-	ts := l.now().UTC().Truncate(time.Millisecond)
+	ts := l.now().UTC()
 
 	tx, err := l.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -76,7 +73,6 @@ func (l *Library) write(
 		TS:        ts,
 		Action:    string(action),
 		Source:    string(source),
-		Actor:     l.actor,
 		Payload:   payload,
 		RevertsID: revertsID,
 	})
@@ -101,14 +97,11 @@ func (l *Library) write(
 		return 0, fmt.Errorf("apply %s: %w", action, err)
 	}
 
-	if err := store.InsertOpBoxes(tx, opID, targets.Boxes); err != nil {
-		return 0, err
-	}
-	if err := store.InsertOpFiles(tx, opID, targets.Files); err != nil {
+	if err := store.InsertOpIndexes(tx, opID, targets.Boxes, targets.Files, targets.Blobs); err != nil {
 		return 0, err
 	}
 
-	if err := touchAfter(vtx, source, targets, chainBefore); err != nil {
+	if err := touchAfter(vtx, action, source, targets, chainBefore); err != nil {
 		return 0, err
 	}
 
@@ -137,11 +130,16 @@ func (l *Library) write(
 // snapshot test would otherwise catch immediately.
 func touchAfter(
 	vtx *store.ViewTx,
+	action oplog.Action,
 	source oplog.Source,
 	targets oplog.Targets,
 	chainBefore []domain.FolderID,
 ) error {
-	if !source.PropagatesUpdatedAt() {
+	// Two axes, and both are needed: source excludes what a machine did,
+	// action excludes what left nothing to see. A future sync op is a person's
+	// work from another device (propagates, source != user); a gc that removed
+	// files changes content but is housekeeping (does not propagate).
+	if !source.PropagatesUpdatedAt() || !action.ChangesContent() {
 		return nil
 	}
 	if err := vtx.TouchBoxes(targets.Boxes); err != nil {
@@ -151,17 +149,20 @@ func touchAfter(
 	if err != nil {
 		return err
 	}
-	return vtx.TouchFolders(unionFolders(chainBefore, chainAfter))
+	return vtx.TouchFolders(union(chainBefore, chainAfter))
 }
 
-// unionFolders merges two folder-id lists without duplicates.
-func unionFolders(a, b []domain.FolderID) []domain.FolderID {
+// union merges two id lists without duplicates.
+func union[T comparable](a, b []T) []T {
 	if len(a) == 0 {
 		return b
 	}
-	seen := make(map[domain.FolderID]bool, len(a)+len(b))
-	out := make([]domain.FolderID, 0, len(a)+len(b))
-	for _, list := range [][]domain.FolderID{a, b} {
+	if len(b) == 0 {
+		return a
+	}
+	seen := make(map[T]bool, len(a)+len(b))
+	out := make([]T, 0, len(a)+len(b))
+	for _, list := range [][]T{a, b} {
 		for _, id := range list {
 			if !seen[id] {
 				seen[id] = true

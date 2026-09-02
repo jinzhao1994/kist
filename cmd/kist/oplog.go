@@ -52,7 +52,6 @@ func newLogCmd() *cobra.Command {
 					TS:        op.TS,
 					Action:    string(op.Action),
 					Source:    string(op.Source),
-					Actor:     op.Actor,
 					RevertsID: op.RevertsID,
 				}
 				if by, ok, err := l.RevertedBy(cmd.Context(), op.ID); err != nil {

@@ -88,7 +88,7 @@ func TestDeleteTagRefusesWhenAttached(t *testing.T) {
 	tag := createTag(t, tx, nil, "云南")
 	box, raw := createBoxPayload(t, "trip")
 	apply(t, tx, ActionCreateBox, raw)
-	tx.AddBoxTag(box.BoxID, tag, "user")
+	tx.AddBoxTag(box.BoxID, tag)
 
 	delRaw, _ := Marshal(DeleteTagPayload{TagID: tag, Name: "云南"})
 	err := apply(t, tx, ActionDeleteTag, delRaw)

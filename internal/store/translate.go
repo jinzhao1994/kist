@@ -179,7 +179,7 @@ func timePredicate(column string, r query.DateRange, zone *time.Location) (strin
 	return sb.String(), args, nil
 }
 
-// instantAt reads one end of a LocalDate interval as unix seconds in zone.
+// instantAt reads one end of a LocalDate interval as unix nanoseconds in zone.
 //
 // Start and End pad to minute precision, which is the widest form LocalDate
 // has, so the layout here is fixed rather than discovered (spec 1.3).
@@ -188,5 +188,5 @@ func instantAt(padded string, zone *time.Location) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("read date %q: %w", padded, err)
 	}
-	return t.Unix(), nil
+	return t.UnixNano(), nil
 }

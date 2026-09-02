@@ -219,7 +219,7 @@ func mustInstant(s string) domain.Instant {
 	if err != nil {
 		panic("querytest: bad fixture date " + s + ": " + err.Error())
 	}
-	return domain.NewInstant(start.Unix())
+	return domain.NewInstant(start.UnixNano())
 }
 
 // names renders a result for a failure message.

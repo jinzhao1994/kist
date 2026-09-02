@@ -9,25 +9,18 @@ import (
 	"github.com/jinzhao1994/kist/internal/domain"
 )
 
-// TimeLayout is how every machine timestamp is written: UTC, milliseconds
-// zero-padded, fixed width.
+// FormatTime renders a machine timestamp for storage: unix nanoseconds, UTC.
 //
-// Fixed width is the whole point. The log relies on the lexicographic order of
-// ts being its chronological order, and dropping a millisecond digit breaks
-// that silently — ORDER BY ts keeps working, it just stops being right.
-const TimeLayout = "2006-01-02T15:04:05.000Z"
+// Nanoseconds are time.Time's own resolution, so the round trip is exact and
+// nothing has to be truncated first.
+//
+// It is not a claim that ts is unique or monotonic — it is a wall clock, and
+// NTP moves those backwards. ops.id is the ordering authority.
+func FormatTime(t time.Time) int64 { return t.UTC().UnixNano() }
 
-// FormatTime renders t for storage, converting to UTC first.
-func FormatTime(t time.Time) string { return t.UTC().Format(TimeLayout) }
-
-// ParseTime reads a stored timestamp.
-func ParseTime(s string) (time.Time, error) {
-	t, err := time.Parse(TimeLayout, s)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("parse timestamp %q: %w", s, err)
-	}
-	return t.UTC(), nil
-}
+// ParseTime reads a stored machine timestamp. It cannot fail: the column is
+// INTEGER, so the driver has already done the only parsing there is.
+func ParseTime(ns int64) time.Time { return time.Unix(0, ns).UTC() }
 
 // Queryer is satisfied by both *sql.DB and *sql.Tx, so read helpers can be
 // called inside or outside a transaction.
@@ -47,7 +40,6 @@ type OpRow struct {
 	TS        time.Time
 	Action    string
 	Source    string
-	Actor     string
 	Payload   []byte
 	RevertsID *int64
 }
@@ -56,8 +48,8 @@ type OpRow struct {
 // number. Ops are never updated and never deleted.
 func AppendOp(tx *sql.Tx, r OpRow) (int64, error) {
 	res, err := tx.Exec(
-		`INSERT INTO ops (ts, action, source, actor, payload, reverts_id) VALUES (?, ?, ?, ?, ?, ?)`,
-		FormatTime(r.TS), r.Action, r.Source, nullString(r.Actor), string(r.Payload), r.RevertsID)
+		`INSERT INTO ops (ts, action, source, payload, reverts_id) VALUES (?, ?, ?, ?, ?)`,
+		FormatTime(r.TS), r.Action, r.Source, string(r.Payload), r.RevertsID)
 	if err != nil {
 		return 0, fmt.Errorf("append op %q: %w", r.Action, err)
 	}
@@ -68,16 +60,9 @@ func AppendOp(tx *sql.Tx, r OpRow) (int64, error) {
 	return id, nil
 }
 
-func nullString(s string) any {
-	if s == "" {
-		return nil
-	}
-	return s
-}
-
 // opColumns is everything about an op. GetOp and replay use it; both need the
 // payload.
-const opColumns = `id, ts, action, source, coalesce(actor, ''), payload, reverts_id`
+const opColumns = `id, ts, action, source, payload, reverts_id`
 
 // opListColumns is the same, minus the payload.
 //
@@ -85,19 +70,16 @@ const opColumns = `id, ts, action, source, coalesce(actor, ''), payload, reverts
 // undone — never the payload. Once imports exist, selecting it anyway means
 // `kist log -n 20` reads twenty megabytes to print twenty lines: a 5000-file
 // import's payload is about a megabyte (spec 2.2.1).
-const opListColumns = `id, ts, action, source, coalesce(actor, ''), reverts_id`
+const opListColumns = `id, ts, action, source, reverts_id`
 
 func scanOp(scan func(...any) error) (OpRow, error) {
 	var r OpRow
-	var ts, payload string
-	if err := scan(&r.ID, &ts, &r.Action, &r.Source, &r.Actor, &payload, &r.RevertsID); err != nil {
+	var ts int64
+	var payload string
+	if err := scan(&r.ID, &ts, &r.Action, &r.Source, &payload, &r.RevertsID); err != nil {
 		return OpRow{}, err
 	}
-	t, err := ParseTime(ts)
-	if err != nil {
-		return OpRow{}, err
-	}
-	r.TS = t
+	r.TS = ParseTime(ts)
 	r.Payload = []byte(payload)
 	return r, nil
 }
@@ -105,15 +87,11 @@ func scanOp(scan func(...any) error) (OpRow, error) {
 // scanOpHeader reads everything but the payload.
 func scanOpHeader(scan func(...any) error) (OpRow, error) {
 	var r OpRow
-	var ts string
-	if err := scan(&r.ID, &ts, &r.Action, &r.Source, &r.Actor, &r.RevertsID); err != nil {
+	var ts int64
+	if err := scan(&r.ID, &ts, &r.Action, &r.Source, &r.RevertsID); err != nil {
 		return OpRow{}, err
 	}
-	t, err := ParseTime(ts)
-	if err != nil {
-		return OpRow{}, err
-	}
-	r.TS = t
+	r.TS = ParseTime(ts)
 	return r, nil
 }
 
@@ -239,6 +217,21 @@ func LastOpTouchingBox(q Queryer, box domain.BoxID, afterOpID int64) (int64, boo
 	return id, true, nil
 }
 
+// InsertOpIndexes writes every index table for one op.
+//
+// One function rather than three calls, because there are two call sites — the
+// write path and Rebuild — and they must stay identical. A table one of them
+// forgets is a difference only `verify --deep` would find.
+func InsertOpIndexes(tx *sql.Tx, opID int64, boxes []domain.BoxID, files []domain.FileID, blobs []string) error {
+	if err := InsertOpBoxes(tx, opID, boxes); err != nil {
+		return err
+	}
+	if err := InsertOpFiles(tx, opID, files); err != nil {
+		return err
+	}
+	return InsertOpBlobs(tx, opID, blobs)
+}
+
 // InsertOpBoxes records which boxes an op touched. Repeated ids are collapsed:
 // a batch op names each target once.
 func InsertOpBoxes(tx *sql.Tx, opID int64, boxes []domain.BoxID) error {
@@ -255,9 +248,7 @@ func InsertOpBoxes(tx *sql.Tx, opID int64, boxes []domain.BoxID) error {
 	return nil
 }
 
-// InsertOpFiles records which files an op touched. Nothing writes files until
-// M1c; the function exists now so the write path is complete and Targets has
-// somewhere to land.
+// InsertOpFiles records which files an op touched.
 func InsertOpFiles(tx *sql.Tx, opID int64, files []domain.FileID) error {
 	seen := make(map[domain.FileID]bool, len(files))
 	for _, f := range files {
@@ -272,11 +263,27 @@ func InsertOpFiles(tx *sql.Tx, opID int64, files []domain.FileID) error {
 	return nil
 }
 
+// InsertOpBlobs records which content an op touched. files.blob_key answers the
+// same question only while the file exists.
+func InsertOpBlobs(tx *sql.Tx, opID int64, blobs []string) error {
+	seen := make(map[string]bool, len(blobs))
+	for _, b := range blobs {
+		if seen[b] {
+			continue
+		}
+		seen[b] = true
+		if _, err := tx.Exec(`INSERT INTO op_blobs (op_id, blob_key) VALUES (?, ?)`, opID, b); err != nil {
+			return fmt.Errorf("index op %d against blob %s: %w", opID, b, err)
+		}
+	}
+	return nil
+}
+
 // DeleteOpIndexes clears the index tables so Rebuild can regenerate them from
 // the payloads (spec 2.2.1). It does NOT touch ops itself — that table is the
 // authority and is never rewritten.
 func DeleteOpIndexes(tx *sql.Tx) error {
-	for _, table := range []string{"op_boxes", "op_files"} {
+	for _, table := range []string{"op_boxes", "op_files", "op_blobs"} {
 		if _, err := tx.Exec(`DELETE FROM ` + table); err != nil {
 			return fmt.Errorf("clear %s: %w", table, err)
 		}

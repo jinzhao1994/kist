@@ -18,8 +18,8 @@ type fakeTx struct {
 	tags     map[domain.TagID]domain.Tag
 	files    map[domain.FileID]domain.File
 	blobs    map[string]fakeBlob
-	boxTags  map[[2]string]string // box|tag -> source
-	fileTags map[[2]string]string // file|tag -> source
+	boxTags  map[[2]string]bool            // box|tag -> present
+	fileTags map[[2]string]map[string]bool // file|tag -> the sources claiming it
 	meta     map[[2]string]metaRow
 	extracts map[[2]string]int
 }
@@ -44,8 +44,8 @@ func newFakeTx(ts time.Time) *fakeTx {
 		tags:     map[domain.TagID]domain.Tag{},
 		files:    map[domain.FileID]domain.File{},
 		blobs:    map[string]fakeBlob{},
-		boxTags:  map[[2]string]string{},
-		fileTags: map[[2]string]string{},
+		boxTags:  map[[2]string]bool{},
+		fileTags: map[[2]string]map[string]bool{},
 		meta:     map[[2]string]metaRow{},
 		extracts: map[[2]string]int{},
 	}
@@ -172,8 +172,8 @@ func (f *fakeTx) CountTagUsage(id domain.TagID) (int, error) {
 	return n, nil
 }
 
-func (f *fakeTx) AddBoxTag(b domain.BoxID, t domain.TagID, source string) error {
-	f.boxTags[btKey(b, t)] = source
+func (f *fakeTx) AddBoxTag(b domain.BoxID, t domain.TagID) error {
+	f.boxTags[btKey(b, t)] = true
 	return nil
 }
 
@@ -264,12 +264,20 @@ func (f *fakeTx) UpsertBlob(key, sha256 string, size int64) error {
 }
 
 func (f *fakeTx) AddFileTag(file domain.FileID, t domain.TagID, source string) error {
-	f.fileTags[ftKey(file, t)] = source
+	k := ftKey(file, t)
+	if f.fileTags[k] == nil {
+		f.fileTags[k] = map[string]bool{}
+	}
+	f.fileTags[k][source] = true
 	return nil
 }
 
-func (f *fakeTx) RemoveFileTag(file domain.FileID, t domain.TagID) error {
-	delete(f.fileTags, ftKey(file, t))
+func (f *fakeTx) RemoveFileTag(file domain.FileID, t domain.TagID, source string) error {
+	k := ftKey(file, t)
+	delete(f.fileTags[k], source)
+	if len(f.fileTags[k]) == 0 {
+		delete(f.fileTags, k)
+	}
 	return nil
 }
 

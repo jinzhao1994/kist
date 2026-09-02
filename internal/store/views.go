@@ -38,10 +38,10 @@ func (v *ViewTx) SQL() *sql.Tx { return v.tx }
 
 func (v *ViewTx) InsertBox(b domain.Box) error {
 	_, err := v.tx.Exec(
-		`INSERT INTO boxes (id, name, name_fold, description, description_fold,
+		`INSERT INTO boxes (id, name, name_fold, description,
 		                    created_at, updated_at, start_at, end_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		b.ID, b.Name, b.NameFold, b.Description, b.DescriptionFold,
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		b.ID, b.Name, b.NameFold, b.Description,
 		FormatTime(v.ts), FormatTime(v.ts), b.StartAt, b.EndAt)
 	if err != nil {
 		return fmt.Errorf("insert box %s: %w", b.ID, err)
@@ -59,10 +59,10 @@ func (v *ViewTx) InsertBox(b domain.Box) error {
 // modified, which is precisely the failure that rule exists to prevent.
 func (v *ViewTx) UpdateBox(b domain.Box) error {
 	res, err := v.tx.Exec(
-		`UPDATE boxes SET name = ?, name_fold = ?, description = ?, description_fold = ?,
+		`UPDATE boxes SET name = ?, name_fold = ?, description = ?,
 		                  start_at = ?, end_at = ?
 		 WHERE id = ?`,
-		b.Name, b.NameFold, b.Description, b.DescriptionFold,
+		b.Name, b.NameFold, b.Description,
 		b.StartAt, b.EndAt, b.ID)
 	if err != nil {
 		return fmt.Errorf("update box %s: %w", b.ID, err)
@@ -84,15 +84,15 @@ func (v *ViewTx) GetBox(id domain.BoxID) (domain.Box, bool, error) {
 	return scanBox(v.tx.QueryRow(`SELECT `+boxColumns+` FROM boxes WHERE id = ?`, id).Scan)
 }
 
-const boxColumns = `id, name, name_fold, description, description_fold, created_at, updated_at, start_at, end_at`
+const boxColumns = `id, name, name_fold, description, created_at, updated_at, start_at, end_at`
 
 func scanBox(scan func(...any) error) (domain.Box, bool, error) {
 	var (
 		b                domain.Box
-		created, updated string
+		created, updated int64
 		start, end       sql.NullString
 	)
-	err := scan(&b.ID, &b.Name, &b.NameFold, &b.Description, &b.DescriptionFold,
+	err := scan(&b.ID, &b.Name, &b.NameFold, &b.Description,
 		&created, &updated, &start, &end)
 	if err == sql.ErrNoRows {
 		return domain.Box{}, false, nil
@@ -100,12 +100,8 @@ func scanBox(scan func(...any) error) (domain.Box, bool, error) {
 	if err != nil {
 		return domain.Box{}, false, fmt.Errorf("read box: %w", err)
 	}
-	if b.CreatedAt, err = ParseTime(created); err != nil {
-		return domain.Box{}, false, err
-	}
-	if b.UpdatedAt, err = ParseTime(updated); err != nil {
-		return domain.Box{}, false, err
-	}
+	b.CreatedAt = ParseTime(created)
+	b.UpdatedAt = ParseTime(updated)
 	if start.Valid {
 		if b.StartAt, err = domain.ParseLocalDate(start.String); err != nil {
 			return domain.Box{}, false, err
@@ -242,11 +238,11 @@ func (v *ViewTx) CountTagUsage(id domain.TagID) (int, error) {
 
 // AddBoxTag is idempotent: a batch op may name a box that already carries the
 // tag, and one op means one outcome, not a failure.
-func (v *ViewTx) AddBoxTag(box domain.BoxID, tag domain.TagID, source string) error {
+func (v *ViewTx) AddBoxTag(box domain.BoxID, tag domain.TagID) error {
 	_, err := v.tx.Exec(
-		`INSERT INTO box_tags (box_id, tag_id, source) VALUES (?, ?, ?)
-		 ON CONFLICT (box_id, tag_id) DO UPDATE SET source = excluded.source`,
-		box, tag, source)
+		`INSERT INTO box_tags (box_id, tag_id) VALUES (?, ?)
+		 ON CONFLICT (box_id, tag_id) DO NOTHING`,
+		box, tag)
 	if err != nil {
 		return fmt.Errorf("tag box %s with %s: %w", box, tag, err)
 	}
@@ -280,7 +276,7 @@ func (v *ViewTx) HasBoxTag(box domain.BoxID, tag domain.TagID) (bool, error) {
 // touched either would turn `kist rebuild` into data loss.
 func ClearViews(tx *sql.Tx) error {
 	for _, table := range []string{
-		"box_tags", "file_tags", "tag_rejections",
+		"box_tags", "file_tag_sources", "file_tags", "tag_rejections",
 		"file_metadata", "file_extractions",
 		"files", "folders", "boxes", "tags",
 	} {
@@ -319,19 +315,14 @@ const fileColumns = `id, box_id, folder_id, name, name_fold, blob_key, captured_
 func scanFile(scan func(...any) error) (domain.File, error) {
 	var (
 		f                domain.File
-		created, updated string
+		created, updated int64
 	)
 	if err := scan(&f.ID, &f.BoxID, &f.FolderID, &f.Name, &f.NameFold, &f.BlobKey,
 		&f.CapturedAt, &created, &updated); err != nil {
 		return domain.File{}, err
 	}
-	var err error
-	if f.CreatedAt, err = ParseTime(created); err != nil {
-		return domain.File{}, err
-	}
-	if f.UpdatedAt, err = ParseTime(updated); err != nil {
-		return domain.File{}, err
-	}
+	f.CreatedAt = ParseTime(created)
+	f.UpdatedAt = ParseTime(updated)
 	return f, nil
 }
 
@@ -403,18 +394,13 @@ const folderColumns = `id, box_id, parent_id, name, name_fold, created_at, updat
 func scanFolder(scan func(...any) error) (domain.Folder, error) {
 	var (
 		f                domain.Folder
-		created, updated string
+		created, updated int64
 	)
 	if err := scan(&f.ID, &f.BoxID, &f.ParentID, &f.Name, &f.NameFold, &created, &updated); err != nil {
 		return domain.Folder{}, err
 	}
-	var err error
-	if f.CreatedAt, err = ParseTime(created); err != nil {
-		return domain.Folder{}, err
-	}
-	if f.UpdatedAt, err = ParseTime(updated); err != nil {
-		return domain.Folder{}, err
-	}
+	f.CreatedAt = ParseTime(created)
+	f.UpdatedAt = ParseTime(updated)
 	return f, nil
 }
 
@@ -503,17 +489,36 @@ func (v *ViewTx) TouchFolders(ids []domain.FolderID) error {
 
 // ── file_tags ────────────────────────────────────────────────────────────
 
+// AddFileTag writes the claim and, if this is the first one, the tag.
+//
+// The tag row is an upsert rather than an insert because a second source
+// claiming a tag that is already there must not fail — that is the whole point
+// of splitting the two tables.
 func (v *ViewTx) AddFileTag(file domain.FileID, tag domain.TagID, source string) error {
-	_, err := v.tx.Exec(
-		`INSERT INTO file_tags (file_id, tag_id, source) VALUES (?, ?, ?)`, file, tag, source)
-	if err != nil {
+	if _, err := v.tx.Exec(
+		`INSERT INTO file_tags (file_id, tag_id) VALUES (?, ?)
+		 ON CONFLICT (file_id, tag_id) DO NOTHING`, file, tag); err != nil {
 		return fmt.Errorf("tag file %s: %w", file, err)
+	}
+	if _, err := v.tx.Exec(
+		`INSERT INTO file_tag_sources (file_id, tag_id, source) VALUES (?, ?, ?)`,
+		file, tag, source); err != nil {
+		return fmt.Errorf("record who tagged file %s: %w", file, err)
 	}
 	return nil
 }
 
-func (v *ViewTx) RemoveFileTag(file domain.FileID, tag domain.TagID) error {
-	if _, err := v.tx.Exec(`DELETE FROM file_tags WHERE file_id = ? AND tag_id = ?`, file, tag); err != nil {
+// RemoveFileTag withdraws one claim, and drops the tag once none is left.
+func (v *ViewTx) RemoveFileTag(file domain.FileID, tag domain.TagID, source string) error {
+	if _, err := v.tx.Exec(
+		`DELETE FROM file_tag_sources WHERE file_id = ? AND tag_id = ? AND source = ?`,
+		file, tag, source); err != nil {
+		return fmt.Errorf("untag file %s: %w", file, err)
+	}
+	if _, err := v.tx.Exec(
+		`DELETE FROM file_tags WHERE file_id = ? AND tag_id = ?
+		   AND NOT EXISTS (SELECT 1 FROM file_tag_sources WHERE file_id = ? AND tag_id = ?)`,
+		file, tag, file, tag); err != nil {
 		return fmt.Errorf("untag file %s: %w", file, err)
 	}
 	return nil

@@ -25,10 +25,6 @@ func init() {
 type TagBoxesPayload struct {
 	TagID  domain.TagID   `json:"tag_id"`
 	BoxIDs []domain.BoxID `json:"box_ids"`
-	// Source is "user" or "derived" (spec 1.6.1). It lives in the payload
-	// rather than being a constant inside Apply because a rebuild has to
-	// reproduce it.
-	Source string `json:"source"`
 }
 
 // UntagBoxesPayload is the same shape, so the two are exact inverses.
@@ -50,7 +46,7 @@ func (tagBoxes) Apply(tx Tx, payload []byte) error {
 		return err
 	}
 	for _, box := range p.BoxIDs {
-		if err := tx.AddBoxTag(box, p.TagID, p.Source); err != nil {
+		if err := tx.AddBoxTag(box, p.TagID); err != nil {
 			return err
 		}
 	}

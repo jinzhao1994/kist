@@ -34,7 +34,6 @@ func sampleOp() OpRow {
 		TS:      time.Date(2026, 8, 27, 10, 30, 0, 123_000_000, time.UTC),
 		Action:  "create_box",
 		Source:  "user",
-		Actor:   "cli",
 		Payload: []byte(`{"box_id":"x"}`),
 	}
 }
@@ -50,7 +49,7 @@ func TestAppendOpAndGet(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("GetOp: %v, ok=%v", err, ok)
 	}
-	if got.Action != "create_box" || got.Source != "user" || got.Actor != "cli" {
+	if got.Action != "create_box" || got.Source != "user" {
 		t.Errorf("GetOp = %+v", got)
 	}
 	if string(got.Payload) != `{"box_id":"x"}` {
@@ -75,26 +74,26 @@ func TestGetOpMissing(t *testing.T) {
 	}
 }
 
-// The log's readability rests on this: ts is fixed width so its lexicographic
-// order is its chronological order.
-func TestTimestampIsFixedWidth(t *testing.T) {
+// A timestamp survives storage exactly, down to the nanosecond. Rebuild's
+// snapshot proof compares these values, so anything the write path rounds off
+// is a difference the replayed library cannot reproduce.
+func TestTimestampRoundTripsExactly(t *testing.T) {
 	db := migrated(t)
 	r := sampleOp()
-	r.TS = time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC) // no millis at all
+	r.TS = time.Date(2026, 1, 2, 3, 4, 5, 123_456_789, time.UTC)
 	id := appendOp(t, db, r)
 
-	var raw string
-	if err := db.QueryRow(`SELECT ts FROM ops WHERE id = ?`, id).Scan(&raw); err != nil {
+	got, ok, err := GetOp(db, id)
+	if err != nil || !ok {
 		t.Fatal(err)
 	}
-	if raw != "2026-01-02T03:04:05.000Z" {
-		t.Errorf("stored ts = %q, want a zero-padded fixed-width form", raw)
-	}
-	if len(raw) != len("2006-01-02T15:04:05.000Z") {
-		t.Errorf("ts is %d characters, must always be %d", len(raw), len("2006-01-02T15:04:05.000Z"))
+	if !got.TS.Equal(r.TS) {
+		t.Errorf("stored ts = %v, want %v", got.TS, r.TS)
 	}
 }
 
+// The instant is what is stored, not the wall reading. Two clients in two zones
+// naming the same moment must produce the same row.
 func TestTimestampIsNormalizedToUTC(t *testing.T) {
 	db := migrated(t)
 	shanghai := time.FixedZone("CST", 8*3600)
@@ -102,10 +101,12 @@ func TestTimestampIsNormalizedToUTC(t *testing.T) {
 	r.TS = time.Date(2026, 8, 27, 18, 0, 0, 0, shanghai) // 10:00 UTC
 	id := appendOp(t, db, r)
 
-	var raw string
-	db.QueryRow(`SELECT ts FROM ops WHERE id = ?`, id).Scan(&raw)
-	if raw != "2026-08-27T10:00:00.000Z" {
-		t.Errorf("stored ts = %q, want it converted to UTC", raw)
+	var raw int64
+	if err := db.QueryRow(`SELECT ts FROM ops WHERE id = ?`, id).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	if want := time.Date(2026, 8, 27, 10, 0, 0, 0, time.UTC).UnixNano(); raw != want {
+		t.Errorf("stored ts = %d, want %d (the same instant in UTC)", raw, want)
 	}
 }
 

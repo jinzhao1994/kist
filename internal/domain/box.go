@@ -9,15 +9,14 @@ import "time"
 // library with the moment it was rebuilt (spec 2.3.1). StartAt and EndAt are
 // human time with no timezone at all (spec 1.3).
 type Box struct {
-	ID              BoxID
-	Name            string
-	NameFold        string
-	Description     string
-	DescriptionFold string
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	StartAt         LocalDate
-	EndAt           LocalDate
+	ID          BoxID
+	Name        string
+	NameFold    string
+	Description string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	StartAt     LocalDate
+	EndAt       LocalDate
 }
 
 // NewBox validates and folds. Timestamps are left zero: they belong to the op
@@ -28,10 +27,9 @@ func NewBox(id BoxID, name, description string) (Box, error) {
 		return Box{}, err
 	}
 	return Box{
-		ID:              id,
-		Name:            name,
-		NameFold:        Fold(name),
-		Description:     description,
-		DescriptionFold: Fold(description),
+		ID:          id,
+		Name:        name,
+		NameFold:    Fold(name),
+		Description: description,
 	}, nil
 }
