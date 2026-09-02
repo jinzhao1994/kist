@@ -32,7 +32,7 @@ Go 单二进制 + SQLite，Apache-2.0。
 
 **不变量 3 现在有测试撑着，而且覆盖到了文件**：建一批数据（含两层目录的导入、去重的重复内容、被撤销的导入、文件的 tag）→ 记全库快照 → `Rebuild` → 快照必须逐字节相同。验证过它会红：往 `Apply` 里塞一个「跑了几次」的计数器，快照当场指出是 `files` 表哪一行的 name 不一样了。
 
-不变量 2 和依赖方向由 `internal/arch` 的测试守着（`oplog` 不得 import `store` / `blob`，`projection` 不得 import `store` / `oplog` / `library`，`cmd` 不得 import `store` / `oplog`）。
+不变量 2 和依赖方向由 `internal/arch` 的测试守着（`oplog` 不得 import `store` / `blob`，`projection` 不得 import `store` / `oplog` / `library`，`cmd` 不得 import `store` / `oplog`，`domain` 和 `blob` 不许 import 仓库里的任何东西）。
 
 **M2a 已完成**（计划见 `docs/plans/2026-08-27-m2a-integrity.md`）：新包 `internal/integrity`（发现模型 + 结构 / 内容 / 投影三层检查）、`store` 的一致性查询与 `DiffViews`、`blob` 的 `Walk` / `Rehash` / `CleanTmp` / `Restore` / 只读 `OpenDir`、`projection` 的 `DiffDir` 与 `CheckLinks`、`library` 的 `Verify` / `Scrub` / `Repair`，以及 `verify` / `scrub` / `repair` / `remote list` / `rebuild` 五组 CLI。
 
@@ -101,6 +101,21 @@ Go 单二进制 + SQLite，Apache-2.0。
 定 React 当天补上的第三条理由「app 走 RN，两端能复用」**几小时后被自己推翻了**：app 的范围一旦收成「只有备份」，一个备份引擎和一个浏览用的 web UI 就没有东西可共享，剩下的只有 OpenAPI 生成的客户端——而它生成 Dart 和生成 TS 一样顺。复用量归零之后，app 的框架纯按「iOS 后台上传谁更稳」选，于是是 Flutter。**教训记在 5.2 末尾：一条「两端能复用」的理由，先量一量能复用的到底是什么。**
 
 顺手否掉了「两边都用 Flutter」：Flutter Web 画进 canvas，没有 Ctrl-F、没有右键另存为（而这个库装的是合同和扫描件），CanvasKit 的体积也过不了 `go:embed` 那一关。
+
+**`00001_init.sql` 过了一轮逐表 review**（2026-09-02，commit `f16fee8`）。六处修正，理由都记在设计文档对应小节：
+
+- **时间一律 int64 unix 纳秒**（`ts` / `created_at` / `updated_at` / `captured_at`）。定宽 ISO 字符串自带一个失败模式——字典序等于时间序依赖毫秒位补零，少一位则 `ORDER BY` 照常工作但不再正确——为堵它有一条「必须定宽」的纪律和写入前的 `Truncate`，而截断又制造了「写进去和读出来不一样」。整数两个补丁都不需要。**否掉的理由是「和 `start_at`/`end_at` 保持一致」**：那两个是变精度墙钟，`ts` 是绝对瞬时，1.5.2 早就否过同样的推理
+- **删掉三处只有一个取值的列**：`ops.actor`（每行都是 `"cli"`，而 `"cli"` 回答的是 `source` 的问题不是 actor 的问题）、`boxes.description_fold`（没有任何东西查它）、`file_tags.source` / `box_tags.source`
+- **`updated_at` 的传递从一个轴变成两个**：`source.PropagatesUpdatedAt()` **且** `action.ChangesContent()`。tag 和 metadata 是贴在内容上的标签、不是内容，而这个字段会被 `os.Chtimes` 写成目录 mtime。**否掉了「拆成两个 `updated_at` 字段」**——它想解决的「box 最近有没有活动」是日志问题，`LastOpTouchingBox` 已经在答；这条否定只对 box 成立，folder 的子树聚合必须物化
+- **新增 `op_blobs` 和 `file_tag_sources`**。前者因为 file 行会随删除消失而 blob 不会，`blob → file → op` 恰好答不了孤儿 blob；后者因为一个 tag 可以被多个来源认领。**否掉「把 source 加进 `file_tags` 主键」**：热路径安全，但三处计数会静默翻倍
+- **tag op 现在进 `op_boxes`**（`TagFilesPayload` 带 `BoxIDs`）。原来 `kist log --box` 看不到在这个 box 里打 tag 的 op，而「跨 box 批量打 tag」正是 `op_boxes` 做成多对多的头号理由
+- **迁移不再写 `Down` 方向**：终点必然是 `DROP TABLE ops`，那不是回滚是删库
+
+**这一轮里 `verify --deep` 抓到了一个真 bug**：加 `op_blobs` 时漏了 `Rebuild` 那一边，库里 3 行、重放 0 行。根因是写路径和 `Rebuild` 各自调三次插入，少写一个照样编译。合并成 `store.InsertOpIndexes` 之后，后来改 `touchAfter` 签名时编译器当场拦住了两个调用点——同一个陷阱，第二次逃不掉。
+
+**补了三个守卫，都验证过会红。** `TestBlobDependsOnNothing`（`blob` 原来没有任何 arch 规则，而 `store` 不 import `blob`，所以 `blob → store` 能编译过）；`TestEveryDeclaredActionHasAHandler` 改用 `go/ast` 扫 `action.go`（**它的手抄列表已经漏了 `ActionExtractMetadata`**，正是它自己要防的那种错）；`TestEveryActionDeclaresWhetherItChangesContent`（新 action 必须表态）。
+
+**惯例值得记下来：一份必须靠人记得更新的清单，早晚会漏。** 这一轮抓到三处同形状的——action 常量表、`DROP TABLE` 清单、两处各调三次的索引表插入。修法都是让它从源码/签名推导出来，而不是靠自觉。
 
 里程碑拆分见设计文档第 7 节，明确的范围外清单见第 8 节，待决问题见 `open-questions.md`。
 
