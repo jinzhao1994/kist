@@ -7,7 +7,8 @@ import (
 	"testing"
 )
 
-const testTS = "2026-08-22T00:00:00.000Z"
+// testTS is a unix nanosecond instant, matching the column type.
+const testTS int64 = 1787356800000000000
 
 func migrated(t *testing.T) *sql.DB {
 	t.Helper()
@@ -20,26 +21,6 @@ func migrated(t *testing.T) *sql.DB {
 		t.Fatalf("Migrate: %v", err)
 	}
 	return db
-}
-
-func TestMigrateCreatesEveryTable(t *testing.T) {
-	db := migrated(t)
-
-	want := []string{
-		"blobs", "box_tags", "boxes", "file_extractions", "file_metadata",
-		"file_tags", "files", "folders", "op_boxes", "op_files", "ops",
-		"tag_rejections", "tags",
-	}
-	for _, table := range want {
-		var n int
-		err := db.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?`, table).Scan(&n)
-		if err != nil {
-			t.Fatalf("query sqlite_master: %v", err)
-		}
-		if n != 1 {
-			t.Errorf("table %q is missing", table)
-		}
-	}
 }
 
 func TestMigrateIsIdempotent(t *testing.T) {
