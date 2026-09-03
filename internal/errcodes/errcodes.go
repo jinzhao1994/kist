@@ -85,13 +85,14 @@ func (c Class) String() string {
 const (
 	CodeInternal Code = "internal"
 
-	CodeBoxNotFound    Code = "box_not_found"
-	CodeTagNotFound    Code = "tag_not_found"
-	CodeFileNotFound   Code = "file_not_found"
-	CodeFolderNotFound Code = "folder_not_found"
-	CodeOpNotFound     Code = "op_not_found"
-	CodeUnknownAction  Code = "unknown_action"
-	CodeNotALibrary    Code = "not_a_library"
+	CodeBoxNotFound      Code = "box_not_found"
+	CodeTagNotFound      Code = "tag_not_found"
+	CodeFileNotFound     Code = "file_not_found"
+	CodeMetadataNotFound Code = "metadata_not_found"
+	CodeFolderNotFound   Code = "folder_not_found"
+	CodeOpNotFound       Code = "op_not_found"
+	CodeUnknownAction    Code = "unknown_action"
+	CodeNotALibrary      Code = "not_a_library"
 
 	CodeNameEmpty      Code = "name_empty"
 	CodeNameEdgeSpace  Code = "name_edge_space"
@@ -134,6 +135,7 @@ var table = []struct {
 	{library.ErrNoSuchBox, CodeBoxNotFound},
 	{library.ErrNoSuchTag, CodeTagNotFound},
 	{library.ErrNoSuchFile, CodeFileNotFound},
+	{library.ErrNoSuchMetadata, CodeMetadataNotFound},
 	{library.ErrNoSuchFolder, CodeFolderNotFound},
 	{library.ErrNoSuchOp, CodeOpNotFound},
 	{library.ErrAmbiguousRef, CodeAmbiguousRef},
@@ -165,13 +167,14 @@ var table = []struct {
 // classes maps a code to its class. A code missing from here is internal,
 // which is checked by the same test that checks completeness.
 var classes = map[Code]Class{
-	CodeBoxNotFound:    ClassNotFound,
-	CodeTagNotFound:    ClassNotFound,
-	CodeFileNotFound:   ClassNotFound,
-	CodeFolderNotFound: ClassNotFound,
-	CodeOpNotFound:     ClassNotFound,
-	CodeUnknownAction:  ClassNotFound,
-	CodeNotALibrary:    ClassNotFound,
+	CodeBoxNotFound:      ClassNotFound,
+	CodeTagNotFound:      ClassNotFound,
+	CodeFileNotFound:     ClassNotFound,
+	CodeMetadataNotFound: ClassNotFound,
+	CodeFolderNotFound:   ClassNotFound,
+	CodeOpNotFound:       ClassNotFound,
+	CodeUnknownAction:    ClassNotFound,
+	CodeNotALibrary:      ClassNotFound,
 
 	CodeNameEmpty:      ClassInvalid,
 	CodeNameEdgeSpace:  ClassInvalid,

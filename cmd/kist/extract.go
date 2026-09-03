@@ -155,9 +155,17 @@ func newFileShowCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			rows, err := l.FileMetadata(cmd.Context(), id)
+			all, err := l.FileMetadata(cmd.Context(), id)
 			if err != nil {
 				return err
+			}
+			// Tombstones are how the library remembers a key you removed; the
+			// point of removing it is not to see it again.
+			rows := make([]extract.Row, 0, len(all))
+			for _, r := range all {
+				if !r.Tombstone {
+					rows = append(rows, r)
+				}
 			}
 			info, err := l.CapturedInfo(cmd.Context(), file)
 			if err != nil {

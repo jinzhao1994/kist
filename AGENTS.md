@@ -117,6 +117,20 @@ Go 单二进制 + SQLite，Apache-2.0。
 
 **惯例值得记下来：一份必须靠人记得更新的清单，早晚会漏。** 这一轮抓到三处同形状的——action 常量表、`DROP TABLE` 清单、两处各调三次的索引表插入。修法都是让它从源码/签名推导出来，而不是靠自觉。
 
+**metadata 的删除已定并实现**（2026-09-03，见设计文档 1.7.7）：**用户删掉一条 metadata 写的是墓碑（`value IS NULL`、`source = user`），不是删行。**「从来没有过」和「有过、被人拿掉了」必须分得开——「没有」正是提取器存在的意义，直接删行等于删除什么也没做，只是慢一次 `kist extract` 才生效。
+
+**否掉了「照抄一张 `metadata_rejections` 侧表」**：tag 的存在性是多对多的（exif 和 OCR 都可能打「猫」），所以抑制塞不进 `file_tags` 那一行；而 metadata 的 `(file_id, key)` 单一所有者（命名空间互斥），槽位本来就在表里。**同一个问题两种答案，分界线是「存在性有几个claimant」。**
+
+**抑制机制本身没有新代码**：墓碑的 `source` 是 `user`，而提取管线早有「不属于自己的 key 整条跳过」的规则。这是选这个形式的第三个好处——没有新的检查点，也就没有将来会被忘记挂上的检查点。
+
+新增 `set_metadata`（第十五个 action，payload 是 before/after 两个可空状态，`Inverse` 是互换）、`Tx` 的 `TombstoneFileMetadata` / `GetFileMetadata`、`kist file metadata rm`。**`value` / `type` 改成可空现在做而不推迟**，因为 SQLite 不支持 `DROP NOT NULL` 而这张表从 M3 起每次导入都有行。删掉 `exif:DateTimeOriginal` 会重算 `captured_at`，重算在生成 op 时做（要读时区，而配置不是 payload）。
+
+顺手修掉三处过期的设计文档：`file_tags.source（user / derived）`（正是上一轮推翻的方案）、四处「unix 秒」、以及 1.7 里 `source=extracted` 那一段——它和自己下面第 509 行「三类值：提取器 id、`user`、`file`」自相矛盾。
+
+**`snapshotTables` 现在被钉在 schema 上**（2026-09-03，`internal/store/snapshot_test.go`）。它定义了「重放出来的库和原库一样」里的「一样」，`Snapshot()` 的逐字节证明和 `verify --deep` 共用它，**漏一张表或一列，两个检查同时不再看它而且全绿**。两个守卫都验证过会红。这一处**没有**改成从 `pragma_table_info` 推导，虽然那样能消掉重复——**那会让守卫退化成恒真式**。两份独立写下的同一事实可以互相对照，一份推导出来的不能。
+
+**所以「清单会漏」这条教训有两个方向**：能推导就推导（action 常量表、`DROP TABLE` 清单）；推导会让守卫变成恒真式的，就保留重复、加守卫（`snapshotTables`）。同一轮里 `TestMigrateCreatesEveryTable` 那份手抄表清单已经漏了 `op_blobs` 和 `file_tag_sources`，直接删掉由新守卫取代。
+
 里程碑拆分见设计文档第 7 节，明确的范围外清单见第 8 节，待决问题见 `open-questions.md`。
 
 ## 约定

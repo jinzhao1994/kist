@@ -335,12 +335,24 @@ func (l *Library) diffExtraction(
 func mergedTags(stored []store.MetadataRow, extractor string, found []extract.KV) []extract.KV {
 	out := make([]extract.KV, 0, len(stored)+len(found))
 	for _, row := range stored {
-		if row.Source == extractor {
-			continue // replaced by found
+		if row.Source == extractor || row.Tombstone {
+			continue // replaced by found, or suppressed
 		}
 		out = append(out, row.KV)
 	}
 	return append(out, found...)
+}
+
+// observations drops tombstones, which carry no value and must not reach the
+// capture-time rules as an empty reading of the key they suppress.
+func observations(rows []store.MetadataRow) []extract.KV {
+	out := make([]extract.KV, 0, len(rows))
+	for _, r := range rows {
+		if !r.Tombstone {
+			out = append(out, r.KV)
+		}
+	}
+	return out
 }
 
 // sniff reads enough of a file to name its media type.
@@ -393,7 +405,7 @@ func (r *ExtractResult) Count(s FileStatus) int {
 }
 
 // FileMetadata reads everything recorded about a file.
-func (l *Library) FileMetadata(ctx context.Context, id domain.FileID) ([]store.MetadataRow, error) {
+func (l *Library) FileMetadata(ctx context.Context, id domain.FileID) ([]extract.Row, error) {
 	return store.FileMetadata(l.db, id)
 }
 
@@ -429,11 +441,7 @@ func (l *Library) CapturedInfo(ctx context.Context, f domain.File) (CapturedInfo
 	if err != nil {
 		return CapturedInfo{}, err
 	}
-	kvs := make([]extract.KV, len(rows))
-	for i, r := range rows {
-		kvs[i] = r.KV
-	}
-	c := extract.ResolveCaptured(kvs, l.zone())
+	c := extract.ResolveCaptured(observations(rows), l.zone())
 	info.From, info.Zone = c.From, string(c.Zone)
 	return info, nil
 }
@@ -468,11 +476,7 @@ func (l *Library) DescribeCapturedAt(ctx context.Context, w io.Writer, f domain.
 		fmt.Fprintf(w, "captured   %s\n", t.Format("2006-01-02 15:04:05"))
 		return
 	}
-	kvs := make([]extract.KV, len(rows))
-	for i, r := range rows {
-		kvs[i] = r.KV
-	}
-	c := extract.ResolveCaptured(kvs, l.zone())
+	c := extract.ResolveCaptured(observations(rows), l.zone())
 
 	// The zone always gets a sentence, including when it is known. A time
 	// rendered in the library's zone from a photograph taken elsewhere is

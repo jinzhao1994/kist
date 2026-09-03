@@ -25,7 +25,7 @@ var snapshotTables = []struct {
 	{"file_tags", "hex(file_id), hex(tag_id)", "file_id, tag_id"},
 	{"file_tag_sources", "hex(file_id), hex(tag_id), source", "file_id, tag_id, source"},
 	{"tag_rejections", "hex(file_id), hex(tag_id)", "file_id, tag_id"},
-	{"file_metadata", "hex(file_id), key, value, type, source", "file_id, key"},
+	{"file_metadata", "hex(file_id), key, coalesce(value,''), coalesce(type,''), source", "file_id, key"},
 	{"file_extractions", "hex(file_id), extractor, version", "file_id, extractor"},
 	{"op_boxes", "op_id, hex(box_id)", "op_id, box_id"},
 	{"op_files", "op_id, hex(file_id)", "op_id, file_id"},

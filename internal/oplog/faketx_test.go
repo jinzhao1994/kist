@@ -26,8 +26,9 @@ type fakeTx struct {
 
 // metaRow mirrors a row of file_metadata.
 type metaRow struct {
-	kv     extract.KV
-	source string
+	kv        extract.KV
+	source    string
+	tombstone bool
 }
 
 // fakeBlob mirrors a row of the blobs index.
@@ -295,6 +296,22 @@ func (f *fakeTx) SetFileMetadata(file domain.FileID, kv extract.KV, source strin
 	}
 	f.meta[[2]string{file.String(), kv.Key}] = metaRow{kv: kv, source: source}
 	return nil
+}
+
+func (f *fakeTx) TombstoneFileMetadata(file domain.FileID, key string) error {
+	if _, ok := f.files[file]; !ok {
+		return fmt.Errorf("no such file %s", file)
+	}
+	f.meta[[2]string{file.String(), key}] = metaRow{source: extract.UserSource, tombstone: true}
+	return nil
+}
+
+func (f *fakeTx) GetFileMetadata(file domain.FileID, key string) (extract.Row, bool, error) {
+	r, ok := f.meta[[2]string{file.String(), key}]
+	if !ok {
+		return extract.Row{}, false, nil
+	}
+	return extract.Row{KV: r.kv, Source: r.source, Tombstone: r.tombstone}, true, nil
 }
 
 func (f *fakeTx) DeleteFileMetadata(file domain.FileID, key string) error {

@@ -219,7 +219,7 @@ func TestEveryActionDeclaresWhetherItChangesContent(t *testing.T) {
 		ActionRenameTag: false, ActionMoveTag: false,
 		ActionTagBoxes: false, ActionUntagBoxes: false,
 		ActionTagFiles: false, ActionUntagFiles: false,
-		ActionExtractMetadata: false,
+		ActionExtractMetadata: false, ActionSetMetadata: false,
 	}
 	for _, a := range declaredActions(t) {
 		expected, listed := want[a]

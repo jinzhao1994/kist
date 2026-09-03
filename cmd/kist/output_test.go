@@ -44,6 +44,7 @@ var jsonCommands = [][]string{
 	{"file", "show", "@file"},
 	{"file", "tag", "地点", "@file"},
 	{"file", "untag", "地点", "@file"},
+	{"file", "metadata", "rm", "@file", "file:size"},
 	{"tag", "tree"},
 	{"tag", "new", "证件"},
 	{"tag", "rename", "证件", "档案"},

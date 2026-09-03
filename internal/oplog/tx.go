@@ -78,6 +78,13 @@ type Tx interface {
 	// of one extractor leaves every other extractor's rows alone.
 	SetFileMetadata(file domain.FileID, kv extract.KV, source string) error
 	DeleteFileMetadata(file domain.FileID, key string) error
+	// TombstoneFileMetadata records that a person removed this key. It is a
+	// row rather than the absence of one, so a re-extraction cannot put the
+	// value back (spec 1.7.7).
+	TombstoneFileMetadata(file domain.FileID, key string) error
+	// GetFileMetadata reads one slot, tombstone included, for the before-state
+	// assertion that makes an edit undoable.
+	GetFileMetadata(file domain.FileID, key string) (extract.Row, bool, error)
 
 	// SetFileExtraction records that an extractor at a version has seen this
 	// file. It is what makes "which files still need extracting" an indexed

@@ -53,6 +53,21 @@ type KV struct {
 	Type  Type   `json:"type"`
 }
 
+// Row is one stored observation plus who wrote it.
+//
+// Tombstone marks a key a person removed. It is a row rather than the absence
+// of one because the two must stay distinguishable: an absent key is one no
+// extractor has produced yet, and the next run will produce it. A removed key
+// must stay removed (spec 1.7.7).
+//
+// A tombstone carries no KV — its Source is always UserSource, which is what
+// makes every extractor skip it under the ownership rule that already exists.
+type Row struct {
+	KV
+	Source    string
+	Tombstone bool
+}
+
 const (
 	// UserSource is the reserved value of file_metadata.source for rows a
 	// person wrote. No extractor may claim it, and no extraction may

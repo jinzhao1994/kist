@@ -27,6 +27,29 @@ func (v *ViewTx) SetFileMetadata(file domain.FileID, kv extract.KV, source strin
 	return nil
 }
 
+// TombstoneFileMetadata records that a person removed this key.
+//
+// It replaces whatever was there, which is the point: the extractor's row is
+// gone and the slot is now owned by the user, so no extraction will fill it
+// again (spec 1.7.7).
+func (v *ViewTx) TombstoneFileMetadata(file domain.FileID, key string) error {
+	_, err := v.tx.Exec(`
+		INSERT INTO file_metadata (file_id, key, value, type, source)
+		VALUES (?, ?, NULL, NULL, ?)
+		ON CONFLICT (file_id, key) DO UPDATE SET
+			value = NULL, type = NULL, source = excluded.source`,
+		file, key, extract.UserSource)
+	if err != nil {
+		return fmt.Errorf("tombstone metadata %s on %s: %w", key, file, err)
+	}
+	return nil
+}
+
+// GetFileMetadata is the ViewTx form, for Apply's before-state assertions.
+func (v *ViewTx) GetFileMetadata(file domain.FileID, key string) (MetadataRow, bool, error) {
+	return GetFileMetadata(v.tx, file, key)
+}
+
 func (v *ViewTx) DeleteFileMetadata(file domain.FileID, key string) error {
 	if _, err := v.tx.Exec(`DELETE FROM file_metadata WHERE file_id = ? AND key = ?`, file, key); err != nil {
 		return fmt.Errorf("delete metadata %s on %s: %w", key, file, err)
@@ -63,12 +86,14 @@ func (v *ViewTx) SetCapturedAt(file domain.FileID, at domain.Instant) error {
 // ── the read side ───────────────────────────────────────────────────────────
 
 // MetadataRow is one stored observation plus who wrote it.
-type MetadataRow struct {
-	extract.KV
-	Source string
-}
+type MetadataRow = extract.Row
 
 // FileMetadata reads every row for one file, ordered by key.
+//
+// Tombstones are included. The extraction pipeline reads this to learn who
+// owns each key, and hiding a tombstone would let the extractor claim the key
+// again — which is the one thing the tombstone exists to prevent. Display
+// filters them out instead.
 func FileMetadata(q Queryer, file domain.FileID) ([]MetadataRow, error) {
 	rows, err := q.Query(
 		`SELECT key, value, type, source FROM file_metadata WHERE file_id = ? ORDER BY key`, file)
@@ -79,15 +104,49 @@ func FileMetadata(q Queryer, file domain.FileID) ([]MetadataRow, error) {
 
 	var out []MetadataRow
 	for rows.Next() {
-		var r MetadataRow
-		var typ string
-		if err := rows.Scan(&r.Key, &r.Value, &typ, &r.Source); err != nil {
+		r, err := scanMetadata(rows.Scan)
+		if err != nil {
 			return nil, err
 		}
-		r.Type = extract.Type(typ)
 		out = append(out, r)
 	}
 	return out, rows.Err()
+}
+
+// GetFileMetadata reads one row, tombstone included.
+func GetFileMetadata(q Queryer, file domain.FileID, key string) (MetadataRow, bool, error) {
+	rows, err := q.Query(
+		`SELECT key, value, type, source FROM file_metadata WHERE file_id = ? AND key = ?`, file, key)
+	if err != nil {
+		return MetadataRow{}, false, fmt.Errorf("read metadata %s of %s: %w", key, file, err)
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return MetadataRow{}, false, rows.Err()
+	}
+	r, err := scanMetadata(rows.Scan)
+	if err != nil {
+		return MetadataRow{}, false, err
+	}
+	return r, true, nil
+}
+
+// scanMetadata reads one row, reporting a NULL value as a tombstone.
+func scanMetadata(scan func(...any) error) (MetadataRow, error) {
+	var r MetadataRow
+	var value, typ *string
+	if err := scan(&r.Key, &value, &typ, &r.Source); err != nil {
+		return MetadataRow{}, err
+	}
+	if value == nil {
+		r.Tombstone = true
+		return r, nil
+	}
+	r.Value = *value
+	if typ != nil {
+		r.Type = extract.Type(*typ)
+	}
+	return r, nil
 }
 
 // Extractions reports which extractors have seen a file, and at what version.

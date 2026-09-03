@@ -15,7 +15,7 @@ func newFileCmd() *cobra.Command {
 		Use:   "file",
 		Short: "Work with individual files",
 	}
-	cmd.AddCommand(newFileTagCmd(false), newFileTagCmd(true), newFileShowCmd())
+	cmd.AddCommand(newFileTagCmd(false), newFileTagCmd(true), newFileShowCmd(), newFileMetadataCmd())
 	return cmd
 }
 
@@ -73,6 +73,57 @@ Files that would not change are left out of that operation entirely.`,
 					verb = "untagged"
 				}
 				_, err := fmt.Fprintf(w, "%s %d file(s) with %s\n", verb, n, tag.Name)
+				return err
+			})
+		},
+	}
+}
+
+// newFileMetadataCmd groups the commands that edit stored metadata. Only `rm`
+// exists in v0.1; writing `user:` values is v0.2 (spec 1.7).
+func newFileMetadataCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "metadata",
+		Short: "Work with a file's stored metadata",
+	}
+	cmd.AddCommand(newFileMetadataRmCmd())
+	return cmd
+}
+
+func newFileMetadataRmCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "rm <file-id> <key>",
+		Short: "Remove one metadata key from a file",
+		Long: `Keys are shown by ` + "`kist file show`" + `, namespace included: "exif:Make".
+
+The key stays removed. A later ` + "`kist extract`" + ` will not put it back, because
+the library records that you took it out rather than that it was never there.
+` + "`kist undo`" + ` restores it.`,
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			l, err := openLibrary(cmd)
+			if err != nil {
+				return err
+			}
+			defer l.Close()
+
+			raw, err := domain.ParseID(args[0])
+			if err != nil {
+				return fmt.Errorf("%q is not a file id; `kist find` prints them", args[0])
+			}
+			id := domain.FileID{ID: raw}
+
+			removed, err := l.RemoveMetadata(cmd.Context(), id, args[1])
+			if err != nil {
+				return err
+			}
+			out := wire.MetadataRemoval{File: id.String(), Key: args[1], Removed: removed}
+			return emit(cmd, out, func(w io.Writer) error {
+				if !removed {
+					_, err := fmt.Fprintf(w, "%s was already removed from this file\n", args[1])
+					return err
+				}
+				_, err := fmt.Fprintf(w, "removed %s\n", args[1])
 				return err
 			})
 		},

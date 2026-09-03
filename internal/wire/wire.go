@@ -185,3 +185,13 @@ type Metadata struct {
 	Type   string `json:"type"`
 	Source string `json:"source"`
 }
+
+// MetadataRemoval is the result of `kist file metadata rm`.
+//
+// Removed is false when the key was already suppressed: nothing changed and no
+// op was written, which a script has to be able to tell apart from a removal.
+type MetadataRemoval struct {
+	File    string `json:"file"`
+	Key     string `json:"key"`
+	Removed bool   `json:"removed"`
+}

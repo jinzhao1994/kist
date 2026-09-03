@@ -179,12 +179,16 @@ CREATE TABLE tag_rejections (
 --
 -- v0.1 不建非主键索引，因为 v0.1 不查 metadata。数值比较要的是另外的
 -- value_int / value_real 旁列，同样等到需要时再加（spec 1.7.5、8）。
+-- value / type 为 NULL 的行是墓碑：人删掉了这个 key，而不是这个 key 从来
+-- 没有过。两者必须分得开，否则下一次重新提取会把它加回来（spec 1.7.7）。
+-- 墓碑的 source 恒为 "user"，抑制因此不需要新机制——提取管线本来就会跳过
+-- 不属于自己的 key。
 CREATE TABLE file_metadata (
   file_id BLOB NOT NULL REFERENCES files(id),
   key     TEXT NOT NULL,   -- 必须带命名空间："exif:Make"、"file:mtime"、"user:有效期"
-  value   TEXT NOT NULL,
-  type    TEXT NOT NULL,   -- text | int | real
-  source  TEXT NOT NULL,   -- 提取器 id，或保留值 "user"
+  value   TEXT,            -- NULL = 墓碑
+  type    TEXT,            -- text | int | real；墓碑为 NULL
+  source  TEXT NOT NULL,   -- 提取器 id，或保留值 "user" / "file"
   PRIMARY KEY (file_id, key)
 );
 

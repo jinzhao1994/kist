@@ -167,16 +167,22 @@ func seedExtractions(t *testing.T, l *Library) {
 	// A second extractor, so every file ends up with rows from two sources.
 	// The replay has to put each row back under the source that wrote it, and
 	// a mix-up would be invisible in any test that only ever had one.
-	//
-	// A row a person wrote would be the sharper case, and v0.1 cannot make
-	// one: the only writer of file_metadata is extract_metadata, whose Apply
-	// takes source from the payload's extractor — and the registry refuses an
-	// extractor called "user". That is 1.7's "表结构就位，功能留空" showing up
-	// as a thing the fixture cannot express yet, not as an oversight.
 	other := &fakeExtractor{id: "other", version: 1, ns: []string{"other"}, tags: []extract.KV{
 		{Key: "other:note", Value: "2029-08-12", Type: extract.TypeText},
 	}}
 	if _, err := l.extractUsing(ctx, []extract.Extractor{other}, ExtractOptions{BatchSize: 100}, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	// A row a person wrote — the sharper case, because it is the one an
+	// extraction must never touch. It is also the only NULL-valued row the
+	// schema has, so it is the only thing that would catch a replay writing
+	// an empty string where the library holds NULL.
+	files, _, err := store.ListFiles(l.db, query.Query{Limit: 1}, l.zone())
+	if err != nil || len(files) == 0 {
+		t.Fatalf("list a file to edit: %v", err)
+	}
+	if _, err := l.RemoveMetadata(ctx, files[0].ID, "other:note"); err != nil {
 		t.Fatal(err)
 	}
 }
