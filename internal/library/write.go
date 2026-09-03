@@ -20,7 +20,7 @@ import (
 //  1. append the op — its id is the library's new version number
 //  2. Apply it to the materialized views, with tx.TS() carrying the op's ts
 //  3. write the index tables from the payload via Targets (invariant 4)
-//  4. propagate updated_at, but only for sources that represent human intent
+//  4. propagate updated_at, but only for origins that represent human intent
 //
 // If any step fails the whole thing rolls back. An op that survived a failed
 // Apply would be worse than a lost change: a rebuild would replay it and make
@@ -29,7 +29,7 @@ func (l *Library) write(
 	ctx context.Context,
 	action oplog.Action,
 	payload []byte,
-	source oplog.Source,
+	origin oplog.Origin,
 	revertsID *int64,
 ) (int64, error) {
 	// Everything below — the transaction and the incremental projection at
@@ -56,6 +56,9 @@ func (l *Library) write(
 	if err != nil {
 		return 0, err
 	}
+	if !origin.Valid() {
+		return 0, fmt.Errorf("op origin %q is not one of %v", origin, oplog.AllOrigins())
+	}
 	targets, err := handler.Targets(payload)
 	if err != nil {
 		return 0, fmt.Errorf("extract targets for %s: %w", action, err)
@@ -72,7 +75,7 @@ func (l *Library) write(
 	opID, err := store.AppendOp(tx, store.OpRow{
 		TS:        ts,
 		Action:    string(action),
-		Source:    string(source),
+		Origin:    string(origin),
 		Payload:   payload,
 		RevertsID: revertsID,
 	})
@@ -101,7 +104,7 @@ func (l *Library) write(
 		return 0, err
 	}
 
-	if err := touchAfter(vtx, action, source, targets, chainBefore); err != nil {
+	if err := touchAfter(vtx, action, origin, targets, chainBefore); err != nil {
 		return 0, err
 	}
 
@@ -131,15 +134,15 @@ func (l *Library) write(
 func touchAfter(
 	vtx *store.ViewTx,
 	action oplog.Action,
-	source oplog.Source,
+	origin oplog.Origin,
 	targets oplog.Targets,
 	chainBefore []domain.FolderID,
 ) error {
-	// Two axes, and both are needed: source excludes what a machine did,
+	// Two axes, and both are needed: origin excludes what a machine did,
 	// action excludes what left nothing to see. A future sync op is a person's
-	// work from another device (propagates, source != user); a gc that removed
+	// work from another device (propagates, origin != user); a gc that removed
 	// files changes content but is housekeeping (does not propagate).
-	if !source.PropagatesUpdatedAt() || !action.ChangesContent() {
+	if !origin.PropagatesUpdatedAt() || !action.ChangesContent() {
 		return nil
 	}
 	if err := vtx.TouchBoxes(targets.Boxes); err != nil {

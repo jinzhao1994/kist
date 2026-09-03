@@ -133,7 +133,7 @@ func TestDiffViewsIgnoresOps(t *testing.T) {
 	if _, err := db.Exec(`VACUUM INTO ?`, copyPath); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec(`INSERT INTO ops (ts, action, source, payload) VALUES ('t','a','user','{}')`); err != nil {
+	if _, err := db.Exec(`INSERT INTO ops (ts, action, origin, payload) VALUES ('t','a','user','{}')`); err != nil {
 		t.Fatal(err)
 	}
 	drift, err := DiffViews(t.Context(), db, copyPath)

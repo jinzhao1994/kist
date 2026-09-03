@@ -52,7 +52,7 @@ func (l *Library) Undo(ctx context.Context, opID int64) (int64, error) {
 		return 0, fmt.Errorf("compute the inverse of op %d: %w", opID, err)
 	}
 
-	undoID, err := l.write(ctx, action, payload, oplog.SourceUser, &opID)
+	undoID, err := l.write(ctx, action, payload, oplog.OriginUser, &opID)
 	if err != nil {
 		if errors.Is(err, oplog.ErrStaleBefore) {
 			return 0, l.explainBlockedUndo(target, err)

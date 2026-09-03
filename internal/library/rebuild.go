@@ -88,7 +88,7 @@ func rebuildInto(ctx context.Context, db *sql.DB) error {
 		// op's own ts. That is why replayed updated_at values come out
 		// identical instead of all being the moment of the rebuild
 		// (spec 1.5.1 ①).
-		if err := touchAfter(vtx, action, oplog.Source(row.Source), targets, chainBefore); err != nil {
+		if err := touchAfter(vtx, action, oplog.Origin(row.Origin), targets, chainBefore); err != nil {
 			return err
 		}
 		return nil

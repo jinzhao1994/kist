@@ -39,7 +39,7 @@ type OpRow struct {
 	ID        int64
 	TS        time.Time
 	Action    string
-	Source    string
+	Origin    string
 	Payload   []byte
 	RevertsID *int64
 }
@@ -48,8 +48,8 @@ type OpRow struct {
 // number. Ops are never updated and never deleted.
 func AppendOp(tx *sql.Tx, r OpRow) (int64, error) {
 	res, err := tx.Exec(
-		`INSERT INTO ops (ts, action, source, payload, reverts_id) VALUES (?, ?, ?, ?, ?)`,
-		FormatTime(r.TS), r.Action, r.Source, string(r.Payload), r.RevertsID)
+		`INSERT INTO ops (ts, action, origin, payload, reverts_id) VALUES (?, ?, ?, ?, ?)`,
+		FormatTime(r.TS), r.Action, r.Origin, string(r.Payload), r.RevertsID)
 	if err != nil {
 		return 0, fmt.Errorf("append op %q: %w", r.Action, err)
 	}
@@ -62,21 +62,21 @@ func AppendOp(tx *sql.Tx, r OpRow) (int64, error) {
 
 // opColumns is everything about an op. GetOp and replay use it; both need the
 // payload.
-const opColumns = `id, ts, action, source, payload, reverts_id`
+const opColumns = `id, ts, action, origin, payload, reverts_id`
 
 // opListColumns is the same, minus the payload.
 //
-// The history view renders id, time, action, source and whether the op was
+// The history view renders id, time, action, origin and whether the op was
 // undone — never the payload. Once imports exist, selecting it anyway means
 // `kist log -n 20` reads twenty megabytes to print twenty lines: a 5000-file
 // import's payload is about a megabyte (spec 2.2.1).
-const opListColumns = `id, ts, action, source, reverts_id`
+const opListColumns = `id, ts, action, origin, reverts_id`
 
 func scanOp(scan func(...any) error) (OpRow, error) {
 	var r OpRow
 	var ts int64
 	var payload string
-	if err := scan(&r.ID, &ts, &r.Action, &r.Source, &payload, &r.RevertsID); err != nil {
+	if err := scan(&r.ID, &ts, &r.Action, &r.Origin, &payload, &r.RevertsID); err != nil {
 		return OpRow{}, err
 	}
 	r.TS = ParseTime(ts)
@@ -88,7 +88,7 @@ func scanOp(scan func(...any) error) (OpRow, error) {
 func scanOpHeader(scan func(...any) error) (OpRow, error) {
 	var r OpRow
 	var ts int64
-	if err := scan(&r.ID, &ts, &r.Action, &r.Source, &r.RevertsID); err != nil {
+	if err := scan(&r.ID, &ts, &r.Action, &r.Origin, &r.RevertsID); err != nil {
 		return OpRow{}, err
 	}
 	r.TS = ParseTime(ts)

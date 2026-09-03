@@ -139,7 +139,7 @@ func TestSetMetadataRefusesAStalePayload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = l.write(t.Context(), oplog.ActionSetMetadata, raw, oplog.SourceUser, nil)
+	_, err = l.write(t.Context(), oplog.ActionSetMetadata, raw, oplog.OriginUser, nil)
 	if !errors.Is(err, oplog.ErrStaleBefore) {
 		t.Errorf("err = %v, want ErrStaleBefore", err)
 	}

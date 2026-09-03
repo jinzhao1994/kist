@@ -109,17 +109,55 @@ func TestPayloadRejectsUnknownFields(t *testing.T) {
 	}
 }
 
-func TestSourcePropagatesUpdatedAt(t *testing.T) {
-	// spec 1.5.1 ②: updated_at records human intent, not system activity.
-	// Getting this wrong turns ten years of archive into "modified just now"
-	// the first time an extractor is re-run.
-	if !SourceUser.PropagatesUpdatedAt() {
-		t.Error("user ops must propagate updated_at")
+// TestEveryOriginDeclaresWhetherItPropagatesUpdatedAt is the Origin half of
+// the two-axis rule in spec 1.5.1 ②, and it is the half that was weaker.
+//
+// The hand-written list it replaces named three of the four sources. The one
+// it left out was OriginSync — the only one whose answer is expected to
+// change ("{user} today, {user, sync} once another device's person can act on
+// this library"). The value most likely to be reclassified was the one value
+// nothing was watching.
+func TestEveryOriginDeclaresWhetherItPropagatesUpdatedAt(t *testing.T) {
+	want := map[Origin]bool{
+		OriginUser:        true,
+		OriginExtractor:   false,
+		OriginMaintenance: false,
+		// Not user intent until a person on another device can act on this
+		// library, which is also when anything starts producing it.
+		OriginSync: false,
 	}
-	for _, s := range []Source{SourceExtractor, SourceMaintenance} {
-		if s.PropagatesUpdatedAt() {
-			t.Errorf("%s must not propagate updated_at", s)
+	for _, s := range declaredOrigins(t) {
+		expected, listed := want[s]
+		if !listed {
+			t.Errorf("origin %q has no entry here.\n\n"+
+				"Decide whether an op from it counts as human intent (spec 1.5.1 ②),\n"+
+				"add it to PropagatesUpdatedAt if it does, and record the answer here\n"+
+				"either way.", s)
+			continue
 		}
+		if got := s.PropagatesUpdatedAt(); got != expected {
+			t.Errorf("%q.PropagatesUpdatedAt() = %v, want %v", s, got, expected)
+		}
+	}
+}
+
+// TestAllOriginsMatchesTheDeclaredConstants keeps the list write() validates
+// against from falling behind the constants themselves.
+func TestAllOriginsMatchesTheDeclaredConstants(t *testing.T) {
+	declared := declaredOrigins(t)
+	known := map[Origin]bool{}
+	for _, s := range AllOrigins() {
+		known[s] = true
+	}
+	for _, s := range declared {
+		if !known[s] {
+			t.Errorf("origin %q is declared but AllOrigins() does not list it, "+
+				"so write() would reject an op that uses it", s)
+		}
+	}
+	if len(AllOrigins()) != len(declared) {
+		t.Errorf("AllOrigins() has %d entries, %d constants are declared",
+			len(AllOrigins()), len(declared))
 	}
 }
 
@@ -160,13 +198,34 @@ func TestEveryDeclaredActionHasAHandler(t *testing.T) {
 // that nothing can apply is.
 func declaredActions(t *testing.T) []Action {
 	t.Helper()
+	out := make([]Action, 0, 16)
+	for _, v := range declaredConstants(t, "Action") {
+		out = append(out, Action(v))
+	}
+	return out
+}
+
+// declaredOrigins is the same scan for Origin. Both lists have to come from
+// the source file rather than from a hand-written copy: the copy is what falls
+// behind, and this test is the one that would have to notice.
+func declaredOrigins(t *testing.T) []Origin {
+	t.Helper()
+	out := make([]Origin, 0, 8)
+	for _, v := range declaredConstants(t, "Origin") {
+		out = append(out, Origin(v))
+	}
+	return out
+}
+
+func declaredConstants(t *testing.T, typeName string) []string {
+	t.Helper()
 
 	f, err := parser.ParseFile(token.NewFileSet(), "action.go", nil, 0)
 	if err != nil {
 		t.Fatalf("parse action.go: %v", err)
 	}
 
-	var out []Action
+	var out []string
 	for _, d := range f.Decls {
 		gen, ok := d.(*ast.GenDecl)
 		if !ok || gen.Tok != token.CONST {
@@ -174,7 +233,7 @@ func declaredActions(t *testing.T) []Action {
 		}
 		// The type is carried forward across a group. That is deliberately
 		// more generous than Go's own rule — an untyped string constant sitting
-		// among the actions is something a reviewer should be shown, not
+		// among the typed ones is something a reviewer should be shown, not
 		// something the scanner should quietly skip.
 		var typ string
 		for _, spec := range gen.Specs {
@@ -185,7 +244,7 @@ func declaredActions(t *testing.T) []Action {
 			if id, ok := vs.Type.(*ast.Ident); ok {
 				typ = id.Name
 			}
-			if typ != "Action" {
+			if typ != typeName {
 				continue
 			}
 			for _, v := range vs.Values {
@@ -197,7 +256,7 @@ func declaredActions(t *testing.T) []Action {
 				if err != nil {
 					t.Fatalf("unquote %s: %v", lit.Value, err)
 				}
-				out = append(out, Action(val))
+				out = append(out, val)
 			}
 		}
 	}

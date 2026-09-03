@@ -166,7 +166,10 @@ type Op struct {
 	ID     int64     `json:"id"`
 	TS     time.Time `json:"ts"`
 	Action string    `json:"action"`
-	Source string    `json:"source"`
+	// Origin is the class of executor, not the identity of one. Metadata rows
+	// carry a "source" that names a specific extractor; these are two axes and
+	// deliberately not the same word.
+	Origin string `json:"origin"`
 	// RevertsID is the op this one undoes; UndoneBy is the op that undid this
 	// one. Both are here because a history view needs both directions, and
 	// reverts_id being an indexed column rather than payload is what makes the

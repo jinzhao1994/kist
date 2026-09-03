@@ -51,7 +51,7 @@ func newLogCmd() *cobra.Command {
 					ID:        op.ID,
 					TS:        op.TS,
 					Action:    string(op.Action),
-					Source:    string(op.Source),
+					Origin:    string(op.Origin),
 					RevertsID: op.RevertsID,
 				}
 				if by, ok, err := l.RevertedBy(cmd.Context(), op.ID); err != nil {
@@ -73,7 +73,7 @@ func newLogCmd() *cobra.Command {
 						status = fmt.Sprintf("(undoes %d)", *op.RevertsID)
 					}
 					fmt.Fprintf(tw, "%d\t%s\t%s\t%s\t%s\n",
-						op.ID, op.TS.Format("2006-01-02 15:04:05"), op.Action, op.Source, status)
+						op.ID, op.TS.Format("2006-01-02 15:04:05"), op.Action, op.Origin, status)
 				}
 				return tw.Flush()
 			})

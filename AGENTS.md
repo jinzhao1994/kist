@@ -131,6 +131,16 @@ Go 单二进制 + SQLite，Apache-2.0。
 
 **所以「清单会漏」这条教训有两个方向**：能推导就推导（action 常量表、`DROP TABLE` 清单）；推导会让守卫变成恒真式的，就保留重复、加守卫（`snapshotTables`）。同一轮里 `TestMigrateCreatesEveryTable` 那份手抄表清单已经漏了 `op_blobs` 和 `file_tag_sources`，直接删掉由新守卫取代。
 
+**`ops.source` 改名 `ops.origin`**（2026-09-04，见设计文档 2.2）：库里**两个不同的轴共用了同一个词**，而且在字面量 `"user"` 上撞了一次。`ops.origin` 是**哪一类**执行者（user / extractor / maintenance / sync，闭集）；`file_metadata.source` / `file_tag_sources.source` 是**哪一个**提取器（开集：提取器 id、`user`、`file`）。
+
+**一条 `import_files` 就能证明它们不是一回事**：op 的 `origin` 是 `user`，而它写下的 `file:size` / `file:mtime` 两行的 `source` 是 `file`。任一方向都推导不出另一方，所以**合并是不可能的，只能改名**。
+
+**否掉了「`origin` 也存提取器 id」**：`PropagatesUpdatedAt()` 在 `rebuild` 重放时要跑，存 `"exif"` 就得查一张住在 Go 里、会随版本变、卸载插件后就没有那一项的映射表——重放出来的库会取决于当时装了哪些插件，不变量 3 不再成立。**版本同理不进列**：它已经在 payload 里，而按不变量 4 那正是它该待的地方。
+
+配套补了两个守卫（都验证过会红）：`TestEveryOriginDeclaresWhetherItPropagatesUpdatedAt` 用 ast 扫常量，取代原来手抄的三个——**那份手抄清单漏的正是 `SourceSync`，唯一一个答案预期会变的值**（注释自己写着「{user} today, {user, sync} 之后」）。以及 `write()` 现在校验 origin，和它早就在做的 `oplog.Lookup(action)` 对称。这是「手抄清单会漏」的第四次。
+
+顺手修了一处我自己造成的文档破损：上一轮移动 1.7.7 时用 `\n#### ` 找边界，跨过了三个井号的 2.1 / 2.2，把 `## 2.` 的标题挪错了位置。
+
 里程碑拆分见设计文档第 7 节，明确的范围外清单见第 8 节，待决问题见 `open-questions.md`。
 
 ## 约定

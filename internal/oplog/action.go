@@ -54,7 +54,7 @@ func AllActions() []Action {
 // ChangesContent reports whether an action alters what boxes/ mirrors: the
 // files and folders themselves, or a box's name.
 //
-// It is the second half of the updated_at rule (spec 1.5.1). Source says
+// It is the second half of the updated_at rule (spec 1.5.1). Origin says
 // whether a person did it; this says whether there was anything to see. Tags
 // and metadata are labels on content rather than content, and a directory
 // whose mtime moved because a photo inside it was tagged is a lie told to
@@ -68,21 +68,57 @@ func (a Action) ChangesContent() bool {
 	return false
 }
 
-// Source is what kind of executor produced an op.
-type Source string
+// Origin is what kind of executor produced an op.
+//
+// Not "source": that word is taken by file_metadata.source and
+// file_tag_sources.source, which name a specific extractor. These are two
+// axes, and one import proves it — the op's origin is user, while the rows it
+// writes carry source "file". Neither derives from the other.
+//
+// It has to stay a closed class rather than an extractor id, because
+// PropagatesUpdatedAt runs during a rebuild: classifying "exif" would mean
+// consulting a registry that lives in Go, changes between versions, and no
+// longer lists an extractor once it is uninstalled. A replay would then depend
+// on which plugins happen to be installed.
+type Origin string
 
 const (
-	// SourceUser: a person, through the CLI or the web UI.
-	SourceUser Source = "user"
-	// SourceExtractor: the extraction pipeline (EXIF and friends, M3).
-	SourceExtractor Source = "extractor"
-	// SourceMaintenance: relink / rebuild / gc / scrub repairs.
-	SourceMaintenance Source = "maintenance"
-	// SourceSync: replicated from another device. Nothing produces this yet.
-	SourceSync Source = "sync"
+	// OriginUser: a person, through the CLI or the web UI.
+	OriginUser Origin = "user"
+	// OriginExtractor: the extraction pipeline (EXIF and friends, M3).
+	OriginExtractor Origin = "extractor"
+	// OriginMaintenance: relink / rebuild / gc / scrub repairs.
+	OriginMaintenance Origin = "maintenance"
+	// OriginSync: replicated from another device. Nothing produces this yet.
+	OriginSync Origin = "sync"
 )
 
-// PropagatesUpdatedAt reports whether ops from this source should bump
+// AllOrigins is every origin an op may carry.
+//
+// Unlike AllActions, which reads the handler registry, this is a written list:
+// a Origin has no handler to register itself with. A test pins it to the
+// declared constants, because a list a person has to remember to update is a
+// list that eventually disagrees with the thing it describes.
+func AllOrigins() []Origin {
+	return []Origin{OriginUser, OriginExtractor, OriginMaintenance, OriginSync}
+}
+
+// Valid reports whether s is one of the declared origins.
+//
+// write() checks it for the same reason it looks up the action: the op log is
+// append-only, so a row with an origin nothing recognises cannot be corrected
+// later — and PropagatesUpdatedAt would silently answer false for it, which
+// looks exactly like a deliberate "no".
+func (s Origin) Valid() bool {
+	for _, known := range AllOrigins() {
+		if s == known {
+			return true
+		}
+	}
+	return false
+}
+
+// PropagatesUpdatedAt reports whether ops from this origin should bump
 // updated_at up the folder chain (spec 1.5.1 ②).
 //
 // updated_at answers "has anything happened under here lately", and it is only
@@ -92,6 +128,6 @@ const (
 //
 // The set is {user} today and becomes {user, sync} when another device's
 // person can act on this library.
-func (s Source) PropagatesUpdatedAt() bool {
-	return s == SourceUser
+func (s Origin) PropagatesUpdatedAt() bool {
+	return s == OriginUser
 }

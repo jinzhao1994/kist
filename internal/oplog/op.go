@@ -15,7 +15,7 @@ type Op struct {
 	ID        int64
 	TS        time.Time
 	Action    Action
-	Source    Source
+	Origin    Origin
 	Payload   []byte
 	RevertsID *int64
 }

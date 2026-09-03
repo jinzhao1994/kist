@@ -27,7 +27,13 @@ CREATE TABLE ops (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   ts         INTEGER NOT NULL,   -- unix 纳秒（UTC）。见文件头"时间的两种表示"
   action     TEXT    NOT NULL,   -- Go 侧 typed 常量；DB 层刻意不加 CHECK（spec 2.2）
-  source     TEXT    NOT NULL,   -- user | extractor | maintenance | sync
+  origin     TEXT    NOT NULL,   -- user | extractor | maintenance | sync。
+                                 -- 刻意不叫 source：那个词归 file_metadata.source
+                                 -- 和 file_tag_sources.source，它们存的是"哪一个
+                                 -- 提取器"（身份），这一列存的是"哪一类执行者"
+                                 -- （类别）。同一条 import_files 里两者取值不同
+                                 -- （origin=user，行上 source=file），所以它们
+                                 -- 推导不出彼此
   payload    TEXT    NOT NULL,   -- 不透明 JSON，绝不查进去（spec 2.2.1）
   reverts_id INTEGER REFERENCES ops(id)
 );

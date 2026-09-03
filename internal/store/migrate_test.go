@@ -101,7 +101,7 @@ func TestOpIndexTablesSurviveEntityDeletion(t *testing.T) {
 	db := migrated(t)
 	box := insertBox(t, db, "doomed")
 
-	res, err := db.Exec(`INSERT INTO ops (ts, action, source, payload) VALUES (?, ?, ?, ?)`,
+	res, err := db.Exec(`INSERT INTO ops (ts, action, origin, payload) VALUES (?, ?, ?, ?)`,
 		"2026-08-22T00:00:00.000Z", "delete_box", "user", `{}`)
 	if err != nil {
 		t.Fatalf("insert op: %v", err)
@@ -130,7 +130,7 @@ func TestOpIDsAreMonotonic(t *testing.T) {
 
 	var ids []int64
 	for i := 0; i < 3; i++ {
-		res, err := db.Exec(`INSERT INTO ops (ts, action, source, payload) VALUES (?, ?, ?, ?)`,
+		res, err := db.Exec(`INSERT INTO ops (ts, action, origin, payload) VALUES (?, ?, ?, ?)`,
 			"2026-08-22T00:00:00.000Z", "noop", "user", `{}`)
 		if err != nil {
 			t.Fatal(err)
@@ -141,7 +141,7 @@ func TestOpIDsAreMonotonic(t *testing.T) {
 	if _, err := db.Exec(`DELETE FROM ops WHERE id = ?`, ids[2]); err != nil {
 		t.Fatal(err)
 	}
-	res, err := db.Exec(`INSERT INTO ops (ts, action, source, payload) VALUES (?, ?, ?, ?)`,
+	res, err := db.Exec(`INSERT INTO ops (ts, action, origin, payload) VALUES (?, ?, ?, ?)`,
 		"2026-08-22T00:00:00.000Z", "noop", "user", `{}`)
 	if err != nil {
 		t.Fatal(err)

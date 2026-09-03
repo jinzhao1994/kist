@@ -33,7 +33,7 @@ func sampleOp() OpRow {
 	return OpRow{
 		TS:      time.Date(2026, 8, 27, 10, 30, 0, 123_000_000, time.UTC),
 		Action:  "create_box",
-		Source:  "user",
+		Origin:  "user",
 		Payload: []byte(`{"box_id":"x"}`),
 	}
 }
@@ -49,7 +49,7 @@ func TestAppendOpAndGet(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("GetOp: %v, ok=%v", err, ok)
 	}
-	if got.Action != "create_box" || got.Source != "user" {
+	if got.Action != "create_box" || got.Origin != "user" {
 		t.Errorf("GetOp = %+v", got)
 	}
 	if string(got.Payload) != `{"box_id":"x"}` {
@@ -271,7 +271,7 @@ func TestListOpsDoesNotReadPayload(t *testing.T) {
 		t.Fatal(err)
 	}
 	id, err := AppendOp(tx, OpRow{
-		TS: testTime, Action: "import_files", Source: "user",
+		TS: testTime, Action: "import_files", Origin: "user",
 		Payload: []byte(`{"big":"` + strings.Repeat("x", 10000) + `"}`),
 	})
 	if err != nil {
@@ -315,7 +315,7 @@ func TestIterOpsWalksTheLogOldestFirst(t *testing.T) {
 			t.Fatal(err)
 		}
 		if _, err := AppendOp(tx, OpRow{
-			TS: testTime, Action: "create_box", Source: "user",
+			TS: testTime, Action: "create_box", Origin: "user",
 			Payload: fmt.Appendf(nil, `{"n":%d}`, i),
 		}); err != nil {
 			t.Fatal(err)
@@ -347,7 +347,7 @@ func TestIterOpsWalksTheLogOldestFirst(t *testing.T) {
 func TestIterOpsStopsOnError(t *testing.T) {
 	db := migrated(t)
 	tx, _ := db.Begin()
-	if _, err := AppendOp(tx, OpRow{TS: testTime, Action: "create_box", Source: "user", Payload: []byte(`{}`)}); err != nil {
+	if _, err := AppendOp(tx, OpRow{TS: testTime, Action: "create_box", Origin: "user", Payload: []byte(`{}`)}); err != nil {
 		t.Fatal(err)
 	}
 	tx.Commit()

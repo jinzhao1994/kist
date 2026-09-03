@@ -53,7 +53,7 @@ func TestWriteRecordsAnOpAndAppliesIt(t *testing.T) {
 	}
 	raw, _ := oplog.Marshal(p)
 
-	opID, err := l.write(ctx, oplog.ActionCreateBox, raw, oplog.SourceUser, nil)
+	opID, err := l.write(ctx, oplog.ActionCreateBox, raw, oplog.OriginUser, nil)
 	if err != nil {
 		t.Fatalf("write: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestWriteRecordsAnOpAndAppliesIt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Ops: %v", err)
 	}
-	if len(ops) != 1 || ops[0].Action != oplog.ActionCreateBox || ops[0].Source != oplog.SourceUser {
+	if len(ops) != 1 || ops[0].Action != oplog.ActionCreateBox || ops[0].Origin != oplog.OriginUser {
 		t.Fatalf("ops = %+v", ops)
 	}
 
@@ -96,7 +96,7 @@ func TestWriteIsAtomic(t *testing.T) {
 	}
 	raw, _ := oplog.Marshal(stale)
 
-	if _, err := l.write(ctx, oplog.ActionUpdateBox, raw, oplog.SourceUser, nil); err == nil {
+	if _, err := l.write(ctx, oplog.ActionUpdateBox, raw, oplog.OriginUser, nil); err == nil {
 		t.Fatal("writing an op whose Apply fails succeeded")
 	}
 
@@ -124,7 +124,7 @@ func TestWriteStoresTheClockExactly(t *testing.T) {
 	p := oplog.CreateBoxPayload{BoxID: domain.NewBoxID(), RootFolderID: domain.NewFolderID(),
 		BoxFields: oplog.BoxFields{Name: "x"}}
 	raw, _ := oplog.Marshal(p)
-	if _, err := l.write(context.Background(), oplog.ActionCreateBox, raw, oplog.SourceUser, nil); err != nil {
+	if _, err := l.write(context.Background(), oplog.ActionCreateBox, raw, oplog.OriginUser, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -144,7 +144,7 @@ func TestWriteFillsTheIndexTables(t *testing.T) {
 	p := oplog.CreateBoxPayload{BoxID: domain.NewBoxID(), RootFolderID: domain.NewFolderID(),
 		BoxFields: oplog.BoxFields{Name: "indexed"}}
 	raw, _ := oplog.Marshal(p)
-	opID, _ := l.write(ctx, oplog.ActionCreateBox, raw, oplog.SourceUser, nil)
+	opID, _ := l.write(ctx, oplog.ActionCreateBox, raw, oplog.OriginUser, nil)
 
 	byBox, err := l.Ops(ctx, store.ListOpsOptions{Box: &p.BoxID, Limit: 10})
 	if err != nil {
@@ -164,7 +164,7 @@ func TestUserOpsPropagateUpdatedAt(t *testing.T) {
 	box := domain.NewBoxID()
 	create, _ := oplog.Marshal(oplog.CreateBoxPayload{BoxID: box, RootFolderID: domain.NewFolderID(),
 		BoxFields: oplog.BoxFields{Name: "before"}})
-	l.write(ctx, oplog.ActionCreateBox, create, oplog.SourceUser, nil)
+	l.write(ctx, oplog.ActionCreateBox, create, oplog.OriginUser, nil)
 	first, _, _ := l.Box(ctx, box)
 
 	update, _ := oplog.Marshal(oplog.UpdateBoxPayload{
@@ -172,7 +172,7 @@ func TestUserOpsPropagateUpdatedAt(t *testing.T) {
 		Before: oplog.BoxFields{Name: "before"},
 		After:  oplog.BoxFields{Name: "after"},
 	})
-	if _, err := l.write(ctx, oplog.ActionUpdateBox, update, oplog.SourceUser, nil); err != nil {
+	if _, err := l.write(ctx, oplog.ActionUpdateBox, update, oplog.OriginUser, nil); err != nil {
 		t.Fatal(err)
 	}
 	second, _, _ := l.Box(ctx, box)
@@ -194,7 +194,7 @@ func TestMaintenanceOpsDoNotPropagateUpdatedAt(t *testing.T) {
 	box := domain.NewBoxID()
 	create, _ := oplog.Marshal(oplog.CreateBoxPayload{BoxID: box, RootFolderID: domain.NewFolderID(),
 		BoxFields: oplog.BoxFields{Name: "before"}})
-	l.write(ctx, oplog.ActionCreateBox, create, oplog.SourceUser, nil)
+	l.write(ctx, oplog.ActionCreateBox, create, oplog.OriginUser, nil)
 	first, _, _ := l.Box(ctx, box)
 
 	update, _ := oplog.Marshal(oplog.UpdateBoxPayload{
@@ -202,7 +202,7 @@ func TestMaintenanceOpsDoNotPropagateUpdatedAt(t *testing.T) {
 		Before: oplog.BoxFields{Name: "before"},
 		After:  oplog.BoxFields{Name: "after"},
 	})
-	if _, err := l.write(ctx, oplog.ActionUpdateBox, update, oplog.SourceMaintenance, nil); err != nil {
+	if _, err := l.write(ctx, oplog.ActionUpdateBox, update, oplog.OriginMaintenance, nil); err != nil {
 		t.Fatal(err)
 	}
 	second, _, _ := l.Box(ctx, box)
@@ -217,7 +217,7 @@ func TestMaintenanceOpsDoNotPropagateUpdatedAt(t *testing.T) {
 
 func TestWriteRejectsAnUnknownAction(t *testing.T) {
 	l := openTestLibrary(t)
-	_, err := l.write(context.Background(), oplog.Action("teleport"), []byte(`{}`), oplog.SourceUser, nil)
+	_, err := l.write(context.Background(), oplog.Action("teleport"), []byte(`{}`), oplog.OriginUser, nil)
 	if err == nil {
 		t.Error("writing an unregistered action succeeded")
 	}

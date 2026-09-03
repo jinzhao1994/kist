@@ -242,7 +242,7 @@ func (l *Library) Import(ctx context.Context, src string, opt ImportOptions) (*I
 		}
 		// The op must be written even when the context is done — that is what
 		// "graceful stop" means.
-		opID, err := l.write(context.WithoutCancel(ctx), oplog.ActionImportFiles, raw, oplog.SourceUser, nil)
+		opID, err := l.write(context.WithoutCancel(ctx), oplog.ActionImportFiles, raw, oplog.OriginUser, nil)
 		if err != nil {
 			return nil, err
 		}
