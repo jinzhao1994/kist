@@ -156,17 +156,6 @@ func (v *ViewTx) InsertFolder(f domain.Folder) error {
 	return nil
 }
 
-// DeleteFoldersOfBox removes every folder of a box. Foreign keys are on, so a
-// box cannot be deleted while its folders still reference it — the delete_box
-// handler calls this first, explicitly, rather than relying on a cascade
-// nobody can see in the schema.
-func (v *ViewTx) DeleteFoldersOfBox(id domain.BoxID) error {
-	if _, err := v.tx.Exec(`DELETE FROM folders WHERE box_id = ?`, id); err != nil {
-		return fmt.Errorf("delete folders of box %s: %w", id, err)
-	}
-	return nil
-}
-
 // ── tags ─────────────────────────────────────────────────────────────────
 
 func (v *ViewTx) InsertTag(t domain.Tag) error {

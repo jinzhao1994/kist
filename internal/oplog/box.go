@@ -112,7 +112,17 @@ func (deleteBox) Apply(tx Tx, payload []byte) error {
 			p.Name, files, ErrStaleBefore)
 	}
 
-	if err := tx.DeleteFoldersOfBox(p.BoxID); err != nil {
+	// The root folder, by id, rather than every folder of the box: the
+	// payload records exactly one folder id, so deleting more than that would
+	// be an op its own inverse cannot undo.
+	subs, err := tx.CountFolderChildren(p.RootFolderID)
+	if err != nil {
+		return err
+	}
+	if subs > 0 {
+		return fmt.Errorf("box %q still has %d subfolder(s): %w", p.Name, subs, ErrStaleBefore)
+	}
+	if err := tx.DeleteFolder(p.RootFolderID); err != nil {
 		return err
 	}
 	return tx.DeleteBox(p.BoxID)

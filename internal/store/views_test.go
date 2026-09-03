@@ -148,8 +148,8 @@ func TestDeleteBoxNeedsItsFoldersGoneFirst(t *testing.T) {
 	tx.Rollback()
 
 	viewTx(t, db, testTime, func(vtx *ViewTx) {
-		if err := vtx.DeleteFoldersOfBox(b.ID); err != nil {
-			t.Fatalf("DeleteFoldersOfBox: %v", err)
+		if err := vtx.DeleteFolder(root.ID); err != nil {
+			t.Fatalf("DeleteFolder: %v", err)
 		}
 		if err := vtx.DeleteBox(b.ID); err != nil {
 			t.Fatalf("DeleteBox: %v", err)

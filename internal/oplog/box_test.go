@@ -173,6 +173,33 @@ func TestDeleteBoxRefusesWhenTagged(t *testing.T) {
 	}
 }
 
+// delete_box removes the one folder its payload records, not every folder of
+// the box. A box that somehow holds a subfolder has to fail loudly: the
+// inverse only re-creates the root, so a bulk delete would be an op its own
+// undo cannot reverse.
+func TestDeleteBoxRefusesWhenTheRootHasSubfolders(t *testing.T) {
+	tx := newFakeTx(opTime)
+	p, raw := createBoxPayload(t, "nested")
+	apply(t, tx, ActionCreateBox, raw)
+
+	sub, err := domain.NewFolder(domain.NewFolderID(), p.BoxID, p.RootFolderID, "2019")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.InsertFolder(sub); err != nil {
+		t.Fatal(err)
+	}
+
+	action, inverse := inverseOf(t, ActionCreateBox, raw)
+	err = apply(t, tx, action, inverse)
+	if err == nil {
+		t.Fatal("deleting a box with a subfolder succeeded; the subfolder is gone and undo cannot bring it back")
+	}
+	if !errors.Is(err, ErrStaleBefore) {
+		t.Errorf("error = %v, want it to wrap ErrStaleBefore", err)
+	}
+}
+
 func TestUpdateBoxApplyAndInverse(t *testing.T) {
 	tx := newFakeTx(opTime)
 	p, raw := createBoxPayload(t, "old name")

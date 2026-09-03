@@ -36,7 +36,6 @@ type Tx interface {
 	CountBoxFiles(id domain.BoxID) (int, error)
 
 	InsertFolder(f domain.Folder) error
-	DeleteFoldersOfBox(id domain.BoxID) error
 	GetFolder(id domain.FolderID) (domain.Folder, bool, error)
 	DeleteFolder(id domain.FolderID) error
 	CountFolderFiles(id domain.FolderID) (int, error)
