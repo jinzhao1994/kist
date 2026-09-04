@@ -101,9 +101,9 @@ func listFolder(cmd *cobra.Command, l *library.Library, b domain.Box, path strin
 		out.Folders[i] = wire.NewFolder(f)
 	}
 	for i, f := range files {
-		// No path: inside one folder the name is the whole answer, and
-		// resolving a path costs a walk up the chain per file.
-		out.Files[i] = wire.NewFile(f, "", l.Zone())
+		// No box and no path: this listing already names both, and
+		// resolving them costs a walk up the chain per file.
+		out.Files[i] = wire.NewFile(f, "", "", l.Zone())
 	}
 
 	return emit(cmd, out, func(w io.Writer) error {

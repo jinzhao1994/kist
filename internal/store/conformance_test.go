@@ -40,13 +40,14 @@ func (b *sqliteBackend) Seed(t *testing.T, f querytest.Fixture) {
 	defer tx.Rollback()
 	vtx := NewViewTx(tx, testTime)
 
-	for _, box := range f.Boxes {
-		if err := vtx.InsertBox(box); err != nil {
+	// Folders first: boxes.root_folder_id points at one.
+	for _, folder := range f.Folders {
+		if err := vtx.InsertFolder(folder); err != nil {
 			t.Fatal(err)
 		}
 	}
-	for _, folder := range f.Folders {
-		if err := vtx.InsertFolder(folder); err != nil {
+	for _, box := range f.Boxes {
+		if err := vtx.InsertBox(box); err != nil {
 			t.Fatal(err)
 		}
 	}

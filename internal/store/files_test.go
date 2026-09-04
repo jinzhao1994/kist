@@ -30,10 +30,10 @@ func testInstant(t *testing.T, s string) domain.Instant {
 }
 
 // putFile inserts one file, optionally with a captured_at, and returns its id.
-func putFile(t *testing.T, db *sql.DB, box domain.BoxID, folder domain.FolderID, name, captured string) domain.FileID {
+func putFile(t *testing.T, db *sql.DB, folder domain.FolderID, name, captured string) domain.FileID {
 	t.Helper()
 	key := "sha256:" + strings.Repeat("a", 60) + fmt.Sprintf("%04x", len(name)*7+len(captured))
-	f, err := domain.NewFile(domain.NewFileID(), box, folder, name, key)
+	f, err := domain.NewFile(domain.NewFileID(), folder, name, key)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,12 +88,12 @@ func fileNames(files []domain.File) []string {
 // not needed.
 func TestListFilesSortsCapturedFirstThenNewest(t *testing.T) {
 	db := migrated(t)
-	box, root := seedBoxWithRoot(t, db)
+	_, root := seedBoxWithRoot(t, db)
 
 	// Insert in a deliberately unhelpful order.
-	noCapture1 := putFile(t, db, box, root, "b.pdf", "")
-	captured := putFile(t, db, box, root, "photo.jpg", "2019-08-12")
-	noCapture2 := putFile(t, db, box, root, "c.pdf", "")
+	noCapture1 := putFile(t, db, root, "b.pdf", "")
+	captured := putFile(t, db, root, "photo.jpg", "2019-08-12")
+	noCapture2 := putFile(t, db, root, "c.pdf", "")
 
 	got, _, err := ListFiles(db, query.Query{}, time.UTC)
 	if err != nil {
@@ -124,7 +124,7 @@ func allSortSpecs() []query.SortSpec {
 // folded ordering has a tie of its own).
 func seedPagingFixture(t *testing.T, db *sql.DB) int {
 	t.Helper()
-	box, root := seedBoxWithRoot(t, db)
+	_, root := seedBoxWithRoot(t, db)
 	rows := []struct{ name, captured string }{
 		{"b.pdf", ""},
 		{"IMG_1.jpg", "2019-08-12"},
@@ -135,7 +135,7 @@ func seedPagingFixture(t *testing.T, db *sql.DB) int {
 		{"Img_4.jpg", "2019-08-12"}, // and again, three-way tie
 	}
 	for _, r := range rows {
-		putFile(t, db, box, root, r.name, r.captured)
+		putFile(t, db, root, r.name, r.captured)
 	}
 	return len(rows)
 }
@@ -280,9 +280,9 @@ func TestListFilesRefusesACursorFromAnotherSort(t *testing.T) {
 // the engine's (spec 4.7).
 func TestListFilesTextIsCaseInsensitive(t *testing.T) {
 	db := migrated(t)
-	box, root := seedBoxWithRoot(t, db)
-	putFile(t, db, box, root, "IMG_0001.JPG", "")
-	putFile(t, db, box, root, "notes.txt", "")
+	_, root := seedBoxWithRoot(t, db)
+	putFile(t, db, root, "IMG_0001.JPG", "")
+	putFile(t, db, root, "notes.txt", "")
 
 	got, _, err := ListFiles(db, query.Query{Text: "img_00"}, time.UTC)
 	if err != nil {
@@ -297,9 +297,9 @@ func TestListFilesTextIsCaseInsensitive(t *testing.T) {
 // otherwise searching for "100%" returns the whole library.
 func TestListFilesEscapesLikeWildcards(t *testing.T) {
 	db := migrated(t)
-	box, root := seedBoxWithRoot(t, db)
-	putFile(t, db, box, root, "100%.txt", "")
-	putFile(t, db, box, root, "1000.txt", "")
+	_, root := seedBoxWithRoot(t, db)
+	putFile(t, db, root, "100%.txt", "")
+	putFile(t, db, root, "1000.txt", "")
 
 	got, _, err := ListFiles(db, query.Query{Text: "100%"}, time.UTC)
 	if err != nil {
@@ -323,12 +323,12 @@ func TestListFilesEscapesLikeWildcards(t *testing.T) {
 // the in-memory tree.
 func TestListFilesCombinesTagConditions(t *testing.T) {
 	db := migrated(t)
-	box, root := seedBoxWithRoot(t, db)
+	_, root := seedBoxWithRoot(t, db)
 	yunnan, dad, private := putTag(t, db, "云南"), putTag(t, db, "爸"), putTag(t, db, "隐私")
 
-	a := putFile(t, db, box, root, "a.jpg", "")
-	b := putFile(t, db, box, root, "b.jpg", "")
-	c := putFile(t, db, box, root, "c.jpg", "")
+	a := putFile(t, db, root, "a.jpg", "")
+	b := putFile(t, db, root, "b.jpg", "")
+	c := putFile(t, db, root, "c.jpg", "")
 	attach(t, db, a, yunnan)
 	attach(t, db, a, dad)
 	attach(t, db, b, yunnan)
@@ -354,18 +354,18 @@ func TestListFilesCombinesTagConditions(t *testing.T) {
 func TestListFilesFiltersByBoxAndFolder(t *testing.T) {
 	db := migrated(t)
 	box, root := seedBoxWithRoot(t, db)
-	other, otherRoot := seedBoxWithRoot(t, db)
+	_, otherRoot := seedBoxWithRoot(t, db)
 
 	sub := domain.NewFolderID()
 	viewTx(t, db, testTime, func(vtx *ViewTx) {
-		f, _ := domain.NewFolder(sub, box, root, "day1")
+		f, _ := domain.NewFolder(sub, root, "day1")
 		if err := vtx.InsertFolder(f); err != nil {
 			t.Fatal(err)
 		}
 	})
-	putFile(t, db, box, root, "in-root.jpg", "")
-	putFile(t, db, box, sub, "in-sub.jpg", "")
-	putFile(t, db, other, otherRoot, "elsewhere.jpg", "")
+	putFile(t, db, root, "in-root.jpg", "")
+	putFile(t, db, sub, "in-sub.jpg", "")
+	putFile(t, db, otherRoot, "elsewhere.jpg", "")
 
 	got, _, err := ListFiles(db, query.Query{Boxes: []domain.BoxID{box}}, time.UTC)
 	if err != nil {
@@ -426,7 +426,7 @@ func TestFileOrderUsesTheIndex(t *testing.T) {
 func TestExistingNamesMapsFoldedNameToBlob(t *testing.T) {
 	db := migrated(t)
 	box, root := seedBoxWithRoot(t, db)
-	putFile(t, db, box, root, "IMG_0001.JPG", "")
+	putFile(t, db, root, "IMG_0001.JPG", "")
 
 	got, err := ExistingNames(db, box)
 	if err != nil {
@@ -446,7 +446,7 @@ func TestFoldersOfBoxPutsTheRootFirst(t *testing.T) {
 	box, root := seedBoxWithRoot(t, db)
 	sub := domain.NewFolderID()
 	viewTx(t, db, testTime, func(vtx *ViewTx) {
-		f, _ := domain.NewFolder(sub, box, root, "day1")
+		f, _ := domain.NewFolder(sub, root, "day1")
 		if err := vtx.InsertFolder(f); err != nil {
 			t.Fatal(err)
 		}

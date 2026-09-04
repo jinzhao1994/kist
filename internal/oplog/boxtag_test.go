@@ -138,7 +138,6 @@ func TestBoxTagOpsRefuseADeletedBox(t *testing.T) {
 	tag := createTag(t, tx, nil, "云南")
 
 	// Delete one of the boxes out from under the op.
-	tx.DeleteFoldersOfBox(boxes[1])
 	tx.DeleteBox(boxes[1])
 
 	for _, action := range []Action{ActionTagBoxes, ActionUntagBoxes} {

@@ -6,7 +6,7 @@ import (
 )
 
 func TestNewFileFolds(t *testing.T) {
-	f, err := NewFile(NewFileID(), NewBoxID(), NewFolderID(), "IMG_0001.JPG", "sha256:abcd")
+	f, err := NewFile(NewFileID(), NewFolderID(), "IMG_0001.JPG", "sha256:abcd")
 	if err != nil {
 		t.Fatalf("NewFile: %v", err)
 	}
@@ -30,23 +30,22 @@ func TestNewFileFolds(t *testing.T) {
 // (spec 3.7.1 ③), which only works if the check is here.
 func TestNewFileRejectsUnprojectableNames(t *testing.T) {
 	for _, name := range []string{"", "  ", " leading.jpg", "trailing.jpg ", "dot."} {
-		if _, err := NewFile(NewFileID(), NewBoxID(), NewFolderID(), name, "sha256:abcd"); err == nil {
+		if _, err := NewFile(NewFileID(), NewFolderID(), name, "sha256:abcd"); err == nil {
 			t.Errorf("NewFile(%q) was accepted", name)
 		}
 	}
 }
 
 func TestNewFileRequiresBlobKey(t *testing.T) {
-	_, err := NewFile(NewFileID(), NewBoxID(), NewFolderID(), "a.jpg", "")
+	_, err := NewFile(NewFileID(), NewFolderID(), "a.jpg", "")
 	if !errors.Is(err, ErrNoBlobKey) {
 		t.Errorf("err = %v, want ErrNoBlobKey", err)
 	}
 }
 
 func TestNewFolderIsNotARoot(t *testing.T) {
-	box := NewBoxID()
 	parent := NewFolderID()
-	f, err := NewFolder(NewFolderID(), box, parent, "2019云南")
+	f, err := NewFolder(NewFolderID(), parent, "2019云南")
 	if err != nil {
 		t.Fatalf("NewFolder: %v", err)
 	}
@@ -64,7 +63,7 @@ func TestNewFolderIsNotARoot(t *testing.T) {
 }
 
 func TestNewFolderRejectsEmptyName(t *testing.T) {
-	if _, err := NewFolder(NewFolderID(), NewBoxID(), NewFolderID(), ""); err == nil {
+	if _, err := NewFolder(NewFolderID(), NewFolderID(), ""); err == nil {
 		t.Error("NewFolder accepted an empty name; that is the root's shape")
 	}
 }
@@ -77,7 +76,7 @@ func TestConstructorsStoreNFC(t *testing.T) {
 	nfd := "cafe\u0301.jpg" // e + combining acute, which is what macOS hands back
 	nfc := "caf\u00e9.jpg"  // precomposed
 
-	f, err := NewFile(NewFileID(), NewBoxID(), NewFolderID(), nfd, "sha256:aa")
+	f, err := NewFile(NewFileID(), NewFolderID(), nfd, "sha256:aa")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +84,7 @@ func TestConstructorsStoreNFC(t *testing.T) {
 		t.Errorf("File.Name = %q, want the NFC form %q", f.Name, nfc)
 	}
 
-	folder, err := NewFolder(NewFolderID(), NewBoxID(), NewFolderID(), nfd)
+	folder, err := NewFolder(NewFolderID(), NewFolderID(), nfd)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +92,7 @@ func TestConstructorsStoreNFC(t *testing.T) {
 		t.Errorf("Folder.Name = %q, want %q", folder.Name, nfc)
 	}
 
-	b, err := NewBox(NewBoxID(), nfd, nfd)
+	b, err := NewBox(NewBoxID(), NewFolderID(), nfd, nfd)
 	if err != nil {
 		t.Fatal(err)
 	}

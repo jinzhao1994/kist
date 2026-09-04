@@ -13,16 +13,12 @@ import (
 func seedFile(t *testing.T, db *sql.DB, name string) domain.FileID {
 	t.Helper()
 	box := mustBox(t, "云南")
-	root := domain.Folder{ID: domain.NewFolderID(), BoxID: box.ID}
-	f, err := domain.NewFile(domain.NewFileID(), box.ID, root.ID, name, "sha256:"+name)
+	f, err := domain.NewFile(domain.NewFileID(), box.RootFolderID, name, "sha256:"+name)
 	if err != nil {
 		t.Fatal(err)
 	}
 	viewTx(t, db, testTime, func(vtx *ViewTx) {
-		if err := vtx.InsertBox(box); err != nil {
-			t.Fatal(err)
-		}
-		if err := vtx.InsertFolder(root); err != nil {
+		if err := putBox(vtx, box); err != nil {
 			t.Fatal(err)
 		}
 		if err := vtx.UpsertBlob(f.BlobKey, "aa", 1); err != nil {

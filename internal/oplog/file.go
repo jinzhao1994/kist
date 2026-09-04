@@ -87,7 +87,7 @@ func (importFiles) Apply(tx Tx, payload []byte) error {
 	}
 	// Folders in payload order, which library built parents-first.
 	for _, d := range p.Folders {
-		folder, err := domain.NewFolder(d.FolderID, p.BoxID, d.ParentID, d.Name)
+		folder, err := domain.NewFolder(d.FolderID, d.ParentID, d.Name)
 		if err != nil {
 			return err
 		}
@@ -96,7 +96,7 @@ func (importFiles) Apply(tx Tx, payload []byte) error {
 		}
 	}
 	for _, f := range p.Files {
-		file, err := domain.NewFile(f.FileID, p.BoxID, f.FolderID, f.Name, f.BlobKey)
+		file, err := domain.NewFile(f.FileID, f.FolderID, f.Name, f.BlobKey)
 		if err != nil {
 			return err
 		}

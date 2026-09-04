@@ -19,10 +19,10 @@ func CheckStructure(q store.Queryer) (Report, error) {
 		fn   func(store.Queryer) ([]store.Inconsistency, error)
 	}{
 		{FileOrphanFolder, store.OrphanFiles},
-		{FileBoxMismatch, store.FilesWithBoxMismatch},
 		{FileUnknownBlob, store.FilesWithUnknownBlob},
 		{FolderUnreachable, store.UnreachableFolders},
-		{FolderCrossBox, store.CrossBoxFolders},
+		{BoxBadRoot, store.BoxesWithBadRoot},
+		{FolderUnclaimedRoot, store.UnclaimedRootFolders},
 	}
 	for _, c := range checks {
 		found, err := c.fn(q)

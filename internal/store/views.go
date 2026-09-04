@@ -29,6 +29,10 @@ func NewViewTx(tx *sql.Tx, ts time.Time) *ViewTx {
 // TS is the timestamp of the op being applied.
 func (v *ViewTx) TS() time.Time { return v.ts }
 
+// Queryer exposes the transaction to the package's read helpers, so a caller
+// already inside a transaction sees its own uncommitted writes.
+func (v *ViewTx) Queryer() Queryer { return v.tx }
+
 // SQL exposes the underlying transaction to library, which needs it for the
 // ops table itself. Handlers only ever see the oplog.Tx interface, which does
 // not include this method.
@@ -39,10 +43,10 @@ func (v *ViewTx) SQL() *sql.Tx { return v.tx }
 func (v *ViewTx) InsertBox(b domain.Box) error {
 	_, err := v.tx.Exec(
 		`INSERT INTO boxes (id, name, name_fold, description,
-		                    created_at, updated_at, start_at, end_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		                    created_at, updated_at, start_at, end_at, root_folder_id)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		b.ID, b.Name, b.NameFold, b.Description,
-		FormatTime(v.ts), FormatTime(v.ts), b.StartAt, b.EndAt)
+		FormatTime(v.ts), FormatTime(v.ts), b.StartAt, b.EndAt, b.RootFolderID)
 	if err != nil {
 		return fmt.Errorf("insert box %s: %w", b.ID, err)
 	}
@@ -84,7 +88,7 @@ func (v *ViewTx) GetBox(id domain.BoxID) (domain.Box, bool, error) {
 	return scanBox(v.tx.QueryRow(`SELECT `+boxColumns+` FROM boxes WHERE id = ?`, id).Scan)
 }
 
-const boxColumns = `id, name, name_fold, description, created_at, updated_at, start_at, end_at`
+const boxColumns = `id, root_folder_id, name, name_fold, description, created_at, updated_at, start_at, end_at`
 
 func scanBox(scan func(...any) error) (domain.Box, bool, error) {
 	var (
@@ -92,7 +96,7 @@ func scanBox(scan func(...any) error) (domain.Box, bool, error) {
 		created, updated int64
 		start, end       sql.NullString
 	)
-	err := scan(&b.ID, &b.Name, &b.NameFold, &b.Description,
+	err := scan(&b.ID, &b.RootFolderID, &b.Name, &b.NameFold, &b.Description,
 		&created, &updated, &start, &end)
 	if err == sql.ErrNoRows {
 		return domain.Box{}, false, nil
@@ -147,9 +151,9 @@ func (v *ViewTx) CountBoxTags(box domain.BoxID) (int, error) {
 
 func (v *ViewTx) InsertFolder(f domain.Folder) error {
 	_, err := v.tx.Exec(
-		`INSERT INTO folders (id, box_id, parent_id, name, name_fold, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		f.ID, f.BoxID, f.ParentID, f.Name, f.NameFold, FormatTime(v.ts), FormatTime(v.ts))
+		`INSERT INTO folders (id, parent_id, name, name_fold, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		f.ID, f.ParentID, f.Name, f.NameFold, FormatTime(v.ts), FormatTime(v.ts))
 	if err != nil {
 		return fmt.Errorf("insert folder %s: %w", f.ID, err)
 	}
@@ -267,7 +271,9 @@ func ClearViews(tx *sql.Tx) error {
 	for _, table := range []string{
 		"box_tags", "file_tag_sources", "file_tags", "tag_rejections",
 		"file_metadata", "file_extractions",
-		"files", "folders", "boxes", "tags",
+		// boxes before folders: a box points at its root folder, so the
+		// dependency runs the opposite way from files → folders.
+		"files", "boxes", "folders", "tags",
 	} {
 		if _, err := tx.Exec(`DELETE FROM ` + table); err != nil {
 			return fmt.Errorf("clear %s: %w", table, err)
@@ -299,14 +305,14 @@ func (v *ViewTx) UpsertBlob(key, sha256 string, size int64) error {
 // ── files ────────────────────────────────────────────────────────────────
 
 // fileColumns is every column of a file, in the order scanFile expects.
-const fileColumns = `id, box_id, folder_id, name, name_fold, blob_key, captured_at, created_at, updated_at`
+const fileColumns = `id, folder_id, name, name_fold, blob_key, captured_at, created_at, updated_at`
 
 func scanFile(scan func(...any) error) (domain.File, error) {
 	var (
 		f                domain.File
 		created, updated int64
 	)
-	if err := scan(&f.ID, &f.BoxID, &f.FolderID, &f.Name, &f.NameFold, &f.BlobKey,
+	if err := scan(&f.ID, &f.FolderID, &f.Name, &f.NameFold, &f.BlobKey,
 		&f.CapturedAt, &created, &updated); err != nil {
 		return domain.File{}, err
 	}
@@ -317,8 +323,8 @@ func scanFile(scan func(...any) error) (domain.File, error) {
 
 func (v *ViewTx) InsertFile(f domain.File) error {
 	_, err := v.tx.Exec(
-		`INSERT INTO files (`+fileColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		f.ID, f.BoxID, f.FolderID, f.Name, f.NameFold, f.BlobKey, f.CapturedAt,
+		`INSERT INTO files (`+fileColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		f.ID, f.FolderID, f.Name, f.NameFold, f.BlobKey, f.CapturedAt,
 		FormatTime(v.ts), FormatTime(v.ts))
 	if err != nil {
 		return fmt.Errorf("insert file %s: %w", f.Name, err)
@@ -370,7 +376,7 @@ func (v *ViewTx) CountFileTags(id domain.FileID) (int, error) {
 
 func (v *ViewTx) CountBoxFiles(id domain.BoxID) (int, error) {
 	var n int
-	if err := v.tx.QueryRow(`SELECT count(*) FROM files WHERE box_id = ?`, id).Scan(&n); err != nil {
+	if err := v.tx.QueryRow(`SELECT count(*) FROM files WHERE folder_id IN (`+FoldersOfBoxSQL+`)`, id).Scan(&n); err != nil {
 		return 0, fmt.Errorf("count files in box %s: %w", id, err)
 	}
 	return n, nil
@@ -378,14 +384,14 @@ func (v *ViewTx) CountBoxFiles(id domain.BoxID) (int, error) {
 
 // ── folders, continued ───────────────────────────────────────────────────
 
-const folderColumns = `id, box_id, parent_id, name, name_fold, created_at, updated_at`
+const folderColumns = `id, parent_id, name, name_fold, created_at, updated_at`
 
 func scanFolder(scan func(...any) error) (domain.Folder, error) {
 	var (
 		f                domain.Folder
 		created, updated int64
 	)
-	if err := scan(&f.ID, &f.BoxID, &f.ParentID, &f.Name, &f.NameFold, &created, &updated); err != nil {
+	if err := scan(&f.ID, &f.ParentID, &f.Name, &f.NameFold, &created, &updated); err != nil {
 		return domain.Folder{}, err
 	}
 	f.CreatedAt = ParseTime(created)

@@ -72,8 +72,11 @@ func TestCreateBoxApply(t *testing.T) {
 	if !ok {
 		t.Fatal("the root folder was not created")
 	}
-	if root.BoxID != p.BoxID || root.ParentID != nil || root.Name != "" {
+	if root.ParentID != nil || root.Name != "" {
 		t.Errorf("root folder = %+v", root)
+	}
+	if b.RootFolderID != p.RootFolderID {
+		t.Errorf("box points at root %s, want %s", b.RootFolderID, p.RootFolderID)
 	}
 }
 
@@ -182,7 +185,7 @@ func TestDeleteBoxRefusesWhenTheRootHasSubfolders(t *testing.T) {
 	p, raw := createBoxPayload(t, "nested")
 	apply(t, tx, ActionCreateBox, raw)
 
-	sub, err := domain.NewFolder(domain.NewFolderID(), p.BoxID, p.RootFolderID, "2019")
+	sub, err := domain.NewFolder(domain.NewFolderID(), p.RootFolderID, "2019")
 	if err != nil {
 		t.Fatal(err)
 	}

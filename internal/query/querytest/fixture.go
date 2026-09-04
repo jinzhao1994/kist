@@ -71,15 +71,17 @@ func (b *Builder) Box(name, start, end string) *Builder {
 	if end != "" {
 		box.EndAt = mustDate(end)
 	}
-	b.boxes[name] = box
-	// Every box has a root folder (spec 1.4).
-	b.folders[name+"/"] = domain.Folder{
+	// Every box has a root folder (spec 1.4), and the box is what records the
+	// link to it.
+	root := domain.Folder{
 		ID:        domain.FolderID{ID: b.nextID("folder:" + name + "/")},
-		BoxID:     box.ID,
 		Name:      "",
 		CreatedAt: fixtureTime,
 		UpdatedAt: fixtureTime,
 	}
+	box.RootFolderID = root.ID
+	b.boxes[name] = box
+	b.folders[name+"/"] = root
 	return b
 }
 
@@ -90,7 +92,6 @@ func (b *Builder) Folder(box, name string) *Builder {
 	parent := root.ID
 	b.folders[box+"/"+name] = domain.Folder{
 		ID:        id,
-		BoxID:     root.BoxID,
 		ParentID:  &parent,
 		Name:      name,
 		NameFold:  domain.Fold(name),
@@ -106,7 +107,6 @@ func (b *Builder) File(box, folder, name, captured string, tags ...string) *Buil
 	f := b.folders[box+"/"+folder]
 	file := domain.File{
 		ID:        domain.FileID{ID: b.nextID("file:" + box + "/" + folder + "/" + name)},
-		BoxID:     f.BoxID,
 		FolderID:  f.ID,
 		Name:      name,
 		NameFold:  domain.Fold(name),

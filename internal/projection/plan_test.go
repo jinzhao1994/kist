@@ -16,18 +16,18 @@ func paths(entries []Entry) []string {
 	return out
 }
 
-func mustFolder(t *testing.T, id domain.FolderID, box domain.BoxID, parent domain.FolderID, name string) domain.Folder {
+func mustFolder(t *testing.T, id domain.FolderID, parent domain.FolderID, name string) domain.Folder {
 	t.Helper()
-	f, err := domain.NewFolder(id, box, parent, name)
+	f, err := domain.NewFolder(id, parent, name)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return f
 }
 
-func mustFile(t *testing.T, box domain.BoxID, folder domain.FolderID, name, key string) domain.File {
+func mustFile(t *testing.T, folder domain.FolderID, name, key string) domain.File {
 	t.Helper()
-	f, err := domain.NewFile(domain.NewFileID(), box, folder, name, key)
+	f, err := domain.NewFile(domain.NewFileID(), folder, name, key)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,12 +38,12 @@ func TestPlanMirrorsTheFolderTree(t *testing.T) {
 	box := mustBox(t, "云南", "2019-08", "")
 	root, day1 := domain.NewFolderID(), domain.NewFolderID()
 	folders := []domain.Folder{
-		domain.NewRootFolder(root, box.ID),
-		mustFolder(t, day1, box.ID, root, "day1"),
+		domain.NewRootFolder(root),
+		mustFolder(t, day1, root, "day1"),
 	}
 	files := []domain.File{
-		mustFile(t, box.ID, root, "封面.jpg", "sha256:aa"),
-		mustFile(t, box.ID, day1, "IMG_1.jpg", "sha256:bb"),
+		mustFile(t, root, "封面.jpg", "sha256:aa"),
+		mustFile(t, day1, "IMG_1.jpg", "sha256:bb"),
 	}
 
 	got, err := Plan("2019-08_云南", box, folders, files)
@@ -67,11 +67,11 @@ func TestPlanOrdersParentsFirst(t *testing.T) {
 	box := mustBox(t, "b", "2019", "")
 	root, a, b := domain.NewFolderID(), domain.NewFolderID(), domain.NewFolderID()
 	folders := []domain.Folder{
-		domain.NewRootFolder(root, box.ID),
-		mustFolder(t, a, box.ID, root, "a"),
-		mustFolder(t, b, box.ID, a, "b"),
+		domain.NewRootFolder(root),
+		mustFolder(t, a, root, "a"),
+		mustFolder(t, b, a, "b"),
 	}
-	got, err := Plan("box", box, folders, []domain.File{mustFile(t, box.ID, b, "deep.txt", "sha256:aa")})
+	got, err := Plan("box", box, folders, []domain.File{mustFile(t, b, "deep.txt", "sha256:aa")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,10 +101,10 @@ func TestPlanResolvesCollisionsWithinADirectory(t *testing.T) {
 	// "a:b.txt" and "a：b.txt" are two different names in the database and one
 	// name on disk.
 	files := []domain.File{
-		mustFile(t, box.ID, root, "a:b.txt", "sha256:aa"),
-		mustFile(t, box.ID, root, "a：b.txt", "sha256:bb"),
+		mustFile(t, root, "a:b.txt", "sha256:aa"),
+		mustFile(t, root, "a：b.txt", "sha256:bb"),
 	}
-	got, err := Plan("box", box, []domain.Folder{domain.NewRootFolder(root, box.ID)}, files)
+	got, err := Plan("box", box, []domain.Folder{domain.NewRootFolder(root)}, files)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,10 +118,10 @@ func TestPlanResolvesFolderAgainstFile(t *testing.T) {
 	box := mustBox(t, "b", "2019", "")
 	root, sub := domain.NewFolderID(), domain.NewFolderID()
 	folders := []domain.Folder{
-		domain.NewRootFolder(root, box.ID),
-		mustFolder(t, sub, box.ID, root, "notes"),
+		domain.NewRootFolder(root),
+		mustFolder(t, sub, root, "notes"),
 	}
-	files := []domain.File{mustFile(t, box.ID, root, "notes", "sha256:aa")}
+	files := []domain.File{mustFile(t, root, "notes", "sha256:aa")}
 
 	got, err := Plan("box", box, folders, files)
 	if err != nil {
@@ -137,8 +137,8 @@ func TestPlanResolvesFolderAgainstFile(t *testing.T) {
 func TestPlanRejectsAnOrphanFile(t *testing.T) {
 	box := mustBox(t, "b", "2019", "")
 	root := domain.NewFolderID()
-	files := []domain.File{mustFile(t, box.ID, domain.NewFolderID(), "lost.txt", "sha256:aa")}
-	if _, err := Plan("box", box, []domain.Folder{domain.NewRootFolder(root, box.ID)}, files); err == nil {
+	files := []domain.File{mustFile(t, domain.NewFolderID(), "lost.txt", "sha256:aa")}
+	if _, err := Plan("box", box, []domain.Folder{domain.NewRootFolder(root)}, files); err == nil {
 		t.Error("a file with no folder was projected without complaint")
 	}
 }
@@ -155,9 +155,9 @@ func TestPlanStampsDirectoriesOnly(t *testing.T) {
 	box := mustBox(t, "b", "2019", "")
 	box.UpdatedAt = time.Date(2019, 8, 12, 14, 30, 0, 0, time.UTC)
 	root := domain.NewFolderID()
-	folders := []domain.Folder{domain.NewRootFolder(root, box.ID)}
+	folders := []domain.Folder{domain.NewRootFolder(root)}
 	folders[0].UpdatedAt = box.UpdatedAt
-	files := []domain.File{mustFile(t, box.ID, root, "a.txt", "sha256:aa")}
+	files := []domain.File{mustFile(t, root, "a.txt", "sha256:aa")}
 	files[0].UpdatedAt = box.UpdatedAt
 
 	got, err := Plan("box", box, folders, files)

@@ -47,8 +47,8 @@ func TestStructuralFindingsSayHowToFixThem(t *testing.T) {
 	if _, err := db.Exec(`PRAGMA foreign_keys = OFF`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec(`INSERT INTO files (id, box_id, folder_id, name, name_fold, blob_key, created_at, updated_at)
-	                      VALUES (randomblob(16), randomblob(16), randomblob(16), 'a.txt', 'a.txt', 'sha256:gone', 't', 't')`); err != nil {
+	if _, err := db.Exec(`INSERT INTO files (id, folder_id, name, name_fold, blob_key, created_at, updated_at)
+	                      VALUES (randomblob(16), randomblob(16), 'a.txt', 'a.txt', 'sha256:gone', 't', 't')`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.Exec(`PRAGMA foreign_keys = ON`); err != nil {

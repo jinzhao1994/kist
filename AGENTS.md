@@ -141,6 +141,20 @@ Go 单二进制 + SQLite，Apache-2.0。
 
 顺手修了一处我自己造成的文档破损：上一轮移动 1.7.7 时用 `\n#### ` 找边界，跨过了三个井号的 2.1 / 2.2，把 `## 2.` 的标题挪错了位置。
 
+**`box_id` 从 `files` 和 `folders` 上删掉，`boxes` 加 `root_folder_id`**（2026-09-04，见设计文档 1.4 / 1.5）：一个文件属于哪个 box，原来有**两份说法**——它自己那一列，和它的 folder 链——而两份说法就会对不上。现在只有一份：folder 链走到哪个根、那个根被哪个 box 认领。
+
+**去掉的那一列是按推理加的，不是按实测加的。** 原来的理由是「`Query.Boxes` 是最热的筛选路径」，但真正的读者只有 `find --box` 一处（`kist ls` 走 `folder_id`），而「最热」说的是还不存在的 M4 网格视图。仓库在别处的惯例正相反：tag 闭包表、locale 排序都写着「实测到需要再上」。
+
+换来两样东西：**跨 box 移动目录从 O(文件数) 降到 O(子孙目录数)**；以及**一整类损坏变得不可表示**——`FilesWithBoxMismatch` 和 `CrossBoxFolders` 两条检查直接删掉，因为漂移需要两份说法。取而代之的 `BoxesWithBadRoot` / `UnclaimedRootFolders` 扫的是 `boxes` 表，失败面从 O(文件数) 降到 O(box 数)。
+
+代价是按 box 筛要一次递归下降（`store.FoldersOfBoxSQL`），形状照抄 `TagDescendants`，`UNION` 不是 `UNION ALL`。**实测过 SQLite 和 PG 都允许 `WITH` 出现在 `IN (...)` 子查询里**，所以 `translate()` 仍然只发出一个可拼接的 `AND` 片段。
+
+**❌ 否掉「Go 结构体上保留 `BoxID`，由 join 填充」**：那只是把冗余从表挪进内存。`wire.File.box_id` 改成和 `path` 一样按需解析，两者共用 `library.FileLocation` 的同一趟向上走——而 `FilePath` 反而变便宜了，它原来读整个 box 的 folder 表才能解析一条路径。
+
+**外键方向从此是 box → folder，和 file → folder 相反。** 所以 `create_box` 先插 folder 再插 box、`delete_box` 先删 box 再删 folder、`ClearViews` 里 `boxes` 排在 `folders` 前面。三处都有测试钉着。
+
+**还没量过的是新方案的代价**（记进 open-questions）：4000 文件的测试库上量不出来，要造十万行的合成库。真慢的话加回来是一次 `rebuild` 不是数据迁移。
+
 里程碑拆分见设计文档第 7 节，明确的范围外清单见第 8 节，待决问题见 `open-questions.md`。
 
 ## 约定

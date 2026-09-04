@@ -95,11 +95,11 @@ were last written.`,
 			// not enough to go find the thing under boxes/.
 			out := wire.FileList{Files: make([]wire.File, len(files)), Cursor: next}
 			for i, f := range files {
-				path, err := l.FilePath(cmd.Context(), f)
+				box, path, err := l.FileLocation(cmd.Context(), f)
 				if err != nil {
 					return err
 				}
-				out.Files[i] = wire.NewFile(f, path, l.Zone())
+				out.Files[i] = wire.NewFile(f, box.String(), path, l.Zone())
 			}
 
 			return emit(cmd, out, func(w io.Writer) error {

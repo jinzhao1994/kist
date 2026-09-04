@@ -73,7 +73,7 @@ func TestSanitizeIsIdempotent(t *testing.T) {
 
 func mustBox(t *testing.T, name, start, created string) domain.Box {
 	t.Helper()
-	b, err := domain.NewBox(domain.NewBoxID(), name, "")
+	b, err := domain.NewBox(domain.NewBoxID(), domain.NewFolderID(), name, "")
 	if err != nil {
 		t.Fatal(err)
 	}

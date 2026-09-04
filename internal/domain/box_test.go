@@ -8,7 +8,7 @@ import (
 
 func TestNewBoxFoldsItsName(t *testing.T) {
 	id := NewBoxID()
-	b, err := NewBox(id, "Yunnan 2019", "the long way round")
+	b, err := NewBox(id, NewFolderID(), "Yunnan 2019", "the long way round")
 	if err != nil {
 		t.Fatalf("NewBox: %v", err)
 	}
@@ -28,14 +28,14 @@ func TestNewBoxRejectsBadNames(t *testing.T) {
 		"trailing ",
 		"trailing.",
 	} {
-		if _, err := NewBox(NewBoxID(), name, ""); err == nil {
+		if _, err := NewBox(NewBoxID(), NewFolderID(), name, ""); err == nil {
 			t.Errorf("NewBox(%q) = nil error, want a rejection", name)
 		}
 	}
 }
 
 func TestBoxDatesAreOptional(t *testing.T) {
-	b, err := NewBox(NewBoxID(), "undated", "")
+	b, err := NewBox(NewBoxID(), NewFolderID(), "undated", "")
 	if err != nil {
 		t.Fatalf("NewBox: %v", err)
 	}

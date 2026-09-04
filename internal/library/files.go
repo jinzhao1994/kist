@@ -145,28 +145,23 @@ func (l *Library) ResolveFolder(ctx context.Context, box domain.BoxID, p string)
 // wherever a name had to be sanitized (spec 3.4), and the database's is the
 // real one — the projected name is what that becomes on this platform.
 func (l *Library) FilePath(ctx context.Context, f domain.File) (string, error) {
-	folders, err := store.FoldersOfBox(l.db, f.BoxID)
+	_, dirs, err := store.FolderChain(l.db, f.FolderID)
 	if err != nil {
 		return "", err
 	}
-	byID := make(map[domain.FolderID]domain.Folder, len(folders))
-	for _, fo := range folders {
-		byID[fo.ID] = fo
-	}
+	return path.Join(append(dirs, f.Name)...), nil
+}
 
-	parts := []string{f.Name}
-	for id := f.FolderID; ; {
-		fo, ok := byID[id]
-		if !ok || fo.ParentID == nil {
-			break
-		}
-		parts = append(parts, fo.Name)
-		id = *fo.ParentID
+// FileLocation is the box a file sits in and its path inside that box.
+//
+// Both answers come out of the same walk up the folder chain, so they are
+// resolved together: a file row names neither (spec 1.4).
+func (l *Library) FileLocation(ctx context.Context, f domain.File) (domain.BoxID, string, error) {
+	box, dirs, err := store.FolderChain(l.db, f.FolderID)
+	if err != nil {
+		return domain.BoxID{}, "", err
 	}
-	for i, j := 0, len(parts)-1; i < j; i, j = i+1, j-1 {
-		parts[i], parts[j] = parts[j], parts[i]
-	}
-	return path.Join(parts...), nil
+	return box, path.Join(append(dirs, f.Name)...), nil
 }
 
 // TagFiles attaches one tag to many files in a single op.
@@ -222,10 +217,11 @@ func (l *Library) filterFileTags(
 		return nil, nil, fmt.Errorf("%s: %w", tag, ErrNoSuchTag)
 	}
 	var (
-		changed []domain.FileID
-		boxes   []domain.BoxID
-		seen    = map[domain.FileID]bool{}
-		seenBox = map[domain.BoxID]bool{}
+		changed     []domain.FileID
+		boxes       []domain.BoxID
+		seen        = map[domain.FileID]bool{}
+		seenBox     = map[domain.BoxID]bool{}
+		boxOfFolder = map[domain.FolderID]domain.BoxID{}
 	)
 	err := l.readTx(ctx, func(vtx *store.ViewTx) error {
 		for _, id := range files {
@@ -245,9 +241,19 @@ func (l *Library) filterFileTags(
 			}
 			if has == wantPresent {
 				changed = append(changed, id)
-				if !seenBox[f.BoxID] {
-					seenBox[f.BoxID] = true
-					boxes = append(boxes, f.BoxID)
+				// The box comes from the folder chain now, and is cached per
+				// folder: a batch tag usually walks one box, and the walk is
+				// the only cost that grew when files stopped carrying a box_id.
+				box, cached := boxOfFolder[f.FolderID]
+				if !cached {
+					if box, _, err = store.FolderChain(vtx.Queryer(), f.FolderID); err != nil {
+						return err
+					}
+					boxOfFolder[f.FolderID] = box
+				}
+				if !seenBox[box] {
+					seenBox[box] = true
+					boxes = append(boxes, box)
 				}
 			}
 		}

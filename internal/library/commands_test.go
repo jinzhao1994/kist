@@ -27,11 +27,15 @@ func TestCreateBox(t *testing.T) {
 		t.Error("CreatedAt was not filled in from the op")
 	}
 
-	// Exactly one root folder, per spec 1.4 and the partial unique index.
-	var folders int
-	l.db.QueryRow(`SELECT count(*) FROM folders WHERE box_id = ?`, b.ID).Scan(&folders)
-	if folders != 1 {
-		t.Errorf("the box has %d folders, want exactly 1", folders)
+	// Exactly one root folder, per spec 1.4 — and the box names it, which is
+	// the only place that link is written down.
+	if b.RootFolderID.IsZero() {
+		t.Fatal("the box names no root folder")
+	}
+	var parentless int
+	l.db.QueryRow(`SELECT count(*) FROM folders WHERE id = ? AND parent_id IS NULL`, b.RootFolderID).Scan(&parentless)
+	if parentless != 1 {
+		t.Errorf("the root folder is not a parentless folder (%d rows)", parentless)
 	}
 }
 

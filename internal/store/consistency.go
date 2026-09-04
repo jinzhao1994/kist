@@ -37,17 +37,36 @@ func OrphanFiles(q Queryer) ([]Inconsistency, error) {
 		ORDER BY f.id`)
 }
 
-// FilesWithBoxMismatch finds files whose box_id disagrees with their folder's.
+// BoxesWithBadRoot finds boxes whose root_folder_id names a folder that is
+// missing, or one that has a parent and so is not a root at all.
 //
-// files.box_id is denormalised on purpose — it is the hottest filter there is
-// (spec 1.5) — and a denormalised column is a column that can drift.
-func FilesWithBoxMismatch(q Queryer) ([]Inconsistency, error) {
-	return inconsistencies(q, "check file/folder box agreement", `
-		SELECT hex(f.id) || ' ' || f.name
-		FROM files f
-		JOIN folders d ON d.id = f.folder_id
-		WHERE f.box_id != d.box_id
-		ORDER BY f.id`)
+// It replaces the two checks that used to guard files.box_id and
+// folders.box_id against drifting from the folder tree. Those columns are
+// gone, and with them both corruptions: a folder's box is now written down in
+// exactly one place, and one copy of an answer cannot disagree with itself.
+// What is left to check is that single edge — a scan of the boxes table rather
+// than of every file in the library.
+func BoxesWithBadRoot(q Queryer) ([]Inconsistency, error) {
+	return inconsistencies(q, "check box roots", `
+		SELECT hex(b.id) || ' ' || b.name
+		FROM boxes b
+		LEFT JOIN folders d ON d.id = b.root_folder_id
+		WHERE d.id IS NULL OR d.parent_id IS NOT NULL
+		ORDER BY b.id`)
+}
+
+// UnclaimedRootFolders finds parentless folders that no box calls its root.
+//
+// Such a folder is invisible: every read path starts at a box and walks down,
+// so its whole subtree — files included — is unreachable without being
+// missing. verify would otherwise report a healthy library.
+func UnclaimedRootFolders(q Queryer) ([]Inconsistency, error) {
+	return inconsistencies(q, "check root folder ownership", `
+		SELECT hex(d.id) || ' ' || d.name
+		FROM folders d
+		WHERE d.parent_id IS NULL
+		  AND d.id NOT IN (SELECT root_folder_id FROM boxes)
+		ORDER BY d.id`)
 }
 
 // FilesWithUnknownBlob finds files pointing at content the database has no row
@@ -92,18 +111,6 @@ func UnreachableFolders(q Queryer) ([]Inconsistency, error) {
 		SELECT hex(d.id) || ' ' || d.name
 		FROM folders d
 		WHERE d.id NOT IN (SELECT id FROM reachable)
-		ORDER BY d.id`)
-}
-
-// CrossBoxFolders finds folders whose parent belongs to another box. The
-// projection walks the tree from each box root, so such a folder would be
-// projected into a box its files do not belong to.
-func CrossBoxFolders(q Queryer) ([]Inconsistency, error) {
-	return inconsistencies(q, "check folder box agreement", `
-		SELECT hex(d.id) || ' ' || d.name
-		FROM folders d
-		JOIN folders p ON p.id = d.parent_id
-		WHERE d.box_id != p.box_id
 		ORDER BY d.id`)
 }
 
@@ -156,12 +163,21 @@ func FilesUsingBlobs(q Queryer, keys []string) (map[string][]string, error) {
 	for i, k := range keys {
 		args[i] = k
 	}
+	// The box comes from walking up to the root folder, since a file no
+	// longer carries a box_id (spec 1.4). The walk is per damaged file, and
+	// damaged files are the rare case this function exists for.
 	rows, err := q.Query(`
-		SELECT f.blob_key, b.name || '/' || f.name
-		FROM files f
-		JOIN boxes b ON b.id = f.box_id
-		WHERE f.blob_key IN (`+placeholders(len(keys))+`)
-		ORDER BY f.blob_key, f.id`, args...)
+		WITH RECURSIVE up(file_id, blob_key, name, folder_id) AS (
+			SELECT id, blob_key, name, folder_id FROM files
+			WHERE blob_key IN (`+placeholders(len(keys))+`)
+		  UNION
+			SELECT u.file_id, u.blob_key, u.name, d.parent_id
+			FROM up u JOIN folders d ON d.id = u.folder_id
+			WHERE d.parent_id IS NOT NULL
+		)
+		SELECT up.blob_key, b.name || '/' || up.name
+		FROM up JOIN boxes b ON b.root_folder_id = up.folder_id
+		ORDER BY up.blob_key, up.file_id`, args...)
 	if err != nil {
 		return nil, fmt.Errorf("look up the files behind damaged content: %w", err)
 	}

@@ -9,8 +9,11 @@ import (
 // ErrNoBlobKey means a file was built without content behind it.
 var ErrNoBlobKey = errors.New("file has no blob key")
 
-// File is one stored thing: exactly one blob, in exactly one folder, in
-// exactly one box.
+// File is one stored thing: exactly one blob, in exactly one folder.
+//
+// It does not know its box, for the same reason a Folder does not: the answer
+// is the box whose root its folder chain ends at, and one copy of an answer
+// cannot disagree with itself (spec 1.4).
 //
 // BlobKey is a string rather than a blob.Key because domain must not depend on
 // anything else in this repository — blob.Key is a named string type, so the
@@ -26,7 +29,6 @@ var ErrNoBlobKey = errors.New("file has no blob key")
 // it, which is a trust boundary as much as a layering one.
 type File struct {
 	ID         FileID
-	BoxID      BoxID
 	FolderID   FolderID
 	Name       string
 	NameFold   string
@@ -38,7 +40,7 @@ type File struct {
 
 // NewFile validates and folds. Timestamps are left zero: they belong to the op
 // that creates the file (spec 2.3.1).
-func NewFile(id FileID, box BoxID, folder FolderID, name, blobKey string) (File, error) {
+func NewFile(id FileID, folder FolderID, name, blobKey string) (File, error) {
 	name = Normalize(name)
 	if err := ValidateName(name); err != nil {
 		return File{}, err
@@ -48,7 +50,6 @@ func NewFile(id FileID, box BoxID, folder FolderID, name, blobKey string) (File,
 	}
 	return File{
 		ID:       id,
-		BoxID:    box,
 		FolderID: folder,
 		Name:     name,
 		NameFold: Fold(name),

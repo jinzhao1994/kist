@@ -153,10 +153,10 @@ func TestDamageReportsNameTheFilesNotJustTheHash(t *testing.T) {
 
 	box := []byte("0123456789abcdef")
 	folder := []byte("fedcba9876543210")
-	mustExec(t, db, `INSERT INTO boxes (id, name, name_fold, created_at, updated_at) VALUES (?, '云南', '云南', 't', 't')`, box)
-	mustExec(t, db, `INSERT INTO folders (id, box_id, parent_id, name, name_fold, created_at, updated_at) VALUES (?, ?, NULL, '', '', 't', 't')`, folder, box)
-	mustExec(t, db, `INSERT INTO files (id, box_id, folder_id, name, name_fold, blob_key, created_at, updated_at)
-	                 VALUES (randomblob(16), ?, ?, 'passport.jpg', 'passport.jpg', ?, 't', 't')`, box, folder, string(k))
+	mustExec(t, db, `INSERT INTO folders (id, parent_id, name, name_fold, created_at, updated_at) VALUES (?, NULL, '', '', 't', 't')`, folder)
+	mustExec(t, db, `INSERT INTO boxes (id, name, name_fold, created_at, updated_at, root_folder_id) VALUES (?, '云南', '云南', 't', 't', ?)`, box, folder)
+	mustExec(t, db, `INSERT INTO files (id, folder_id, name, name_fold, blob_key, created_at, updated_at)
+	                 VALUES (randomblob(16), ?, 'passport.jpg', 'passport.jpg', ?, 't', 't')`, folder, string(k))
 
 	p, _ := d.LocalPath(k)
 	if err := os.Chmod(p, 0o644); err != nil {

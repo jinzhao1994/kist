@@ -31,25 +31,25 @@ func TestMigrateIsIdempotent(t *testing.T) {
 }
 
 func TestOneRootFolderPerBox(t *testing.T) {
-	// The naive UNIQUE(parent_id, name) does not bite for root folders: their
-	// parent_id is NULL and NULLs are never equal, so a box could grow two
-	// roots and fork the whole projection (spec 1.4).
+	// A box names its root in a single column, so "two roots for one box" is
+	// not representable. What is still representable, and what the unique
+	// index on boxes.root_folder_id forbids, is two boxes claiming the same
+	// root — which would fork the projection the same way (spec 1.4).
 	db := migrated(t)
 	box := insertBox(t, db, "trip")
 
-	insertRootFolder(t, db, box)
-	if err := tryInsertRootFolder(db, box); err == nil {
-		t.Error("a second root folder was accepted for the same box")
+	if err := tryClaimRoot(db, boxRoot(t, db, box)); err == nil {
+		t.Error("two boxes were allowed to share a root folder")
 	}
 }
 
 func TestFolderNamesUniqueWithinParent(t *testing.T) {
 	db := migrated(t)
 	box := insertBox(t, db, "trip")
-	root := insertRootFolder(t, db, box)
+	root := boxRoot(t, db, box)
 
-	insertFolder(t, db, box, root, "receipts")
-	if err := tryInsertFolder(db, box, root, "receipts"); err == nil {
+	insertFolder(t, db, root, "receipts")
+	if err := tryInsertFolder(db, root, "receipts"); err == nil {
 		t.Error("duplicate folder name accepted under the same parent")
 	}
 }
@@ -72,11 +72,11 @@ func TestTagNamesAreGloballyUnique(t *testing.T) {
 func TestFileNamesUniqueWithinFolder(t *testing.T) {
 	db := migrated(t)
 	box := insertBox(t, db, "trip")
-	root := insertRootFolder(t, db, box)
+	root := boxRoot(t, db, box)
 	key := insertBlob(t, db, "sha256:"+strings.Repeat("ab", 32))
 
-	insertFile(t, db, box, root, "receipt.jpg", key)
-	if err := tryInsertFile(db, box, root, "receipt.jpg", key); err == nil {
+	insertFile(t, db, root, "receipt.jpg", key)
+	if err := tryInsertFile(db, root, "receipt.jpg", key); err == nil {
 		t.Error("duplicate file name accepted in the same folder")
 	}
 }
@@ -161,53 +161,59 @@ func randomID(t *testing.T) []byte {
 	return b
 }
 
+// insertBox creates the root folder too: boxes.root_folder_id is NOT NULL, so
+// a box without one is not a thing the schema can hold.
 func insertBox(t *testing.T, db *sql.DB, name string) []byte {
 	t.Helper()
-	id := randomID(t)
-	_, err := db.Exec(`INSERT INTO boxes (id, name, name_fold, description, created_at, updated_at)
-	                   VALUES (?, ?, ?, '', ?, ?)`,
-		id, name, strings.ToLower(name), testTS, testTS)
+	id, root := randomID(t), randomID(t)
+	if _, err := db.Exec(`INSERT INTO folders (id, parent_id, name, name_fold, created_at, updated_at)
+	                      VALUES (?, NULL, '', '', ?, ?)`, root, testTS, testTS); err != nil {
+		t.Fatalf("insert root folder: %v", err)
+	}
+	_, err := db.Exec(`INSERT INTO boxes (id, name, name_fold, description, created_at, updated_at, root_folder_id)
+	                   VALUES (?, ?, ?, '', ?, ?, ?)`,
+		id, name, strings.ToLower(name), testTS, testTS, root)
 	if err != nil {
 		t.Fatalf("insert box: %v", err)
 	}
 	return id
 }
 
-func insertRootFolder(t *testing.T, db *sql.DB, box []byte) []byte {
+func boxRoot(t *testing.T, db *sql.DB, box []byte) []byte {
 	t.Helper()
-	id := randomID(t)
-	if _, err := db.Exec(`INSERT INTO folders (id, box_id, parent_id, name, name_fold, created_at, updated_at)
-	                      VALUES (?, ?, NULL, '', '', ?, ?)`, id, box, testTS, testTS); err != nil {
-		t.Fatalf("insert root folder: %v", err)
+	var root []byte
+	if err := db.QueryRow(`SELECT root_folder_id FROM boxes WHERE id = ?`, box).Scan(&root); err != nil {
+		t.Fatalf("read box root: %v", err)
 	}
-	return id
+	return root
 }
 
-func tryInsertRootFolder(db *sql.DB, box []byte) error {
+// tryClaimRoot points a second box at a folder that is already a root.
+func tryClaimRoot(db *sql.DB, root []byte) error {
 	b := make([]byte, 16)
 	rand.Read(b)
-	_, err := db.Exec(`INSERT INTO folders (id, box_id, parent_id, name, name_fold, created_at, updated_at)
-	                   VALUES (?, ?, NULL, '', '', ?, ?)`, b, box, testTS, testTS)
+	_, err := db.Exec(`INSERT INTO boxes (id, name, name_fold, description, created_at, updated_at, root_folder_id)
+	                   VALUES (?, 'other', 'other', '', ?, ?, ?)`, b, testTS, testTS, root)
 	return err
 }
 
-func insertFolder(t *testing.T, db *sql.DB, box, parent []byte, name string) []byte {
+func insertFolder(t *testing.T, db *sql.DB, parent []byte, name string) []byte {
 	t.Helper()
 	id := randomID(t)
-	if _, err := db.Exec(`INSERT INTO folders (id, box_id, parent_id, name, name_fold, created_at, updated_at)
-	                      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		id, box, parent, name, strings.ToLower(name), testTS, testTS); err != nil {
+	if _, err := db.Exec(`INSERT INTO folders (id, parent_id, name, name_fold, created_at, updated_at)
+	                      VALUES (?, ?, ?, ?, ?, ?)`,
+		id, parent, name, strings.ToLower(name), testTS, testTS); err != nil {
 		t.Fatalf("insert folder: %v", err)
 	}
 	return id
 }
 
-func tryInsertFolder(db *sql.DB, box, parent []byte, name string) error {
+func tryInsertFolder(db *sql.DB, parent []byte, name string) error {
 	b := make([]byte, 16)
 	rand.Read(b)
-	_, err := db.Exec(`INSERT INTO folders (id, box_id, parent_id, name, name_fold, created_at, updated_at)
-	                   VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		b, box, parent, name, strings.ToLower(name), testTS, testTS)
+	_, err := db.Exec(`INSERT INTO folders (id, parent_id, name, name_fold, created_at, updated_at)
+	                   VALUES (?, ?, ?, ?, ?, ?)`,
+		b, parent, name, strings.ToLower(name), testTS, testTS)
 	return err
 }
 
@@ -248,23 +254,23 @@ func insertBlob(t *testing.T, db *sql.DB, key string) string {
 	return key
 }
 
-func insertFile(t *testing.T, db *sql.DB, box, folder []byte, name, key string) []byte {
+func insertFile(t *testing.T, db *sql.DB, folder []byte, name, key string) []byte {
 	t.Helper()
 	id := randomID(t)
-	if _, err := db.Exec(`INSERT INTO files (id, box_id, folder_id, name, name_fold, blob_key, created_at, updated_at)
-	                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, box, folder, name, strings.ToLower(name), key, testTS, testTS); err != nil {
+	if _, err := db.Exec(`INSERT INTO files (id, folder_id, name, name_fold, blob_key, created_at, updated_at)
+	                      VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		id, folder, name, strings.ToLower(name), key, testTS, testTS); err != nil {
 		t.Fatalf("insert file: %v", err)
 	}
 	return id
 }
 
-func tryInsertFile(db *sql.DB, box, folder []byte, name, key string) error {
+func tryInsertFile(db *sql.DB, folder []byte, name, key string) error {
 	b := make([]byte, 16)
 	rand.Read(b)
-	_, err := db.Exec(`INSERT INTO files (id, box_id, folder_id, name, name_fold, blob_key, created_at, updated_at)
-	                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		b, box, folder, name, strings.ToLower(name), key, testTS, testTS)
+	_, err := db.Exec(`INSERT INTO files (id, folder_id, name, name_fold, blob_key, created_at, updated_at)
+	                   VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		b, folder, name, strings.ToLower(name), key, testTS, testTS)
 	return err
 }
 
@@ -306,9 +312,9 @@ func TestFileMetadataHasARealForeignKey(t *testing.T) {
 func TestFileExtractionsIsOnePerFilePerExtractor(t *testing.T) {
 	db := migrated(t)
 	box := insertBox(t, db, "trip")
-	root := insertRootFolder(t, db, box)
+	root := boxRoot(t, db, box)
 	insertBlob(t, db, "sha256:aa")
-	file := insertFile(t, db, box, root, "a.jpg", "sha256:aa")
+	file := insertFile(t, db, root, "a.jpg", "sha256:aa")
 
 	if _, err := db.Exec(`INSERT INTO file_extractions (file_id, extractor, version) VALUES (?, 'exif', 1)`, file); err != nil {
 		t.Fatal(err)

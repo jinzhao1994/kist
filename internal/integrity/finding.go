@@ -61,11 +61,11 @@ const (
 	BlobKeyMalformed // a row in the blobs table whose key is not a key
 
 	// ── structure layer ─────────────────────────────────────────────────
-	FileOrphanFolder  // files.folder_id names a folder that is gone
-	FileBoxMismatch   // files.box_id disagrees with the folder's box
-	FileUnknownBlob   // files.blob_key is not in the blobs table
-	FolderUnreachable // not reachable from its box's root: gone parent, or a cycle
-	FolderCrossBox    // a folder whose parent belongs to another box
+	FileOrphanFolder    // files.folder_id names a folder that is gone
+	FileUnknownBlob     // files.blob_key is not in the blobs table
+	FolderUnreachable   // not reachable from a root: gone parent, or a cycle
+	BoxBadRoot          // boxes.root_folder_id names a folder that is gone, or one with a parent
+	FolderUnclaimedRoot // a parentless folder no box calls its root
 
 	// ── projection layer ────────────────────────────────────────────────
 	LinkMissing     // should be under boxes/, is not
@@ -89,21 +89,21 @@ var kindInfo = map[Kind]struct {
 	name     string
 	headline string
 }{
-	BlobMissing:       {SeverityError, "blob_missing", "content is missing from blobs/"},
-	BlobWrongSize:     {SeverityError, "blob_wrong_size", "content is the wrong size"},
-	BlobCorrupt:       {SeverityError, "blob_corrupt", "content no longer matches its hash"},
-	BlobOrphan:        {SeverityInfo, "blob_orphan", "blobs/ holds content the database does not know about"},
-	BlobKeyMalformed:  {SeverityError, "blob_key_malformed", "the blobs table holds a row whose key is not a valid key"},
-	FileOrphanFolder:  {SeverityError, "file_orphan_folder", "a file is in a folder that does not exist"},
-	FileBoxMismatch:   {SeverityError, "file_box_mismatch", "a file and its folder disagree about which box they are in"},
-	FileUnknownBlob:   {SeverityError, "file_unknown_blob", "a file points at content the database does not know about"},
-	FolderUnreachable: {SeverityError, "folder_unreachable", "a folder cannot be reached from its box's root"},
-	FolderCrossBox:    {SeverityError, "folder_cross_box", "a folder's parent belongs to a different box"},
-	LinkMissing:       {SeverityWarn, "link_missing", "boxes/ is missing something"},
-	LinkStray:         {SeverityWarn, "link_stray", "boxes/ holds something that belongs to no file"},
-	LinkWrongTarget:   {SeverityWarn, "link_wrong_target", "a link under boxes/ points at the wrong content"},
-	ScrubIncomplete:   {SeverityWarn, "scrub_incomplete", "the scrub did not finish"},
-	ViewDrift:         {SeverityError, "view_drift", "a table does not match what replaying the log produces"},
+	BlobMissing:         {SeverityError, "blob_missing", "content is missing from blobs/"},
+	BlobWrongSize:       {SeverityError, "blob_wrong_size", "content is the wrong size"},
+	BlobCorrupt:         {SeverityError, "blob_corrupt", "content no longer matches its hash"},
+	BlobOrphan:          {SeverityInfo, "blob_orphan", "blobs/ holds content the database does not know about"},
+	BlobKeyMalformed:    {SeverityError, "blob_key_malformed", "the blobs table holds a row whose key is not a valid key"},
+	FileOrphanFolder:    {SeverityError, "file_orphan_folder", "a file is in a folder that does not exist"},
+	FileUnknownBlob:     {SeverityError, "file_unknown_blob", "a file points at content the database does not know about"},
+	FolderUnreachable:   {SeverityError, "folder_unreachable", "a folder cannot be reached from its box's root"},
+	BoxBadRoot:          {SeverityError, "box_bad_root", "a box's root folder is missing, or is not a root"},
+	FolderUnclaimedRoot: {SeverityError, "folder_unclaimed_root", "a parentless folder belongs to no box"},
+	LinkMissing:         {SeverityWarn, "link_missing", "boxes/ is missing something"},
+	LinkStray:           {SeverityWarn, "link_stray", "boxes/ holds something that belongs to no file"},
+	LinkWrongTarget:     {SeverityWarn, "link_wrong_target", "a link under boxes/ points at the wrong content"},
+	ScrubIncomplete:     {SeverityWarn, "scrub_incomplete", "the scrub did not finish"},
+	ViewDrift:           {SeverityError, "view_drift", "a table does not match what replaying the log produces"},
 }
 
 // Severity reports how bad this kind of finding is.

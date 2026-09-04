@@ -80,30 +80,31 @@ CREATE TABLE boxes (
   created_at       INTEGER NOT NULL,  -- unix 纳秒，取自 ops.ts 而非 time.Now()（spec 2.3.1）
   updated_at       INTEGER NOT NULL,
   start_at         TEXT,              -- 变精度 ISO-8601 前缀，精度由长度推导（spec 1.3）
-  end_at           TEXT
+  end_at           TEXT,
+  root_folder_id   BLOB NOT NULL REFERENCES folders(id)   -- box → 根 folder 的唯一一条边（spec 1.4）
 );
+-- 一个 folder 只能当一个 box 的根。加上 root_folder_id 是单列，"一个 box 恰好
+-- 一个根"就不再靠索引拦，而是根本表示不出来。
+CREATE UNIQUE INDEX boxes_root ON boxes(root_folder_id);
 CREATE INDEX boxes_updated ON boxes(updated_at DESC);
 CREATE INDEX boxes_name_fold ON boxes(name_fold);
 
 CREATE TABLE folders (
   id         BLOB NOT NULL PRIMARY KEY,
-  box_id     BLOB NOT NULL REFERENCES boxes(id),
   parent_id  BLOB REFERENCES folders(id),
   name       TEXT NOT NULL,   -- 根 folder 为 ''
   name_fold  TEXT NOT NULL,
   created_at INTEGER NOT NULL,   -- unix 纳秒
   updated_at INTEGER NOT NULL
 );
--- 两条部分索引而不是一条 UNIQUE(parent_id, name)：根 folder 的 parent_id 是
--- NULL，而 SQL 里 NULL 互不相等，朴素写法拦不住"一个 box 两个根目录"，
--- 那会让整棵投影树分叉（spec 1.4）。
+-- 部分索引而不是朴素的 UNIQUE(parent_id, name)：根 folder 的 parent_id 是
+-- NULL，而 SQL 里 NULL 互不相等，朴素写法对根目录根本不触发（spec 1.4）。
+-- "一个 box 两个根"不需要索引拦，boxes.root_folder_id 是单列。
 CREATE UNIQUE INDEX folders_parent_name ON folders(parent_id, name) WHERE parent_id IS NOT NULL;
-CREATE UNIQUE INDEX folders_one_root ON folders(box_id) WHERE parent_id IS NULL;
-CREATE INDEX folders_box ON folders(box_id);
+CREATE INDEX folders_parent ON folders(parent_id);
 
 CREATE TABLE files (
   id          BLOB NOT NULL PRIMARY KEY,
-  box_id      BLOB NOT NULL REFERENCES boxes(id),   -- 冗余但必要：最热的筛选路径（spec 1.5）
   folder_id   BLOB NOT NULL REFERENCES folders(id),
   name        TEXT NOT NULL,
   name_fold   TEXT NOT NULL,
@@ -113,7 +114,7 @@ CREATE TABLE files (
   updated_at  INTEGER NOT NULL
 );
 CREATE UNIQUE INDEX files_folder_name ON files(folder_id, name);
-CREATE INDEX files_box ON files(box_id, id);
+CREATE INDEX files_folder ON files(folder_id, id);
 CREATE INDEX files_captured ON files(captured_at DESC, id DESC);
 CREATE INDEX files_name_fold ON files(name_fold);
 CREATE INDEX files_blob ON files(blob_key);

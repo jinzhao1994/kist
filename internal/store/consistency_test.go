@@ -30,9 +30,9 @@ func forceUpdate(t *testing.T, db *sql.DB, query string, args ...any) {
 func TestOrphanFilesAreFound(t *testing.T) {
 	db := migrated(t)
 	box := insertBox(t, db, "box")
-	root := insertRootFolder(t, db, box)
+	root := boxRoot(t, db, box)
 	key := insertBlob(t, db, "sha256:aa")
-	file := insertFile(t, db, box, root, "a.txt", key)
+	file := insertFile(t, db, root, "a.txt", key)
 
 	forceUpdate(t, db, `UPDATE files SET folder_id = randomblob(16) WHERE id = ?`, file)
 
@@ -48,20 +48,37 @@ func TestOrphanFilesAreFound(t *testing.T) {
 	}
 }
 
-// A file and its folder disagreeing about the box is the corruption that
-// silently splits the projection: the file is listed under one box and
-// projected under another.
-func TestBoxMismatchIsFound(t *testing.T) {
+// A box's root_folder_id is the only place a folder's box is written down now,
+// so it is the only place that answer can go wrong.
+func TestBadBoxRootIsFound(t *testing.T) {
 	db := migrated(t)
 	box := insertBox(t, db, "box")
 	other := insertBox(t, db, "other")
-	root := insertRootFolder(t, db, box)
-	key := insertBlob(t, db, "sha256:aa")
-	file := insertFile(t, db, box, root, "a.txt", key)
 
-	forceUpdate(t, db, `UPDATE files SET box_id = ? WHERE id = ?`, other, file)
+	// Point one box at the other box's root, which has no parent but is
+	// already claimed — and then at a folder that does have a parent.
+	day1 := insertFolder(t, db, boxRoot(t, db, other), "day1")
+	forceUpdate(t, db, `UPDATE boxes SET root_folder_id = ? WHERE id = ?`, day1, box)
 
-	got, err := FilesWithBoxMismatch(db)
+	got, err := BoxesWithBadRoot(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("found %d, want 1: %+v", len(got), got)
+	}
+}
+
+// A parentless folder no box claims is invisible rather than missing: every
+// read path starts at a box and walks down, so its whole subtree drops out of
+// the library while every row is still there.
+func TestUnclaimedRootFolderIsFound(t *testing.T) {
+	db := migrated(t)
+	box := insertBox(t, db, "box")
+	stray := insertFolder(t, db, boxRoot(t, db, box), "day1")
+	forceUpdate(t, db, `UPDATE folders SET parent_id = NULL WHERE id = ?`, stray)
+
+	got, err := UnclaimedRootFolders(db)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,9 +93,9 @@ func TestBoxMismatchIsFound(t *testing.T) {
 func TestUnreachableFoldersCoverGoneParentsAndCycles(t *testing.T) {
 	db := migrated(t)
 	box := insertBox(t, db, "box")
-	root := insertRootFolder(t, db, box)
-	day1 := insertFolder(t, db, box, root, "day1")
-	deeper := insertFolder(t, db, box, day1, "deeper")
+	root := boxRoot(t, db, box)
+	day1 := insertFolder(t, db, root, "day1")
+	deeper := insertFolder(t, db, day1, "deeper")
 
 	if got, err := UnreachableFolders(db); err != nil || len(got) != 0 {
 		t.Fatalf("a healthy library reports %v (err %v), want none", got, err)
@@ -100,8 +117,8 @@ func TestUnreachableFoldersCoverGoneParentsAndCycles(t *testing.T) {
 func TestUnreachableFoldersFindAGoneParent(t *testing.T) {
 	db := migrated(t)
 	box := insertBox(t, db, "box")
-	root := insertRootFolder(t, db, box)
-	day1 := insertFolder(t, db, box, root, "day1")
+	root := boxRoot(t, db, box)
+	day1 := insertFolder(t, db, root, "day1")
 
 	forceUpdate(t, db, `UPDATE folders SET parent_id = randomblob(16) WHERE id = ?`, day1)
 
@@ -117,31 +134,13 @@ func TestUnreachableFoldersFindAGoneParent(t *testing.T) {
 func TestUnknownBlobKeyIsFound(t *testing.T) {
 	db := migrated(t)
 	box := insertBox(t, db, "box")
-	root := insertRootFolder(t, db, box)
+	root := boxRoot(t, db, box)
 	key := insertBlob(t, db, "sha256:aa")
-	file := insertFile(t, db, box, root, "a.txt", key)
+	file := insertFile(t, db, root, "a.txt", key)
 
 	forceUpdate(t, db, `UPDATE files SET blob_key = 'sha256:gone' WHERE id = ?`, file)
 
 	got, err := FilesWithUnknownBlob(db)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 1 {
-		t.Fatalf("found %d, want 1: %+v", len(got), got)
-	}
-}
-
-func TestCrossBoxFoldersAreFound(t *testing.T) {
-	db := migrated(t)
-	box := insertBox(t, db, "box")
-	other := insertBox(t, db, "other")
-	root := insertRootFolder(t, db, box)
-	day1 := insertFolder(t, db, box, root, "day1")
-
-	forceUpdate(t, db, `UPDATE folders SET box_id = ? WHERE id = ?`, other, day1)
-
-	got, err := CrossBoxFolders(db)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,18 +155,18 @@ func TestCrossBoxFoldersAreFound(t *testing.T) {
 func TestAHealthyLibraryHasNoStructuralFindings(t *testing.T) {
 	db := migrated(t)
 	box := insertBox(t, db, "box")
-	root := insertRootFolder(t, db, box)
-	day1 := insertFolder(t, db, box, root, "day1")
+	root := boxRoot(t, db, box)
+	day1 := insertFolder(t, db, root, "day1")
 	key := insertBlob(t, db, "sha256:aa")
-	insertFile(t, db, box, root, "a.txt", key)
-	insertFile(t, db, box, day1, "b.txt", key)
+	insertFile(t, db, root, "a.txt", key)
+	insertFile(t, db, day1, "b.txt", key)
 
 	checks := map[string]func(Queryer) ([]Inconsistency, error){
 		"OrphanFiles":          OrphanFiles,
-		"FilesWithBoxMismatch": FilesWithBoxMismatch,
 		"FilesWithUnknownBlob": FilesWithUnknownBlob,
 		"UnreachableFolders":   UnreachableFolders,
-		"CrossBoxFolders":      CrossBoxFolders,
+		"BoxesWithBadRoot":     BoxesWithBadRoot,
+		"UnclaimedRootFolders": UnclaimedRootFolders,
 	}
 	for name, fn := range checks {
 		got, err := fn(db)

@@ -79,11 +79,6 @@ func (f *fakeTx) UpdateBox(b domain.Box) error {
 }
 
 func (f *fakeTx) DeleteBox(id domain.BoxID) error {
-	for _, fo := range f.folders {
-		if fo.BoxID == id {
-			return fmt.Errorf("box %s still has folders", id)
-		}
-	}
 	delete(f.boxes, id)
 	return nil
 }
@@ -106,15 +101,6 @@ func (f *fakeTx) CountBoxTags(id domain.BoxID) (int, error) {
 func (f *fakeTx) InsertFolder(fo domain.Folder) error {
 	fo.CreatedAt, fo.UpdatedAt = f.ts, f.ts
 	f.folders[fo.ID] = fo
-	return nil
-}
-
-func (f *fakeTx) DeleteFoldersOfBox(id domain.BoxID) error {
-	for k, fo := range f.folders {
-		if fo.BoxID == id {
-			delete(f.folders, k)
-		}
-	}
 	return nil
 }
 
@@ -188,10 +174,26 @@ func (f *fakeTx) HasBoxTag(b domain.BoxID, t domain.TagID) (bool, error) {
 	return ok, nil
 }
 
+// CountBoxFiles walks down from the box's root, the way the real one does:
+// a file names only its folder, so its box is whichever root it descends from.
 func (f *fakeTx) CountBoxFiles(id domain.BoxID) (int, error) {
+	box, ok := f.boxes[id]
+	if !ok {
+		return 0, nil
+	}
+	inBox := map[domain.FolderID]bool{box.RootFolderID: true}
+	for grew := true; grew; {
+		grew = false
+		for _, fo := range f.folders {
+			if fo.ParentID != nil && inBox[*fo.ParentID] && !inBox[fo.ID] {
+				inBox[fo.ID] = true
+				grew = true
+			}
+		}
+	}
 	n := 0
 	for _, file := range f.files {
-		if file.BoxID == id {
+		if inBox[file.FolderID] {
 			n++
 		}
 	}

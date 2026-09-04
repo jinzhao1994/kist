@@ -64,12 +64,13 @@ func NewBoxes(boxes []domain.Box) []Box {
 // and the zone is a display decision, which is exactly what the offset says.
 // It is null when nothing could establish one.
 //
-// Path is the path inside the box, because a bare name is not enough to go
-// find the thing under boxes/. It is omitted where the caller did not resolve
-// it — resolving it costs a walk up the folder chain per file.
+// BoxID and Path both come from walking up the folder chain, since a file row
+// names neither (spec 1.4). Both are omitted where the caller did not resolve
+// them — a listing that already names its box has no reason to pay for it per
+// row.
 type File struct {
 	ID         string     `json:"id"`
-	BoxID      string     `json:"box_id"`
+	BoxID      string     `json:"box_id,omitempty"`
 	FolderID   string     `json:"folder_id"`
 	Name       string     `json:"name"`
 	Path       string     `json:"path,omitempty"`
@@ -79,11 +80,12 @@ type File struct {
 	UpdatedAt  time.Time  `json:"updated_at"`
 }
 
-// NewFile renders a file. loc is the library timezone; path may be empty.
-func NewFile(f domain.File, path string, loc *time.Location) File {
+// NewFile renders a file. loc is the library timezone; box and path may be
+// empty when the caller did not resolve them.
+func NewFile(f domain.File, box, path string, loc *time.Location) File {
 	out := File{
 		ID:        f.ID.String(),
-		BoxID:     f.BoxID.String(),
+		BoxID:     box,
 		FolderID:  f.FolderID.String(),
 		Name:      f.Name,
 		Path:      path,
@@ -97,10 +99,10 @@ func NewFile(f domain.File, path string, loc *time.Location) File {
 	return out
 }
 
-// Folder is a directory inside a box. ParentID is null for a box's root.
+// Folder is a directory. ParentID is null for a box's root; the box itself is
+// named by the listing that carries the folder, not by the folder (spec 1.4).
 type Folder struct {
 	ID        string    `json:"id"`
-	BoxID     string    `json:"box_id"`
 	ParentID  *string   `json:"parent_id"`
 	Name      string    `json:"name"`
 	CreatedAt time.Time `json:"created_at"`
@@ -110,7 +112,6 @@ type Folder struct {
 func NewFolder(f domain.Folder) Folder {
 	out := Folder{
 		ID:        f.ID.String(),
-		BoxID:     f.BoxID.String(),
 		Name:      f.Name,
 		CreatedAt: f.CreatedAt,
 		UpdatedAt: f.UpdatedAt,

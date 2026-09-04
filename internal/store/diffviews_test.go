@@ -48,9 +48,9 @@ func TestVacuumIntoAndAttachWork(t *testing.T) {
 func TestDiffViewsFindsNothingBetweenIdenticalCopies(t *testing.T) {
 	db := migrated(t)
 	box := insertBox(t, db, "box")
-	root := insertRootFolder(t, db, box)
+	root := boxRoot(t, db, box)
 	key := insertBlob(t, db, "sha256:aa")
-	insertFile(t, db, box, root, "a.txt", key)
+	insertFile(t, db, root, "a.txt", key)
 
 	copyPath := filepath.Join(t.TempDir(), "copy.db")
 	if _, err := db.Exec(`VACUUM INTO ?`, copyPath); err != nil {
@@ -71,9 +71,9 @@ func TestDiffViewsFindsNothingBetweenIdenticalCopies(t *testing.T) {
 func TestDiffViewsNamesTheTableAndShowsTheRow(t *testing.T) {
 	db := migrated(t)
 	box := insertBox(t, db, "box")
-	root := insertRootFolder(t, db, box)
+	root := boxRoot(t, db, box)
 	key := insertBlob(t, db, "sha256:aa")
-	file := insertFile(t, db, box, root, "a.txt", key)
+	file := insertFile(t, db, root, "a.txt", key)
 
 	copyPath := filepath.Join(t.TempDir(), "copy.db")
 	if _, err := db.Exec(`VACUUM INTO ?`, copyPath); err != nil {
@@ -116,11 +116,10 @@ func TestDiffViewsFindsAnExtraRow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(drift) != 1 || drift[0].Table != "boxes" {
-		t.Fatalf("drift = %+v, want one about boxes", drift)
-	}
-	if drift[0].OnlyInLive != 1 || drift[0].OnlyInRebuilt != 0 {
-		t.Errorf("counts = %+v, want 1 live / 0 rebuilt", drift[0])
+	// A box drags its root folder in with it, so two tables drift.
+	boxes := driftOf(t, drift, "boxes")
+	if boxes.OnlyInLive != 1 || boxes.OnlyInRebuilt != 0 {
+		t.Errorf("counts = %+v, want 1 live / 0 rebuilt", boxes)
 	}
 }
 
@@ -162,13 +161,23 @@ func TestDiffViewsCountsEverythingButShowsAFew(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(drift) != 1 {
-		t.Fatalf("drift = %+v", drift)
+	boxes := driftOf(t, drift, "boxes")
+	if boxes.OnlyInLive != 50 {
+		t.Errorf("counted %d, want 50", boxes.OnlyInLive)
 	}
-	if drift[0].OnlyInLive != 50 {
-		t.Errorf("counted %d, want 50", drift[0].OnlyInLive)
+	if len(boxes.Examples) > driftExamples {
+		t.Errorf("pulled back %d example rows, want at most %d", len(boxes.Examples), driftExamples)
 	}
-	if len(drift[0].Examples) > driftExamples {
-		t.Errorf("pulled back %d example rows, want at most %d", len(drift[0].Examples), driftExamples)
+}
+
+// driftOf picks one table out of a report, failing if it is not there.
+func driftOf(t *testing.T, drift []Drift, table string) Drift {
+	t.Helper()
+	for _, d := range drift {
+		if d.Table == table {
+			return d
+		}
 	}
+	t.Fatalf("no drift reported for %s: %+v", table, drift)
+	return Drift{}
 }

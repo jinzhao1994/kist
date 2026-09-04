@@ -26,11 +26,20 @@ func viewTx(t *testing.T, db *sql.DB, ts time.Time, fn func(*ViewTx)) {
 
 func mustBox(t *testing.T, name string) domain.Box {
 	t.Helper()
-	b, err := domain.NewBox(domain.NewBoxID(), name, "")
+	b, err := domain.NewBox(domain.NewBoxID(), domain.NewFolderID(), name, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	return b
+}
+
+// putBox inserts a box and the root folder it points at, in that order:
+// boxes.root_folder_id is a foreign key, so the folder has to exist first.
+func putBox(vtx *ViewTx, b domain.Box) error {
+	if err := vtx.InsertFolder(domain.NewRootFolder(b.RootFolderID)); err != nil {
+		return err
+	}
+	return vtx.InsertBox(b)
 }
 
 func TestInsertAndGetBox(t *testing.T) {
@@ -38,7 +47,7 @@ func TestInsertAndGetBox(t *testing.T) {
 	b := mustBox(t, "云南 2019")
 
 	viewTx(t, db, testTime, func(vtx *ViewTx) {
-		if err := vtx.InsertBox(b); err != nil {
+		if err := putBox(vtx, b); err != nil {
 			t.Fatalf("InsertBox: %v", err)
 		}
 	})
@@ -73,10 +82,10 @@ func TestUpdateBoxLeavesBothTimestampsAlone(t *testing.T) {
 	// the op's source (spec 1.5.1 ②), which a handler does not get to know.
 	db := migrated(t)
 	b := mustBox(t, "before")
-	viewTx(t, db, testTime, func(vtx *ViewTx) { vtx.InsertBox(b) })
+	viewTx(t, db, testTime, func(vtx *ViewTx) { putBox(vtx, b) })
 
 	later := testTime.Add(48 * time.Hour)
-	renamed, _ := domain.NewBox(b.ID, "after", "")
+	renamed, _ := domain.NewBox(b.ID, b.RootFolderID, "after", "")
 	viewTx(t, db, later, func(vtx *ViewTx) {
 		if err := vtx.UpdateBox(renamed); err != nil {
 			t.Fatalf("UpdateBox: %v", err)
@@ -116,7 +125,7 @@ func TestBoxDatesRoundTrip(t *testing.T) {
 	b.StartAt, _ = domain.ParseLocalDate("2019-08")
 	b.EndAt, _ = domain.ParseLocalDate("2019-08-12T14:30")
 
-	viewTx(t, db, testTime, func(vtx *ViewTx) { vtx.InsertBox(b) })
+	viewTx(t, db, testTime, func(vtx *ViewTx) { putBox(vtx, b) })
 	viewTx(t, db, testTime, func(vtx *ViewTx) {
 		got, _, _ := vtx.GetBox(b.ID)
 		if got.StartAt.String() != "2019-08" || got.EndAt.String() != "2019-08-12T14:30" {
@@ -128,31 +137,30 @@ func TestBoxDatesRoundTrip(t *testing.T) {
 	})
 }
 
-func TestDeleteBoxNeedsItsFoldersGoneFirst(t *testing.T) {
-	// Foreign keys are on (M1a). Deleting a box while its root folder still
-	// points at it must fail rather than silently orphan the folder — which is
-	// exactly why delete_box's handler removes folders explicitly.
+func TestDeleteBoxComesBeforeItsRootFolder(t *testing.T) {
+	// Foreign keys are on (M1a), and boxes.root_folder_id points at the
+	// folder — so the dependency runs box → folder, the opposite way from
+	// file → folder. Removing the folder first must fail, which is why
+	// delete_box's handler deletes the box row first.
 	db := migrated(t)
 	b := mustBox(t, "doomed")
-	root := domain.NewRootFolder(domain.NewFolderID(), b.ID)
 
 	viewTx(t, db, testTime, func(vtx *ViewTx) {
-		vtx.InsertBox(b)
-		vtx.InsertFolder(root)
+		putBox(vtx, b)
 	})
 
 	tx, _ := db.Begin()
-	if err := NewViewTx(tx, testTime).DeleteBox(b.ID); err == nil {
-		t.Error("deleting a box with a folder still attached succeeded")
+	if err := NewViewTx(tx, testTime).DeleteFolder(b.RootFolderID); err == nil {
+		t.Error("deleting a root folder its box still points at succeeded")
 	}
 	tx.Rollback()
 
 	viewTx(t, db, testTime, func(vtx *ViewTx) {
-		if err := vtx.DeleteFolder(root.ID); err != nil {
-			t.Fatalf("DeleteFolder: %v", err)
-		}
 		if err := vtx.DeleteBox(b.ID); err != nil {
 			t.Fatalf("DeleteBox: %v", err)
+		}
+		if err := vtx.DeleteFolder(b.RootFolderID); err != nil {
+			t.Fatalf("DeleteFolder: %v", err)
 		}
 	})
 }
@@ -212,7 +220,7 @@ func TestBoxTagsCRUD(t *testing.T) {
 	tag, _ := domain.NewTag(domain.NewTagID(), nil, "云南")
 
 	viewTx(t, db, testTime, func(vtx *ViewTx) {
-		vtx.InsertBox(b)
+		putBox(vtx, b)
 		vtx.InsertTag(tag)
 	})
 
@@ -251,7 +259,7 @@ func TestAddBoxTagIsIdempotent(t *testing.T) {
 	b := mustBox(t, "trip")
 	tag, _ := domain.NewTag(domain.NewTagID(), nil, "云南")
 	viewTx(t, db, testTime, func(vtx *ViewTx) {
-		vtx.InsertBox(b)
+		putBox(vtx, b)
 		vtx.InsertTag(tag)
 	})
 
@@ -274,8 +282,8 @@ func TestTouchBoxes(t *testing.T) {
 	db := migrated(t)
 	a, b := mustBox(t, "a"), mustBox(t, "b")
 	viewTx(t, db, testTime, func(vtx *ViewTx) {
-		vtx.InsertBox(a)
-		vtx.InsertBox(b)
+		putBox(vtx, a)
+		putBox(vtx, b)
 	})
 
 	later := testTime.Add(time.Hour)
@@ -315,8 +323,8 @@ func TestClearViewsLeavesOpsAndBlobs(t *testing.T) {
 	db := migrated(t)
 	b := mustBox(t, "survivor")
 	viewTx(t, db, testTime, func(vtx *ViewTx) {
-		vtx.InsertBox(b)
-		vtx.InsertFolder(domain.NewRootFolder(domain.NewFolderID(), b.ID))
+		putBox(vtx, b)
+		vtx.InsertFolder(domain.NewRootFolder(domain.NewFolderID()))
 	})
 	appendOp(t, db, sampleOp())
 	if _, err := db.Exec(`INSERT INTO blobs (key, sha256, size) VALUES ('sha256:' || hex(randomblob(32)), hex(randomblob(32)), 1)`); err != nil {
@@ -348,8 +356,8 @@ func TestClearViewsLeavesOpsAndBlobs(t *testing.T) {
 func TestListBoxes(t *testing.T) {
 	db := migrated(t)
 	early, late := mustBox(t, "早"), mustBox(t, "晚")
-	viewTx(t, db, testTime, func(vtx *ViewTx) { vtx.InsertBox(early) })
-	viewTx(t, db, testTime.Add(time.Hour), func(vtx *ViewTx) { vtx.InsertBox(late) })
+	viewTx(t, db, testTime, func(vtx *ViewTx) { putBox(vtx, early) })
+	viewTx(t, db, testTime.Add(time.Hour), func(vtx *ViewTx) { putBox(vtx, late) })
 
 	got, err := ListBoxes(db, ListBoxesOptions{})
 	if err != nil {
@@ -377,7 +385,7 @@ func TestTagDirectCounts(t *testing.T) {
 	b := mustBox(t, "trip")
 	tag, _ := domain.NewTag(domain.NewTagID(), nil, "云南")
 	viewTx(t, db, testTime, func(vtx *ViewTx) {
-		vtx.InsertBox(b)
+		putBox(vtx, b)
 		vtx.InsertTag(tag)
 		vtx.AddBoxTag(b.ID, tag.ID)
 	})
@@ -397,13 +405,11 @@ func TestTagDirectCounts(t *testing.T) {
 // needs to exist inside.
 func seedBoxWithRoot(t *testing.T, db *sql.DB) (domain.BoxID, domain.FolderID) {
 	t.Helper()
-	b := mustBox(t, "云南")
 	root := domain.NewFolderID()
+	b := mustBox(t, "云南")
+	b.RootFolderID = root
 	viewTx(t, db, testTime, func(vtx *ViewTx) {
-		if err := vtx.InsertBox(b); err != nil {
-			t.Fatal(err)
-		}
-		if err := vtx.InsertFolder(domain.NewRootFolder(root, b.ID)); err != nil {
+		if err := putBox(vtx, b); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -412,9 +418,9 @@ func seedBoxWithRoot(t *testing.T, db *sql.DB) (domain.BoxID, domain.FolderID) {
 
 func TestInsertAndGetFile(t *testing.T) {
 	db := migrated(t)
-	box, root := seedBoxWithRoot(t, db)
+	_, root := seedBoxWithRoot(t, db)
 
-	f, err := domain.NewFile(domain.NewFileID(), box, root, "IMG_0001.JPG", "sha256:abcd")
+	f, err := domain.NewFile(domain.NewFileID(), root, "IMG_0001.JPG", "sha256:abcd")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -436,8 +442,8 @@ func TestInsertAndGetFile(t *testing.T) {
 		if got.Name != "IMG_0001.JPG" || got.NameFold != "img_0001.jpg" || got.BlobKey != "sha256:abcd" {
 			t.Errorf("round trip lost data: %+v", got)
 		}
-		if got.BoxID != box || got.FolderID != root {
-			t.Errorf("placement lost: box %v folder %v", got.BoxID, got.FolderID)
+		if got.FolderID != root {
+			t.Errorf("placement lost: folder %v", got.FolderID)
 		}
 		// spec 2.3.1: timestamps come from the op, not the wall clock.
 		if !got.CreatedAt.Equal(testTime) || !got.UpdatedAt.Equal(testTime) {
@@ -484,20 +490,20 @@ func TestUpsertBlobIsIdempotent(t *testing.T) {
 // the end into NULL.
 func TestFolderChainOfFiles(t *testing.T) {
 	db := migrated(t)
-	box, root := seedBoxWithRoot(t, db)
+	_, root := seedBoxWithRoot(t, db)
 
 	mid, leaf := domain.NewFolderID(), domain.NewFolderID()
-	file, err := domain.NewFile(domain.NewFileID(), box, leaf, "a.jpg", "sha256:abcd")
+	file, err := domain.NewFile(domain.NewFileID(), leaf, "a.jpg", "sha256:abcd")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	viewTx(t, db, testTime, func(vtx *ViewTx) {
-		f1, _ := domain.NewFolder(mid, box, root, "day1")
+		f1, _ := domain.NewFolder(mid, root, "day1")
 		if err := vtx.InsertFolder(f1); err != nil {
 			t.Fatal(err)
 		}
-		f2, _ := domain.NewFolder(leaf, box, mid, "raw")
+		f2, _ := domain.NewFolder(leaf, mid, "raw")
 		if err := vtx.InsertFolder(f2); err != nil {
 			t.Fatal(err)
 		}
@@ -564,9 +570,9 @@ func TestTouchFoldersUsesTheOpTimestamp(t *testing.T) {
 
 func TestFileTagRoundTrip(t *testing.T) {
 	db := migrated(t)
-	box, root := seedBoxWithRoot(t, db)
+	_, root := seedBoxWithRoot(t, db)
 	tag, _ := domain.NewTag(domain.NewTagID(), nil, "云南")
-	f, err := domain.NewFile(domain.NewFileID(), box, root, "a.jpg", "sha256:abcd")
+	f, err := domain.NewFile(domain.NewFileID(), root, "a.jpg", "sha256:abcd")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -610,14 +616,14 @@ func TestFolderAndBoxCounts(t *testing.T) {
 	sub := domain.NewFolderID()
 
 	viewTx(t, db, testTime, func(vtx *ViewTx) {
-		f, _ := domain.NewFolder(sub, box, root, "day1")
+		f, _ := domain.NewFolder(sub, root, "day1")
 		if err := vtx.InsertFolder(f); err != nil {
 			t.Fatal(err)
 		}
 		if err := vtx.UpsertBlob("sha256:abcd", "abcd", 1); err != nil {
 			t.Fatal(err)
 		}
-		file, _ := domain.NewFile(domain.NewFileID(), box, sub, "a.jpg", "sha256:abcd")
+		file, _ := domain.NewFile(domain.NewFileID(), sub, "a.jpg", "sha256:abcd")
 		if err := vtx.InsertFile(file); err != nil {
 			t.Fatal(err)
 		}

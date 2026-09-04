@@ -53,15 +53,16 @@ func (createBox) Apply(tx Tx, payload []byte) error {
 	if err != nil {
 		return err
 	}
-	b, err := domain.NewBox(p.BoxID, p.Name, p.Description)
+	b, err := domain.NewBox(p.BoxID, p.RootFolderID, p.Name, p.Description)
 	if err != nil {
 		return err
 	}
 	b.StartAt, b.EndAt = p.StartAt, p.EndAt
-	if err := tx.InsertBox(b); err != nil {
+	// The folder first: boxes.root_folder_id points at it.
+	if err := tx.InsertFolder(domain.NewRootFolder(p.RootFolderID)); err != nil {
 		return err
 	}
-	return tx.InsertFolder(domain.NewRootFolder(p.RootFolderID, p.BoxID))
+	return tx.InsertBox(b)
 }
 
 func (createBox) Inverse(payload []byte) (Action, []byte, error) {
@@ -122,10 +123,10 @@ func (deleteBox) Apply(tx Tx, payload []byte) error {
 	if subs > 0 {
 		return fmt.Errorf("box %q still has %d subfolder(s): %w", p.Name, subs, ErrStaleBefore)
 	}
-	if err := tx.DeleteFolder(p.RootFolderID); err != nil {
+	if err := tx.DeleteBox(p.BoxID); err != nil {
 		return err
 	}
-	return tx.DeleteBox(p.BoxID)
+	return tx.DeleteFolder(p.RootFolderID)
 }
 
 func (deleteBox) Inverse(payload []byte) (Action, []byte, error) {
@@ -160,7 +161,9 @@ func (updateBox) Apply(tx Tx, payload []byte) error {
 		return err
 	}
 
-	updated, err := domain.NewBox(p.BoxID, p.After.Name, p.After.Description)
+	// The root folder is structure, not a user-editable field: it comes from
+	// the box as it stands, never from the payload.
+	updated, err := domain.NewBox(p.BoxID, current.RootFolderID, p.After.Name, p.After.Description)
 	if err != nil {
 		return err
 	}

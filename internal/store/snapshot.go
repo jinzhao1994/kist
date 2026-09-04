@@ -17,9 +17,9 @@ var snapshotTables = []struct {
 	order   string
 }{
 	{"blobs", "key, sha256, size", "key"},
-	{"boxes", "hex(id), name, name_fold, description, created_at, updated_at, coalesce(start_at,''), coalesce(end_at,'')", "id"},
-	{"folders", "hex(id), hex(box_id), coalesce(hex(parent_id),''), name, name_fold, created_at, updated_at", "id"},
-	{"files", "hex(id), hex(box_id), hex(folder_id), name, name_fold, blob_key, coalesce(captured_at,''), created_at, updated_at", "id"},
+	{"boxes", "hex(id), hex(root_folder_id), name, name_fold, description, created_at, updated_at, coalesce(start_at,''), coalesce(end_at,'')", "id"},
+	{"folders", "hex(id), coalesce(hex(parent_id),''), name, name_fold, created_at, updated_at", "id"},
+	{"files", "hex(id), hex(folder_id), name, name_fold, blob_key, coalesce(captured_at,''), created_at, updated_at", "id"},
 	{"tags", "hex(id), coalesce(hex(parent_id),''), name, name_fold", "id"},
 	{"box_tags", "hex(box_id), hex(tag_id)", "box_id, tag_id"},
 	{"file_tags", "hex(file_id), hex(tag_id)", "file_id, tag_id"},

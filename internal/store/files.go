@@ -157,14 +157,85 @@ func FilesInFolder(q Queryer, folder domain.FolderID) ([]domain.File, error) {
 // order is by id — creation order — because the projection resolves name
 // collisions that way and a stable input makes that resolution reproducible.
 func FilesOfBox(q Queryer, box domain.BoxID) ([]domain.File, error) {
-	return queryFiles(q, `SELECT `+fileColumns+` FROM files WHERE box_id = ? ORDER BY id`, box)
+	return queryFiles(q, `SELECT `+fileColumns+` FROM files
+		WHERE folder_id IN (`+FoldersOfBoxSQL+`) ORDER BY id`, box)
 }
+
+// FolderChain returns the box a folder belongs to, and the names from the box
+// root down to that folder — the root's own empty name excluded.
+//
+// It walks up, so it reads only the folder's ancestors. The old shape read
+// every folder of the box, because a file carried a box_id and nothing else
+// pointed anywhere; that cost the whole box to answer a question about one
+// path (see open-questions "find 每一行都单独解析一次路径").
+func FolderChain(q Queryer, folder domain.FolderID) (domain.BoxID, []string, error) {
+	rows, err := q.Query(`
+		WITH RECURSIVE up(id, parent_id, name, depth) AS (
+			SELECT id, parent_id, name, 0 FROM folders WHERE id = ?
+		  UNION
+			SELECT d.id, d.parent_id, d.name, up.depth + 1
+			FROM folders d JOIN up ON d.id = up.parent_id
+		)
+		SELECT up.name, up.parent_id IS NULL, b.id
+		FROM up LEFT JOIN boxes b ON b.root_folder_id = up.id
+		ORDER BY up.depth DESC`, folder)
+	if err != nil {
+		return domain.BoxID{}, nil, fmt.Errorf("resolve folder chain: %w", err)
+	}
+	defer rows.Close()
+
+	var (
+		box   domain.BoxID
+		names []string
+	)
+	for rows.Next() {
+		var (
+			name   string
+			isRoot bool
+			owner  []byte // NULL when the chain ends at a root no box claims
+		)
+		if err := rows.Scan(&name, &isRoot, &owner); err != nil {
+			return domain.BoxID{}, nil, fmt.Errorf("resolve folder chain: %w", err)
+		}
+		if isRoot {
+			if owner != nil {
+				if err := box.Scan(owner); err != nil {
+					return domain.BoxID{}, nil, fmt.Errorf("resolve folder chain: %w", err)
+				}
+			}
+			continue // the root's name is "" and contributes nothing to the path
+		}
+		names = append(names, name)
+	}
+	return box, names, rows.Err()
+}
+
+// FoldersOfBoxSQL is a subquery yielding every folder id of one box, root
+// included. Its single "?" is the box id, so callers embed it wherever they
+// would once have written "box_id = ?".
+//
+// A folder's box is the box whose root it descends from, and since folders and
+// files stopped carrying a box_id that is the only place the answer lives
+// (spec 1.4). The walk therefore costs one recursive descent per query instead
+// of one denormalised column per row — and the column that used to be here
+// could disagree with the tree, which this cannot.
+//
+// UNION rather than UNION ALL, for the reason TagDescendants gives: the
+// deduplication is what makes a corrupt cycle terminate rather than recurse
+// until the query is killed. Identical on SQLite and Postgres (spec 4.7).
+const FoldersOfBoxSQL = `
+	WITH RECURSIVE box_folders(id) AS (
+		SELECT root_folder_id FROM boxes WHERE id = ?
+		UNION
+		SELECT f.id FROM folders f JOIN box_folders ON f.parent_id = box_folders.id
+	)
+	SELECT id FROM box_folders`
 
 // FoldersOfBox returns every folder of a box, root first, then the rest in id
 // order — which is creation order, so a parent always precedes its children.
 func FoldersOfBox(q Queryer, box domain.BoxID) ([]domain.Folder, error) {
 	rows, err := q.Query(
-		`SELECT `+folderColumns+` FROM folders WHERE box_id = ?
+		`SELECT `+folderColumns+` FROM folders WHERE id IN (`+FoldersOfBoxSQL+`)
 		 ORDER BY (parent_id IS NOT NULL), id`, box)
 	if err != nil {
 		return nil, fmt.Errorf("list folders: %w", err)
@@ -191,7 +262,9 @@ func FoldersOfBox(q Queryer, box domain.BoxID) ([]domain.Folder, error) {
 // the alternative is a query inside the loop that would also have to see the
 // files this same import added a moment ago.
 func ExistingNames(q Queryer, box domain.BoxID) (map[domain.FolderID]map[string]string, error) {
-	rows, err := q.Query(`SELECT folder_id, name_fold, blob_key FROM files WHERE box_id = ?`, box)
+	rows, err := q.Query(
+		`SELECT folder_id, name_fold, blob_key FROM files
+		 WHERE folder_id IN (`+FoldersOfBoxSQL+`)`, box)
 	if err != nil {
 		return nil, fmt.Errorf("read existing names: %w", err)
 	}

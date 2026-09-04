@@ -151,7 +151,7 @@ func newFileShowCmd() *cobra.Command {
 			if !ok {
 				return fmt.Errorf("no file with id %s", args[0])
 			}
-			path, err := l.FilePath(cmd.Context(), file)
+			box, path, err := l.FileLocation(cmd.Context(), file)
 			if err != nil {
 				return err
 			}
@@ -173,7 +173,7 @@ func newFileShowCmd() *cobra.Command {
 			}
 
 			out := wire.FileDetail{
-				File:         wire.NewFile(file, path, l.Zone()),
+				File:         wire.NewFile(file, box.String(), path, l.Zone()),
 				CapturedFrom: info.From,
 				CapturedZone: info.Zone,
 				Extracted:    info.Extracted,
