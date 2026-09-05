@@ -2,6 +2,7 @@ package library
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -53,7 +54,7 @@ func TestWriteRecordsAnOpAndAppliesIt(t *testing.T) {
 	}
 	raw, _ := oplog.Marshal(p)
 
-	opID, err := l.write(ctx, oplog.ActionCreateBox, raw, oplog.OriginUser, nil)
+	opID, err := l.write(ctx, oplog.ActionCreateBox, raw, oplog.OriginUser, writeOptions{})
 	if err != nil {
 		t.Fatalf("write: %v", err)
 	}
@@ -96,7 +97,7 @@ func TestWriteIsAtomic(t *testing.T) {
 	}
 	raw, _ := oplog.Marshal(stale)
 
-	if _, err := l.write(ctx, oplog.ActionUpdateBox, raw, oplog.OriginUser, nil); err == nil {
+	if _, err := l.write(ctx, oplog.ActionUpdateBox, raw, oplog.OriginUser, writeOptions{}); err == nil {
 		t.Fatal("writing an op whose Apply fails succeeded")
 	}
 
@@ -124,7 +125,7 @@ func TestWriteStoresTheClockExactly(t *testing.T) {
 	p := oplog.CreateBoxPayload{BoxID: domain.NewBoxID(), RootFolderID: domain.NewFolderID(),
 		BoxFields: oplog.BoxFields{Name: "x"}}
 	raw, _ := oplog.Marshal(p)
-	if _, err := l.write(context.Background(), oplog.ActionCreateBox, raw, oplog.OriginUser, nil); err != nil {
+	if _, err := l.write(context.Background(), oplog.ActionCreateBox, raw, oplog.OriginUser, writeOptions{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -144,7 +145,7 @@ func TestWriteFillsTheIndexTables(t *testing.T) {
 	p := oplog.CreateBoxPayload{BoxID: domain.NewBoxID(), RootFolderID: domain.NewFolderID(),
 		BoxFields: oplog.BoxFields{Name: "indexed"}}
 	raw, _ := oplog.Marshal(p)
-	opID, _ := l.write(ctx, oplog.ActionCreateBox, raw, oplog.OriginUser, nil)
+	opID, _ := l.write(ctx, oplog.ActionCreateBox, raw, oplog.OriginUser, writeOptions{})
 
 	byBox, err := l.Ops(ctx, store.ListOpsOptions{Box: &p.BoxID, Limit: 10})
 	if err != nil {
@@ -164,7 +165,7 @@ func TestUserOpsPropagateUpdatedAt(t *testing.T) {
 	box := domain.NewBoxID()
 	create, _ := oplog.Marshal(oplog.CreateBoxPayload{BoxID: box, RootFolderID: domain.NewFolderID(),
 		BoxFields: oplog.BoxFields{Name: "before"}})
-	l.write(ctx, oplog.ActionCreateBox, create, oplog.OriginUser, nil)
+	l.write(ctx, oplog.ActionCreateBox, create, oplog.OriginUser, writeOptions{})
 	first, _, _ := l.Box(ctx, box)
 
 	update, _ := oplog.Marshal(oplog.UpdateBoxPayload{
@@ -172,7 +173,7 @@ func TestUserOpsPropagateUpdatedAt(t *testing.T) {
 		Before: oplog.BoxFields{Name: "before"},
 		After:  oplog.BoxFields{Name: "after"},
 	})
-	if _, err := l.write(ctx, oplog.ActionUpdateBox, update, oplog.OriginUser, nil); err != nil {
+	if _, err := l.write(ctx, oplog.ActionUpdateBox, update, oplog.OriginUser, writeOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	second, _, _ := l.Box(ctx, box)
@@ -194,7 +195,7 @@ func TestMaintenanceOpsDoNotPropagateUpdatedAt(t *testing.T) {
 	box := domain.NewBoxID()
 	create, _ := oplog.Marshal(oplog.CreateBoxPayload{BoxID: box, RootFolderID: domain.NewFolderID(),
 		BoxFields: oplog.BoxFields{Name: "before"}})
-	l.write(ctx, oplog.ActionCreateBox, create, oplog.OriginUser, nil)
+	l.write(ctx, oplog.ActionCreateBox, create, oplog.OriginUser, writeOptions{})
 	first, _, _ := l.Box(ctx, box)
 
 	update, _ := oplog.Marshal(oplog.UpdateBoxPayload{
@@ -202,7 +203,7 @@ func TestMaintenanceOpsDoNotPropagateUpdatedAt(t *testing.T) {
 		Before: oplog.BoxFields{Name: "before"},
 		After:  oplog.BoxFields{Name: "after"},
 	})
-	if _, err := l.write(ctx, oplog.ActionUpdateBox, update, oplog.OriginMaintenance, nil); err != nil {
+	if _, err := l.write(ctx, oplog.ActionUpdateBox, update, oplog.OriginMaintenance, writeOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	second, _, _ := l.Box(ctx, box)
@@ -217,7 +218,7 @@ func TestMaintenanceOpsDoNotPropagateUpdatedAt(t *testing.T) {
 
 func TestWriteRejectsAnUnknownAction(t *testing.T) {
 	l := openTestLibrary(t)
-	_, err := l.write(context.Background(), oplog.Action("teleport"), []byte(`{}`), oplog.OriginUser, nil)
+	_, err := l.write(context.Background(), oplog.Action("teleport"), []byte(`{}`), oplog.OriginUser, writeOptions{})
 	if err == nil {
 		t.Error("writing an unregistered action succeeded")
 	}
@@ -268,5 +269,69 @@ func TestTaggingIsHistoryNotContent(t *testing.T) {
 	}
 	if !tagged {
 		t.Errorf("the box's history has %d op(s) and none of them is the tagging", len(ops))
+	}
+}
+
+// A group is bookkeeping about how ops were written, not about what they did.
+//
+// Nothing downstream of the op log may depend on it — which is another way of
+// saying a rebuild must not be able to tell whether one was set.
+func TestAGroupChangesNothingAboutTheState(t *testing.T) {
+	ctx := context.Background()
+
+	// Fixed ids: the two runs have to produce comparable snapshots, and a
+	// freshly minted UUIDv7 would differ between them for reasons that are
+	// not the group.
+	boxPayload := func(t *testing.T, name string, n byte) []byte {
+		t.Helper()
+		boxID, err := domain.ParseID(fmt.Sprintf("01900000-0000-7000-8000-0000000000%02d", n))
+		if err != nil {
+			t.Fatal(err)
+		}
+		rootID, err := domain.ParseID(fmt.Sprintf("01900000-0000-7000-8000-0000000001%02d", n))
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw, err := oplog.Marshal(oplog.CreateBoxPayload{
+			BoxID:        domain.BoxID{ID: boxID},
+			RootFolderID: domain.FolderID{ID: rootID},
+			BoxFields:    oplog.BoxFields{Name: name},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return raw
+	}
+
+	snap := func(group bool) string {
+		t.Helper()
+		l := openTestLibrary(t)
+
+		// The op that heads the group, written the way a real one is: with
+		// no root of its own.
+		first, err := l.write(ctx, oplog.ActionCreateBox,
+			boxPayload(t, "云南", 1), oplog.OriginUser, writeOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var opt writeOptions
+		if group {
+			opt.RootOpID = &first
+		}
+		if _, err := l.write(ctx, oplog.ActionCreateBox,
+			boxPayload(t, "西藏", 2), oplog.OriginUser, opt); err != nil {
+			t.Fatal(err)
+		}
+
+		got, err := store.Snapshot(l.db)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+
+	if with, without := snap(true), snap(false); with != without {
+		t.Error("setting a group changed the materialized state")
 	}
 }

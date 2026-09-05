@@ -84,6 +84,15 @@ converges instead of accumulating copies.`,
 				if err != nil {
 					return err
 				}
+				// One group per invocation, not per path: `kist import a/ b/ c/`
+				// is three ops today, and a chunked import will make even one
+				// path several. The first op that actually gets written heads
+				// the group — a path that imported nothing writes no op, so
+				// which one that is cannot be decided up front.
+				if opt.RootOp == nil && res.OpID != 0 {
+					root := res.OpID
+					opt.RootOp = &root
+				}
 				out.Imports = append(out.Imports, importResult(src, res))
 				results = append(results, res)
 				if res.Count(library.FileFailed) > 0 {

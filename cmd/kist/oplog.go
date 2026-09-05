@@ -16,6 +16,7 @@ func newLogCmd() *cobra.Command {
 	var (
 		limit int
 		box   string
+		group int64
 	)
 
 	cmd := &cobra.Command{
@@ -30,6 +31,9 @@ func newLogCmd() *cobra.Command {
 			defer l.Close()
 
 			opt := library.ListOpsOptions{Limit: limit}
+			if group > 0 {
+				opt.Group = &group
+			}
 			if box != "" {
 				b, err := l.ResolveBox(cmd.Context(), box)
 				if err != nil {
@@ -54,6 +58,7 @@ func newLogCmd() *cobra.Command {
 					Origin:    string(op.Origin),
 					RevertsID: op.RevertsID,
 				}
+				row.RootOpID = op.RootOpID
 				if by, ok, err := l.RevertedBy(cmd.Context(), op.ID); err != nil {
 					return err
 				} else if ok {
@@ -72,6 +77,12 @@ func newLogCmd() *cobra.Command {
 					if op.RevertsID != nil {
 						status = fmt.Sprintf("(undoes %d)", *op.RevertsID)
 					}
+					// Naming the root is the whole display: a group has no id
+					// of its own, so "with 2" is both the marker and the
+					// argument to pass back to --group.
+					if op.RootOpID != nil {
+						status += fmt.Sprintf(" (with %d)", *op.RootOpID)
+					}
 					fmt.Fprintf(tw, "%d\t%s\t%s\t%s\t%s\n",
 						op.ID, op.TS.Format("2006-01-02 15:04:05"), op.Action, op.Origin, status)
 				}
@@ -81,6 +92,7 @@ func newLogCmd() *cobra.Command {
 	}
 	cmd.Flags().IntVarP(&limit, "limit", "n", 20, "how many ops to show")
 	cmd.Flags().StringVar(&box, "box", "", "only ops that touched this box")
+	cmd.Flags().Int64Var(&group, "group", 0, "only the ops written by the same command as this one")
 	return cmd
 }
 

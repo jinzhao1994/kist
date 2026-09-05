@@ -97,6 +97,10 @@ type ImportOptions struct {
 	// archive that quietly accumulates one per directory forever is worse than
 	// one that made you pass a flag.
 	Hidden bool
+	// RootOp, when set, joins this import's op to a group headed by that op —
+	// `kist import a/ b/ c/` is three ops today, and will be more once a large
+	// import is written in chunks. It changes nothing about what is imported.
+	RootOp *int64
 }
 
 // scanned is one candidate found on disk, before anything has been decided.
@@ -242,7 +246,8 @@ func (l *Library) Import(ctx context.Context, src string, opt ImportOptions) (*I
 		}
 		// The op must be written even when the context is done — that is what
 		// "graceful stop" means.
-		opID, err := l.write(context.WithoutCancel(ctx), oplog.ActionImportFiles, raw, oplog.OriginUser, nil)
+		opID, err := l.write(context.WithoutCancel(ctx), oplog.ActionImportFiles, raw,
+			oplog.OriginUser, writeOptions{RootOpID: opt.RootOp})
 		if err != nil {
 			return nil, err
 		}

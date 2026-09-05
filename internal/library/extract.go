@@ -165,7 +165,7 @@ func (l *Library) extractBatch(
 	}
 	// The op must be written even when the context is done: that is what
 	// "graceful stop" means, and the work is already paid for (spec 3.7.1 ①).
-	opID, err := l.write(context.WithoutCancel(ctx), oplog.ActionExtractMetadata, raw, oplog.OriginExtractor, nil)
+	opID, err := l.write(context.WithoutCancel(ctx), oplog.ActionExtractMetadata, raw, oplog.OriginExtractor, writeOptions{})
 	if err != nil {
 		return 0, nil, err
 	}

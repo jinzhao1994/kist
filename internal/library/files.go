@@ -179,7 +179,7 @@ func (l *Library) TagFiles(ctx context.Context, tag domain.TagID, files []domain
 	if err != nil {
 		return 0, err
 	}
-	if _, err := l.write(ctx, oplog.ActionTagFiles, raw, oplog.OriginUser, nil); err != nil {
+	if _, err := l.write(ctx, oplog.ActionTagFiles, raw, oplog.OriginUser, writeOptions{}); err != nil {
 		return 0, err
 	}
 	return len(changed), nil
@@ -196,7 +196,7 @@ func (l *Library) UntagFiles(ctx context.Context, tag domain.TagID, files []doma
 	if err != nil {
 		return 0, err
 	}
-	if _, err := l.write(ctx, oplog.ActionUntagFiles, raw, oplog.OriginUser, nil); err != nil {
+	if _, err := l.write(ctx, oplog.ActionUntagFiles, raw, oplog.OriginUser, writeOptions{}); err != nil {
 		return 0, err
 	}
 	return len(changed), nil

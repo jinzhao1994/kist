@@ -176,7 +176,10 @@ type Op struct {
 	// reverts_id being an indexed column rather than payload is what makes the
 	// second one answerable at all (invariant 4).
 	RevertsID *int64 `json:"reverts_id"`
-	UndoneBy  *int64 `json:"undone_by"`
+	// RootOpID is the first op of the group one command wrote, when this op
+	// was not the first. Absent on ops written alone, which is most of them.
+	RootOpID *int64 `json:"root_op_id,omitempty"`
+	UndoneBy *int64 `json:"undone_by"`
 }
 
 // Metadata is one extracted fact about a file.

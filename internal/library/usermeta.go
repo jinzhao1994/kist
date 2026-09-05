@@ -71,7 +71,7 @@ func (l *Library) RemoveMetadata(ctx context.Context, id domain.FileID, key stri
 	if err != nil {
 		return false, err
 	}
-	if _, err := l.write(ctx, oplog.ActionSetMetadata, raw, oplog.OriginUser, nil); err != nil {
+	if _, err := l.write(ctx, oplog.ActionSetMetadata, raw, oplog.OriginUser, writeOptions{}); err != nil {
 		return false, err
 	}
 	return true, nil

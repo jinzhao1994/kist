@@ -40,7 +40,7 @@ func (l *Library) CreateBox(ctx context.Context, name, description string, start
 	if err != nil {
 		return domain.Box{}, err
 	}
-	if _, err := l.write(ctx, oplog.ActionCreateBox, raw, oplog.OriginUser, nil); err != nil {
+	if _, err := l.write(ctx, oplog.ActionCreateBox, raw, oplog.OriginUser, writeOptions{}); err != nil {
 		return domain.Box{}, err
 	}
 	b, _, err := l.Box(ctx, p.BoxID)
@@ -77,7 +77,7 @@ func (l *Library) UpdateBox(ctx context.Context, id domain.BoxID, f BoxFields) (
 	if err != nil {
 		return domain.Box{}, err
 	}
-	if _, err := l.write(ctx, oplog.ActionUpdateBox, raw, oplog.OriginUser, nil); err != nil {
+	if _, err := l.write(ctx, oplog.ActionUpdateBox, raw, oplog.OriginUser, writeOptions{}); err != nil {
 		return domain.Box{}, err
 	}
 	b, _, err := l.Box(ctx, id)
@@ -118,7 +118,7 @@ func (l *Library) CreateTag(ctx context.Context, name string, parent *domain.Tag
 	if err != nil {
 		return domain.Tag{}, err
 	}
-	if _, err := l.write(ctx, oplog.ActionCreateTag, raw, oplog.OriginUser, nil); err != nil {
+	if _, err := l.write(ctx, oplog.ActionCreateTag, raw, oplog.OriginUser, writeOptions{}); err != nil {
 		return domain.Tag{}, err
 	}
 	return tag, nil
@@ -150,7 +150,7 @@ func (l *Library) RenameTag(ctx context.Context, id domain.TagID, name string) e
 	if err != nil {
 		return err
 	}
-	_, err = l.write(ctx, oplog.ActionRenameTag, raw, oplog.OriginUser, nil)
+	_, err = l.write(ctx, oplog.ActionRenameTag, raw, oplog.OriginUser, writeOptions{})
 	return err
 }
 
@@ -190,7 +190,7 @@ func (l *Library) MoveTag(ctx context.Context, id domain.TagID, parent *domain.T
 	if err != nil {
 		return err
 	}
-	_, err = l.write(ctx, oplog.ActionMoveTag, raw, oplog.OriginUser, nil)
+	_, err = l.write(ctx, oplog.ActionMoveTag, raw, oplog.OriginUser, writeOptions{})
 	return err
 }
 
@@ -210,7 +210,7 @@ func (l *Library) DeleteTag(ctx context.Context, id domain.TagID) error {
 	if err != nil {
 		return err
 	}
-	_, err = l.write(ctx, oplog.ActionDeleteTag, raw, oplog.OriginUser, nil)
+	_, err = l.write(ctx, oplog.ActionDeleteTag, raw, oplog.OriginUser, writeOptions{})
 	return err
 }
 
@@ -229,7 +229,7 @@ func (l *Library) TagBoxes(ctx context.Context, tag domain.TagID, boxes []domain
 	if err != nil {
 		return 0, err
 	}
-	if _, err := l.write(ctx, oplog.ActionTagBoxes, raw, oplog.OriginUser, nil); err != nil {
+	if _, err := l.write(ctx, oplog.ActionTagBoxes, raw, oplog.OriginUser, writeOptions{}); err != nil {
 		return 0, err
 	}
 	return len(changed), nil
@@ -245,7 +245,7 @@ func (l *Library) UntagBoxes(ctx context.Context, tag domain.TagID, boxes []doma
 	if err != nil {
 		return 0, err
 	}
-	if _, err := l.write(ctx, oplog.ActionUntagBoxes, raw, oplog.OriginUser, nil); err != nil {
+	if _, err := l.write(ctx, oplog.ActionUntagBoxes, raw, oplog.OriginUser, writeOptions{}); err != nil {
 		return 0, err
 	}
 	return len(changed), nil

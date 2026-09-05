@@ -11,6 +11,23 @@ import (
 	"github.com/jinzhao1994/kist/internal/store"
 )
 
+// writeOptions are the two things that describe how an op came about rather
+// than what it does. Both are columns on ops and neither reaches Apply, so
+// neither can change what a rebuild produces.
+//
+// A struct rather than two more parameters: the pair grows — a third axis is
+// already imaginable — and a call site reading `..., nil, nil)` says nothing
+// about which nil is which.
+type writeOptions struct {
+	// RevertsID names the op this one undoes.
+	RevertsID *int64
+	// RootOpID is the first op of the group this one joins. The first op of a
+	// group carries nil — ops.id comes from AUTOINCREMENT, so it is not known
+	// until the row is in, and pointing it at itself afterwards would mean
+	// updating an op.
+	RootOpID *int64
+}
+
 // write is the single write path. Every change to a kist library goes through
 // this function; there is no other way in (invariant 2), which is why it is
 // unexported.
@@ -30,7 +47,7 @@ func (l *Library) write(
 	action oplog.Action,
 	payload []byte,
 	origin oplog.Origin,
-	revertsID *int64,
+	opt writeOptions,
 ) (int64, error) {
 	// Everything below — the transaction and the incremental projection at
 	// the end — is one logical write, and the lock covers both (spec 2.7).
@@ -77,7 +94,8 @@ func (l *Library) write(
 		Action:    string(action),
 		Origin:    string(origin),
 		Payload:   payload,
-		RevertsID: revertsID,
+		RevertsID: opt.RevertsID,
+		RootOpID:  opt.RootOpID,
 	})
 	if err != nil {
 		return 0, err

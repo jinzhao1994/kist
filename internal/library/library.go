@@ -191,6 +191,7 @@ func toOp(r store.OpRow) oplog.Op {
 		Origin:    oplog.Origin(r.Origin),
 		Payload:   r.Payload,
 		RevertsID: r.RevertsID,
+		RootOpID:  r.RootOpID,
 	}
 }
 

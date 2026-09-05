@@ -70,6 +70,10 @@ type (
 	FolderID struct{ ID }
 	FileID   struct{ ID }
 	TagID    struct{ ID }
+	// GroupID marks the ops one command wrote. It names nothing that has a
+	// row of its own — a group with no attributes is not an entity — so the
+	// only place it appears is ops.group_id (spec 2.6).
+	GroupID struct{ ID }
 )
 
 func NewBoxID() BoxID       { return BoxID{NewID()} }

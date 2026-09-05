@@ -35,9 +35,18 @@ CREATE TABLE ops (
                                  -- （origin=user，行上 source=file），所以它们
                                  -- 推导不出彼此
   payload    TEXT    NOT NULL,   -- 不透明 JSON，绝不查进去（spec 2.2.1）
-  reverts_id INTEGER REFERENCES ops(id)
+  reverts_id INTEGER REFERENCES ops(id),
+  root_op_id INTEGER REFERENCES ops(id)
+                                 -- 同一条命令写出的若干 op，后面几条指向第一条
+                                 -- （spec 2.5.1）。第一条自己是 NULL：id 由
+                                 -- AUTOINCREMENT 在插入时给出，写它的时候还不
+                                 -- 知道，而补一个自指要 UPDATE 一行 op。
+                                 -- 是列不是 payload，理由和 reverts_id 一样：它
+                                 -- 说的是这条 op 怎么来的，不是这条 op 做了什么。
+                                 -- Apply 看不见它，所以重放不受影响
 );
 CREATE INDEX ops_reverts ON ops(reverts_id) WHERE reverts_id IS NOT NULL;
+CREATE INDEX ops_group ON ops(root_op_id, id) WHERE root_op_id IS NOT NULL;
 
 -- payload 的索引表。派生的、可从 payload 单向重建。
 -- 刻意不对 boxes/files 建外键：历史必须比它的主体活得久，删掉一个 box

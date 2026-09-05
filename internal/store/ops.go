@@ -42,14 +42,20 @@ type OpRow struct {
 	Origin    string
 	Payload   []byte
 	RevertsID *int64
+	// RootOpID is the first op of the group this one belongs to, set when a
+	// single command wrote several. It is bookkeeping about the write, not
+	// about what was written, which is why Apply never sees it and a rebuild
+	// does not care. The first op of a group carries nil: it is the root.
+	RootOpID *int64
 }
 
 // AppendOp inserts an op and returns its id, which is the library's version
 // number. Ops are never updated and never deleted.
 func AppendOp(tx *sql.Tx, r OpRow) (int64, error) {
 	res, err := tx.Exec(
-		`INSERT INTO ops (ts, action, origin, payload, reverts_id) VALUES (?, ?, ?, ?, ?)`,
-		FormatTime(r.TS), r.Action, r.Origin, string(r.Payload), r.RevertsID)
+		`INSERT INTO ops (ts, action, origin, payload, reverts_id, root_op_id)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		FormatTime(r.TS), r.Action, r.Origin, string(r.Payload), r.RevertsID, r.RootOpID)
 	if err != nil {
 		return 0, fmt.Errorf("append op %q: %w", r.Action, err)
 	}
@@ -62,7 +68,7 @@ func AppendOp(tx *sql.Tx, r OpRow) (int64, error) {
 
 // opColumns is everything about an op. GetOp and replay use it; both need the
 // payload.
-const opColumns = `id, ts, action, origin, payload, reverts_id`
+const opColumns = `id, ts, action, origin, payload, reverts_id, root_op_id`
 
 // opListColumns is the same, minus the payload.
 //
@@ -70,13 +76,13 @@ const opColumns = `id, ts, action, origin, payload, reverts_id`
 // undone — never the payload. Once imports exist, selecting it anyway means
 // `kist log -n 20` reads twenty megabytes to print twenty lines: a 5000-file
 // import's payload is about a megabyte (spec 2.2.1).
-const opListColumns = `id, ts, action, origin, reverts_id`
+const opListColumns = `id, ts, action, origin, reverts_id, root_op_id`
 
 func scanOp(scan func(...any) error) (OpRow, error) {
 	var r OpRow
 	var ts int64
 	var payload string
-	if err := scan(&r.ID, &ts, &r.Action, &r.Origin, &payload, &r.RevertsID); err != nil {
+	if err := scan(&r.ID, &ts, &r.Action, &r.Origin, &payload, &r.RevertsID, &r.RootOpID); err != nil {
 		return OpRow{}, err
 	}
 	r.TS = ParseTime(ts)
@@ -88,7 +94,7 @@ func scanOp(scan func(...any) error) (OpRow, error) {
 func scanOpHeader(scan func(...any) error) (OpRow, error) {
 	var r OpRow
 	var ts int64
-	if err := scan(&r.ID, &ts, &r.Action, &r.Origin, &r.RevertsID); err != nil {
+	if err := scan(&r.ID, &ts, &r.Action, &r.Origin, &r.RevertsID, &r.RootOpID); err != nil {
 		return OpRow{}, err
 	}
 	r.TS = ParseTime(ts)
@@ -111,6 +117,9 @@ func GetOp(q Queryer, id int64) (OpRow, bool, error) {
 type ListOpsOptions struct {
 	// Box restricts to ops that touched this box, via the op_boxes index.
 	Box *domain.BoxID
+	// Group restricts to the ops one command wrote, addressed by any op in
+	// it: nobody wants to type a UUID that is printed nowhere.
+	Group *int64
 	// Before, when non-zero, returns only ops with a smaller id — the cursor
 	// for paging back through history.
 	Before int64
@@ -132,6 +141,15 @@ func ListOps(q Queryer, opt ListOpsOptions) ([]OpRow, error) {
 		// 94.63ms at 200k ops, and the gap widens forever (spec 2.2.1).
 		sb.WriteString(` AND id IN (SELECT op_id FROM op_boxes WHERE box_id = ?)`)
 		args = append(args, *opt.Box)
+	}
+	if opt.Group != nil {
+		// A group is named by any op in it, root or not: the group has no id
+		// of its own to type. The coalesce turns a member into its root and
+		// leaves a root — or an op in no group at all — as itself, so
+		// "--group 7" always says something rather than nothing.
+		const root = `(SELECT coalesce(root_op_id, id) FROM ops WHERE id = ?)`
+		sb.WriteString(` AND (id = ` + root + ` OR root_op_id = ` + root + `)`)
+		args = append(args, *opt.Group, *opt.Group)
 	}
 	if opt.Before > 0 {
 		sb.WriteString(` AND id < ?`)

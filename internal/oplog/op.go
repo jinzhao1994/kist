@@ -18,6 +18,12 @@ type Op struct {
 	Origin    Origin
 	Payload   []byte
 	RevertsID *int64
+	// RootOpID is the first op of the group this one belongs to, when a single
+	// command wrote several; nil on that first op, and on every op written
+	// alone. It says how the op came about rather than what it did, so no
+	// handler is given it: an Apply that could read it would be an Apply whose
+	// result depends on how the write was invoked (invariant 3).
+	RootOpID *int64
 }
 
 // Marshal encodes a typed payload struct.
