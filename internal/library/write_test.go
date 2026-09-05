@@ -91,9 +91,8 @@ func TestWriteIsAtomic(t *testing.T) {
 	ctx := context.Background()
 
 	stale := oplog.UpdateBoxPayload{
-		BoxID:  domain.NewBoxID(), // no such box
-		Before: oplog.BoxFields{Name: "whatever"},
-		After:  oplog.BoxFields{Name: "nope"},
+		BoxID: domain.NewBoxID(), // no such box
+		Name:  &oplog.TextChange{Before: "whatever", After: "nope"},
 	}
 	raw, _ := oplog.Marshal(stale)
 
@@ -169,9 +168,8 @@ func TestUserOpsPropagateUpdatedAt(t *testing.T) {
 	first, _, _ := l.Box(ctx, box)
 
 	update, _ := oplog.Marshal(oplog.UpdateBoxPayload{
-		BoxID:  box,
-		Before: oplog.BoxFields{Name: "before"},
-		After:  oplog.BoxFields{Name: "after"},
+		BoxID: box,
+		Name:  &oplog.TextChange{Before: "before", After: "after"},
 	})
 	if _, err := l.write(ctx, oplog.ActionUpdateBox, update, oplog.OriginUser, writeOptions{}); err != nil {
 		t.Fatal(err)
@@ -199,9 +197,8 @@ func TestMaintenanceOpsDoNotPropagateUpdatedAt(t *testing.T) {
 	first, _, _ := l.Box(ctx, box)
 
 	update, _ := oplog.Marshal(oplog.UpdateBoxPayload{
-		BoxID:  box,
-		Before: oplog.BoxFields{Name: "before"},
-		After:  oplog.BoxFields{Name: "after"},
+		BoxID: box,
+		Name:  &oplog.TextChange{Before: "before", After: "after"},
 	})
 	if _, err := l.write(ctx, oplog.ActionUpdateBox, update, oplog.OriginMaintenance, writeOptions{}); err != nil {
 		t.Fatal(err)

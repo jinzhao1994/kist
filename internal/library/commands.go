@@ -62,15 +62,23 @@ func (l *Library) UpdateBox(ctx context.Context, id domain.BoxID, f BoxFields) (
 		return domain.Box{}, fmt.Errorf("%s: %w", id, ErrNoSuchBox)
 	}
 
-	p := oplog.UpdateBoxPayload{
-		BoxID: id,
-		Before: oplog.BoxFields{
-			Name: current.Name, Description: current.Description,
-			StartAt: current.StartAt, EndAt: current.EndAt,
-		},
-		After: f,
+	// Only the fields that actually move go into the payload. Everything
+	// downstream follows from that: Apply asserts exactly these, and a later
+	// edit to a different field cannot block undoing this one (spec 2.3).
+	p := oplog.UpdateBoxPayload{BoxID: id}
+	if current.Name != f.Name {
+		p.Name = &oplog.TextChange{Before: current.Name, After: f.Name}
 	}
-	if p.Before == p.After {
+	if current.Description != f.Description {
+		p.Description = &oplog.TextChange{Before: current.Description, After: f.Description}
+	}
+	if current.StartAt != f.StartAt {
+		p.StartAt = &oplog.DateChange{Before: current.StartAt, After: f.StartAt}
+	}
+	if current.EndAt != f.EndAt {
+		p.EndAt = &oplog.DateChange{Before: current.EndAt, After: f.EndAt}
+	}
+	if p.Empty() {
 		return current, nil // nothing to record
 	}
 	raw, err := oplog.Marshal(p)

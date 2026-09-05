@@ -135,12 +135,54 @@ func (deleteBox) Inverse(payload []byte) (Action, []byte, error) {
 
 func (deleteBox) Targets(payload []byte) (Targets, error) { return boxTargets(payload) }
 
-// UpdateBoxPayload records both sides so Inverse is a swap and needs no
-// database access at all (spec 2.3).
+// TextChange and DateChange are one field's two sides. Both are here so
+// Inverse is a swap and needs no database access at all (spec 2.3).
+type TextChange struct {
+	Before string `json:"before"`
+	After  string `json:"after"`
+}
+
+// DateChange is the same for the variable-precision dates (spec 1.3).
+type DateChange struct {
+	Before domain.LocalDate `json:"before"`
+	After  domain.LocalDate `json:"after"`
+}
+
+// UpdateBoxPayload records only the fields this op actually changes. A field
+// it left alone is absent, not a pair of equal values.
+//
+// The absence is what keeps Apply honest: it asserts exactly what it writes.
+// A payload carrying all four fields would have to assert all four, and then
+// undoing a rename would fail because somebody edited the description in
+// between — or, worse, succeed and silently revert that edit too, which is
+// precisely the half-restored archive spec 2.5 exists to prevent.
 type UpdateBoxPayload struct {
-	BoxID  domain.BoxID `json:"box_id"`
-	Before BoxFields    `json:"before"`
-	After  BoxFields    `json:"after"`
+	BoxID       domain.BoxID `json:"box_id"`
+	Name        *TextChange  `json:"name,omitempty"`
+	Description *TextChange  `json:"description,omitempty"`
+	StartAt     *DateChange  `json:"start_at,omitempty"`
+	EndAt       *DateChange  `json:"end_at,omitempty"`
+}
+
+// Empty reports whether the payload changes nothing. library skips writing
+// such an op; Apply refuses one, because a stored op that does nothing would
+// still have to be undoable.
+func (p UpdateBoxPayload) Empty() bool {
+	return p.Name == nil && p.Description == nil && p.StartAt == nil && p.EndAt == nil
+}
+
+func (c *TextChange) swapped() *TextChange {
+	if c == nil {
+		return nil
+	}
+	return &TextChange{Before: c.After, After: c.Before}
+}
+
+func (c *DateChange) swapped() *DateChange {
+	if c == nil {
+		return nil
+	}
+	return &DateChange{Before: c.After, After: c.Before}
 }
 
 type updateBox struct{}
@@ -150,6 +192,9 @@ func (updateBox) Apply(tx Tx, payload []byte) error {
 	if err != nil {
 		return err
 	}
+	if p.Empty() {
+		return fmt.Errorf("update_box: %w", errEmptyBatch)
+	}
 	current, ok, err := tx.GetBox(p.BoxID)
 	if err != nil {
 		return err
@@ -157,18 +202,53 @@ func (updateBox) Apply(tx Tx, payload []byte) error {
 	if !ok {
 		return fmt.Errorf("box %s no longer exists: %w", p.BoxID, ErrStaleBefore)
 	}
-	if err := checkBoxFields(p.BoxID, p.Before, current); err != nil {
-		return err
+
+	// One assertion per field the op touches, and none for the fields it does
+	// not. A later edit to a different field is not in the way of this one.
+	next := BoxFields{
+		Name: current.Name, Description: current.Description,
+		StartAt: current.StartAt, EndAt: current.EndAt,
+	}
+	if c := p.Name; c != nil {
+		if current.Name != c.Before {
+			return staleField(p.BoxID, "name", current.Name, c.Before)
+		}
+		next.Name = c.After
+	}
+	if c := p.Description; c != nil {
+		if current.Description != c.Before {
+			return staleField(p.BoxID, "description", current.Description, c.Before)
+		}
+		next.Description = c.After
+	}
+	if c := p.StartAt; c != nil {
+		if current.StartAt != c.Before {
+			return staleField(p.BoxID, "start_at", current.StartAt, c.Before)
+		}
+		next.StartAt = c.After
+	}
+	if c := p.EndAt; c != nil {
+		if current.EndAt != c.Before {
+			return staleField(p.BoxID, "end_at", current.EndAt, c.Before)
+		}
+		next.EndAt = c.After
 	}
 
-	// The root folder is structure, not a user-editable field: it comes from
-	// the box as it stands, never from the payload.
-	updated, err := domain.NewBox(p.BoxID, current.RootFolderID, p.After.Name, p.After.Description)
+	// Through NewBox rather than writing the fields straight out: validation
+	// and folding live there, and an update must not be able to store a name
+	// a create would have rejected. The root folder is structure, not a
+	// user-editable field, so it comes from the box as it stands.
+	updated, err := domain.NewBox(p.BoxID, current.RootFolderID, next.Name, next.Description)
 	if err != nil {
 		return err
 	}
-	updated.StartAt, updated.EndAt = p.After.StartAt, p.After.EndAt
+	updated.StartAt, updated.EndAt = next.StartAt, next.EndAt
 	return tx.UpdateBox(updated)
+}
+
+func staleField(id domain.BoxID, field string, got, want any) error {
+	return fmt.Errorf("box %s: %s reads %v but this op expected %v: %w",
+		id, field, got, want, ErrStaleBefore)
 }
 
 func (updateBox) Inverse(payload []byte) (Action, []byte, error) {
@@ -176,7 +256,8 @@ func (updateBox) Inverse(payload []byte) (Action, []byte, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	p.Before, p.After = p.After, p.Before
+	p.Name, p.Description = p.Name.swapped(), p.Description.swapped()
+	p.StartAt, p.EndAt = p.StartAt.swapped(), p.EndAt.swapped()
 	raw, err := Marshal(p)
 	return ActionUpdateBox, raw, err
 }
@@ -189,9 +270,14 @@ func (updateBox) Targets(payload []byte) (Targets, error) {
 	return Targets{Boxes: []domain.BoxID{p.BoxID}}, nil
 }
 
-// checkBoxFields is the strict-mode assertion. It compares semantic fields
-// only — created_at is immutable and updated_at is derived, so neither belongs
-// in the comparison.
+// checkBoxFields is delete_box's assertion: every semantic field at once.
+//
+// Total, unlike update_box's per-field checks, because the two ops touch
+// different amounts. An update writes only the columns it declared; a delete
+// takes the whole row away, so it has to be right about the whole row.
+//
+// created_at is immutable and updated_at is derived, so neither belongs in the
+// comparison.
 func checkBoxFields(id domain.BoxID, want BoxFields, got domain.Box) error {
 	actual := BoxFields{
 		Name:        got.Name,

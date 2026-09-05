@@ -210,9 +210,10 @@ func TestUpdateBoxApplyAndInverse(t *testing.T) {
 
 	start, _ := domain.ParseLocalDate("2019-08")
 	up := UpdateBoxPayload{
-		BoxID:  p.BoxID,
-		Before: BoxFields{Name: "old name"},
-		After:  BoxFields{Name: "new name", Description: "with a note", StartAt: start},
+		BoxID:       p.BoxID,
+		Name:        &TextChange{Before: "old name", After: "new name"},
+		Description: &TextChange{Before: "", After: "with a note"},
+		StartAt:     &DateChange{After: start},
 	}
 	upRaw, _ := Marshal(up)
 
@@ -250,9 +251,8 @@ func TestUpdateBoxRefusesAStaleBefore(t *testing.T) {
 	apply(t, tx, ActionCreateBox, raw)
 
 	stale := UpdateBoxPayload{
-		BoxID:  p.BoxID,
-		Before: BoxFields{Name: "something else entirely"},
-		After:  BoxFields{Name: "whatever"},
+		BoxID: p.BoxID,
+		Name:  &TextChange{Before: "something else entirely", After: "whatever"},
 	}
 	staleRaw, _ := Marshal(stale)
 
@@ -282,9 +282,8 @@ func TestUpdateBoxIgnoresUpdatedAtWhenComparing(t *testing.T) {
 	tx.boxes[p.BoxID] = b
 
 	up := UpdateBoxPayload{
-		BoxID:  p.BoxID,
-		Before: BoxFields{Name: "name"},
-		After:  BoxFields{Name: "renamed"},
+		BoxID: p.BoxID,
+		Name:  &TextChange{Before: "name", After: "renamed"},
 	}
 	upRaw, _ := Marshal(up)
 	if err := apply(t, tx, ActionUpdateBox, upRaw); err != nil {
@@ -299,7 +298,10 @@ func TestBoxTargets(t *testing.T) {
 	for _, action := range []Action{ActionCreateBox, ActionDeleteBox, ActionUpdateBox} {
 		payload := raw
 		if action == ActionUpdateBox {
-			payload, _ = Marshal(UpdateBoxPayload{BoxID: p.BoxID})
+			payload, _ = Marshal(UpdateBoxPayload{
+				BoxID: p.BoxID,
+				Name:  &TextChange{Before: "targeted", After: "renamed"},
+			})
 		}
 		h, _ := Lookup(action)
 		got, err := h.Targets(payload)
@@ -309,5 +311,61 @@ func TestBoxTargets(t *testing.T) {
 		if len(got.Boxes) != 1 || got.Boxes[0] != p.BoxID {
 			t.Errorf("Targets(%s).Boxes = %v, want [%v]", action, got.Boxes, p.BoxID)
 		}
+	}
+}
+
+// An update asserts only the fields it changes, so an edit to a different
+// field is not in the way of undoing it.
+//
+// The dangerous half of this is the second assertion. Before the payload
+// narrowed, Apply wrote all four columns from a recorded "before", so relaxing
+// the check without narrowing the write would have undone the rename and
+// silently reverted the description with it (spec 2.3, 2.5).
+func TestUpdateBoxIgnoresFieldsItDidNotTouch(t *testing.T) {
+	tx := newFakeTx(opTime)
+	p, raw := createBoxPayload(t, "old name")
+	apply(t, tx, ActionCreateBox, raw)
+
+	rename, _ := Marshal(UpdateBoxPayload{
+		BoxID: p.BoxID,
+		Name:  &TextChange{Before: "old name", After: "new name"},
+	})
+	if err := apply(t, tx, ActionUpdateBox, rename); err != nil {
+		t.Fatalf("rename: %v", err)
+	}
+
+	// Somebody else edits a field this op never mentioned.
+	note, _ := Marshal(UpdateBoxPayload{
+		BoxID:       p.BoxID,
+		Description: &TextChange{Before: "", After: "a note worth keeping"},
+	})
+	if err := apply(t, tx, ActionUpdateBox, note); err != nil {
+		t.Fatalf("describe: %v", err)
+	}
+
+	action, inverse := inverseOf(t, ActionUpdateBox, rename)
+	if err := apply(t, tx, action, inverse); err != nil {
+		t.Fatalf("undoing the rename was refused because of an unrelated edit: %v", err)
+	}
+
+	b, _, _ := tx.GetBox(p.BoxID)
+	if b.Name != "old name" {
+		t.Errorf("Name = %q, want the rename undone", b.Name)
+	}
+	if b.Description != "a note worth keeping" {
+		t.Errorf("Description = %q; undoing the rename took the note with it", b.Description)
+	}
+}
+
+// An op that changes nothing is refused rather than stored: it would still
+// have to be undoable, and its inverse would change nothing either.
+func TestUpdateBoxRefusesAnEmptyChange(t *testing.T) {
+	tx := newFakeTx(opTime)
+	p, raw := createBoxPayload(t, "name")
+	apply(t, tx, ActionCreateBox, raw)
+
+	empty, _ := Marshal(UpdateBoxPayload{BoxID: p.BoxID})
+	if err := apply(t, tx, ActionUpdateBox, empty); err == nil {
+		t.Error("an update that changes nothing was accepted")
 	}
 }
