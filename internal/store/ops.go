@@ -49,21 +49,50 @@ type OpRow struct {
 	RootOpID *int64
 }
 
-// AppendOp inserts an op and returns its id, which is the library's version
-// number. Ops are never updated and never deleted.
-func AppendOp(tx *sql.Tx, r OpRow) (int64, error) {
-	res, err := tx.Exec(
-		`INSERT INTO ops (ts, action, origin, payload, reverts_id, root_op_id)
-		 VALUES (?, ?, ?, ?, ?, ?)`,
-		FormatTime(r.TS), r.Action, r.Origin, string(r.Payload), r.RevertsID, r.RootOpID)
+// InsertOp records an op that is already in the journal.
+//
+// The id comes from the caller because the journal assigned it: the line is
+// appended and flushed before anything touches the database (spec 2.2.2), so
+// by the time this runs the version number is already durable. That is also
+// why there is no AppendOp any more — nothing may mint an op id here, or the
+// table and the log would each have an opinion about what the version is.
+func InsertOp(tx *sql.Tx, r OpRow) error {
+	_, err := tx.Exec(
+		`INSERT INTO ops (id, ts, action, origin, payload, reverts_id, root_op_id)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		r.ID, FormatTime(r.TS), r.Action, r.Origin, string(r.Payload), r.RevertsID, r.RootOpID)
 	if err != nil {
-		return 0, fmt.Errorf("append op %q: %w", r.Action, err)
+		return fmt.Errorf("insert op %d (%s): %w", r.ID, r.Action, err)
 	}
-	id, err := res.LastInsertId()
-	if err != nil {
-		return 0, fmt.Errorf("append op %q: %w", r.Action, err)
+	return nil
+}
+
+// MaxOpID is the newest op the database knows about, or 0 if it knows none.
+//
+// It is compared against the journal's last id to find out whether a crash
+// left the database behind the log (spec 2.2.2).
+func MaxOpID(q Queryer) (int64, error) {
+	var id sql.NullInt64
+	if err := q.QueryRow(`SELECT MAX(id) FROM ops`).Scan(&id); err != nil {
+		return 0, fmt.Errorf("read the newest op id: %w", err)
 	}
-	return id, nil
+	return id.Int64, nil
+}
+
+// ClearOps empties the ops table so a rebuild can refill it from the journal.
+//
+// defer_foreign_keys is needed for exactly one reason: ops references itself
+// through reverts_id and root_op_id, so deleting the rows one at a time
+// violates a constraint halfway through even though the end state is fine. It
+// resets at commit, so its scope is this statement's transaction.
+func ClearOps(tx *sql.Tx) error {
+	if _, err := tx.Exec(`PRAGMA defer_foreign_keys = ON`); err != nil {
+		return fmt.Errorf("defer foreign keys: %w", err)
+	}
+	if _, err := tx.Exec(`DELETE FROM ops`); err != nil {
+		return fmt.Errorf("clear ops: %w", err)
+	}
+	return nil
 }
 
 // opColumns is everything about an op. GetOp and replay use it; both need the
@@ -176,31 +205,6 @@ func ListOps(q Queryer, opt ListOpsOptions) ([]OpRow, error) {
 		out = append(out, r)
 	}
 	return out, rows.Err()
-}
-
-// IterOps calls fn for every op, oldest first, one row at a time.
-//
-// Rebuild is the only caller and it is the reason this exists: the
-// slice-returning ListOps would hold every payload in the library in memory at
-// once, which after a hundred thousand imported files is tens of megabytes for
-// no reason. A cursor keeps it to one op.
-func IterOps(q Queryer, fn func(OpRow) error) error {
-	rows, err := q.Query(`SELECT ` + opColumns + ` FROM ops ORDER BY id`)
-	if err != nil {
-		return fmt.Errorf("read the op log: %w", err)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		r, err := scanOp(rows.Scan)
-		if err != nil {
-			return fmt.Errorf("read the op log: %w", err)
-		}
-		if err := fn(r); err != nil {
-			return err
-		}
-	}
-	return rows.Err()
 }
 
 // RevertedBy reports which op, if any, undid the given one. The history panel

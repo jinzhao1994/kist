@@ -32,16 +32,20 @@ type writeOptions struct {
 // this function; there is no other way in (invariant 2), which is why it is
 // unexported.
 //
-// One transaction, four steps, in this order:
+// Two phases, and the order between them is the invariant (spec 2.2.2):
 //
-//  1. append the op — its id is the library's new version number
-//  2. Apply it to the materialized views, with tx.TS() carrying the op's ts
-//  3. write the index tables from the payload via Targets (invariant 4)
-//  4. propagate updated_at, but only for origins that represent human intent
+//  1. append the line to ops/ and fsync — the op is now durable, and its id
+//     is the library's new version number
+//  2. in one transaction: insert the ops row, Apply to the materialized
+//     views, write the index tables, propagate updated_at
 //
-// If any step fails the whole thing rolls back. An op that survived a failed
-// Apply would be worse than a lost change: a rebuild would replay it and make
-// the claimed change real.
+// Phase 2 rolling back leaves an op in the log that the database has not
+// applied, which is the recoverable direction: the next Open replays it. The
+// reverse — applying before the log is durable — would leave the views
+// claiming a change no log entry justifies, and nothing could put that right.
+//
+// Everything that can fail without writing anything is checked before phase 1,
+// so a rejected action never gets a line in the log.
 func (l *Library) write(
 	ctx context.Context,
 	action oplog.Action,
@@ -69,63 +73,61 @@ func (l *Library) write(
 		return 0, err
 	}
 
-	handler, err := oplog.Lookup(action)
-	if err != nil {
+	if _, err := oplog.Lookup(action); err != nil {
 		return 0, err
 	}
 	if !origin.Valid() {
 		return 0, fmt.Errorf("op origin %q is not one of %v", origin, oplog.AllOrigins())
 	}
-	targets, err := handler.Targets(payload)
-	if err != nil {
-		return 0, fmt.Errorf("extract targets for %s: %w", action, err)
+
+	// Another process may have crashed between its append and its apply since
+	// this one opened. Catching up here as well as in Open is what keeps the
+	// next id correct: taking it from the log while the database is behind
+	// would skip the op nobody applied.
+	if err := l.catchUpLocked(ctx); err != nil {
+		return 0, err
 	}
 
-	ts := l.now().UTC()
+	last, ok, err := l.ops.Last()
+	if err != nil {
+		return 0, err
+	}
+	var opID int64 = 1
+	if ok {
+		opID = last.ID + 1
+	}
 
+	row := store.OpRow{
+		ID:        opID,
+		TS:        l.now().UTC(),
+		Action:    string(action),
+		Origin:    string(origin),
+		Payload:   payload,
+		RevertsID: opt.RevertsID,
+		RootOpID:  opt.RootOpID,
+	}
+
+	// Phase 1. After this returns the op exists, whatever happens next.
+	if err := l.ops.Append(lineFromRow(row)); err != nil {
+		return 0, err
+	}
+	if l.hooks.afterAppend != nil {
+		if err := l.hooks.afterAppend(); err != nil {
+			return 0, err
+		}
+	}
+
+	// Phase 2.
 	tx, err := l.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, fmt.Errorf("begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
-	opID, err := store.AppendOp(tx, store.OpRow{
-		TS:        ts,
-		Action:    string(action),
-		Origin:    string(origin),
-		Payload:   payload,
-		RevertsID: opt.RevertsID,
-		RootOpID:  opt.RootOpID,
-	})
+	targets, err := applyOp(tx, row)
 	if err != nil {
 		return 0, err
 	}
-
-	vtx := store.NewViewTx(tx, ts)
-
-	// The folder chain has to be sampled on both sides of Apply.
-	//
-	// An import's files do not exist before Apply, and a delete's files do not
-	// exist after it, so either sample alone misses one direction. Taking the
-	// union also gets a future move-file op right for free: the first sample
-	// names the old chain, the second the new one, and both need bumping.
-	chainBefore, err := vtx.FolderChainOfFiles(targets.Files)
-	if err != nil {
-		return 0, err
-	}
-
-	if err := handler.Apply(vtx, payload); err != nil {
-		return 0, fmt.Errorf("apply %s: %w", action, err)
-	}
-
-	if err := store.InsertOpIndexes(tx, opID, targets.Boxes, targets.Files, targets.Blobs); err != nil {
-		return 0, err
-	}
-
-	if err := touchAfter(vtx, action, origin, targets, chainBefore); err != nil {
-		return 0, err
-	}
-
 	if err := tx.Commit(); err != nil {
 		return 0, fmt.Errorf("commit %s: %w", action, err)
 	}

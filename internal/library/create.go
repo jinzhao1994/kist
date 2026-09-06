@@ -11,6 +11,7 @@ import (
 
 	"github.com/jinzhao1994/kist/internal/blob"
 	"github.com/jinzhao1994/kist/internal/config"
+	"github.com/jinzhao1994/kist/internal/journal"
 	"github.com/jinzhao1994/kist/internal/store"
 )
 
@@ -54,6 +55,11 @@ func Create(_ context.Context, root string) (*CreateResult, error) {
 		}
 	}
 	if _, err := blob.NewDir(l.Blobs(), slog.Default()); err != nil {
+		return nil, err
+	}
+	// The other authority (invariant 1). Created here rather than lazily on
+	// the first write so that a fresh library is a complete one on disk.
+	if _, err := journal.NewDir(l.Ops()); err != nil {
 		return nil, err
 	}
 

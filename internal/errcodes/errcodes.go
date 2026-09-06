@@ -25,6 +25,7 @@ import (
 
 	"github.com/jinzhao1994/kist/internal/blob"
 	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/journal"
 	"github.com/jinzhao1994/kist/internal/library"
 	"github.com/jinzhao1994/kist/internal/lockfile"
 	"github.com/jinzhao1994/kist/internal/oplog"
@@ -119,6 +120,10 @@ const (
 	CodeContentMismatch Code = "content_mismatch"
 	CodeInvariantBroken Code = "invariant_violated"
 	CodeStaleBefore     Code = "stale_before"
+
+	CodeLogCorrupt Code = "log_corrupt"
+	CodeLogMissing Code = "log_missing"
+	CodeLogTooNew  Code = "log_format_too_new"
 )
 
 // table maps sentinels to codes, in the order Of tries them.
@@ -147,6 +152,10 @@ var table = []struct {
 	{library.ErrNotALibrary, CodeNotALibrary},
 	{library.ErrFolderNotInBox, CodeFolderWrongBox},
 	{library.ErrInvariantViolated, CodeInvariantBroken},
+	{library.ErrNoJournal, CodeLogMissing},
+
+	{journal.ErrCorrupt, CodeLogCorrupt},
+	{journal.ErrUnsupportedVersion, CodeLogTooNew},
 
 	{oplog.ErrTagInUse, CodeTagInUse},
 	{oplog.ErrStaleBefore, CodeStaleBefore},
@@ -201,6 +210,12 @@ var classes = map[Code]Class{
 
 	CodeContentMismatch: ClassDamaged,
 	CodeInvariantBroken: ClassDamaged,
+	CodeLogCorrupt:      ClassDamaged,
+	CodeLogMissing:      ClassDamaged,
+	// Not damaged and not the caller's fault: the library is fine, this binary
+	// is too old to read it. ClassConflict is exactly "your input is fine, the
+	// current state does not allow it".
+	CodeLogTooNew: ClassConflict,
 }
 
 // Of returns the code for an error.

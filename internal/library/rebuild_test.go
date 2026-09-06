@@ -391,11 +391,11 @@ func TestRebuildReloadsTheTagTree(t *testing.T) {
 // larger than the payload it is supposed to be isolating, so the measurement
 // says nothing. It also took 23 seconds. Measured and discarded.
 //
-// What is left is structural, and it encodes the decision exactly: ListOps
-// does not read payloads (spec 2.2.1), so a Rebuild written on top of it would
-// have to switch back to a payload-carrying query, and holding the whole log
-// is the thing that follows. Reaching for ListOps here is the mistake; this
-// says so.
+// What is left is structural, and it encodes the decision exactly: the log is
+// walked one line at a time. The source is now ops/ rather than the ops table
+// (spec 2.1.1), so the call to watch is journal's Iter — and store.ListOps
+// stays banned for the original reason, that it does not read payloads
+// (spec 2.2.1) and so could not replay them anyway.
 func TestRebuildStreamsTheLog(t *testing.T) {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, "rebuild.go", nil, 0)
@@ -409,16 +409,16 @@ func TestRebuildStreamsTheLog(t *testing.T) {
 		if !ok {
 			return true
 		}
-		if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "store" {
-			calls[sel.Sel.Name] = true
+		if recv, ok := sel.X.(*ast.Ident); ok {
+			calls[recv.Name+"."+sel.Sel.Name] = true
 		}
 		return true
 	})
 
-	if !calls["IterOps"] {
-		t.Error("Rebuild does not use store.IterOps; it has to replay one op at a time")
+	if !calls["ops.Iter"] {
+		t.Error("Rebuild does not walk the journal with Iter; it has to replay one op at a time")
 	}
-	if calls["ListOps"] {
+	if calls["store.ListOps"] {
 		t.Error("Rebuild uses store.ListOps, which materializes every op — and, since\n" +
 			"ListOps does not read payloads, could not replay them anyway")
 	}

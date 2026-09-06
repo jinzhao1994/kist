@@ -123,32 +123,38 @@ func TestOpIndexTablesSurviveEntityDeletion(t *testing.T) {
 	}
 }
 
-func TestOpIDsAreMonotonic(t *testing.T) {
+// Op ids come from the journal now, not from the table (spec 2.2.2), so what
+// this pins has changed: the table must store what it is handed, including an
+// id it has seen before. The old guarantee — AUTOINCREMENT never reusing a
+// rowid — moved to journal, where Last().ID+1 mints ids and Check refuses a
+// gap or a repeat.
+func TestOpIDsComeFromTheCaller(t *testing.T) {
 	// ops.id is the version number; the entire history model assumes it only
 	// goes up.
 	db := migrated(t)
 
-	var ids []int64
-	for i := 0; i < 3; i++ {
-		res, err := db.Exec(`INSERT INTO ops (ts, action, origin, payload) VALUES (?, ?, ?, ?)`,
-			"2026-08-22T00:00:00.000Z", "noop", "user", `{}`)
-		if err != nil {
+	for id := int64(1); id <= 3; id++ {
+		if _, err := db.Exec(`INSERT INTO ops (id, ts, action, origin, payload) VALUES (?, ?, ?, ?, ?)`,
+			id, "2026-08-22T00:00:00.000Z", "noop", "user", `{}`); err != nil {
 			t.Fatal(err)
 		}
-		id, _ := res.LastInsertId()
-		ids = append(ids, id)
 	}
-	if _, err := db.Exec(`DELETE FROM ops WHERE id = ?`, ids[2]); err != nil {
+	// A rebuild clears the table and refills it from the journal, so the same
+	// id has to be storable again and come back unchanged.
+	if _, err := db.Exec(`DELETE FROM ops WHERE id = 3`); err != nil {
 		t.Fatal(err)
 	}
-	res, err := db.Exec(`INSERT INTO ops (ts, action, origin, payload) VALUES (?, ?, ?, ?)`,
-		"2026-08-22T00:00:00.000Z", "noop", "user", `{}`)
-	if err != nil {
+	if _, err := db.Exec(`INSERT INTO ops (id, ts, action, origin, payload) VALUES (?, ?, ?, ?, ?)`,
+		3, "2026-08-22T00:00:00.000Z", "noop", "user", `{}`); err != nil {
+		t.Fatalf("op 3 could not be written back after a clear: %v", err)
+	}
+
+	var got int64
+	if err := db.QueryRow(`SELECT MAX(id) FROM ops`).Scan(&got); err != nil {
 		t.Fatal(err)
 	}
-	next, _ := res.LastInsertId()
-	if next <= ids[2] {
-		t.Errorf("op id %d was reused after a delete; AUTOINCREMENT is missing", next)
+	if got != 3 {
+		t.Errorf("MAX(id) = %d, want 3 — the table must store the id it was handed", got)
 	}
 }
 

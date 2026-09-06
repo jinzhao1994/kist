@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/jinzhao1994/kist/internal/oplog"
+	"github.com/jinzhao1994/kist/internal/journal"
 	"github.com/jinzhao1994/kist/internal/store"
 )
 
@@ -29,20 +29,24 @@ func (l *Library) Rebuild(ctx context.Context) error {
 	}
 	defer release()
 
-	if err := rebuildInto(ctx, l.db); err != nil {
+	if err := rebuildInto(ctx, l.db, l.ops); err != nil {
 		return err
 	}
 	return nil
 }
 
-// rebuildInto discards db's materialized views and replays its op log into
-// them. db must already hold the ops — it is either the live library or a
-// VACUUM INTO copy of one.
+// rebuildInto discards db's materialized views and replays ops into them.
+//
+// The log comes from the journal, not from db: since the authority moved to
+// ops/ the ops table is a view like any other, so a rebuild refills it too
+// (invariant 1). That is also what turned verify --deep into a real
+// cross-check — its scratch database is built from the files, so a corrupted
+// ops table now shows up as drift instead of being replayed into itself.
 //
 // It is a function rather than a method because verify --deep runs it against
 // a database that is deliberately not this Library's: the point there is to
 // produce a second, independent answer and compare the two.
-func rebuildInto(ctx context.Context, db *sql.DB) error {
+func rebuildInto(ctx context.Context, db *sql.DB, ops *journal.Dir) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin rebuild: %w", err)
@@ -55,41 +59,21 @@ func rebuildInto(ctx context.Context, db *sql.DB) error {
 	if err := store.DeleteOpIndexes(tx); err != nil {
 		return err
 	}
+	// After the index tables, which reference it.
+	if err := store.ClearOps(tx); err != nil {
+		return err
+	}
 
 	// One op at a time. Reading the whole log into a slice would hold every
 	// payload in memory at once, and after a hundred thousand imported files
 	// that is tens of megabytes for no reason (spec 2.2.1).
-	err = store.IterOps(db, func(row store.OpRow) error {
-		action := oplog.Action(row.Action)
-		handler, err := oplog.Lookup(action)
-		if err != nil {
-			return fmt.Errorf("replaying op %d: %w", row.ID, err)
-		}
-
-		targets, err := handler.Targets(row.Payload)
-		if err != nil {
-			return fmt.Errorf("replaying op %d: %w", row.ID, err)
-		}
-
-		vtx := store.NewViewTx(tx, row.TS)
-		chainBefore, err := vtx.FolderChainOfFiles(targets.Files)
+	err = ops.Iter(func(line journal.Line) error {
+		row, err := rowFromLine(line)
 		if err != nil {
 			return err
 		}
-
-		if err := handler.Apply(vtx, row.Payload); err != nil {
-			return fmt.Errorf("replaying op %d (%s): %w", row.ID, action, err)
-		}
-		if err := store.InsertOpIndexes(tx, row.ID, targets.Boxes, targets.Files, targets.Blobs); err != nil {
-			return err
-		}
-
-		// Same rule as the live path — literally the same function, with this
-		// op's own ts. That is why replayed updated_at values come out
-		// identical instead of all being the moment of the rebuild
-		// (spec 1.5.1 ①).
-		if err := touchAfter(vtx, action, oplog.Origin(row.Origin), targets, chainBefore); err != nil {
-			return err
+		if _, err := applyOp(tx, row); err != nil {
+			return fmt.Errorf("replaying %w", err)
 		}
 		return nil
 	})

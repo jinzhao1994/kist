@@ -24,6 +24,7 @@ var covered = []string{
 	"internal/domain",
 	"internal/blob",
 	"internal/query",
+	"internal/journal",
 }
 
 // Every exported sentinel in the packages above must have a code.

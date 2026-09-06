@@ -17,16 +17,20 @@ import (
 // rebuilt from ops. Until M2a that was asserted only in a test, which proves
 // it about the code but says nothing about the library in front of you.
 //
-// The copy is made with VACUUM INTO and lives next to kist.db rather than in
-// the system temp directory: it is as large as the database, and the disk
-// holding a personal archive is the one with room for it. Temp directories are
-// also routinely a different filesystem, and on some platforms a memory-backed
-// one.
+// The scratch database is built from ops/, not copied from kist.db. That is
+// what makes this a second opinion rather than a tautology: when the log lived
+// in the database, the replay read the same rows it was checking, so a
+// corrupted ops table replayed into itself and matched (spec 3.8).
 //
-// Replaying into a copy rather than in place is not caution, it is the
-// contract: verify does not write to the library (spec 3.8). In place would
-// also mean a verify interrupted halfway leaves the library with half its
-// views rebuilt.
+// It lives next to kist.db rather than in the system temp directory: it is as
+// large as the database, and the disk holding a personal archive is the one
+// with room for it. Temp directories are also routinely a different
+// filesystem, and on some platforms a memory-backed one.
+//
+// Replaying into a scratch database rather than in place is not caution, it is
+// the contract: verify does not write to the library (spec 3.8). In place
+// would also mean a verify interrupted halfway leaves the library with half
+// its views rebuilt.
 func (l *Library) verifyDeep(ctx context.Context) (integrity.Report, error) {
 	var r integrity.Report
 
@@ -34,17 +38,17 @@ func (l *Library) verifyDeep(ctx context.Context) (integrity.Report, error) {
 	removeDatabase(scratch) // residue from a run that was killed
 	defer removeDatabase(scratch)
 
-	if _, err := l.db.ExecContext(ctx, `VACUUM INTO ?`, scratch); err != nil {
-		return r, fmt.Errorf("copy the database for the deep check: %w", err)
-	}
-
 	copyDB, err := store.Open(scratch)
 	if err != nil {
 		return r, err
 	}
-	if err := rebuildInto(ctx, copyDB); err != nil {
+	if err := store.Migrate(copyDB); err != nil {
 		copyDB.Close()
-		return r, fmt.Errorf("replay the log into the copy: %w", err)
+		return r, fmt.Errorf("prepare the scratch database: %w", err)
+	}
+	if err := rebuildInto(ctx, copyDB, l.ops); err != nil {
+		copyDB.Close()
+		return r, fmt.Errorf("replay the log into the scratch database: %w", err)
 	}
 	// Closed before the comparison, not deferred: in WAL mode an open database
 	// keeps its changes in a -wal file, and ATTACH would then read something

@@ -72,6 +72,10 @@ const (
 	LinkStray       // under boxes/, should not be
 	LinkWrongTarget // there, but not pointing at the blob it should
 
+	// ── op log ──────────────────────────────────────────────────────────
+	LogCorrupt // a line in ops/ fails its checksum, or an id is missing
+	LogAhead   // ops/ holds operations the database has not applied
+
 	// ── scrub ───────────────────────────────────────────────────────────
 	ScrubIncomplete // the run stopped before it had read everything
 
@@ -102,6 +106,8 @@ var kindInfo = map[Kind]struct {
 	LinkMissing:         {SeverityWarn, "link_missing", "boxes/ is missing something"},
 	LinkStray:           {SeverityWarn, "link_stray", "boxes/ holds something that belongs to no file"},
 	LinkWrongTarget:     {SeverityWarn, "link_wrong_target", "a link under boxes/ points at the wrong content"},
+	LogCorrupt:          {SeverityError, "log_corrupt", "the op log in ops/ is damaged"},
+	LogAhead:            {SeverityWarn, "log_ahead", "ops/ holds operations the database has not applied"},
 	ScrubIncomplete:     {SeverityWarn, "scrub_incomplete", "the scrub did not finish"},
 	ViewDrift:           {SeverityError, "view_drift", "a table does not match what replaying the log produces"},
 }

@@ -39,7 +39,7 @@ Exit status:
   2  something is damaged`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			l, err := openLibrary(cmd)
+			l, err := openForChecks(cmd)
 			if err != nil {
 				return err
 			}

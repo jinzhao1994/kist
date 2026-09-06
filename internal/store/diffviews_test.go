@@ -123,16 +123,20 @@ func TestDiffViewsFindsAnExtraRow(t *testing.T) {
 	}
 }
 
-// ops must never be compared: it is the input, not the output. Comparing it
-// would make the check vacuously pass on a library whose views are wrong but
-// whose log is intact — which is every library this check exists for.
-func TestDiffViewsIgnoresOps(t *testing.T) {
+// ops must be compared, and that is a reversal.
+//
+// It used to be excluded, because the replay read the ops table and comparing
+// a table with itself passes vacuously. Since the log moved to ops/ the source
+// is the files and the table is a view like any other (invariant 1) — so
+// leaving it out would mean a corrupted ops table went unreported by the one
+// check that could see it (spec 3.8).
+func TestDiffViewsComparesOps(t *testing.T) {
 	db := migrated(t)
 	copyPath := filepath.Join(t.TempDir(), "copy.db")
 	if _, err := db.Exec(`VACUUM INTO ?`, copyPath); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec(`INSERT INTO ops (ts, action, origin, payload) VALUES ('t','a','user','{}')`); err != nil {
+	if _, err := db.Exec(`INSERT INTO ops (id, ts, action, origin, payload) VALUES (1,'t','a','user','{}')`); err != nil {
 		t.Fatal(err)
 	}
 	drift, err := DiffViews(t.Context(), db, copyPath)
@@ -141,9 +145,10 @@ func TestDiffViewsIgnoresOps(t *testing.T) {
 	}
 	for _, d := range drift {
 		if d.Table == "ops" {
-			t.Error("ops was compared; it is the authority, not a view")
+			return
 		}
 	}
+	t.Error("an op present in the library but not in the replay went unreported")
 }
 
 // A badly drifted table must not stream every differing row back into Go.

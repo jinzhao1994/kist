@@ -45,7 +45,7 @@ Remotes are configured by hand in kist.toml:
     path = "/Volumes/Archive/kist/blobs"`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			l, err := openLibrary(cmd)
+			l, err := openForChecks(cmd)
 			if err != nil {
 				return err
 			}
@@ -196,7 +196,7 @@ This command exists so a mistyped path says so today, rather than on the day
 something is damaged.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			l, err := openLibrary(cmd)
+			l, err := openForChecks(cmd)
 			if err != nil {
 				return err
 			}

@@ -34,14 +34,17 @@ one query, and neither one had to be anticipated at filing time.
 ## Why not one of the existing ones
 
 - **Every operation is undoable.** The authority is an append-only op log, not
-  the tables. Undo appends an inverse op, so undos are themselves undoable, and
-  the whole library can be rebuilt from the log.
+  the database. Undo appends an inverse op, so undos are themselves undoable,
+  and the whole database can be rebuilt from the log.
 - **Documents and photos in one archive.** Photo managers assume everything has
   an EXIF date; document managers have no idea what to do with 4000 pictures.
-- **Nothing traps your data.** Files are stored content-addressed under
-  `blobs/`, and `boxes/` is a human-readable projection you can browse with any
-  file manager. Delete kist and the archive is still an ordinary directory
-  tree.
+- **Nothing traps your data.** A library is two ordinary directories: content
+  lives content-addressed under `blobs/`, and the op log is one JSON-per-line
+  file per day under `ops/`. `boxes/` is a human-readable projection you can
+  browse with any file manager, and `kist.db` is a cache that can be thrown
+  away and rebuilt. Back the archive up by copying a directory; delete kist and
+  both your files and their history are still there, in formats you can read
+  with `less` and `grep`.
 
 ## Design documents
 

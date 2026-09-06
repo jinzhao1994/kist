@@ -8,14 +8,16 @@ import (
 // snapshotTables lists the rebuildable tables and how to order them so the
 // dump is byte-stable.
 //
-// ops is absent: it is the authority, not the thing being proved. blobs is
-// present from M1c on — Apply maintains it, idempotently, so a rebuild has to
-// reproduce it exactly like everything else here.
+// ops is present from 2026-09-07 on: the authority moved to ops/ (invariant
+// 1), so the table is rebuilt from the journal like everything else and has to
+// be proved like everything else. blobs is present from M1c on — Apply
+// maintains it, idempotently, so a rebuild has to reproduce it exactly too.
 var snapshotTables = []struct {
 	name    string
 	columns string
 	order   string
 }{
+	{"ops", "id, ts, action, origin, payload, coalesce(reverts_id,-1), coalesce(root_op_id,-1)", "id"},
 	{"blobs", "key, sha256, size", "key"},
 	{"boxes", "hex(id), hex(root_folder_id), name, name_fold, description, created_at, updated_at, coalesce(start_at,''), coalesce(end_at,'')", "id"},
 	{"folders", "hex(id), coalesce(hex(parent_id),''), name, name_fold, created_at, updated_at", "id"},

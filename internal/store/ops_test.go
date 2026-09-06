@@ -2,15 +2,26 @@ package store
 
 import (
 	"database/sql"
-	"errors"
-	"fmt"
-	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/jinzhao1994/kist/internal/domain"
 )
+
+// insertNextOp inserts an op with the next free id.
+//
+// Ids come from the journal in production (spec 2.2.2), so InsertOp takes one
+// rather than minting it. These tests only need "one after the last", which is
+// what the journal would have handed over.
+func insertNextOp(tx *sql.Tx, r OpRow) (int64, error) {
+	max, err := MaxOpID(tx)
+	if err != nil {
+		return 0, err
+	}
+	r.ID = max + 1
+	return r.ID, InsertOp(tx, r)
+}
 
 func appendOp(t *testing.T, db *sql.DB, r OpRow) int64 {
 	t.Helper()
@@ -19,9 +30,9 @@ func appendOp(t *testing.T, db *sql.DB, r OpRow) int64 {
 		t.Fatal(err)
 	}
 	defer tx.Rollback()
-	id, err := AppendOp(tx, r)
+	id, err := insertNextOp(tx, r)
 	if err != nil {
-		t.Fatalf("AppendOp: %v", err)
+		t.Fatalf("insert op: %v", err)
 	}
 	if err := tx.Commit(); err != nil {
 		t.Fatal(err)
@@ -158,11 +169,11 @@ func TestListOpsByBox(t *testing.T) {
 	boxA, boxB := domain.NewBoxID(), domain.NewBoxID()
 
 	tx, _ := db.Begin()
-	idA, _ := AppendOp(tx, sampleOp())
+	idA, _ := insertNextOp(tx, sampleOp())
 	InsertOpBoxes(tx, idA, []domain.BoxID{boxA})
-	idBoth, _ := AppendOp(tx, sampleOp())
+	idBoth, _ := insertNextOp(tx, sampleOp())
 	InsertOpBoxes(tx, idBoth, []domain.BoxID{boxA, boxB})
-	idB, _ := AppendOp(tx, sampleOp())
+	idB, _ := insertNextOp(tx, sampleOp())
 	InsertOpBoxes(tx, idB, []domain.BoxID{boxB})
 	tx.Commit()
 
@@ -192,7 +203,7 @@ func TestInsertOpBoxesIsIdempotent(t *testing.T) {
 	box := domain.NewBoxID()
 
 	tx, _ := db.Begin()
-	id, _ := AppendOp(tx, sampleOp())
+	id, _ := insertNextOp(tx, sampleOp())
 	if err := InsertOpBoxes(tx, id, []domain.BoxID{box, box}); err != nil {
 		t.Fatalf("InsertOpBoxes with a repeated target: %v", err)
 	}
@@ -211,9 +222,9 @@ func TestLastOpTouchingBox(t *testing.T) {
 	box := domain.NewBoxID()
 
 	tx, _ := db.Begin()
-	first, _ := AppendOp(tx, sampleOp())
+	first, _ := insertNextOp(tx, sampleOp())
 	InsertOpBoxes(tx, first, []domain.BoxID{box})
-	second, _ := AppendOp(tx, sampleOp())
+	second, _ := insertNextOp(tx, sampleOp())
 	InsertOpBoxes(tx, second, []domain.BoxID{box})
 	tx.Commit()
 
@@ -236,7 +247,7 @@ func TestDeleteOpIndexesLeavesOpsAlone(t *testing.T) {
 	db := migrated(t)
 	box := domain.NewBoxID()
 	tx, _ := db.Begin()
-	id, _ := AppendOp(tx, sampleOp())
+	id, _ := insertNextOp(tx, sampleOp())
 	InsertOpBoxes(tx, id, []domain.BoxID{box})
 	tx.Commit()
 
@@ -270,7 +281,7 @@ func TestListOpsDoesNotReadPayload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	id, err := AppendOp(tx, OpRow{
+	id, err := insertNextOp(tx, OpRow{
 		TS: testTime, Action: "import_files", Origin: "user",
 		Payload: []byte(`{"big":"` + strings.Repeat("x", 10000) + `"}`),
 	})
@@ -302,58 +313,5 @@ func TestListOpsDoesNotReadPayload(t *testing.T) {
 	}
 	if len(full.Payload) == 0 {
 		t.Error("GetOp must still return the payload")
-	}
-}
-
-// IterOps is what Rebuild replays: oldest first, payload included, one row at
-// a time.
-func TestIterOpsWalksTheLogOldestFirst(t *testing.T) {
-	db := migrated(t)
-	for i := range 3 {
-		tx, err := db.Begin()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err := AppendOp(tx, OpRow{
-			TS: testTime, Action: "create_box", Origin: "user",
-			Payload: fmt.Appendf(nil, `{"n":%d}`, i),
-		}); err != nil {
-			t.Fatal(err)
-		}
-		if err := tx.Commit(); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	var ids []int64
-	var payloads []string
-	if err := IterOps(db, func(r OpRow) error {
-		ids = append(ids, r.ID)
-		payloads = append(payloads, string(r.Payload))
-		return nil
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if !slices.IsSorted(ids) {
-		t.Errorf("ids = %v, want ascending — replay depends on it", ids)
-	}
-	if len(payloads) != 3 || payloads[0] != `{"n":0}` {
-		t.Errorf("payloads = %v", payloads)
-	}
-}
-
-// An error from the callback stops the walk and reaches the caller, so a
-// replay failure is not silently swallowed halfway through.
-func TestIterOpsStopsOnError(t *testing.T) {
-	db := migrated(t)
-	tx, _ := db.Begin()
-	if _, err := AppendOp(tx, OpRow{TS: testTime, Action: "create_box", Origin: "user", Payload: []byte(`{}`)}); err != nil {
-		t.Fatal(err)
-	}
-	tx.Commit()
-
-	want := errors.New("stop")
-	if err := IterOps(db, func(OpRow) error { return want }); !errors.Is(err, want) {
-		t.Errorf("err = %v, want %v", err, want)
 	}
 }

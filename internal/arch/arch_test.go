@@ -65,6 +65,22 @@ func TestBlobDependsOnNothing(t *testing.T) {
 	}
 }
 
+// TestJournalDependsOnNothing keeps the other authority at the bottom too.
+//
+// ops/ and blobs/ are the two authorities (invariant 1). verify --deep now
+// checks the database against the log, which is only a second opinion while
+// the log layer cannot read the database: a journal that could would be
+// checking the views against themselves, which is exactly the weakness the
+// old VACUUM INTO shape had (spec 3.8).
+func TestJournalDependsOnNothing(t *testing.T) {
+	if got := imports(t, "internal/journal"); len(got) != 0 {
+		t.Errorf("internal/journal imports %v.\n\n"+
+			"ops/ is one of the two authorities (invariant 1), and verify --deep\n"+
+			"compares it against the database. A log layer that could read the\n"+
+			"database could no longer contradict it.", got)
+	}
+}
+
 // TestOplogCannotReachTheDatabase is the structural half of invariant 3.
 //
 // Apply is required to be a pure function of (tx, payload). That is enforced

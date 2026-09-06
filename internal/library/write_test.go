@@ -3,6 +3,7 @@ package library
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -325,10 +326,31 @@ func TestAGroupChangesNothingAboutTheState(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		return got
+		return withoutOps(got)
 	}
 
 	if with, without := snap(true), snap(false); with != without {
 		t.Error("setting a group changed the materialized state")
 	}
+}
+
+// withoutOps drops the ops section of a snapshot.
+//
+// root_op_id is a column of ops, so of course the log differs — that is the
+// whole point of writing it down. The claim being tested is narrower and is
+// the one that matters for invariant 3: the group tag never reaches Apply, so
+// nothing it produces may differ. Comparing the log too would test the
+// opposite of the claim.
+func withoutOps(snapshot string) string {
+	const header = "== ops ==\n"
+	start := strings.Index(snapshot, header)
+	if start < 0 {
+		return snapshot
+	}
+	rest := snapshot[start+len(header):]
+	next := strings.Index(rest, "\n== ")
+	if next < 0 {
+		return snapshot[:start]
+	}
+	return snapshot[:start] + rest[next+1:]
 }

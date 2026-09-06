@@ -17,14 +17,15 @@
 
 -- ── 权威数据：ops。永不 UPDATE，永不 DELETE（spec 2.1、3.9）──────────────
 
--- AUTOINCREMENT 而非裸 INTEGER PRIMARY KEY：id 就是版本号，整个历史模型
--- 建立在它单调递增上。裸 rowid 会在删行后被复用，而"不删 op"是个靠自觉的
--- 约定，值得用一行 SQL 变成结构保证。
+-- id 由 journal 分配，不由这张表生成（spec 2.2.2、3.1.1）。权威是 ops/ 里的
+-- 那一行，这张表是它的派生索引；写路径先把行 append 进 ops/ 再插这里，所以
+-- 插入时 id 已经定了。原来这里是 AUTOINCREMENT，理由是「裸 rowid 会在删行后
+-- 被复用」——现在 id 根本不来自这里，那条理由没有了。
 --
 -- 顺序的权威是 id，不是 ts。墙钟会被 NTP 校正往回拨，所以 ts 无论什么精度
 -- 都不是可靠的排序键；需要顺序的地方一律用 id。ts 也因此不需要唯一。
 CREATE TABLE ops (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  id         INTEGER PRIMARY KEY,
   ts         INTEGER NOT NULL,   -- unix 纳秒（UTC）。见文件头"时间的两种表示"
   action     TEXT    NOT NULL,   -- Go 侧 typed 常量；DB 层刻意不加 CHECK（spec 2.2）
   origin     TEXT    NOT NULL,   -- user | extractor | maintenance | sync。

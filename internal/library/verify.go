@@ -2,6 +2,7 @@ package library
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jinzhao1994/kist/internal/blob"
 	"github.com/jinzhao1994/kist/internal/integrity"
@@ -35,6 +36,12 @@ func (l *Library) Verify(ctx context.Context, opt VerifyOptions) (integrity.Repo
 	// (spec 3.9).
 	l.cleanTmp()
 
+	log, err := l.checkLog()
+	if err != nil {
+		return r, err
+	}
+	r.Merge(log)
+
 	structural, err := integrity.CheckStructure(l.db)
 	if err != nil {
 		return r, err
@@ -59,6 +66,51 @@ func (l *Library) Verify(ctx context.Context, opt VerifyOptions) (integrity.Repo
 			return r, err
 		}
 		r.Merge(deep)
+	}
+	return r, nil
+}
+
+// checkLog reads ops/ and compares its end with the database's.
+//
+// It reports and does not repair, which is the same line scrub and repair sit
+// on either side of (spec 3.8). Catching up is a replay, so it needs Apply,
+// and integrity structurally cannot reach it — which is why this lives here
+// and the repair lives in Open (spec 2.2.2).
+func (l *Library) checkLog() (integrity.Report, error) {
+	var r integrity.Report
+
+	problems, err := l.ops.Check()
+	if err != nil {
+		return r, err
+	}
+	r.Note("operations logged", 0)
+	for _, p := range problems {
+		r.Add(integrity.Finding{
+			Kind:   integrity.LogCorrupt,
+			Detail: p.String(),
+			Fix:    "restore ops/ from a backup",
+		})
+	}
+
+	last, ok, err := l.ops.Last()
+	if err != nil {
+		return r, err
+	}
+	var logID int64
+	if ok {
+		logID = last.ID
+	}
+	dbID, err := store.MaxOpID(l.db)
+	if err != nil {
+		return r, err
+	}
+	r.Checked["operations logged"] = int(logID)
+	if logID > dbID {
+		r.Add(integrity.Finding{
+			Kind:   integrity.LogAhead,
+			Detail: fmt.Sprintf("the log ends at op %d, the database at %d", logID, dbID),
+			Fix:    "any kist command reopens the library and replays the tail",
+		})
 	}
 	return r, nil
 }

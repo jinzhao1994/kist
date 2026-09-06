@@ -8,10 +8,10 @@ import (
 // authorityTables are the tables a replay reads instead of reproducing, so
 // snapshotTables must not list them.
 //
-// ops is the authority itself (invariant 1). goose's bookkeeping is not part
-// of the data model at all.
+// There are none left in the data model: since the log moved to ops/ the ops
+// table is rebuilt from it like every other view (invariant 1). goose's
+// bookkeeping was never part of the data model at all.
 var authorityTables = map[string]bool{
-	"ops":              true,
 	"goose_db_version": true,
 }
 

@@ -9,6 +9,7 @@ import (
 	"github.com/jinzhao1994/kist/internal/blob"
 	"github.com/jinzhao1994/kist/internal/config"
 	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/journal"
 	"github.com/jinzhao1994/kist/internal/lockfile"
 	"github.com/jinzhao1994/kist/internal/oplog"
 	"github.com/jinzhao1994/kist/internal/store"
@@ -22,6 +23,9 @@ type Library struct {
 	cfg    *config.Config
 	db     *sql.DB
 	blobs  *blob.Dir
+	// ops is the authoritative log. The database is a projection of it
+	// (invariant 1); everything written here lands in ops first.
+	ops *journal.Dir
 	// lock serializes writes against every other process sharing this library
 	// — and, inside serve, against every other request (spec 2.7). Reads never
 	// take it.
@@ -32,6 +36,8 @@ type Library struct {
 	// loc is the library's timezone, resolved once at Open. It interprets a
 	// date range against capture instants and renders one back (spec 1.5.2).
 	loc *time.Location
+	// noRecovery suppresses Open's catch-up. See WithoutRecovery.
+	noRecovery bool
 }
 
 // hooks are test seams.
@@ -42,6 +48,10 @@ type Library struct {
 type hooks struct {
 	// afterFile runs after each candidate an import has processed.
 	afterFile func()
+	// afterAppend runs between the two phases of a write: the line is in the
+	// log and flushed, nothing has applied it. Returning an error is the only
+	// way to aim a crash at exactly that instant (spec 2.2.2).
+	afterAppend func() error
 }
 
 // Option configures Open.
@@ -53,6 +63,16 @@ func WithClock(now func() time.Time) Option { return func(l *Library) { l.now = 
 
 // WithLogger sets the logger.
 func WithLogger(log *slog.Logger) Option { return func(l *Library) { l.log = log } }
+
+// WithoutRecovery stops Open from replaying a log tail the database has not
+// applied yet.
+//
+// verify, scrub and repair open this way. Catching up writes to kist.db and
+// takes the write lock, and those three promise to do neither (spec 3.8) —
+// a verify in cron that quietly finished someone else's interrupted write
+// would be reporting on a library it had just changed. They report the lag
+// instead, as integrity.LogAhead.
+func WithoutRecovery() Option { return func(l *Library) { l.noRecovery = true } }
 
 // Open opens an existing library.
 func Open(root string, opts ...Option) (*Library, error) {
@@ -90,9 +110,23 @@ func Open(root string, opts ...Option) (*Library, error) {
 		l.db.Close()
 		return nil, err
 	}
+	if l.ops, err = journal.NewDir(layout.Ops()); err != nil {
+		l.db.Close()
+		return nil, err
+	}
 	if err := l.checkLinkMode(); err != nil {
 		l.db.Close()
 		return nil, err
+	}
+	// A crash can leave the database one op behind the log. Repairing it here
+	// rather than on the next write is what keeps read-only commands honest:
+	// otherwise kist ls would quietly omit the last import until something
+	// wrote (spec 2.2.2).
+	if !l.noRecovery {
+		if err := l.catchUp(context.Background()); err != nil {
+			l.db.Close()
+			return nil, err
+		}
 	}
 	return l, nil
 }

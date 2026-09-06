@@ -16,6 +16,7 @@ type Layout struct {
 func (l Layout) DB() string         { return filepath.Join(l.Root, "kist.db") }
 func (l Layout) ConfigPath() string { return filepath.Join(l.Root, "kist.toml") }
 func (l Layout) Blobs() string      { return filepath.Join(l.Root, "blobs") }
+func (l Layout) Ops() string        { return filepath.Join(l.Root, "ops") }
 func (l Layout) Boxes() string      { return filepath.Join(l.Root, "boxes") }
 func (l Layout) Derived() string    { return filepath.Join(l.Root, "derived") }
 func (l Layout) Notice() string     { return filepath.Join(l.Root, "DO-NOT-EDIT.txt") }
