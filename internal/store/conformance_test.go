@@ -10,13 +10,12 @@ import (
 	"github.com/jinzhao1994/kist/internal/query/querytest"
 )
 
-// TestSQLiteConformance is the SQLite implementation's half of spec 4.2's
-// contract.
+// TestSQLiteConformance runs spec 4.2's contract against the only backend
+// there is (spec 4.1).
 //
-// When Postgres lands in v0.2 it gets a file exactly like this one and the
-// same suite runs against it — which is the whole point of writing the suite
-// now, with one implementation, rather than then, with two and no agreement
-// about which was right.
+// The suite lives in its own package rather than here because the contract
+// belongs to internal/query, not to whatever translates it: the assertions are
+// about which rows come back, and store is one way of answering that.
 func TestSQLiteConformance(t *testing.T) {
 	querytest.Run(t, func(t *testing.T) querytest.Backend {
 		return &sqliteBackend{db: migrated(t)}

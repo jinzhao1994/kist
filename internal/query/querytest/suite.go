@@ -1,10 +1,10 @@
 // Package querytest is the conformance suite for the query contract.
 //
-// Any implementation of spec 4.2's Query must pass it. v0.1 has exactly one —
-// SQLite — and the suite is written anyway, because it is the acceptance
-// criterion a second implementation will be held to, and writing it afterwards
-// means writing it against whatever the first implementation happened to do
-// (spec 4.2).
+// Any implementation of spec 4.2's Query must pass it. There is exactly one —
+// SQLite is the only backend (spec 4.1) — so the suite is the contract's
+// regression test rather than a second implementation's acceptance criterion.
+// It earns its keep as the only exerciser of the paths that have no UI yet:
+// Kinds, and nested tag expressions (spec 4.2.1, 4.3).
 //
 // It asserts results, never plans. There is no EXPLAIN here, no assertion
 // about indexes, no knowledge of any engine: the only questions are "given

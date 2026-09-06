@@ -43,9 +43,9 @@ func translate(q query.Query, zone *time.Location) (string, []any, error) {
 			return "", nil, fmt.Errorf("%d boxes is beyond the %d-parameter limit", len(q.Boxes), maxParameters)
 		}
 		// A recursive descent from each box's root, because a file no longer
-		// carries a box_id to compare against (spec 1.4). SQLite and Postgres
-		// both allow a WITH inside a subquery, so this stays one appendable
-		// fragment rather than forcing every caller to hoist a CTE.
+		// carries a box_id to compare against (spec 1.4). A WITH is allowed
+		// inside a subquery, so this stays one appendable fragment rather
+		// than forcing every caller to hoist a CTE.
 		sb.WriteString(`
 			AND folder_id IN (
 				WITH RECURSIVE box_folders(id) AS (

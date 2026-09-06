@@ -14,13 +14,11 @@ import (
 // rendering the tree itself. Everything else asks the database about the tags
 // it actually needs — store.TagByName to resolve one, store.TagDescendants to
 // expand a filter to a subtree — because reading a few thousand rows to answer
-// a question about five of them is the wrong shape, and more so on Postgres
-// than on a local file.
+// a question about five of them is the wrong shape.
 //
 // There is no materialized path column and no closure table (spec 1.6). The
 // payoff is that moving a subtree is a single parent_id write instead of a
-// cascading rewrite; the cost is that descendants are a recursive query, which
-// SQLite and Postgres write identically (spec 4.7).
+// cascading rewrite; the cost is that descendants are a recursive query.
 //
 // It is an immutable snapshot, and nothing holds one beyond the operation that
 // loaded it. A copy kept on Library would be this process's opinion of state

@@ -39,14 +39,12 @@ func scanTag(row *sql.Row) (domain.Tag, bool, error) {
 //
 // It walks the tree in SQL rather than reading every tag and walking in Go.
 // The cost then scales with the subtree asked about instead of with the size
-// of the library's tag tree, which matters more on Postgres — a round trip
-// there is not free — than it does on a local SQLite file.
+// of the library's tag tree.
 //
 // UNION rather than UNION ALL. The deduplication is what makes the recursion
 // terminate: two roots in the same subtree would otherwise revisit the shared
 // part, and a cycle — which MoveTag refuses to create, but which a corrupt
 // views table could still hold — would recurse until the query is killed.
-// This form is identical on SQLite and Postgres (spec 4.7).
 func TagDescendants(q Queryer, roots []domain.TagID) ([]domain.TagID, error) {
 	if len(roots) == 0 {
 		return nil, nil

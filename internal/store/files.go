@@ -16,11 +16,12 @@ const fileOrder = ` ORDER BY captured_at DESC NULLS LAST, id DESC`
 // orderBy renders one ordering, with the tie-breaker that makes keyset paging
 // possible at all.
 //
-// NULLS LAST is written out in both directions. SQLite puts nulls last under
-// DESC anyway and first under ASC, and Postgres does the opposite for DESC —
-// so leaving it implicit means the two engines disagree and no test run on
-// SQLite can ever notice (spec 4.7). Unknown belongs at the end whichever way
-// you are reading, so both directions say LAST.
+// NULLS LAST is written out in both directions. Unknown belongs at the end
+// whichever way you are reading, and SQLite does not agree on its own: it
+// treats NULL as the smallest value, so ASC would lead with the files whose
+// capture time is unknown. DESC happens to come out right without it, which is
+// the reason to write it anyway — one ordering spelled two ways is the shape
+// that rots (spec 4.7).
 //
 // The id tie-breaker is not decoration: without it two files sharing a capture
 // time can swap places between pages, and keyset paging then repeats one and
@@ -222,7 +223,7 @@ func FolderChain(q Queryer, folder domain.FolderID) (domain.BoxID, []string, err
 //
 // UNION rather than UNION ALL, for the reason TagDescendants gives: the
 // deduplication is what makes a corrupt cycle terminate rather than recurse
-// until the query is killed. Identical on SQLite and Postgres (spec 4.7).
+// until the query is killed.
 const FoldersOfBoxSQL = `
 	WITH RECURSIVE box_folders(id) AS (
 		SELECT root_folder_id FROM boxes WHERE id = ?

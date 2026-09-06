@@ -9,12 +9,12 @@ import (
 // Fold produces the comparison form of a piece of user text: NFC-normalized
 // and lowercased.
 //
-// It exists because LIKE's case behaviour differs between engines — SQLite is
-// case-insensitive for ASCII, Postgres is not — and v0.1's entire search is
-// built on LIKE. Rather than inherit whichever behaviour the engine happens to
-// have, kist owns the decision: written into a folded column, matched against
-// a pattern put through this same function, compared byte for byte
-// (spec 4.7). Search is therefore case-insensitive because we say so.
+// It exists so that kist owns the case behaviour of search rather than
+// inheriting whatever LIKE happens to do — an engine default is not a
+// contract, and v0.1's entire search is built on LIKE. The folded form is
+// written into its own column and matched against a pattern put through this
+// same function, so the database only ever compares bytes (spec 4.7). Search
+// is case-insensitive because we say so.
 //
 // Fold must stay idempotent: the query side feeds it patterns that may already
 // be folded.
