@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/jinzhao1994/kist/internal/domain"
@@ -86,6 +87,31 @@ func (l *Library) write(
 	// would skip the op nobody applied.
 	if err := l.catchUpLocked(ctx); err != nil {
 		return 0, err
+	}
+
+	// Recheck state-dependent constraints after recovery, while no writer can
+	// invalidate them. This also covers inverse ops, which bypass commands.
+	if opt.RevertsID != nil {
+		if by, done, err := store.RevertedBy(l.db, *opt.RevertsID); err != nil {
+			return 0, err
+		} else if done {
+			return 0, &AlreadyRevertedError{OpID: *opt.RevertsID, RevertedBy: by}
+		}
+	}
+	if action == oplog.ActionMoveTag {
+		p, err := oplog.Payload[oplog.MoveTagPayload](payload)
+		if err != nil {
+			return 0, err
+		}
+		if p.NewParent != nil {
+			above, err := store.TagAncestors(l.db, *p.NewParent)
+			if err != nil {
+				return 0, err
+			}
+			if slices.Contains(above, p.TagID) {
+				return 0, ErrTagCycle
+			}
+		}
 	}
 
 	last, ok, err := l.ops.Last()

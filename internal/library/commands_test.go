@@ -363,3 +363,65 @@ func TestResolveTag(t *testing.T) {
 		t.Errorf("error = %v, want ErrNoSuchTag", err)
 	}
 }
+
+// Two commands can prepare valid payloads from the same old tree. Serializing
+// only Apply must not let the second one create a cycle in the new tree.
+func TestPreparedMovesCannotCreateCycle(t *testing.T) {
+	l := openTestLibrary(t)
+	ctx := context.Background()
+	a, err := l.CreateTag(ctx, "a", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := l.CreateTag(ctx, "b", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := oplog.Marshal(oplog.MoveTagPayload{TagID: b.ID, NewParent: &a.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := l.MoveTag(ctx, a.ID, &b.ID); err != nil {
+		t.Fatal(err)
+	}
+	before, _ := l.OpCount(ctx)
+	if _, err := l.write(ctx, oplog.ActionMoveTag, raw, oplog.OriginUser, writeOptions{}); !errors.Is(err, ErrTagCycle) {
+		t.Fatalf("prepared move = %v, want cycle refusal", err)
+	}
+	after, _ := l.OpCount(ctx)
+	if after != before {
+		t.Fatal("rejected move appended an op")
+	}
+	if err := l.Rebuild(ctx); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUndoMoveCannotCreateCycle(t *testing.T) {
+	l := openTestLibrary(t)
+	ctx := context.Background()
+	b, err := l.CreateTag(ctx, "b", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := l.CreateTag(ctx, "a", &b.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := l.MoveTag(ctx, a.ID, nil); err != nil {
+		t.Fatal(err)
+	}
+	moved, err := l.OpCount(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := l.MoveTag(ctx, b.ID, &a.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.Undo(ctx, moved); !errors.Is(err, ErrTagCycle) {
+		t.Fatalf("undo = %v", err)
+	}
+	if err := l.Rebuild(ctx); err != nil {
+		t.Fatal(err)
+	}
+}
