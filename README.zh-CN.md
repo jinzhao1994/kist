@@ -117,6 +117,14 @@ path = "/Volumes/Archive/kist/blobs"
 rsync -a ~/kist/blobs/ /Volumes/Archive/kist/blobs/
 ```
 
+完整备份需要先停止所有写入（包括导入和修复），并在整个复制期间保持停止，
+把 `kist.toml`、`ops/` 和 `blobs/` 复制到新的备份目录。
+运行中复制即使先拷 blobs 也不保证一致。新备份复制成功前保留旧备份。
+在独立的恢复副本上依次运行 `kist rebuild`、`kist relink`、
+`kist verify --deep` 和 `kist scrub`，通过后再使用。
+上面的 blob 副本只是修复源，不包含库的操作历史。
+
+
 kist 从不往远端写，也从不信任远端：取回来的内容边读边哈希，对不上就丢掉。用 `kist remote list` 让路径打错的那天是今天，而不是你真需要它的那天。
 
 ## 里程碑

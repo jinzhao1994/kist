@@ -131,6 +131,15 @@ The usual way to make one is the command that backs the library up anyway:
 rsync -a ~/kist/blobs/ /Volumes/Archive/kist/blobs/
 ```
 
+For a complete library backup, stop all writers (including imports and repairs),
+keep them stopped throughout the copy, and copy `kist.toml`, `ops/`, and `blobs/`
+to a new backup directory. A live copy is not a consistent backup, even when
+blobs are copied first. Keep the previous backup until the new copy completes.
+On a separate restored copy, run `kist rebuild`, `kist relink`,
+`kist verify --deep`, and `kist scrub` before using it. The blob-only copy above
+is a repair source, not a backup of the library's history.
+
+
 kist never writes to a remote, and never trusts one: content fetched from it is
 hashed on the way in and discarded if it is not what was asked for. Run
 `kist remote list` to check a path today rather than on the day you need it.
