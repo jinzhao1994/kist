@@ -26,6 +26,7 @@ type Options struct {
 	MaxUploadBytes int64
 	MaxUploadFiles int
 	UploadTempDir  string
+	UI             http.Handler
 }
 
 type Server struct {
@@ -82,6 +83,10 @@ func New(l *library.Library, opt Options) (*Server, error) {
 	s.extractionRoutes()
 	s.writeRoutes()
 	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if opt.UI != nil && r.URL.Path != "/api" && !strings.HasPrefix(r.URL.Path, "/api/") {
+			opt.UI.ServeHTTP(w, r)
+			return
+		}
 		writeFailure(w, huma.Error404NotFound("No such endpoint"))
 	})
 	return s, nil
@@ -91,7 +96,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Referrer-Policy", "no-referrer")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'")
 	if !s.hosts[strings.ToLower(r.Host)] {
 		writeFailure(w, huma.Error403Forbidden("Host is not allowed"))
 		return

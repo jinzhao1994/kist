@@ -48,10 +48,11 @@ tag 树与所有 box 正交，于是"我历年所有的保险单据"和"京都�
 
 ## 从源码构建
 
-Go 1.26 或更新版本。不需要 C 工具链，没有其他依赖。
+从源码构建需要 Go 1.26 和 Node.js 24 或更新版本。生成的单二进制包含网页资源，运行时不需要 Node.js 或 C 工具链。
 
 ```sh
-make check   # CI 跑的全部内容：tidy、gofmt、vet、test、build
+npm --prefix web ci
+make check   # 前端检查以及 tidy、gofmt、vet、race 测试和构建
 make build   # -> bin/kist
 make dist    # -> dist/，四个发布平台
 ```

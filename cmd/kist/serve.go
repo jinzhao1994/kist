@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jinzhao1994/kist/internal/api"
+	"github.com/jinzhao1994/kist/internal/web"
 	"github.com/spf13/cobra"
 )
 
@@ -21,7 +22,7 @@ func newServeCmd() *cobra.Command {
 	var origins []string
 	var maxUploadBytes int64
 	var maxUploadFiles int
-	cmd := &cobra.Command{Use: "serve", Short: "Serve the HTTP API (local access by default)", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+	cmd := &cobra.Command{Use: "serve", Short: "Serve the web app and HTTP API (local access by default)", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
 		opt, err := serveOptions(address, origins)
 		if err != nil {
 			return err
@@ -32,6 +33,7 @@ func newServeCmd() *cobra.Command {
 		}
 		defer l.Close()
 		opt.MaxUploadBytes, opt.MaxUploadFiles = maxUploadBytes, maxUploadFiles
+		opt.UI = web.Handler()
 		handler, err := api.New(l, opt)
 		if err != nil {
 			return err

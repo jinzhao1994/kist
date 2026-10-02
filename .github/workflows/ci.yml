@@ -31,6 +31,14 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm --prefix web ci
+
       # Identical to what `make check` runs locally. Keep it that way: the
       # point of the Makefile is that the red X never appears in the first
       # place.
@@ -53,6 +61,16 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm --prefix web ci
+
+      - run: npm --prefix web run build
 
       # Not `make check`: GNU make is not guaranteed on the Windows runner, and
       # the checks worth repeating per platform are these two. No -race here —

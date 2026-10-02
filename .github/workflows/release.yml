@@ -22,6 +22,14 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm --prefix web ci
+
       # On a tag, github.ref_name is the tag itself. On workflow_dispatch it is
       # the branch, so VERSION stays empty and the binary honestly reports
       # "dev".

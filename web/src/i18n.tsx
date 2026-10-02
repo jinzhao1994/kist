@@ -1,0 +1,355 @@
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
+
+export const en = {
+  appName: "kist",
+  archive: "Your archive",
+  boxes: "Boxes",
+  allFiles: "All files",
+  tags: "Tags",
+  settings: "Display settings",
+  language: "Language",
+  formatLocale: "Regional format",
+  timezone: "Time zone",
+  direction: "Reading direction",
+  auto: "Automatic",
+  ltr: "Left to right",
+  rtl: "Right to left",
+  close: "Close",
+  save: "Save",
+  cancel: "Cancel",
+  loading: "Loading…",
+  retry: "Try again",
+  error: "Something went wrong. Please try again.",
+  createBox: "New box",
+  emptyBoxes: "A place for the things you want to keep.",
+  emptyBoxesHint:
+    "Create a box for a trip, an experience, or a batch of documents.",
+  name: "Name",
+  description: "Description",
+  startAt: "Start date",
+  endAt: "End date",
+  dateHint: "Year, month or date (for example, 2026 or 2026-10-01)",
+  editBox: "Edit box",
+  upload: "Add files",
+  search: "Search filenames",
+  noFiles: "No files here yet",
+  noResults: "No matching files",
+  importHint: "Drop files here, or choose files to add to this box.",
+  chooseFiles: "Choose files",
+  download: "Download original",
+  details: "File details",
+  previewUnavailable:
+    "Preview is not available for this format. You can still download the original.",
+  image: "Image",
+  video: "Video",
+  audio: "Audio",
+  document: "Document",
+  other: "Other",
+  unknown: "Not classified yet",
+  kind: "File type",
+  allTypes: "All types",
+  sort: "Sort by",
+  captured: "Capture time",
+  imported: "Import order",
+  filename: "Filename",
+  ascending: "Ascending",
+  from: "From",
+  to: "Until",
+  clearFilters: "Clear filters",
+  loadMore: "Load more",
+  filters: "Filters",
+  tagAll: "All of these tags",
+  tagAny: "Any of these tags",
+  tagNot: "None of these tags",
+  newTag: "New tag",
+  rename: "Rename",
+  move: "Move",
+  remove: "Remove",
+  parentTag: "Parent tag",
+  rootTag: "No parent",
+  manageTags: "Manage tags",
+  addTag: "Add tag",
+  removeTag: "Remove tag",
+  selectTag: "Select a tag",
+  created: "Added",
+  modified: "Updated",
+  capturedAt: "Captured",
+  metadata: "Metadata",
+  path: "Path",
+  fileId: "File ID",
+  extractionPending: "Metadata has not been fully read yet.",
+  extract: "Read metadata",
+  extractionFailed:
+    "Some metadata could not be read. Your original files are saved.",
+  extracting: "Reading metadata…",
+  uploadCancelled:
+    "Upload cancelled. Check the result before starting a new upload.",
+  uploadFailed:
+    "Upload interrupted. Retry with the same files to safely recover the result.",
+  uploadComplete: "Files saved",
+  uploading: "Uploading…",
+  checkResult: "Check result",
+  requestPending: "No committed result yet. You can retry this request.",
+  projectionDirty:
+    "The readable folder view needs repair. Your archive data is saved; run kist relink to rebuild the folder view.",
+  loadedFiles: "{count, plural, one {# file loaded} other {# files loaded}}",
+  fileCount: "{count, plural, one {# file} other {# files}}",
+  uploadLimit: "Up to {count} files and {size} per batch.",
+  uploadProgress: "{percent}% uploaded",
+  fieldRequired: "Please enter a name.",
+  invalidDate: "Use a valid year, month, or date.",
+  invalidSettings: "Enter a valid locale and time zone.",
+  requestConflict:
+    "This request key was already used for different content. Start a new operation.",
+  notFound: "This item no longer exists. Refresh the archive.",
+  refresh: "Refresh",
+} as const;
+export type MessageKey = keyof typeof en;
+export const zh: Record<MessageKey, string> = {
+  appName: "kist",
+  archive: "个人归档",
+  boxes: "归档盒",
+  allFiles: "全部文件",
+  tags: "标签",
+  settings: "显示设置",
+  language: "语言",
+  formatLocale: "地区格式",
+  timezone: "时区",
+  direction: "阅读方向",
+  auto: "自动",
+  ltr: "从左到右",
+  rtl: "从右到左",
+  close: "关闭",
+  save: "保存",
+  cancel: "取消",
+  loading: "正在加载…",
+  retry: "重试",
+  error: "操作未完成，请重试。",
+  createBox: "新建归档盒",
+  emptyBoxes: "留存值得珍藏的资料。",
+  emptyBoxesHint: "为一次旅行、一段经历或一批档案创建归档盒。",
+  name: "名称",
+  description: "描述",
+  startAt: "开始日期",
+  endAt: "结束日期",
+  dateHint: "填写年、年月或日期，例如 2026 或 2026-10-01",
+  editBox: "编辑归档盒",
+  upload: "添加文件",
+  search: "搜索文件名",
+  noFiles: "这里还没有文件",
+  noResults: "没有匹配的文件",
+  importHint: "将文件拖到这里，或选择文件加入这个归档盒。",
+  chooseFiles: "选择文件",
+  download: "下载原文件",
+  details: "文件详情",
+  previewUnavailable: "暂不支持预览此格式，仍可下载原文件。",
+  image: "图片",
+  video: "视频",
+  audio: "音频",
+  document: "文档",
+  other: "其他",
+  unknown: "尚未分类",
+  kind: "文件类型",
+  allTypes: "所有类型",
+  sort: "排序",
+  captured: "拍摄时间",
+  imported: "导入顺序",
+  filename: "文件名",
+  ascending: "升序",
+  from: "从",
+  to: "至",
+  clearFilters: "清除筛选",
+  loadMore: "加载更多",
+  filters: "筛选",
+  tagAll: "同时包含这些标签",
+  tagAny: "包含任一标签",
+  tagNot: "排除这些标签",
+  newTag: "新建标签",
+  rename: "改名",
+  move: "移动",
+  remove: "删除",
+  parentTag: "父标签",
+  rootTag: "无父标签",
+  manageTags: "管理标签",
+  addTag: "添加标签",
+  removeTag: "移除标签",
+  selectTag: "选择标签",
+  created: "添加时间",
+  modified: "更新时间",
+  capturedAt: "拍摄时间",
+  metadata: "元数据",
+  path: "路径",
+  fileId: "文件 ID",
+  extractionPending: "尚未完整读取元数据。",
+  extract: "读取元数据",
+  extractionFailed: "部分元数据读取失败，原文件已保存。",
+  extracting: "正在读取元数据…",
+  uploadCancelled: "上传已取消。开始新上传前，请核对提交结果。",
+  uploadFailed: "上传中断。使用相同文件重试，可安全恢复提交结果。",
+  uploadComplete: "文件已保存",
+  uploading: "正在上传…",
+  checkResult: "核对结果",
+  requestPending: "尚无已提交结果，可以重试此请求。",
+  projectionDirty:
+    "人可读目录需要修复。归档数据已保存，可运行 kist relink 重建目录。",
+  loadedFiles: "已加载 {count, number} 个文件",
+  fileCount: "{count, number} 个文件",
+  uploadLimit: "每批最多 {count} 个文件、{size}。",
+  uploadProgress: "已上传 {percent}%",
+  fieldRequired: "请输入名称。",
+  invalidDate: "请输入有效的年、年月或日期。",
+  invalidSettings: "请输入有效的地区格式和时区。",
+  requestConflict: "此请求标识已用于不同内容，请开始新操作。",
+  notFound: "此项已不存在，请刷新归档。",
+  refresh: "刷新",
+};
+
+export interface Preferences {
+  language: "en" | "zh";
+  formatLocale: string;
+  timezone: string;
+  direction: "auto" | "ltr" | "rtl";
+}
+export const storageKey = "kist.display.v1";
+export function validFormats(locale: string, timezone: string): boolean {
+  try {
+    new Intl.NumberFormat(locale);
+    new Intl.DateTimeFormat(locale, { timeZone: timezone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+export function initialPreferences(): Preferences {
+  const locale = navigator.languages?.[0] || "en-US";
+  const defaults: Preferences = {
+    language: locale.startsWith("zh") ? "zh" : "en",
+    formatLocale: locale,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    direction: "auto",
+  };
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(storageKey) || "null");
+    if (
+      saved &&
+      ["en", "zh"].includes(saved.language) &&
+      ["auto", "ltr", "rtl"].includes(saved.direction) &&
+      typeof saved.formatLocale === "string" &&
+      typeof saved.timezone === "string" &&
+      validFormats(saved.formatLocale, saved.timezone)
+    )
+      return saved;
+  } catch {
+    /* Storage may be unavailable or contain an older format. */
+  }
+  return defaults;
+}
+export function directionFor(prefs: Preferences): "ltr" | "rtl" {
+  if (prefs.direction !== "auto") return prefs.direction;
+  // Message languages currently shipped are both LTR. Direction remains
+  // independent of regional number and date formatting.
+  return "ltr";
+}
+interface Parameters {
+  loadedFiles: { count: number };
+  fileCount: { count: number };
+  uploadLimit: { count: string; size: string };
+  uploadProgress: { percent: string };
+}
+export type Translate = <K extends MessageKey>(
+  key: K,
+  ...args: K extends keyof Parameters ? [Parameters[K]] : []
+) => string;
+import { IntlMessageFormat } from "intl-messageformat";
+export function translator(prefs: Preferences): Translate {
+  const catalog = prefs.language === "zh" ? zh : en;
+  return ((key: MessageKey, values?: Record<string, string | number>) =>
+    new IntlMessageFormat(catalog[key] || en[key], prefs.language, undefined, {
+      formatters: {
+        getNumberFormat: (_, options) =>
+          new Intl.NumberFormat(prefs.formatLocale, options),
+        getDateTimeFormat: (_, options) =>
+          new Intl.DateTimeFormat(prefs.formatLocale, {
+            ...options,
+            timeZone: prefs.timezone,
+          }),
+        getPluralRules: (_, options) =>
+          new Intl.PluralRules(prefs.language, options),
+      },
+    }).format(values) as string) as Translate;
+}
+const I18nContext = createContext<{
+  prefs: Preferences;
+  setPrefs: (p: Preferences) => void;
+  t: Translate;
+} | null>(null);
+export function I18nProvider({ children }: { children: ReactNode }) {
+  const [prefs, setPrefs] = useState(initialPreferences);
+  useEffect(() => {
+    document.documentElement.lang = prefs.language;
+    document.documentElement.dir = directionFor(prefs);
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(prefs));
+    } catch {
+      /* The current session still retains preferences. */
+    }
+  }, [prefs]);
+  return (
+    <I18nContext value={{ prefs, setPrefs, t: translator(prefs) }}>
+      {children}
+    </I18nContext>
+  );
+}
+export function useI18n() {
+  const value = useContext(I18nContext);
+  if (!value) throw new Error("I18nProvider is missing");
+  return value;
+}
+export function formatNumber(value: number, prefs: Preferences): string {
+  return new Intl.NumberFormat(prefs.formatLocale).format(value);
+}
+export function formatBytes(value: number, prefs: Preferences): string {
+  const units = ["byte", "kilobyte", "megabyte", "gigabyte", "terabyte"];
+  const power = Math.max(
+    0,
+    Math.min(units.length - 1, Math.floor(Math.log10(Math.max(1, value)) / 3)),
+  );
+  return new Intl.NumberFormat(prefs.formatLocale, {
+    style: "unit",
+    unit: units[power],
+    unitDisplay: "short",
+    maximumFractionDigits: 1,
+  }).format(value / 1000 ** power);
+}
+export function formatInstant(value: string, prefs: Preferences): string {
+  return new Intl.DateTimeFormat(prefs.formatLocale, {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: prefs.timezone,
+  }).format(new Date(value));
+}
+// LocalDate is a civil date with significant precision, not an instant. Use a
+// fixed Gregorian calendar and UTC only as an Intl formatting carrier.
+export function formatLocalDate(value: string, prefs: Preferences): string {
+  if (!/^\d{4}(-\d{2}(-\d{2}(T\d{2}:\d{2})?)?)?$/.test(value)) return value;
+  const [year, month = 1, day = 1, hour = 0, minute = 0] = value
+    .split(/[-T:]/)
+    .map(Number);
+  const carrier = new Date(0);
+  carrier.setUTCFullYear(year, month - 1, day);
+  carrier.setUTCHours(hour, minute, 0, 0);
+  return new Intl.DateTimeFormat(prefs.formatLocale, {
+    calendar: "gregory",
+    timeZone: "UTC",
+    year: "numeric",
+    ...(value.length >= 7 && { month: "long" }),
+    ...(value.length >= 10 && { day: "numeric" }),
+    ...(value.length >= 16 && { hour: "numeric", minute: "2-digit" }),
+  }).format(carrier);
+}

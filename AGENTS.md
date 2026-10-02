@@ -63,5 +63,5 @@ M0–M3 已完成，包括存储内核、op log、导入与投影、完整性检
 ## 验证
 
 - 开发时先运行与改动直接相关的测试。
-- 代码变更交付前运行 `make check`；它与 CI 的主检查一致，包含 `go mod tidy -diff`、gofmt、`go vet`、`go test -race ./...` 和单二进制构建。
+- 代码变更交付前运行 `make check`；它与 CI 的主检查一致，包含前端契约/格式/测试/构建、`go mod tidy -diff`、gofmt、`go vet`、`go test -race ./...` 和单二进制构建。首次开发先执行 `npm --prefix web ci`。
 - 只有文档变更时至少运行 `git diff --check`，无需为此运行完整 Go 测试。

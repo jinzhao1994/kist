@@ -1,0 +1,46 @@
+{
+  "name": "kist-web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -b && vite build",
+    "test": "node --no-experimental-webstorage node_modules/vitest/vitest.mjs run",
+    "check": "npm run check:api && npm run format:check && npm run test && npm run build",
+    "generate:api": "node scripts/api-schema.mjs",
+    "check:api": "node scripts/api-schema.mjs --check",
+    "format": "prettier --write src scripts vite.config.ts tsconfig.json package.json index.html",
+    "format:check": "prettier --check src scripts vite.config.ts tsconfig.json package.json index.html"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.23",
+    "@tanstack/react-query": "^5.104.0",
+    "@tanstack/react-virtual": "^3.14.13",
+    "intl-messageformat": "^12.1.2",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-dropzone": "^20.1.2"
+  },
+  "devDependencies": {
+    "@formatjs/icu-messageformat-parser": "^3.5.20",
+    "@tailwindcss/vite": "^4.3.3",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "jsdom": "^29.1.1",
+    "openapi-typescript": "^7.13.0",
+    "prettier": "^3.9.9",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.2",
+    "vitest": "^4.1.11"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

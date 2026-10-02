@@ -11,8 +11,9 @@
 /web/node_modules/
 /web/.vite/
 
-# internal/web/ 下的 embed 产物要不要进版本库，是 M4 的决定：
-# CI 里构建前端再 go build，还是直接提交构建产物。定了再往这里加规则。
+# Frontend assets are generated before Go build, locally and in CI.
+/internal/web/static/build/
+/web/tsconfig.tsbuildinfo
 
 # ── 本地开发 ──
 

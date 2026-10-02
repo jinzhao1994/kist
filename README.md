@@ -58,10 +58,12 @@ Written in Chinese, and worth reading before the code:
 
 ## Building from source
 
-Go 1.26 or newer. No C toolchain, no other dependencies.
+Go 1.26 or newer and Node.js 24 or newer are needed to build from source.
+The resulting binary includes the web assets and needs neither Node.js nor a C toolchain.
 
 ```sh
-make check   # everything CI runs: tidy, gofmt, vet, test, build
+npm --prefix web ci
+make check   # frontend checks plus tidy, gofmt, vet, race tests, and build
 make build   # -> bin/kist
 make dist    # -> dist/, all four release platforms
 ```

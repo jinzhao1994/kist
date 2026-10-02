@@ -25,7 +25,7 @@ GOBUILD := CGO_ENABLED=0 go build -trimpath
 all: check
 
 .PHONY: check
-check: tidy-check fmt-check vet test build ## Everything CI runs, locally
+check: web-check tidy-check fmt-check vet test build ## Everything CI runs, locally
 
 .PHONY: tidy-check
 tidy-check: ## Fail if go.mod/go.sum are not tidy
@@ -51,11 +51,11 @@ test:
 	go test -race ./...
 
 .PHONY: build
-build: ## Build for the host platform into bin/
+build: web-build ## Build for the host platform into bin/
 	$(GOBUILD) -ldflags '$(LDFLAGS)' -o $(BIN) ./cmd/kist
 
 .PHONY: dist
-dist: ## Cross-compile every release platform into dist/
+dist: web-build ## Cross-compile every release platform into dist/
 	@rm -rf $(DIST) && mkdir -p $(DIST)
 	@for p in $(PLATFORMS); do \
 		os=$${p%/*}; arch=$${p#*/}; \
@@ -75,3 +75,10 @@ clean:
 help: ## List targets
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) \
 		| awk -F':.*?## ' '{printf "  %-12s %s\n", $$1, $$2}'
+
+.PHONY: web-build web-check
+web-build: ## Build the embedded browser app
+	npm --prefix web run build
+
+web-check: ## Check generated API types, browser tests, and production assets
+	npm --prefix web run check

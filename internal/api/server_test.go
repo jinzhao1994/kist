@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -127,5 +128,23 @@ func TestOpenAPIAndEmptyList(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), "Idempotency-Key") || !strings.Contains(w.Body.String(), `"code"`) {
 		t.Fatal("schema lacks request or error contract")
+	}
+}
+
+func TestStaticFallbackDoesNotHideAPI404(t *testing.T) {
+	_, l := testServer(t)
+	s, err := New(l, Options{AllowedHosts: []string{"localhost:8473"}, UI: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("UI document")) })})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"/api/unknown", "/api/v1/missing", "/api"} {
+		w := call(s, "GET", path, "", "")
+		if w.Code != 404 || strings.Contains(w.Body.String(), "UI document") {
+			t.Fatalf("%s: %d %s", path, w.Code, w.Body)
+		}
+	}
+	w := call(s, "GET", "/boxes/id", "", "")
+	if w.Code != 200 || w.Body.String() != "UI document" {
+		t.Fatalf("UI fallback: %d %s", w.Code, w.Body)
 	}
 }
