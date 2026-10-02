@@ -181,6 +181,55 @@ func scan(src string, hidden bool) ([]scanned, error) {
 // That is also why the commit runs on a context.WithoutCancel — the context
 // that told us to stop cannot be the one we ask to write with.
 func (l *Library) Import(ctx context.Context, src string, opt ImportOptions) (*ImportResult, error) {
+	prepared, err := l.PrepareImport(ctx, src, opt)
+	if err != nil {
+		return nil, err
+	}
+	// CLI imports preserve the completed portion on graceful cancellation.
+	return prepared.Commit(context.WithoutCancel(ctx))
+}
+
+// PreparedImport holds immutable input for one import commit. Preparing stores
+// blobs but does not append history or change views; abandoning it can only
+// leave unreferenced blobs, which the existing integrity tools report.
+type PreparedImport struct {
+	library *Library
+	payload []byte
+	result  ImportResult
+	rootOp  *int64
+}
+
+// Result returns preparation outcomes. Imported files are ready to commit, not
+// yet visible in the library. Callers must inspect Interrupted and FileFailed
+// before deciding whether their protocol permits committing a partial batch.
+func (p *PreparedImport) Result() ImportResult {
+	r := p.result
+	r.Files = append([]FileResult(nil), r.Files...)
+	return r
+}
+
+// Commit appends the prepared batch using the caller's cancellation policy.
+// ExecuteRequest supplies retry protection; outside it a stale or repeated plan
+// is rejected by the normal write-path assertions and constraints.
+func (p *PreparedImport) Commit(ctx context.Context) (*ImportResult, error) {
+	res := p.Result()
+	if len(p.payload) != 0 {
+		id, err := p.library.write(ctx, oplog.ActionImportFiles, p.payload, oplog.OriginUser, writeOptions{RootOpID: p.rootOp})
+		if err != nil {
+			return nil, err
+		}
+		res.OpID = id
+	}
+	return &res, nil
+}
+
+// PrepareImport scans and hashes outside the commit lock. HTTP callers first
+// receive the complete upload, prepare it here, then commit within ExecuteRequest.
+func (l *Library) PrepareImport(ctx context.Context, src string, opt ImportOptions) (*PreparedImport, error) {
+	if ctx.Value(requestContextKey{}) != nil {
+		return nil, ErrRequestScope
+	}
+
 	// Import is the only thing that writes to blobs/tmp, so it is also the
 	// only thing that leaves residue there when it crashes. Clearing it here
 	// costs one ReadDir and keeps the mess bounded by one interrupted run
@@ -239,21 +288,19 @@ func (l *Library) Import(ctx context.Context, src string, opt ImportOptions) (*I
 		}
 	}
 
+	prepared := &PreparedImport{library: l, result: *res}
+	if opt.RootOp != nil {
+		id := *opt.RootOp
+		prepared.rootOp = &id
+	}
 	if len(payload.Files) > 0 || len(payload.Folders) > 0 {
 		raw, err := oplog.Marshal(payload)
 		if err != nil {
 			return nil, err
 		}
-		// The op must be written even when the context is done — that is what
-		// "graceful stop" means.
-		opID, err := l.write(context.WithoutCancel(ctx), oplog.ActionImportFiles, raw,
-			oplog.OriginUser, writeOptions{RootOpID: opt.RootOp})
-		if err != nil {
-			return nil, err
-		}
-		res.OpID = opID
+		prepared.payload = raw
 	}
-	return res, nil
+	return prepared, nil
 }
 
 // importOne processes a single candidate.
