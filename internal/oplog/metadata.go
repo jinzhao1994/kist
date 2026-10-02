@@ -71,6 +71,23 @@ func (extractMetadata) Apply(tx Tx, payload []byte) error {
 	}
 
 	for _, f := range p.Files {
+		before := make(map[string]*MetadataState, len(f.Was))
+		for _, kv := range f.Was {
+			before[kv.Key] = &MetadataState{Value: kv.Value, Type: kv.Type, Source: p.Extractor}
+		}
+		for _, kv := range f.Set {
+			if err := assertMetadataState(tx, f.FileID, KeyChange{Key: kv.Key, Before: before[kv.Key]}); err != nil {
+				return err
+			}
+		}
+		for _, key := range f.Removed {
+			if err := assertMetadataState(tx, f.FileID, KeyChange{Key: key, Before: before[key]}); err != nil {
+				return err
+			}
+		}
+		if err := assertCapturedChange(tx, f.FileID, f.CapturedWas, f.CapturedAt); err != nil {
+			return err
+		}
 		for _, kv := range f.Set {
 			// The type tag is checked here rather than trusted, because Apply
 			// routes on it and a payload written by a newer kist could carry
@@ -88,8 +105,10 @@ func (extractMetadata) Apply(tx Tx, payload []byte) error {
 				return err
 			}
 		}
-		if err := tx.SetCapturedAt(f.FileID, f.CapturedAt); err != nil {
-			return err
+		if f.CapturedAt != f.CapturedWas {
+			if err := tx.SetCapturedAt(f.FileID, f.CapturedAt); err != nil {
+				return err
+			}
 		}
 		if p.Version == 0 {
 			if err := tx.DeleteFileExtraction(f.FileID, p.Extractor); err != nil {

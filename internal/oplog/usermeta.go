@@ -70,6 +70,9 @@ func (setMetadata) Apply(tx Tx, payload []byte) error {
 		if len(f.Keys) == 0 {
 			return fmt.Errorf("set_metadata: %s: %w", f.FileID, errEmptyBatch)
 		}
+		if err := assertCapturedChange(tx, f.FileID, f.CapturedWas, f.CapturedAt); err != nil {
+			return err
+		}
 		for _, k := range f.Keys {
 			if k.Key == "" {
 				return fmt.Errorf("set_metadata: %s: a change names no key", f.FileID)
@@ -81,8 +84,10 @@ func (setMetadata) Apply(tx Tx, payload []byte) error {
 				return err
 			}
 		}
-		if err := tx.SetCapturedAt(f.FileID, f.CapturedAt); err != nil {
-			return err
+		if f.CapturedAt != f.CapturedWas {
+			if err := tx.SetCapturedAt(f.FileID, f.CapturedAt); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -172,4 +177,20 @@ func targetsOfMetadata(p SetMetadataPayload) []domain.FileID {
 		out[i] = f.FileID
 	}
 	return out
+}
+
+// assertCapturedChange protects only an actual change. Metadata edits that
+// leave capture time alone must neither assert nor overwrite that field.
+func assertCapturedChange(tx Tx, file domain.FileID, before, after domain.Instant) error {
+	if before == after {
+		return nil
+	}
+	current, ok, err := tx.GetFile(file)
+	if err != nil {
+		return err
+	}
+	if !ok || current.CapturedAt != before {
+		return fmt.Errorf("capture time on %s has changed since this op: %w", file, ErrStaleBefore)
+	}
+	return nil
 }

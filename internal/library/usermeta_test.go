@@ -144,3 +144,69 @@ func TestSetMetadataRefusesAStalePayload(t *testing.T) {
 		t.Errorf("err = %v, want ErrStaleBefore", err)
 	}
 }
+
+func TestExtractionUndoPreservesLaterUserRemoval(t *testing.T) {
+	l, box := openWithBox(t)
+	first := importOneFile(t, l, box, "a.jpg", "a")
+	second := importOneFile(t, l, box, "b.jpg", "b")
+	e := &fakeExtractor{id: "fake", version: 1, ns: []string{"fake"},
+		tags: []extract.KV{text("fake:Make", "Apple")}}
+	res := extractWith(t, l, e)
+	if _, err := l.RemoveMetadata(t.Context(), second.ID, "fake:Make"); err != nil {
+		t.Fatal(err)
+	}
+	before, _, err := l.ops.Last()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.Undo(t.Context(), res.OpIDs[0]); !errors.Is(err, ErrUndoBlocked) {
+		t.Fatalf("undo = %v, want ErrUndoBlocked", err)
+	}
+	if got := metaOf(t, l, first.ID)["fake:Make"]; got.Value != "Apple" {
+		t.Fatal("refused batch undo changed the first file")
+	}
+	if got := metaOf(t, l, second.ID)["fake:Make"]; !got.Tombstone {
+		t.Fatal("refused undo erased the user's tombstone")
+	}
+	after, _, err := l.ops.Last()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before.ID != after.ID {
+		t.Fatal("refused undo appended an event")
+	}
+	if err := l.Rebuild(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if got := metaOf(t, l, second.ID)["fake:Make"]; !got.Tombstone {
+		t.Fatal("rebuild lost the tombstone")
+	}
+}
+
+func TestMetadataUndoDoesNotOverwriteUnchangedCaptureTime(t *testing.T) {
+	l, box := openWithBox(t)
+	file := importOneFile(t, l, box, "a.jpg", "a")
+	e := &fakeExtractor{id: "fake", version: 1, ns: []string{"fake"},
+		tags: []extract.KV{text("fake:Make", "Apple")}}
+	extractWith(t, l, e)
+	if _, err := l.RemoveMetadata(t.Context(), file.ID, "fake:Make"); err != nil {
+		t.Fatal(err)
+	}
+	removal := lastOpID(t, l)
+	extractWith(t, l, &fakeExtractor{id: "exif", version: 1, ns: []string{"exif"},
+		tags: []extract.KV{text("exif:DateTimeOriginal", "2019:08:12 14:03:22")}})
+	before, _, err := l.File(t.Context(), file.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.Undo(t.Context(), removal); err != nil {
+		t.Fatal(err)
+	}
+	after, _, err := l.File(t.Context(), file.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before.CapturedAt != after.CapturedAt {
+		t.Fatal("undo overwrote an unrelated capture time change")
+	}
+}

@@ -39,6 +39,7 @@ func TestInverseRestoresOverwrittenValues(t *testing.T) {
 			Was:    []extract.KV{text("exif:Make", "APPLE")},
 		}},
 	}
+	seedExtractionBefore(t, tx, p)
 	mustApply(t, tx, ActionExtractMetadata, p)
 	if got, _ := metaOf(tx, file, "exif:Make"); got.kv.Value != "Apple" {
 		t.Fatalf("forward apply wrote %q", got.kv.Value)
@@ -92,6 +93,7 @@ func TestInverseAlsoRollsBackTheRecordedVersion(t *testing.T) {
 			Was:    []extract.KV{text("exif:Make", "APPLE")},
 		}},
 	}
+	seedExtractionBefore(t, tx, p)
 	mustApply(t, tx, ActionExtractMetadata, p)
 	if tx.extracts[key] != 2 {
 		t.Fatalf("forward apply recorded version %d, want 2", tx.extracts[key])
@@ -146,6 +148,7 @@ func TestInverseAlsoRestoresCapturedAt(t *testing.T) {
 			CapturedWas: before,
 		}},
 	}
+	seedExtractionBefore(t, tx, p)
 	mustApply(t, tx, ActionExtractMetadata, p)
 	if got := tx.files[file].CapturedAt; got != after {
 		t.Fatalf("forward apply set captured_at to %v", got)
@@ -230,9 +233,9 @@ func TestApplyRefusesAnUnknownType(t *testing.T) {
 	}
 }
 
-// Invariant 3: the same payload applied twice lands in the same place. A
-// rebuild depends on it, and so does replaying after a partial failure.
-func TestApplyIsIdempotent(t *testing.T) {
+// An event is applied once per history. Catch-up skips committed IDs; a
+// second application against a changed before-state must be refused.
+func TestExtractionRefusesRepeatedApply(t *testing.T) {
 	tx := newFakeTx(opTime)
 	file := seedFile(t, tx)
 	p := ExtractMetadataPayload{
@@ -247,7 +250,9 @@ func TestApplyIsIdempotent(t *testing.T) {
 	first, _ := metaOf(tx, file, "exif:Make")
 	firstCaptured := tx.files[file].CapturedAt
 
-	mustApply(t, tx, ActionExtractMetadata, p)
+	if err := applyPayload(t, tx, ActionExtractMetadata, p); !errors.Is(err, ErrStaleBefore) {
+		t.Fatalf("repeated apply = %v, want ErrStaleBefore", err)
+	}
 	second, _ := metaOf(tx, file, "exif:Make")
 	if first != second || tx.files[file].CapturedAt != firstCaptured {
 		t.Error("applying the same payload twice changed the result")
@@ -281,5 +286,51 @@ func TestTargetsListsEveryFile(t *testing.T) {
 	}
 	if len(targets.Boxes) != 0 {
 		t.Errorf("Targets reported %d boxes; metadata changes nothing about a box", len(targets.Boxes))
+	}
+}
+
+// seedExtractionBefore prepares the actual state an update payload asserts.
+func seedExtractionBefore(t *testing.T, tx *fakeTx, p ExtractMetadataPayload) {
+	t.Helper()
+	for _, f := range p.Files {
+		for _, kv := range f.Was {
+			if err := tx.SetFileMetadata(f.FileID, kv, p.Extractor); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := tx.SetCapturedAt(f.FileID, f.CapturedWas); err != nil {
+			t.Fatal(err)
+		}
+		if err := tx.SetFileExtraction(f.FileID, p.Extractor, p.PreviousVersion); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestExtractionUndoRefusesChangedState(t *testing.T) {
+	for _, kind := range []string{"value", "source", "tombstone", "capture time"} {
+		t.Run(kind, func(t *testing.T) {
+			tx := newFakeTx(opTime)
+			file := seedFile(t, tx)
+			p := ExtractMetadataPayload{Extractor: "exif", Version: 1,
+				Files: []FileExtraction{{FileID: file,
+					Set:        []extract.KV{text("exif:Make", "Apple")},
+					CapturedAt: domain.NewInstant(2000)}}}
+			mustApply(t, tx, ActionExtractMetadata, p)
+			switch kind {
+			case "value":
+				tx.SetFileMetadata(file, text("exif:Make", "Nikon"), "exif")
+			case "source":
+				tx.SetFileMetadata(file, text("exif:Make", "Apple"), "user")
+			case "tombstone":
+				tx.TombstoneFileMetadata(file, "exif:Make")
+			case "capture time":
+				tx.SetCapturedAt(file, domain.NewInstant(3000))
+			}
+			action, inverse := inverseOf(t, ActionExtractMetadata, mustRaw(t, p))
+			if err := apply(t, tx, action, inverse); !errors.Is(err, ErrStaleBefore) {
+				t.Fatalf("undo = %v, want ErrStaleBefore", err)
+			}
+		})
 	}
 }
