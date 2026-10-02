@@ -1,10 +1,13 @@
 package library
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/integrity"
@@ -109,5 +112,31 @@ func TestDeepVerifyLeavesNothingBehind(t *testing.T) {
 		if strings.HasPrefix(e.Name(), ".kist-verify") {
 			t.Errorf("the scratch copy was left behind: %s", filepath.Join(l.Layout().Root, e.Name()))
 		}
+	}
+}
+
+func TestDeepVerifyKeepsReplayAndLiveAtTheSameVersion(t *testing.T) {
+	l := openTestLibrary(t)
+	other, err := Open(l.Layout().Root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer other.Close()
+	l.hooks.afterDeepReplay = func() {
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Millisecond)
+		defer cancel()
+		if _, err := other.CreateTag(ctx, "during-verify", nil); !errors.Is(err, context.DeadlineExceeded) {
+			t.Errorf("writer between replay and comparison = %v, want timeout", err)
+		}
+	}
+	r, err := l.Verify(t.Context(), VerifyOptions{Deep: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Total() != 0 {
+		t.Fatalf("verify reported a false finding: %s", report(t, r))
+	}
+	if _, err := other.CreateTag(t.Context(), "after-verify", nil); err != nil {
+		t.Fatalf("verify did not release the lock: %v", err)
 	}
 }

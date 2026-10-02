@@ -31,6 +31,14 @@ type VerifyOptions struct {
 func (l *Library) Verify(ctx context.Context, opt VerifyOptions) (integrity.Report, error) {
 	var r integrity.Report
 
+	// The log, views and projection must describe the same committed state.
+	// Do not catch up here: verification reports a lag without repairing it.
+	release, err := l.lock.Acquire(ctx)
+	if err != nil {
+		return r, err
+	}
+	defer release()
+
 	// Crash residue first: it is the one thing here that is safe to remove,
 	// and leaving it would sit next to genuine findings looking like one
 	// (spec 3.9).

@@ -27,8 +27,8 @@ type Library struct {
 	// (invariant 1); everything written here lands in ops first.
 	ops *journal.Dir
 	// lock serializes writes against every other process sharing this library
-	// — and, inside serve, against every other request (spec 2.7). Reads never
-	// take it.
+	// — and, inside serve, against every other request (spec 2.7). Verify
+	// also takes it to compare a stable state; ordinary queries do not.
 	lock  *lockfile.Locker
 	log   *slog.Logger
 	now   func() time.Time
@@ -52,6 +52,8 @@ type hooks struct {
 	// log and flushed, nothing has applied it. Returning an error is the only
 	// way to aim a crash at exactly that instant (spec 2.2.2).
 	afterAppend func() error
+	// afterDeepReplay runs before comparing the scratch and live databases.
+	afterDeepReplay func()
 }
 
 // Option configures Open.

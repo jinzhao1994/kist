@@ -3,8 +3,9 @@
 //
 // The lock is held for one logical write operation, never for the lifetime of
 // a process: a `kist serve` that held it while running would stop anybody from
-// ever using the CLI again. Reads never take it, so browsing a library while
+// ever using the CLI again. Ordinary queries never take it, so browsing a library while
 // something writes to it is free — which is the whole reason WAL mode is on.
+// Integrity verification also holds it while comparing logs and views.
 //
 // It is an OS advisory lock rather than a pid file because the kernel drops it
 // when the holder dies. That removes the entire category of stale locks: there
@@ -71,9 +72,9 @@ type BusyError struct {
 
 func (e *BusyError) Error() string {
 	if e.Holder == "" {
-		return "another kist process is writing to this library; try again"
+		return "another kist operation holds this library lock; try again"
 	}
-	return fmt.Sprintf("another kist process is writing to this library:\n  %s", e.Holder)
+	return fmt.Sprintf("another kist operation holds this library lock:\n  %s", e.Holder)
 }
 
 // Acquire takes the lock and returns the function that releases it.

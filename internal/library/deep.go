@@ -57,6 +57,9 @@ func (l *Library) verifyDeep(ctx context.Context) (integrity.Report, error) {
 		return r, err
 	}
 
+	if l.hooks.afterDeepReplay != nil {
+		l.hooks.afterDeepReplay()
+	}
 	drift, err := store.DiffViews(ctx, l.db, scratch)
 	if err != nil {
 		return r, err
