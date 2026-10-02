@@ -143,7 +143,7 @@ func TestTimeRangeTurnsDatesIntoInstants(t *testing.T) {
 	}
 	// The bounds are the ends of the interval the caller named, not the ends
 	// of the day they happen to start on.
-	if want := time.Date(2019, 6, 30, 23, 59, 0, 0, time.UTC).UnixNano(); args[0] != want {
+	if want := time.Date(2019, 7, 1, 0, 0, 0, 0, time.UTC).UnixNano(); args[0] != want {
 		t.Errorf("upper bound = %v, want %d (the end of June)", args[0], want)
 	}
 	if want := time.Date(2019, 3, 1, 0, 0, 0, 0, time.UTC).UnixNano(); args[1] != want {

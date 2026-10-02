@@ -463,3 +463,80 @@ func TestFoldersOfBoxPutsTheRootFirst(t *testing.T) {
 		t.Errorf("the root is not first: %+v", got[0])
 	}
 }
+
+func TestTimeRangeIncludesTheWholeFinalMinute(t *testing.T) {
+	cases := []struct{ until, next string }{
+		{"2020", "2021-01-01T00:00:00Z"},
+		{"2020-02", "2020-03-01T00:00:00Z"},
+		{"2020-02-29", "2020-03-01T00:00:00Z"},
+		{"2020-02-29T12:34", "2020-02-29T12:35:00Z"},
+	}
+	for _, c := range cases {
+		t.Run(c.until, func(t *testing.T) {
+			db := migrated(t)
+			_, root := seedBoxWithRoot(t, db)
+			next, err := time.Parse(time.RFC3339, c.next)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, f := range []struct {
+				name string
+				at   time.Time
+			}{
+				{"last-second", next.Add(-30 * time.Second)},
+				{"last-nanosecond", next.Add(-time.Nanosecond)},
+				{"next-period", next},
+			} {
+				id := putFile(t, db, root, f.name, "")
+				viewTx(t, db, testTime, func(vtx *ViewTx) {
+					if err := vtx.SetCapturedAt(id, domain.NewInstant(f.at.UnixNano())); err != nil {
+						t.Fatal(err)
+					}
+				})
+			}
+			got, _, err := ListFiles(db, query.Query{Time: &query.DateRange{To: localDate(t, c.until)}}, time.UTC)
+			if err != nil {
+				t.Fatal(err)
+			}
+			names := fileNames(got)
+			slices.Sort(names)
+			if !slices.Equal(names, []string{"last-nanosecond", "last-second"}) {
+				t.Fatalf("range returned %v", names)
+			}
+		})
+	}
+}
+
+func TestTimeRangeEndUsesLocalCalendarAcrossDST(t *testing.T) {
+	zone, err := time.LoadLocation("America/Denver")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, day := range []string{"2020-03-08", "2020-11-01"} {
+		t.Run(day, func(t *testing.T) {
+			db := migrated(t)
+			_, root := seedBoxWithRoot(t, db)
+			start, err := time.ParseInLocation("2006-01-02", day, zone)
+			if err != nil {
+				t.Fatal(err)
+			}
+			next := start.AddDate(0, 0, 1)
+			for i, instant := range []time.Time{next.Add(-time.Nanosecond), next} {
+				id := putFile(t, db, root, fmt.Sprint(i), "")
+				viewTx(t, db, testTime, func(vtx *ViewTx) {
+					if err := vtx.SetCapturedAt(id, domain.NewInstant(instant.UnixNano())); err != nil {
+						t.Fatal(err)
+					}
+				})
+			}
+			got, _, err := ListFiles(db, query.Query{Time: &query.DateRange{
+				From: localDate(t, day), To: localDate(t, day)}}, zone)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(got) != 1 || got[0].Name != "0" {
+				t.Fatalf("local day returned %v", fileNames(got))
+			}
+		})
+	}
+}

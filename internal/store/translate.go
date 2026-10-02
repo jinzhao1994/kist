@@ -177,8 +177,10 @@ func timePredicate(column string, r query.DateRange, zone *time.Location) (strin
 		if err != nil {
 			return "", nil, err
 		}
-		sb.WriteString(` AND ` + column + ` <= ?`)
-		args = append(args, hi)
+		// End names the start of the final minute. Include that entire
+		// minute, down to its last nanosecond, with an exclusive upper bound.
+		sb.WriteString(` AND ` + column + ` < ?`)
+		args = append(args, hi+int64(time.Minute))
 	}
 	if !r.From.IsZero() {
 		lo, err := instantAt(r.From.Start(), zone)
