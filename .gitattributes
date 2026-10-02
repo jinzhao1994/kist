@@ -1,0 +1,4 @@
+# Preserve historical checksums, synthetic blob hashes and snapshot bytes.
+internal/library/testdata/journal-v1/ops/** -text
+internal/library/testdata/journal-v1/blobs/** -text
+internal/library/testdata/journal-v1/snapshot.txt -text
