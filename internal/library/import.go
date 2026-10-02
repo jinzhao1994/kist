@@ -229,6 +229,58 @@ func (l *Library) PrepareImport(ctx context.Context, src string, opt ImportOptio
 	if ctx.Value(requestContextKey{}) != nil {
 		return nil, ErrRequestScope
 	}
+	candidates, err := scan(src, opt.Hidden)
+	if err != nil {
+		return nil, err
+	}
+	return l.prepareCandidates(ctx, candidates, opt)
+}
+
+// ImportSource separates a local staging path from its archive-relative name.
+// Callers own the staging files and must keep them unchanged until preparation ends.
+type ImportSource struct {
+	Path         string
+	RelativePath string
+}
+
+// PrepareFiles prepares an explicit batch without interpreting archive names as
+// host filesystem paths. This preserves names that need escaping on Windows.
+func (l *Library) PrepareFiles(ctx context.Context, sources []ImportSource, opt ImportOptions) (*PreparedImport, error) {
+	if ctx.Value(requestContextKey{}) != nil {
+		return nil, ErrRequestScope
+	}
+	candidates := make([]scanned, 0, len(sources))
+	seen := map[string]bool{}
+	for _, source := range sources {
+		if !fs.ValidPath(source.RelativePath) || source.RelativePath == "." || strings.ContainsAny(source.RelativePath, "\\\x00") {
+			return nil, fmt.Errorf("invalid relative import path")
+		}
+		for _, part := range strings.Split(source.RelativePath, "/") {
+			if err := domain.ValidateName(part); err != nil {
+				return nil, err
+			}
+		}
+		folded := domain.Fold(source.RelativePath)
+		if seen[folded] {
+			return nil, fmt.Errorf("duplicate relative import path")
+		}
+		seen[folded] = true
+		info, err := os.Lstat(source.Path)
+		if err != nil {
+			return nil, err
+		}
+		if !info.Mode().IsRegular() {
+			return nil, fmt.Errorf("import source is not a regular file")
+		}
+		candidates = append(candidates, scanned{abs: source.Path, rel: source.RelativePath})
+	}
+	return l.prepareCandidates(ctx, candidates, opt)
+}
+
+func (l *Library) prepareCandidates(ctx context.Context, candidates []scanned, opt ImportOptions) (*PreparedImport, error) {
+	if ctx.Value(requestContextKey{}) != nil {
+		return nil, ErrRequestScope
+	}
 
 	// Import is the only thing that writes to blobs/tmp, so it is also the
 	// only thing that leaves residue there when it crashes. Clearing it here
@@ -253,11 +305,6 @@ func (l *Library) PrepareImport(ctx context.Context, src string, opt ImportOptio
 		return nil, err
 	}
 	taken, err := store.ExistingNames(l.db, box.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	candidates, err := scan(src, opt.Hidden)
 	if err != nil {
 		return nil, err
 	}

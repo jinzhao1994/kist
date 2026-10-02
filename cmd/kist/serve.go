@@ -19,6 +19,8 @@ import (
 func newServeCmd() *cobra.Command {
 	var address string
 	var origins []string
+	var maxUploadBytes int64
+	var maxUploadFiles int
 	cmd := &cobra.Command{Use: "serve", Short: "Serve the HTTP API (local access by default)", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
 		opt, err := serveOptions(address, origins)
 		if err != nil {
@@ -29,6 +31,7 @@ func newServeCmd() *cobra.Command {
 			return err
 		}
 		defer l.Close()
+		opt.MaxUploadBytes, opt.MaxUploadFiles = maxUploadBytes, maxUploadFiles
 		handler, err := api.New(l, opt)
 		if err != nil {
 			return err
@@ -47,6 +50,8 @@ func newServeCmd() *cobra.Command {
 	}}
 	cmd.Flags().StringVar(&address, "listen", "127.0.0.1:8473", "listen address; non-loopback requires --allow-origin")
 	cmd.Flags().StringSliceVar(&origins, "allow-origin", nil, "trusted origin including scheme and port; repeat for multiple origins")
+	cmd.Flags().Int64Var(&maxUploadBytes, "max-upload-bytes", api.DefaultMaxUploadBytes, "maximum total multipart upload bytes")
+	cmd.Flags().IntVar(&maxUploadFiles, "max-upload-files", api.DefaultMaxUploadFiles, "maximum files per upload batch")
 	return cmd
 }
 

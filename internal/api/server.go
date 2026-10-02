@@ -23,18 +23,33 @@ const maxJSONBody = 1 << 20
 type Options struct {
 	AllowedHosts   []string
 	AllowedOrigins []string
+	MaxUploadBytes int64
+	MaxUploadFiles int
+	UploadTempDir  string
 }
 
 type Server struct {
-	library  *library.Library
-	mux      *http.ServeMux
-	contract huma.API
-	hosts    map[string]bool
-	origins  map[string]bool
+	library        *library.Library
+	mux            *http.ServeMux
+	contract       huma.API
+	hosts          map[string]bool
+	origins        map[string]bool
+	maxUploadBytes int64
+	maxUploadFiles int
+	uploadTempDir  string
 }
 
 func New(l *library.Library, opt Options) (*Server, error) {
-	s := &Server{library: l, mux: http.NewServeMux(), hosts: map[string]bool{}, origins: map[string]bool{}}
+	if opt.MaxUploadBytes == 0 {
+		opt.MaxUploadBytes = DefaultMaxUploadBytes
+	}
+	if opt.MaxUploadFiles == 0 {
+		opt.MaxUploadFiles = DefaultMaxUploadFiles
+	}
+	if opt.MaxUploadBytes < 1 || opt.MaxUploadFiles < 1 {
+		return nil, fmt.Errorf("upload limits must be positive")
+	}
+	s := &Server{maxUploadBytes: opt.MaxUploadBytes, maxUploadFiles: opt.MaxUploadFiles, uploadTempDir: opt.UploadTempDir, library: l, mux: http.NewServeMux(), hosts: map[string]bool{}, origins: map[string]bool{}}
 	if l == nil || len(opt.AllowedHosts) == 0 {
 		return nil, fmt.Errorf("a library and explicit allowed hosts are required")
 	}
@@ -63,6 +78,7 @@ func New(l *library.Library, opt Options) (*Server, error) {
 	s.fileRoutes()
 	s.tagRoutes()
 	s.contentRoutes()
+	s.uploadRoutes()
 	s.writeRoutes()
 	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		writeFailure(w, huma.Error404NotFound("No such endpoint"))
@@ -105,6 +121,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Method == "POST" || r.Method == "PUT" || r.Method == "PATCH" || (r.Method == "DELETE" && r.ContentLength != 0) {
 		media, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		upload := r.Method == "POST" && strings.HasPrefix(r.URL.Path, Prefix+"/boxes/") && strings.HasSuffix(r.URL.Path, "/uploads")
+		if upload && err == nil && media == "multipart/form-data" {
+			r.Body = http.MaxBytesReader(w, r.Body, s.maxUploadBytes)
+			s.mux.ServeHTTP(w, r)
+			return
+		}
 		if err != nil || media != "application/json" {
 			writeFailure(w, huma.Error415UnsupportedMediaType("Use application/json"))
 			return

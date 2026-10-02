@@ -28,7 +28,11 @@ func inlineMedia(media string) bool {
 }
 func (s *Server) contentRoutes() {
 	for _, method := range []string{http.MethodGet, http.MethodHead} {
-		huma.Register(s.contract, huma.Operation{OperationID: method + "-file-content", Method: method, Path: Prefix + "/files/{id}/content", Summary: "Read original file bytes; supports HTTP ranges"}, func(ctx context.Context, in *contentInput) (*huma.StreamResponse, error) {
+		huma.Register(s.contract, huma.Operation{OperationID: method + "-file-content", Method: method, Path: Prefix + "/files/{id}/content", Summary: "Read original file bytes; supports HTTP ranges", Responses: map[string]*huma.Response{
+			"200": {Description: "Original file bytes", Content: map[string]*huma.MediaType{"application/octet-stream": {Schema: &huma.Schema{Type: "string", Format: "binary"}}}},
+			"206": {Description: "Requested byte range", Content: map[string]*huma.MediaType{"application/octet-stream": {Schema: &huma.Schema{Type: "string", Format: "binary"}}}},
+			"416": {Description: "Unsatisfiable byte range"},
+		}}, func(ctx context.Context, in *contentInput) (*huma.StreamResponse, error) {
 			id, err := parseID(in.ID)
 			if err != nil {
 				return nil, err
