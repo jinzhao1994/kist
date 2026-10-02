@@ -145,3 +145,20 @@ func TestAFailingCommandWritesNothingToStdout(t *testing.T) {
 		t.Errorf("stdout was not empty on failure:\n%s", out)
 	}
 }
+
+func TestWriteOutcomeIsNotRetryable(t *testing.T) {
+	for _, id := range []int64{0, 47} {
+		err := &library.WriteOutcomeError{OpID: id, Cause: &lockfile.BusyError{}}
+		if exitCodeFor(err) == 75 {
+			t.Fatal("committed or uncertain writes must not suggest retry")
+		}
+		v := renderJSON(t, err)
+		if id == 0 {
+			if v["code"] != "write_outcome_unknown" || v["op_id"] != nil {
+				t.Fatalf("unknown: %v", v)
+			}
+		} else if v["code"] != "write_committed" || v["op_id"] != float64(id) {
+			t.Fatalf("committed: %v", v)
+		}
+	}
+}

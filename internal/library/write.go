@@ -53,7 +53,7 @@ func (l *Library) write(
 	payload []byte,
 	origin oplog.Origin,
 	opt writeOptions,
-) (int64, error) {
+) (resultID int64, writeErr error) {
 	// Everything below — the transaction and the incremental projection at
 	// the end — is one logical write, and the lock covers both (spec 2.7).
 	// Holding it across the projection is the point: two processes renaming
@@ -148,10 +148,24 @@ func (l *Library) write(
 		return 0, fmt.Errorf("rollback validation: %w", err)
 	}
 
+	// Once Append starts, an error is not proof that nothing was written.
+	// In particular, fsync can fail after a complete line reached the file.
+	durable := false
+	defer func() {
+		if writeErr != nil {
+			outcome := &WriteOutcomeError{Cause: writeErr}
+			if durable {
+				outcome.OpID = opID
+				resultID = opID
+			}
+			writeErr = outcome
+		}
+	}()
 	// Phase 1. After this returns the op exists, whatever happens next.
 	if err := l.ops.Append(lineFromRow(row)); err != nil {
 		return 0, err
 	}
+	durable = true
 	if l.hooks.afterAppend != nil {
 		if err := l.hooks.afterAppend(); err != nil {
 			return 0, err

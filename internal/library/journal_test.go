@@ -32,9 +32,11 @@ func TestACrashLeavesTheDatabaseBehindNeverAhead(t *testing.T) {
 
 	boom := errors.New("power cut")
 	l.hooks.afterAppend = func() error { return boom }
-	if _, err := l.write(ctx, oplog.ActionCreateBox,
-		newBoxPayload(t, "云南", 1), oplog.OriginUser, writeOptions{}); !errors.Is(err, boom) {
-		t.Fatalf("write = %v, want the injected failure", err)
+	id, writeErr := l.write(ctx, oplog.ActionCreateBox,
+		newBoxPayload(t, "云南", 1), oplog.OriginUser, writeOptions{})
+	var outcome *WriteOutcomeError
+	if !errors.Is(writeErr, boom) || !errors.As(writeErr, &outcome) || outcome.OpID != 1 || id != 1 {
+		t.Fatalf("write = %d, %v; want committed op 1 with the injected cause", id, writeErr)
 	}
 
 	last, ok, err := l.ops.Last()

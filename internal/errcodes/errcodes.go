@@ -84,7 +84,9 @@ func (c Class) String() string {
 // test walks the source of every package listed there and fails if a sentinel
 // has no code.
 const (
-	CodeInternal Code = "internal"
+	CodeInternal       Code = "internal"
+	CodeWriteCommitted Code = "write_committed"
+	CodeWriteUnknown   Code = "write_outcome_unknown"
 
 	CodeBoxNotFound      Code = "box_not_found"
 	CodeTagNotFound      Code = "tag_not_found"
@@ -176,6 +178,8 @@ var table = []struct {
 // classes maps a code to its class. A code missing from here is internal,
 // which is checked by the same test that checks completeness.
 var classes = map[Code]Class{
+	CodeWriteCommitted:   ClassConflict,
+	CodeWriteUnknown:     ClassConflict,
 	CodeBoxNotFound:      ClassNotFound,
 	CodeTagNotFound:      ClassNotFound,
 	CodeFileNotFound:     ClassNotFound,
@@ -227,6 +231,13 @@ var classes = map[Code]Class{
 func Of(err error) Code {
 	if err == nil {
 		return ""
+	}
+	var outcome *library.WriteOutcomeError
+	if errors.As(err, &outcome) {
+		if outcome.OpID != 0 {
+			return CodeWriteCommitted
+		}
+		return CodeWriteUnknown
 	}
 	// Checked by type rather than by sentinel: BusyError carries the holder
 	// diagnostic, and there is no separate sentinel to match (spec 2.7).

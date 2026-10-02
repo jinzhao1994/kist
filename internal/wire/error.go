@@ -17,6 +17,9 @@ type Error struct {
 	Class   string `json:"class"`
 	Message string `json:"message"`
 
+	// OpID identifies a durably committed write whose response failed.
+	OpID int64 `json:"op_id,omitempty"`
+
 	// BlockingOp is the op standing in the way of an undo (undo_blocked).
 	BlockingOp int64 `json:"blocking_op,omitempty"`
 	// RevertedBy is the op that already undid this one (already_reverted).

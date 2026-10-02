@@ -47,6 +47,10 @@ func renderError(err error) wire.Error {
 		Message: err.Error(),
 	}
 
+	var outcome *library.WriteOutcomeError
+	if errors.As(err, &outcome) {
+		out.OpID = outcome.OpID
+	}
 	var blocked *library.BlockedUndoError
 	if errors.As(err, &blocked) {
 		out.BlockingOp = blocked.BlockingOp

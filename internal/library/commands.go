@@ -40,11 +40,15 @@ func (l *Library) CreateBox(ctx context.Context, name, description string, start
 	if err != nil {
 		return domain.Box{}, err
 	}
-	if _, err := l.write(ctx, oplog.ActionCreateBox, raw, oplog.OriginUser, writeOptions{}); err != nil {
+	opID, err := l.write(ctx, oplog.ActionCreateBox, raw, oplog.OriginUser, writeOptions{})
+	if err != nil {
 		return domain.Box{}, err
 	}
 	b, _, err := l.Box(ctx, p.BoxID)
-	return b, err
+	if err != nil {
+		return domain.Box{}, &WriteOutcomeError{OpID: opID, Cause: err}
+	}
+	return b, nil
 }
 
 // UpdateBox rewrites a box's user-editable fields. The before state is read
@@ -85,11 +89,15 @@ func (l *Library) UpdateBox(ctx context.Context, id domain.BoxID, f BoxFields) (
 	if err != nil {
 		return domain.Box{}, err
 	}
-	if _, err := l.write(ctx, oplog.ActionUpdateBox, raw, oplog.OriginUser, writeOptions{}); err != nil {
+	opID, err := l.write(ctx, oplog.ActionUpdateBox, raw, oplog.OriginUser, writeOptions{})
+	if err != nil {
 		return domain.Box{}, err
 	}
 	b, _, err := l.Box(ctx, id)
-	return b, err
+	if err != nil {
+		return domain.Box{}, &WriteOutcomeError{OpID: opID, Cause: err}
+	}
+	return b, nil
 }
 
 // CreateTag adds a node to the tag tree.

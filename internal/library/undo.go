@@ -54,6 +54,10 @@ func (l *Library) Undo(ctx context.Context, opID int64) (int64, error) {
 
 	undoID, err := l.write(ctx, action, payload, oplog.OriginUser, writeOptions{RevertsID: &opID})
 	if err != nil {
+		var outcome *WriteOutcomeError
+		if errors.As(err, &outcome) {
+			return undoID, err
+		}
 		if errors.Is(err, oplog.ErrStaleBefore) {
 			return 0, l.explainBlockedUndo(target, err)
 		}

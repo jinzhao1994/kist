@@ -111,3 +111,21 @@ func boxCandidates(boxes []domain.Box) []Candidate {
 	}
 	return out
 }
+
+// WriteOutcomeError means a failed call must not be retried as a new command.
+// A nonzero OpID identifies an event whose log append was durably completed.
+// Zero means append failed and the outcome must be reconciled from history;
+// an allocated sequence number alone would not identify a committed event.
+type WriteOutcomeError struct {
+	OpID  int64
+	Cause error
+}
+
+func (e *WriteOutcomeError) Error() string {
+	if e.OpID != 0 {
+		return fmt.Sprintf("op %d is committed; reopen the library and inspect it, do not repeat the command: %v", e.OpID, e.Cause)
+	}
+	return fmt.Sprintf("write outcome is unknown; reopen the library and inspect history before retrying: %v", e.Cause)
+}
+
+func (e *WriteOutcomeError) Unwrap() error { return e.Cause }
