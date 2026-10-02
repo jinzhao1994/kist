@@ -246,3 +246,8 @@ func TestErrCodesDoesNotLeakIntoTheKernel(t *testing.T) {
 				"errcodes reads it from above with errors.As.")
 	}
 }
+
+func TestAPICannotWriteDirectly(t *testing.T) {
+	forbid(t, "internal/api", []string{"internal/store", "internal/oplog"},
+		"The HTTP API must write through library, preserving journal ordering and request deduplication.")
+}

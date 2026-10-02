@@ -38,6 +38,7 @@ and a global tag tree cuts across them for retrieval.`,
 		"print results as JSON")
 
 	root.AddCommand(newInitCmd())
+	root.AddCommand(newServeCmd())
 	root.AddCommand(newBoxCmd())
 	root.AddCommand(newTagCmd())
 	root.AddCommand(newImportCmd())
