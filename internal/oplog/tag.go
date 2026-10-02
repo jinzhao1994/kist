@@ -70,6 +70,10 @@ func (deleteTagOp) Apply(tx Tx, payload []byte) error {
 			p.TagID, current.Name, p.Name, ErrStaleBefore)
 	}
 
+	if !sameParent(current.ParentID, p.ParentID) {
+		return fmt.Errorf("tag %s has moved since this op: %w", p.TagID, ErrStaleBefore)
+	}
+
 	children, err := tx.CountTagChildren(p.TagID)
 	if err != nil {
 		return err

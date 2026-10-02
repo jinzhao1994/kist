@@ -199,3 +199,68 @@ func TestUndoBlockedByALaterTag(t *testing.T) {
 		t.Error("the box was deleted anyway")
 	}
 }
+
+func TestUndoTagCreationRefusesALaterMove(t *testing.T) {
+	for _, fromRoot := range []bool{false, true} {
+		t.Run(fmt.Sprintf("fromRoot=%v", fromRoot), func(t *testing.T) {
+			l := openTestLibrary(t)
+			ctx := t.Context()
+			parent, err := l.CreateTag(ctx, "parent", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var initial, destination *domain.TagID
+			if fromRoot {
+				destination = &parent.ID
+			} else {
+				initial = &parent.ID
+			}
+			child, err := l.CreateTag(ctx, "child", initial)
+			if err != nil {
+				t.Fatal(err)
+			}
+			creation := lastOpID(t, l)
+			if err := l.MoveTag(ctx, child.ID, destination); err != nil {
+				t.Fatal(err)
+			}
+			move := lastOpID(t, l)
+			if _, err := l.Undo(ctx, creation); !errors.Is(err, ErrUndoBlocked) {
+				t.Fatalf("undo create after move = %v, want ErrUndoBlocked", err)
+			}
+			got, err := l.ResolveTag("child")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !sameTagID(got.ParentID, destination) {
+				t.Fatal("refused undo changed the parent")
+			}
+			last, _, err := l.ops.Last()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if last.ID != move {
+				t.Fatal("refused undo appended a log entry")
+			}
+			if _, err := l.Undo(ctx, move); err != nil {
+				t.Fatal(err)
+			}
+			deletion, err := l.Undo(ctx, creation)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := l.Undo(ctx, deletion); err != nil {
+				t.Fatal(err)
+			}
+			if err := l.Rebuild(ctx); err != nil {
+				t.Fatal(err)
+			}
+			got, err = l.ResolveTag("child")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !sameTagID(got.ParentID, initial) {
+				t.Fatal("undo round-trip did not restore the original parent")
+			}
+		})
+	}
+}
