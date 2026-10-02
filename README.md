@@ -9,11 +9,9 @@ passports, contracts and lab reports.
 
 One Go binary plus SQLite. Apache-2.0.
 
-> **Not usable yet.** The design is settled and written down. You can create a
-> library, make boxes, build a tag tree, and undo any of it — every change is
-> an entry in an append-only log, and the whole library can be rebuilt from
-> that log alone. What you cannot do yet is put files in: `kist import` is
-> next. See [Milestones](#milestones).
+> **In development.** The storage kernel, import, integrity tools, queries and
+> metadata extraction are implemented. M4 adds the HTTP API and embedded Web UI;
+> browser acceptance testing is still in progress. See [Milestones](#milestones).
 
 ## The idea
 
@@ -89,6 +87,44 @@ Everything is undoable, because every write is an entry in an append-only log:
 kist log            # what has happened to this library
 kist undo <op-id>   # take one of them back
 ```
+
+### Web interface
+
+```sh
+kist serve --library ~/kist
+```
+
+Open `http://127.0.0.1:8473`. Create a box, choose or drop files into it, then
+browse files, inspect metadata, download originals, and manage tags. Filters
+combine names, dates, media types and tag AND/OR/NOT conditions. The grid shows
+the number of loaded files; use **Load more** to continue through the results.
+
+**Display settings** separates English/Chinese language, regional number/date
+formatting, display timezone and reading direction. These preferences stay in
+the browser. Unsupported previews, including HEIC, have a download fallback;
+thumbnail generation belongs to M5.
+
+Uploads default to at most 1,000 files and a 2 GiB multipart body per batch.
+Use `--max-upload-files` and `--max-upload-bytes` to adjust those limits. A batch
+must arrive completely before it can commit. If the response is lost, use
+**Try again** or **Check result**; refreshing the same tab retains the request
+key for checking its receipt. Re-selecting files after explicitly starting a
+new operation creates a new request. Metadata extraction runs separately;
+its failure does not mean the original files were lost.
+
+There is no login. Remote access requires an explicit listener and trusted
+origin, for example on a trusted LAN:
+
+```sh
+kist serve --library ~/kist --listen 0.0.0.0:8473 --allow-origin http://192.168.1.20:8473
+```
+
+Use your server's actual address. For a reverse proxy, configure its full public
+origin instead and protect access at the proxy. Host/Origin checks are not user
+authentication. The versioned API schema is at `/api/v1/openapi.json`; writes
+require an `Idempotency-Key`, and `/api/v1/requests/{key}` returns the durable
+operation receipt. CLI and Web can use the same library; **Refresh** picks up
+CLI changes. Repair, rebuild and other maintenance remain CLI operations.
 
 ### Scripting
 

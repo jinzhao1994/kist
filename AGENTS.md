@@ -24,7 +24,7 @@ Go 单二进制 + SQLite，Apache-2.0。SQLite 是唯一数据库后端。
 
 ## 当前状态
 
-M0–M3 已完成，包括存储内核、op log、导入与投影、完整性检查与修复、查询契约、metadata 提取和结构化错误。op log 已迁移到 `ops/YYYY/MM/YYYY-MM-DD_ops.jsonl`。下一阶段是 M4：HTTP API 与 React Web UI 一起实现；M4 写接口必须落实持久化请求去重与提交结果查询（见设计文档 2.2.2），才能支持安全重试。派生媒体属于 M5，不要提前塞进 M4。
+M0–M3 已完成，包括存储内核、op log、导入与投影、完整性检查与修复、查询契约、metadata 提取和结构化错误。op log 已迁移到 `ops/YYYY/MM/YYYY-MM-DD_ops.jsonl`。M4 的 HTTP API、持久化请求去重和 React Web UI 已实现，正在进行浏览器与端到端验收，尚未宣布完成。派生媒体属于 M5，不要提前塞进 M4。
 
 更新这个状态时替换旧文字，不要在下面继续追加历史。
 
