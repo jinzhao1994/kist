@@ -73,7 +73,7 @@ func rowFromLine(l journal.Line) (store.OpRow, error) {
 	if err != nil {
 		return store.OpRow{}, err
 	}
-	return store.OpRow{
+	row := store.OpRow{
 		ID:        l.ID,
 		TS:        ts,
 		Action:    l.Action,
@@ -81,12 +81,17 @@ func rowFromLine(l journal.Line) (store.OpRow, error) {
 		Payload:   l.Payload,
 		RevertsID: l.RevertsID,
 		RootOpID:  l.RootOpID,
-	}, nil
+	}
+	if l.Request != nil {
+		row.RequestID = l.Request.ID
+		row.RequestDigest = l.Request.Digest
+	}
+	return row, nil
 }
 
 // lineFromRow is the other direction.
 func lineFromRow(r store.OpRow) journal.Line {
-	return journal.Line{
+	line := journal.Line{
 		ID:        r.ID,
 		TS:        journal.FormatTime(r.TS),
 		Action:    r.Action,
@@ -95,4 +100,8 @@ func lineFromRow(r store.OpRow) journal.Line {
 		RootOpID:  r.RootOpID,
 		Payload:   r.Payload,
 	}
+	if r.RequestID != "" {
+		line.Request = &journal.Request{ID: r.RequestID, Digest: r.RequestDigest}
+	}
+	return line
 }

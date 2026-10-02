@@ -14,13 +14,22 @@ import (
 // Unlike a round trip using today's writers, this consumes frozen historical
 // bytes and an independently stored expected state. Never regenerate the
 // fixture merely to make a changed reader pass.
-func TestFrozenV1JournalRemainsReadable(t *testing.T) {
-	fixture := filepath.Join("testdata", "journal-v1")
+func TestFrozenJournalsRemainReadable(t *testing.T) {
+	for _, version := range []string{"journal-v1", "journal-v2"} {
+		t.Run(version, func(t *testing.T) { checkFrozenJournal(t, version) })
+	}
+}
+
+func checkFrozenJournal(t *testing.T, version string) {
+	fixture := filepath.Join("testdata", version)
 	root := t.TempDir()
 	if _, err := Create(t.Context(), root); err != nil {
 		t.Fatal(err)
 	}
 	for _, name := range []string{"ops", "blobs"} {
+		if _, err := os.Stat(filepath.Join(fixture, name)); name == "blobs" && os.IsNotExist(err) {
+			continue
+		}
 		if err := os.CopyFS(filepath.Join(root, name), os.DirFS(filepath.Join(fixture, name))); err != nil {
 			t.Fatal(err)
 		}

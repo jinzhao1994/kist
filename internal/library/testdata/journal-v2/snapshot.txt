@@ -1,0 +1,21 @@
+== ops ==
+1	1787821201000000000	create_tag	user	{"tag_id":"01a0faf5-7f5c-7a8f-9b8a-34b97125b685","name":"archive"}	-1	-1
+2	1787821202000000000	request_receipt	maintenance	{}	-1	-1
+== blobs ==
+== boxes ==
+== folders ==
+== files ==
+== tags ==
+01A0FAF57F5C7A8F9B8A34B97125B685		archive	archive
+== box_tags ==
+== file_tags ==
+== file_tag_sources ==
+== tag_rejections ==
+== file_metadata ==
+== file_extractions ==
+== op_boxes ==
+== op_files ==
+== op_blobs ==
+== op_requests ==
+frozen-create-tag	0e5ed147fcf1df3301e4978c55b7ffe8b038d5f5d51aedc9784f95ac69a41023	1
+frozen-no-change	024c72914fe090919e27964ed0ad0aa2d469371d417a1bfba8515ad4301f1de6	2

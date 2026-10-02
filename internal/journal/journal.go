@@ -34,7 +34,7 @@ import (
 // Version is the line format this build writes. It is stored on every line
 // because these lines are never rewritten: a reader five years from now has
 // only the line itself to go on (spec 3.1.1).
-const Version = 1
+const Version = 2
 
 // tmpDir holds the tail of a torn append after RecoverTail moves it aside.
 // Nothing reads it; it exists so that a crash never destroys bytes.

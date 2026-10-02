@@ -84,9 +84,13 @@ func (c Class) String() string {
 // test walks the source of every package listed there and fails if a sentinel
 // has no code.
 const (
-	CodeInternal       Code = "internal"
-	CodeWriteCommitted Code = "write_committed"
-	CodeWriteUnknown   Code = "write_outcome_unknown"
+	CodeInvalidRequest  Code = "invalid_request"
+	CodeRequestConflict Code = "request_conflict"
+	CodeRequestScope    Code = "request_scope"
+	CodeNotUndoable     Code = "not_undoable"
+	CodeInternal        Code = "internal"
+	CodeWriteCommitted  Code = "write_committed"
+	CodeWriteUnknown    Code = "write_outcome_unknown"
 
 	CodeBoxNotFound      Code = "box_not_found"
 	CodeTagNotFound      Code = "tag_not_found"
@@ -137,6 +141,10 @@ var table = []struct {
 	err  error
 	code Code
 }{
+	{library.ErrInvalidRequest, CodeInvalidRequest},
+	{library.ErrRequestConflict, CodeRequestConflict},
+	{library.ErrRequestScope, CodeRequestScope},
+	{oplog.ErrNotUndoable, CodeNotUndoable},
 	{library.ErrUndoBlocked, CodeUndoBlocked},
 	{library.ErrAlreadyReverted, CodeAlreadyReverted},
 	{library.ErrNoSuchBox, CodeBoxNotFound},
@@ -178,6 +186,10 @@ var table = []struct {
 // classes maps a code to its class. A code missing from here is internal,
 // which is checked by the same test that checks completeness.
 var classes = map[Code]Class{
+	CodeInvalidRequest:   ClassInvalid,
+	CodeRequestConflict:  ClassConflict,
+	CodeRequestScope:     ClassInternal,
+	CodeNotUndoable:      ClassConflict,
 	CodeWriteCommitted:   ClassConflict,
 	CodeWriteUnknown:     ClassConflict,
 	CodeBoxNotFound:      ClassNotFound,

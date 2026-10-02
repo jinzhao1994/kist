@@ -47,6 +47,7 @@ type Line struct {
 	RevertsID *int64          `json:"reverts_id"`
 	RootOpID  *int64          `json:"root_op_id"`
 	Payload   json.RawMessage `json:"payload"`
+	Request   *Request        `json:"request,omitempty"`
 	Sum       string          `json:"sum"`
 }
 
@@ -74,6 +75,9 @@ func checksum(l Line) (string, error) {
 // MarshalLine encodes a line, filling in V and Sum.
 func MarshalLine(l Line) ([]byte, error) {
 	l.V = Version
+	if l.Request != nil && !l.Request.Valid() {
+		return nil, fmt.Errorf("%w: invalid request metadata", ErrCorrupt)
+	}
 	sum, err := checksum(l)
 	if err != nil {
 		return nil, err
@@ -92,9 +96,12 @@ func UnmarshalLine(b []byte) (Line, error) {
 	if err := json.Unmarshal(b, &l); err != nil {
 		return Line{}, fmt.Errorf("%w: cannot decode line: %v", ErrCorrupt, err)
 	}
-	if l.V != Version {
+	if l.V != 1 && l.V != Version {
 		return Line{}, fmt.Errorf("%w: line format v%d, this build writes v%d",
 			ErrUnsupportedVersion, l.V, Version)
+	}
+	if l.Request != nil && (l.V < 2 || !l.Request.Valid()) {
+		return Line{}, fmt.Errorf("%w: invalid request metadata", ErrCorrupt)
 	}
 	want, err := checksum(l)
 	if err != nil {
@@ -104,4 +111,25 @@ func UnmarshalLine(b []byte) (Line, error) {
 		return Line{}, fmt.Errorf("%w: op %d does not match its checksum", ErrCorrupt, l.ID)
 	}
 	return l, nil
+}
+
+// Request binds a client request to the event that completed it. It is part of
+// the checksummed envelope, not an in-memory response cache.
+type Request struct {
+	ID     string `json:"id"`
+	Digest string `json:"digest"`
+}
+
+// Valid limits keys to opaque ASCII identifiers and SHA-256 hex digests.
+func (r Request) Valid() bool {
+	if len(r.ID) < 8 || len(r.ID) > 128 || len(r.Digest) != 64 {
+		return false
+	}
+	for _, c := range r.ID {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-' || c == '_' || c == '.') {
+			return false
+		}
+	}
+	_, err := hex.DecodeString(r.Digest)
+	return err == nil
 }

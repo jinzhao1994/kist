@@ -20,3 +20,6 @@ and explain the migration in the design document.
 
 This is the first compatibility baseline, not proof of compatibility with every
 unreleased development revision or every possible payload.
+
+Schema adaptation for M4: the expected snapshot adds the empty `op_requests`
+section. All historical event bytes and all previous expected rows are unchanged.

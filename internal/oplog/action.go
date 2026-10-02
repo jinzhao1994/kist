@@ -16,9 +16,10 @@ package oplog
 type Action string
 
 const (
-	ActionCreateBox Action = "create_box"
-	ActionDeleteBox Action = "delete_box"
-	ActionUpdateBox Action = "update_box"
+	ActionRequestReceipt Action = "request_receipt"
+	ActionCreateBox      Action = "create_box"
+	ActionDeleteBox      Action = "delete_box"
+	ActionUpdateBox      Action = "update_box"
 
 	ActionCreateTag Action = "create_tag"
 	ActionDeleteTag Action = "delete_tag"

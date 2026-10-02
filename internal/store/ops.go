@@ -47,6 +47,9 @@ type OpRow struct {
 	// about what was written, which is why Apply never sees it and a rebuild
 	// does not care. The first op of a group carries nil: it is the root.
 	RootOpID *int64
+	// RequestID and RequestDigest are projected into op_requests, not ops.
+	RequestID     string
+	RequestDigest string
 }
 
 // InsertOp records an op that is already in the journal.
@@ -63,6 +66,11 @@ func InsertOp(tx *sql.Tx, r OpRow) error {
 		r.ID, FormatTime(r.TS), r.Action, r.Origin, string(r.Payload), r.RevertsID, r.RootOpID)
 	if err != nil {
 		return fmt.Errorf("insert op %d (%s): %w", r.ID, r.Action, err)
+	}
+	if r.RequestID != "" {
+		if _, err := tx.Exec(`INSERT INTO op_requests (request_id, digest, op_id) VALUES (?, ?, ?)`, r.RequestID, r.RequestDigest, r.ID); err != nil {
+			return fmt.Errorf("index request: %w", err)
+		}
 	}
 	return nil
 }
@@ -305,10 +313,19 @@ func InsertOpBlobs(tx *sql.Tx, opID int64, blobs []string) error {
 // the payloads (spec 2.2.1). It does NOT touch ops itself — that table is the
 // authority and is never rewritten.
 func DeleteOpIndexes(tx *sql.Tx) error {
-	for _, table := range []string{"op_boxes", "op_files", "op_blobs"} {
+	for _, table := range []string{"op_boxes", "op_files", "op_blobs", "op_requests"} {
 		if _, err := tx.Exec(`DELETE FROM ` + table); err != nil {
 			return fmt.Errorf("clear %s: %w", table, err)
 		}
 	}
 	return nil
+}
+
+// RequestOp returns the durable result for a client request, if indexed.
+func RequestOp(q Queryer, id string) (digest string, opID int64, found bool, err error) {
+	err = q.QueryRow(`SELECT digest, op_id FROM op_requests WHERE request_id = ?`, id).Scan(&digest, &opID)
+	if err == sql.ErrNoRows {
+		return "", 0, false, nil
+	}
+	return digest, opID, err == nil, err
 }

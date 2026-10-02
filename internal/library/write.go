@@ -27,6 +27,7 @@ type writeOptions struct {
 	// until the row is in, and pointing it at itself afterwards would mean
 	// updating an op.
 	RootOpID *int64
+	request  *Request
 }
 
 // write is the single write path. Every change to a kist library goes through
@@ -54,15 +55,28 @@ func (l *Library) write(
 	origin oplog.Origin,
 	opt writeOptions,
 ) (resultID int64, writeErr error) {
-	// Everything below — the transaction and the incremental projection at
-	// the end — is one logical write, and the lock covers both (spec 2.7).
-	// Holding it across the projection is the point: two processes renaming
-	// directories under boxes/ at once is the silent failure it exists for.
+	if scope, ok := ctx.Value(requestContextKey{}).(*requestScope); ok {
+		scope.mu.Lock()
+		defer scope.mu.Unlock()
+		if !scope.active || scope.library != l || scope.attempted {
+			return 0, ErrRequestScope
+		}
+		scope.attempted = true
+		opt.request = &scope.request
+		id, err := l.writeLocked(ctx, action, payload, origin, opt)
+		scope.opID, scope.err = id, err
+		return id, err
+	}
 	release, err := l.lock.Acquire(ctx)
 	if err != nil {
 		return 0, err
 	}
 	defer release()
+	return l.writeLocked(ctx, action, payload, origin, opt)
+}
+
+// writeLocked includes validation, append, apply and projection under one lock.
+func (l *Library) writeLocked(ctx context.Context, action oplog.Action, payload []byte, origin oplog.Origin, opt writeOptions) (resultID int64, writeErr error) {
 
 	// What boxes/ currently reflects, read under the lock. The incremental
 	// projection at the end needs to tell a rename from a first projection,
@@ -131,6 +145,11 @@ func (l *Library) write(
 		Payload:   payload,
 		RevertsID: opt.RevertsID,
 		RootOpID:  opt.RootOpID,
+	}
+
+	if opt.request != nil {
+		row.RequestID = opt.request.ID
+		row.RequestDigest = opt.request.Digest
 	}
 
 	// Validate the exact replay path before making the event authoritative.
