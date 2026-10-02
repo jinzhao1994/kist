@@ -47,6 +47,11 @@ func (s *Syncer) CheckLinks(want []Entry) ([]LinkProblem, error) {
 			continue // the blob layer has already reported this
 		}
 
+		if s.LinkMode != blob.LinkSymlink && !info.Mode().IsRegular() {
+			out = append(out, LinkProblem{e.Path, "not a regular file"})
+			continue
+		}
+
 		switch s.LinkMode {
 		case blob.LinkSymlink:
 			target, err := os.Readlink(abs)

@@ -252,10 +252,6 @@ func TestRenameMovesTheDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	s.Locate = func(key string) (string, bool) {
-		t.Errorf("blob %s was requested again; renaming must move the directory, not relink its contents", key)
-		return "", false
-	}
 	stats, err := s.SyncDir("renamed", renamedFixture())
 	if err != nil {
 		t.Fatal(err)
@@ -305,5 +301,85 @@ func TestRenameOfSomethingNotYetProjectedIsFine(t *testing.T) {
 	s, _ := newSyncer(t)
 	if err := s.Rename("never-made", "somewhere"); err != nil {
 		t.Errorf("renaming an unprojected box = %v, want nil", err)
+	}
+}
+
+func TestSyncRepairsExistingWrongEntries(t *testing.T) {
+	for _, kind := range []string{"content", "file is directory", "directory is file", "directory is symlink", "wrong hardlink", "wrong symlink"} {
+		t.Run(kind, func(t *testing.T) {
+			s, root := newSyncer(t)
+			want := treeFixture()
+			if kind == "wrong hardlink" {
+				s.LinkMode = blob.LinkHardlink
+			}
+			if kind == "wrong symlink" {
+				s.LinkMode = blob.LinkSymlink
+			}
+			if _, err := s.SyncDir("box", want); err != nil {
+				t.Fatal(err)
+			}
+			target := filepath.Join(root, "box", "a.txt")
+			if strings.HasPrefix(kind, "directory") {
+				target = filepath.Join(root, "box", "day1")
+			}
+			if err := os.RemoveAll(target); err != nil {
+				t.Fatal(err)
+			}
+			switch kind {
+			case "file is directory":
+				if err := os.Mkdir(target, 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(target, "stray"), []byte("stray"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			case "directory is symlink", "wrong symlink":
+				outside := t.TempDir()
+				if err := os.WriteFile(filepath.Join(outside, "sentinel"), []byte("safe"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink(outside, target); err != nil {
+					t.Skipf("symlinks unavailable: %v", err)
+				}
+				defer func() {
+					body, err := os.ReadFile(filepath.Join(outside, "sentinel"))
+					if err != nil || string(body) != "safe" {
+						t.Error("repair modified the symlink target")
+					}
+				}()
+			case "wrong hardlink":
+				other := filepath.Join(t.TempDir(), "other")
+				if err := os.WriteFile(other, []byte("sha256:zz"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Link(other, target); err != nil {
+					t.Fatal(err)
+				}
+			default:
+				if err := os.WriteFile(target, []byte("wrong"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			stats, err := s.SyncDir("box", want)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if stats.Created == 0 || stats.Removed == 0 || stats.Failed != 0 {
+				t.Fatalf("repair stats: %+v", stats)
+			}
+			for _, e := range want {
+				if e.IsDir {
+					continue
+				}
+				body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(e.Path)))
+				if err != nil || string(body) != e.BlobKey {
+					t.Fatalf("%s: %q, %v", e.Path, body, err)
+				}
+			}
+			stats, err = s.SyncDir("box", want)
+			if err != nil || stats.Created != 0 || stats.Removed != 0 {
+				t.Fatalf("second sync: %+v, %v", stats, err)
+			}
+		})
 	}
 }

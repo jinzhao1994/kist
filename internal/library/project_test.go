@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/integrity"
 )
 
 // projected lists every file under boxes/, as slash paths relative to the box
@@ -341,5 +342,32 @@ func TestAStaleProjectedNameDoesNotStrandADirectory(t *testing.T) {
 	}
 	if got := soleBoxDir(t, second); !strings.HasSuffix(got, "云南") {
 		t.Errorf("the second process projected %q, want a directory named 云南", got)
+	}
+}
+
+func TestRelinkRepairsWrongContentAtAnExistingPath(t *testing.T) {
+	l, box := openWithBox(t)
+	importOneFile(t, l, box, "a.txt", "correct archived content")
+	p := filepath.Join(l.Layout().Boxes(), soleBoxDir(t, l), "a.txt")
+	// Replace the projection entry, never mutate a possibly shared blob inode.
+	if err := os.Remove(p); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, []byte("wrong"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.Relink(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	body, err := os.ReadFile(p)
+	if err != nil || string(body) != "correct archived content" {
+		t.Fatalf("after relink: %q, %v", body, err)
+	}
+	report, err := l.Verify(t.Context(), VerifyOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Count(integrity.LinkWrongTarget) != 0 {
+		t.Fatal("verify still reports wrong content after relink")
 	}
 }

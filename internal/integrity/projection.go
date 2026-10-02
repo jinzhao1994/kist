@@ -18,19 +18,23 @@ func CheckProjection(s *projection.Syncer, dir string, want []projection.Entry) 
 	if err != nil {
 		return r, err
 	}
+	replaced := make(map[string]bool, len(d.Repair))
+	for _, p := range d.Repair {
+		replaced[p.Path] = true
+		r.Add(Finding{Kind: LinkWrongTarget, Detail: p.Path + ": " + p.Reason, Fix: "kist relink"})
+	}
 	for _, e := range d.Create {
+		if replaced[e.Path] {
+			continue
+		}
 		r.Add(Finding{Kind: LinkMissing, Detail: e.Path, Fix: "kist relink"})
 	}
 	for _, p := range d.Remove {
+		if replaced[p] {
+			continue
+		}
 		r.Add(Finding{Kind: LinkStray, Detail: p, Fix: "kist relink"})
 	}
 
-	problems, err := s.CheckLinks(want)
-	if err != nil {
-		return r, err
-	}
-	for _, p := range problems {
-		r.Add(Finding{Kind: LinkWrongTarget, Detail: p.Path + ": " + p.Reason, Fix: "kist relink"})
-	}
 	return r, nil
 }

@@ -59,6 +59,8 @@ func (s *Syncer) log() *slog.Logger {
 type Diff struct {
 	Create []Entry
 	Remove []string
+	// Repair identifies replacements, which are neither missing nor stray.
+	Repair []LinkProblem
 }
 
 // Empty reports whether the projection already matches.
@@ -80,9 +82,27 @@ func (s *Syncer) DiffDir(dir string, want []Entry) (Diff, error) {
 		return Diff{}, err
 	}
 
-	var d Diff
+	// Check identity/size as well as presence. Existing paths can still point
+	// at the wrong blob or have the wrong filesystem type.
+	problems, err := s.CheckLinks(want)
+	if err != nil {
+		return Diff{}, err
+	}
+	replace := make(map[string]bool)
+	for _, p := range problems {
+		replace[p.Path] = true
+	}
+	for _, e := range want {
+		if isDir, exists := actual[e.Path]; exists && isDir != e.IsDir {
+			if !replace[e.Path] {
+				problems = append(problems, LinkProblem{e.Path, "wrong filesystem type"})
+			}
+			replace[e.Path] = true
+		}
+	}
+	d := Diff{Repair: problems}
 	for p := range actual {
-		if _, ok := desired[p]; !ok {
+		if _, ok := desired[p]; !ok || replace[p] {
 			d.Remove = append(d.Remove, p)
 		}
 	}
@@ -92,7 +112,7 @@ func (s *Syncer) DiffDir(dir string, want []Entry) (Diff, error) {
 
 	// Plan order, which is parents before children.
 	for _, e := range want {
-		if _, exists := actual[e.Path]; !exists {
+		if _, exists := actual[e.Path]; !exists || replace[e.Path] {
 			d.Create = append(d.Create, e)
 		}
 	}
@@ -198,7 +218,7 @@ func (s *Syncer) walk(dir string) (map[string]bool, error) {
 		if err != nil {
 			return err
 		}
-		out[filepath.ToSlash(rel)] = true
+		out[filepath.ToSlash(rel)] = d.IsDir()
 		return nil
 	})
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
