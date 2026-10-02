@@ -3,6 +3,7 @@ package projection
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -312,7 +313,9 @@ func TestSyncRepairsExistingWrongEntries(t *testing.T) {
 			if kind == "wrong hardlink" {
 				s.LinkMode = blob.LinkHardlink
 			}
-			if kind == "wrong symlink" {
+			// Windows deliberately projects with copy/hardlink, even if the
+			// runner can create a stray symlink. Repair it using that mode.
+			if kind == "wrong symlink" && runtime.GOOS != "windows" {
 				s.LinkMode = blob.LinkSymlink
 			}
 			if _, err := s.SyncDir("box", want); err != nil {
