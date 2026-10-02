@@ -242,3 +242,24 @@ it("does not report an extraction failure as an upload failure", async () => {
     screen.queryByRole("button", { name: "Try again" }),
   ).not.toBeInTheDocument();
 });
+it("recovers an upload receipt after remount before allowing a new batch", async () => {
+  sessionStorage.setItem("kist.pending-upload.v1:box", "retained-request-key");
+  const fetch = vi.fn(async (_path: string) => new Response('{"op_id":21}'));
+  vi.stubGlobal("fetch", fetch);
+  render(
+    <Upload
+      box="box"
+      maxFiles={10}
+      maxBytes={10000}
+      onComplete={async () => {}}
+    />,
+    { wrapper },
+  );
+  const user = userEvent.setup();
+  expect(screen.getByRole("button", { name: "Choose files" })).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "Check result" }));
+  await screen.findByText("Files saved");
+  expect(fetch.mock.calls[0][0]).toBe("/api/v1/requests/retained-request-key");
+  expect(sessionStorage.getItem("kist.pending-upload.v1:box")).toBeNull();
+  expect(screen.getByRole("button", { name: "Choose files" })).toBeEnabled();
+});

@@ -16,14 +16,32 @@ export function Upload({
 }) {
   const { t, prefs } = useI18n();
   const client = useQueryClient();
+  const storage = `kist.pending-upload.v1:${box}`;
+  const [pendingKey, setPendingKey] = useState(() => {
+    try {
+      return sessionStorage.getItem(storage) || "";
+    } catch {
+      return "";
+    }
+  });
+  function remember(key: string) {
+    setPendingKey(key);
+    try {
+      if (key) sessionStorage.setItem(storage, key);
+      else sessionStorage.removeItem(storage);
+    } catch {
+      /* The live upload still retains its request key. */
+    }
+  }
   const operation = useRef<ReturnType<typeof createUpload> | null>(null);
   const [phase, setPhase] = useState<"idle" | "uploading" | "failed" | "saved">(
-    "idle",
+    pendingKey ? "failed" : "idle",
   );
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
   useEffect(() => () => operation.current?.cancel(), []);
   async function finish() {
+    remember("");
     setPhase("saved");
     setError("");
     await client.invalidateQueries();
@@ -56,7 +74,7 @@ export function Upload({
     noClick: true,
     noKeyboard: true,
     multiple: true,
-    disabled: phase === "uploading",
+    disabled: phase === "uploading" || phase === "failed",
     onDrop: (files, rejected) => {
       if (
         rejected.length ||
@@ -68,13 +86,14 @@ export function Upload({
       }
       if (!files.length) return;
       operation.current = createUpload(box, files);
+      remember(operation.current.key);
       void run();
     },
   });
   async function check() {
-    if (!operation.current) return;
+    if (!pendingKey) return;
     try {
-      await api.receipt(operation.current.key);
+      await api.receipt(pendingKey);
       await finish();
     } catch (error) {
       setError(
@@ -118,18 +137,35 @@ export function Upload({
           </>
         ) : (
           <>
-            <button className="primary" onClick={drop.open}>
+            <button
+              className="primary"
+              disabled={phase === "failed"}
+              onClick={drop.open}
+            >
               {t("chooseFiles")}
             </button>
             {phase === "failed" && (
               <>
-                <button onClick={run}>{t("retry")}</button>
+                {operation.current && (
+                  <button onClick={run}>{t("retry")}</button>
+                )}
                 <button onClick={check}>{t("checkResult")}</button>
+                <button
+                  onClick={() => {
+                    remember("");
+                    operation.current = null;
+                    setPhase("idle");
+                    setError("");
+                  }}
+                >
+                  {t("newOperation")}
+                </button>
               </>
             )}
           </>
         )}
       </div>
+      {phase === "failed" && !error && <p role="status">{t("uploadFailed")}</p>}
       {error && (
         <p role="alert" className="upload-error">
           {error}
