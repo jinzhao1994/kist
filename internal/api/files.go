@@ -11,6 +11,7 @@ import (
 )
 
 type fileQueryInput struct {
+	Kinds  []string `query:"kind"`
 	Boxes  []string `query:"box"`
 	Folder string   `query:"folder"`
 	All    []string `query:"tag_all"`
@@ -37,7 +38,7 @@ type tagList struct {
 }
 
 func (s *Server) fileQuery(in *fileQueryInput) (query.Query, error) {
-	q := query.Query{Text: in.Name, Cursor: in.Cursor, Limit: in.Limit, Sort: query.SortSpec{Asc: in.Asc}}
+	q := query.Query{Kinds: in.Kinds, Text: in.Name, Cursor: in.Cursor, Limit: in.Limit, Sort: query.SortSpec{Asc: in.Asc}}
 	switch in.Sort {
 	case "name":
 		q.Sort.Key = query.SortName
@@ -119,7 +120,13 @@ func (s *Server) wireFile(ctx context.Context, f domain.File) (wire.File, error)
 	if err != nil {
 		return wire.File{}, err
 	}
-	return wire.NewFile(f, box.String(), path, s.library.Zone()), nil
+	out := wire.NewFile(f, box.String(), path, s.library.Zone())
+	info, err := s.library.MediaInfo(ctx, f.ID)
+	if err != nil {
+		return out, err
+	}
+	out.MediaType, out.Kind, out.ExtractionPending = info.MIME, info.Kind, info.Pending
+	return out, nil
 }
 func tagStrings(tags []domain.TagID) []string {
 	out := make([]string, len(tags))
@@ -181,6 +188,9 @@ func (s *Server) fileRoutes() {
 			out.Extracted = []string{}
 		}
 		for _, row := range rows {
+			if row.Tombstone {
+				continue
+			}
 			out.Metadata = append(out.Metadata, wire.Metadata{Key: row.Key, Value: row.Value, Type: string(row.Type), Source: row.Source})
 		}
 		return response(out, nil)

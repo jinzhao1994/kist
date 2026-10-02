@@ -1,6 +1,6 @@
 // Package exif reads EXIF and GPS metadata out of image files.
 //
-// It is the one extractor v0.1 ships (spec 7, M3). Everything it knows about
+// Everything it knows about
 // how metadata is stored lives in the extract package's contract; this one
 // only decides which tags become rows and what type each one is.
 package exif

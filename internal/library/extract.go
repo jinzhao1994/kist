@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"slices"
 	"sort"
@@ -369,38 +368,7 @@ func observations(rows []store.MetadataRow) []extract.KV {
 // From the content, never the file name: an imported file is called whatever
 // the user called it, and spec 3.4 makes no promise that the extension
 // survived. HEIC needs its own test because DetectContentType predates it.
-func sniff(f *os.File) (string, error) {
-	head := make([]byte, 512)
-	n, err := f.Read(head)
-	if err != nil && n == 0 {
-		return "", err
-	}
-	head = head[:n]
-	if mime, ok := sniffISOBMFF(head); ok {
-		return mime, nil
-	}
-	return http.DetectContentType(head), nil
-}
-
-// sniffISOBMFF recognises the HEIF family from its ftyp box.
-//
-// net/http's sniffer does not know these, and getting it wrong would mean
-// every iPhone photograph silently skipping extraction — the exact failure
-// spec 5.3 warns is the difference between complete and degraded.
-func sniffISOBMFF(head []byte) (string, bool) {
-	if len(head) < 12 || string(head[4:8]) != "ftyp" {
-		return "", false
-	}
-	switch string(head[8:12]) {
-	case "heic", "heix", "hevc", "hevx", "heim", "heis", "hevm", "hevs":
-		return "image/heic", true
-	case "mif1", "msf1":
-		return "image/heif", true
-	case "avif", "avis":
-		return "image/avif", true
-	}
-	return "", false
-}
+func sniff(f *os.File) (string, error) { return extract.DetectMedia(f) }
 
 // Count returns how many results have the given status.
 func (r *ExtractResult) Count(s FileStatus) int {

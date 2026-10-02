@@ -79,6 +79,7 @@ func New(l *library.Library, opt Options) (*Server, error) {
 	s.tagRoutes()
 	s.contentRoutes()
 	s.uploadRoutes()
+	s.extractionRoutes()
 	s.writeRoutes()
 	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		writeFailure(w, huma.Error404NotFound("No such endpoint"))

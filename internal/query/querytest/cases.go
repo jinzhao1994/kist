@@ -2,6 +2,7 @@ package querytest
 
 import (
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/jinzhao1994/kist/internal/domain"
@@ -52,6 +53,25 @@ func cases() []testCase {
 		out = append(out, testCase{name: name, build: build, check: check})
 	}
 	simple := func() *Builder { return library() }
+
+	add("recorded kinds ignore extensions and omit unclassified files", func() *Builder {
+		return library().Kind("passport.jpg", "document").Kind("notes.txt", "image").Kind("100%.pdf", "other")
+	}, func(t *testing.T, b Backend, f *Builder) {
+		for _, tc := range []struct {
+			kinds []string
+			want  []string
+		}{
+			{[]string{"image"}, []string{"notes.txt"}},
+			{[]string{"document"}, []string{"passport.jpg"}},
+			{[]string{"other"}, []string{"100%.pdf"}},
+			{[]string{"image", "document"}, []string{"notes.txt", "passport.jpg"}},
+		} {
+			got := run(t, b, query.Query{Kinds: tc.kinds, Sort: query.SortSpec{Key: query.SortName, Asc: true}})
+			if !slices.Equal(names(got), tc.want) {
+				t.Errorf("kinds %v: got %v want %v", tc.kinds, names(got), tc.want)
+			}
+		}
+	})
 
 	// ── the zero query ──────────────────────────────────────────────────
 

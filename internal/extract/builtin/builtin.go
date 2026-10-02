@@ -11,4 +11,5 @@ package builtin
 
 import (
 	_ "github.com/jinzhao1994/kist/internal/extract/exif"
+	_ "github.com/jinzhao1994/kist/internal/extract/media"
 )

@@ -22,6 +22,7 @@ import (
 // really does mean "the order this fixture declared them".
 type Builder struct {
 	seq      int
+	kinds    map[domain.FileID]string
 	boxes    map[string]domain.Box
 	folders  map[string]domain.Folder
 	files    map[string]domain.File
@@ -33,6 +34,7 @@ type Builder struct {
 func NewBuilder() *Builder {
 	return &Builder{
 		boxes:    map[string]domain.Box{},
+		kinds:    map[domain.FileID]string{},
 		folders:  map[string]domain.Folder{},
 		files:    map[string]domain.File{},
 		tags:     map[string]domain.Tag{},
@@ -141,8 +143,10 @@ func (b *Builder) Tag(name, parent string) *Builder {
 }
 
 // Fixture renders what has been built.
+func (b *Builder) Kind(name, kind string) *Builder { b.kinds[b.FileID(name)] = kind; return b }
+
 func (b *Builder) Fixture() Fixture {
-	f := Fixture{FileTags: b.fileTags}
+	f := Fixture{Kinds: b.kinds, FileTags: b.fileTags}
 	for _, box := range b.boxes {
 		f.Boxes = append(f.Boxes, box)
 	}

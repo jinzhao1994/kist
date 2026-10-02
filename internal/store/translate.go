@@ -59,6 +59,15 @@ func translate(q query.Query, zone *time.Location) (string, []any, error) {
 			args = append(args, b)
 		}
 	}
+	if len(q.Kinds) > 0 {
+		if len(q.Kinds) > maxParameters {
+			return "", nil, fmt.Errorf("too many media kinds")
+		}
+		sb.WriteString(` AND EXISTS (SELECT 1 FROM file_metadata m WHERE m.file_id=files.id AND m.key='media:kind' AND m.value IN (` + placeholders(len(q.Kinds)) + `))`)
+		for _, kind := range q.Kinds {
+			args = append(args, kind)
+		}
+	}
 	if q.Folder != nil {
 		// One directory, not its subtree. `kist ls` is ls (spec 1.4).
 		sb.WriteString(` AND folder_id = ?`)

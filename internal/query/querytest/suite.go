@@ -35,6 +35,7 @@ type Fixture struct {
 	Boxes    []domain.Box
 	Folders  []domain.Folder
 	Files    []domain.File
+	Kinds    map[domain.FileID]string
 	Tags     []domain.Tag
 	FileTags map[domain.FileID][]domain.TagID
 }

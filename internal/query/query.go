@@ -81,9 +81,10 @@ type DateRange struct {
 
 // Query is one question about the files in a library.
 //
-// The zero value is a valid query: everything, newest first. Kinds is
-// deliberately absent — spec 4.2.1 records why it waits for M3.
+// The zero value is a valid query: everything, newest first.
 type Query struct {
+	// Kinds matches recorded content classification, never filename extensions.
+	Kinds []string
 	// Boxes restricts to these boxes. Empty means all of them.
 	Boxes []domain.BoxID
 	// Folder restricts to one directory, without recursing. It is what
@@ -116,6 +117,13 @@ type Query struct {
 // pinned successes would let two implementations disagree about what counts as
 // an error.
 func (q Query) Validate() error {
+	for _, kind := range q.Kinds {
+		switch kind {
+		case "image", "video", "audio", "document", "other":
+		default:
+			return fmt.Errorf("unknown media kind %q", kind)
+		}
+	}
 	if q.Limit < 0 {
 		return fmt.Errorf("limit %d is negative", q.Limit)
 	}

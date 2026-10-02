@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/extract"
 	"github.com/jinzhao1994/kist/internal/query"
 	"github.com/jinzhao1994/kist/internal/query/querytest"
 )
@@ -63,6 +64,11 @@ func (b *sqliteBackend) Seed(t *testing.T, f querytest.Fixture) {
 			t.Fatal(err)
 		}
 		if err := setCapturedAt(tx, file); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for id, kind := range f.Kinds {
+		if err := vtx.SetFileMetadata(id, extract.KV{Key: "media:kind", Value: kind, Type: extract.TypeText}, "media"); err != nil {
 			t.Fatal(err)
 		}
 	}
