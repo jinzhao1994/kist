@@ -7,12 +7,14 @@ export function Dialog({
   title,
   description,
   children,
+  className = "",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   description?: string;
   children: ReactNode;
+  className?: string;
 }) {
   const { t } = useI18n();
   const [opener] = useState(() =>
@@ -25,14 +27,16 @@ export function Dialog({
       <Primitive.Portal>
         <Primitive.Overlay className="dialog-overlay" />
         <Primitive.Content
-          className="dialog"
+          className={`dialog ${className}`}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
             opener?.focus();
           }}
         >
           <div className="dialog-heading">
-            <Primitive.Title>{title}</Primitive.Title>
+            <Primitive.Title>
+              <bdi>{title}</bdi>
+            </Primitive.Title>
             <Primitive.Close className="icon-button" aria-label={t("close")}>
               ×
             </Primitive.Close>

@@ -312,3 +312,360 @@ textarea {
     scroll-behavior: auto !important;
   }
 }
+/* Logical dimensions keep the same layout in either reading direction. */
+fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-inline-size: 0;
+}
+textarea {
+  min-block-size: 6rem;
+  resize: vertical;
+}
+summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding-block: 0.5rem;
+}
+.nav-link {
+  inline-size: 100%;
+  border: 0;
+  background: transparent;
+  text-align: start;
+}
+.header-actions,
+.inline-form,
+.field-pair {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+.header-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.header-actions button {
+  white-space: nowrap;
+}
+.box-card {
+  text-align: start;
+}
+.box-description {
+  margin-block-end: 1rem;
+  overflow-wrap: anywhere;
+}
+.empty-state button {
+  margin-block-start: 1.5rem;
+}
+.tag-tree,
+.tag-chips {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.tag-tree .tag-tree {
+  padding-inline-start: 0.8rem;
+}
+.tag-tree button {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  border: 0;
+  background: transparent;
+  padding: 0.35rem 0.15rem;
+  text-align: start;
+  inline-size: 100%;
+}
+.tag-tree bdi {
+  overflow-wrap: anywhere;
+  min-inline-size: 0;
+}
+.tag-tree small {
+  margin-inline-start: auto;
+}
+.text-button {
+  border: 0;
+  background: transparent;
+  padding: 0.5rem 0;
+  font-size: 0.8rem;
+  text-decoration: underline;
+}
+.filter-fields {
+  display: grid;
+  gap: 0.45rem;
+}
+.filter-fields label {
+  font-size: 0.75rem;
+  margin-block-start: 0.4rem;
+  display: block;
+}
+.filter-fields input,
+.filter-fields select {
+  font-size: 0.8rem;
+  padding: 0.4rem;
+  min-inline-size: 0;
+}
+.filter-fields .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+input[type="checkbox"] {
+  inline-size: auto;
+}
+.field-pair > div {
+  min-inline-size: 0;
+  flex: 1;
+}
+.tag-assignment {
+  margin-block: 1rem;
+}
+.tag-assignment h3 {
+  font-size: 0.85rem;
+  margin-block: 0.5rem;
+}
+.tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-block-end: 0.6rem;
+}
+.tag-chips li {
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+  background: #e8eddf;
+  padding-inline-start: 0.6rem;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+.tag-chips button {
+  border: 0;
+  background: transparent;
+  padding: 0.2rem 0.6rem;
+}
+.inline-form {
+  max-inline-size: 28rem;
+}
+.inline-form select {
+  min-inline-size: 0;
+}
+.inline-form button {
+  flex-shrink: 0;
+}
+.dropzone {
+  border: 1px dashed #9ba88c;
+  background: #f0f2e9;
+  border-radius: 9px;
+  padding: 1.2rem;
+  margin-block: 1.5rem;
+}
+.dropzone.drag-active {
+  border-color: #465d42;
+  background: #e2ebd8;
+}
+.dropzone p {
+  margin-block-end: 0.6rem;
+}
+.dropzone small {
+  display: block;
+  margin-block: 0.5rem;
+}
+progress {
+  inline-size: 100%;
+  accent-color: #465d42;
+}
+.extraction-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.75rem;
+  background: #ecefe4;
+  border-radius: 7px;
+  margin-block: 1rem;
+  font-size: 0.85rem;
+}
+.file-count {
+  color: #71756b;
+  font-size: 0.8rem;
+  margin-block: 1rem;
+}
+.file-scroll {
+  block-size: 65dvh;
+  min-block-size: 280px;
+  overflow: auto;
+  padding: 4px;
+  border-radius: 8px;
+}
+.virtual-space {
+  position: relative;
+  inline-size: 100%;
+}
+.file-row {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  inline-size: 100%;
+  display: grid;
+  gap: 12px;
+}
+.file-card {
+  min-inline-size: 0;
+  block-size: 232px;
+  padding: 0;
+  overflow: hidden;
+  text-align: start;
+  border-radius: 9px;
+}
+.file-preview {
+  block-size: 168px;
+  background: #e8e8de;
+  overflow: hidden;
+}
+.file-image {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+.file-name,
+.file-card > small {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  margin-inline: 0.7rem;
+}
+.file-name {
+  margin-block-start: 0.5rem;
+  font-size: 0.85rem;
+}
+.media-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  block-size: 100%;
+  gap: 0.3rem;
+  padding: 1rem;
+  text-align: center;
+}
+.media-placeholder > span {
+  color: #7c896e;
+  font-size: 2.5rem;
+}
+.media-placeholder p {
+  color: #71756b;
+  font-size: 0.85rem;
+}
+.load-more {
+  text-align: center;
+  padding-block: 1.5rem;
+}
+.detail-dialog {
+  inline-size: min(1000px, calc(100vw - 2rem));
+}
+.dialog-heading h2 {
+  overflow-wrap: anywhere;
+  min-inline-size: 0;
+}
+.detail-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 1.5rem;
+}
+.detail-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  background: #efefe7;
+  border-radius: 8px;
+  padding: 1rem;
+  min-block-size: 220px;
+}
+.detail-image {
+  max-inline-size: 100%;
+  max-block-size: 55dvh;
+  object-fit: contain;
+}
+.detail-preview audio {
+  max-inline-size: 100%;
+}
+.button-link {
+  border: 1px solid #cdd2c2;
+  border-radius: 7px;
+  padding: 0.6rem 1rem;
+  background: #fffefa;
+  text-align: center;
+}
+dt {
+  font-size: 0.75rem;
+  color: #71756b;
+}
+dd {
+  margin-inline-start: 0;
+  margin-block-end: 0.8rem;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+.metadata-list > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 1rem;
+  border-block-start: 1px solid #e2e4d9;
+  padding-block-start: 0.5rem;
+}
+.metadata-list dt {
+  overflow-wrap: anywhere;
+}
+.metadata-list small {
+  display: block;
+}
+@media (max-width: 680px) {
+  .sidebar nav {
+    display: flex;
+  }
+  .sidebar-tags,
+  .filters-panel {
+    flex-basis: 100%;
+  }
+  .sidebar-footer {
+    order: -1;
+  }
+  .wordmark {
+    order: -2;
+  }
+  .filter-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .page-header {
+    align-items: flex-start;
+  }
+  .page-header h1 {
+    font-size: 1.6rem;
+    overflow-wrap: anywhere;
+  }
+  .header-actions {
+    max-inline-size: 55%;
+  }
+  .header-actions button {
+    padding: 0.5rem;
+    font-size: 0.8rem;
+  }
+  .box-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .detail-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dialog {
+    padding: 1rem;
+  }
+  .actions {
+    flex-wrap: wrap;
+  }
+}

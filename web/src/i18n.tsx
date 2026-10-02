@@ -7,6 +7,16 @@ import {
 } from "react";
 
 export const en = {
+  files: "Files",
+  saving: "Saving…",
+  newOperation: "Start a new operation",
+  invalidInput: "Check the entered values and start a corrected operation.",
+  conflict:
+    "The archive changed or this operation conflicts with existing data. Refresh and try again.",
+  tagCycle: "A tag cannot be moved into its own subtree.",
+  deleteTagConfirm: "Remove this tag?",
+  uploadTooLarge:
+    "The batch exceeds the configured upload limits. Choose fewer or smaller files.",
   appName: "kist",
   archive: "Your archive",
   boxes: "Boxes",
@@ -112,6 +122,14 @@ export const en = {
 } as const;
 export type MessageKey = keyof typeof en;
 export const zh: Record<MessageKey, string> = {
+  files: "文件",
+  saving: "正在保存…",
+  newOperation: "开始新操作",
+  invalidInput: "请检查输入，并以修正后的内容开始新操作。",
+  conflict: "归档状态已变化，或操作与现有数据冲突。请刷新后重试。",
+  tagCycle: "不能将标签移动到自身的子树中。",
+  deleteTagConfirm: "确认删除此标签？",
+  uploadTooLarge: "这一批文件超过上传限制，请减少文件数量或大小。",
   appName: "kist",
   archive: "个人归档",
   boxes: "归档盒",

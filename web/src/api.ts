@@ -49,17 +49,69 @@ export const api = {
   receipt: (key: string) =>
     get<Receipt>(`/requests/${encodeURIComponent(key)}`),
 };
+const pendingStorage = "kist.pending-writes.v1";
+type PendingWrite = {
+  key: string;
+  method: string;
+  path: string;
+  body?: string;
+};
+function pendingWrites(): PendingWrite[] {
+  try {
+    const value = JSON.parse(sessionStorage.getItem(pendingStorage) || "[]");
+    return Array.isArray(value)
+      ? value.filter(
+          (item) =>
+            typeof item.key === "string" &&
+            typeof item.method === "string" &&
+            typeof item.path === "string" &&
+            (item.body === undefined || typeof item.body === "string"),
+        )
+      : [];
+  } catch {
+    return [];
+  }
+}
+function savePending(writes: PendingWrite[]) {
+  try {
+    sessionStorage.setItem(pendingStorage, JSON.stringify(writes));
+  } catch {
+    /* The live operation still retains its key when storage is unavailable. */
+  }
+}
+export function requestKey(): string {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 15) | 64;
+  bytes[8] = (bytes[8] & 63) | 128;
+  const hex = Array.from(bytes, (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
 export function createWrite(
   method: "POST" | "PUT" | "DELETE",
   path: string,
   body?: unknown,
 ) {
-  const key = crypto.randomUUID();
   const serialized = body === undefined ? undefined : JSON.stringify(body);
+  const pending = pendingWrites();
+  const key =
+    pending.find(
+      (item) =>
+        item.method === method &&
+        item.path === path &&
+        item.body === serialized,
+    )?.key || requestKey();
+  if (!pending.some((item) => item.key === key))
+    savePending([...pending, { key, method, path, body: serialized }]);
+  const discard = () =>
+    savePending(pendingWrites().filter((item) => item.key !== key));
   return Object.freeze({
     key,
-    run: async (signal?: AbortSignal): Promise<Receipt> =>
-      result<Receipt>(
+    discard,
+    run: async (signal?: AbortSignal): Promise<Receipt> => {
+      const receipt = await result<Receipt>(
         await fetch(`/api/v1${path}`, {
           method,
           signal,
@@ -69,14 +121,18 @@ export function createWrite(
           },
           body: serialized,
         }),
-      ),
+      );
+      discard();
+      return receipt;
+    },
   });
 }
+
 export function contentURL(file: ArchiveFile, download = false) {
   return `/api/v1/files/${encodeURIComponent(file.id)}/content${download ? "?download=true" : ""}`;
 }
 export function createUpload(box: string, files: readonly File[]) {
-  const key = crypto.randomUUID();
+  const key = requestKey();
   const batch = files.map((file) => ({
     file,
     path: file.webkitRelativePath || file.name,

@@ -1,0 +1,244 @@
+import { beforeEach, afterEach, expect, it, vi } from "vitest";
+import {
+  act,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
+import { BoxEditor } from "./BoxEditor";
+import { TagManager, TagAssignment } from "./Tags";
+import { Media } from "./Media";
+import { activeImages, MAX_ACTIVE_IMAGES } from "./FileGrid";
+import { useExtraction } from "./Extraction";
+import { Upload } from "./Upload";
+import { I18nProvider, storageKey } from "./i18n";
+import type { ArchiveFile, Tag } from "./api";
+function wrapper({ children }: { children: ReactNode }) {
+  return (
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <I18nProvider>{children}</I18nProvider>
+    </QueryClientProvider>
+  );
+}
+const file = (id: string, mime = "image/jpeg"): ArchiveFile => ({
+  id,
+  name: `${id}.jpg`,
+  folder_id: "folder",
+  blob_key: "blob",
+  created_at: "2026-01-01T00:00:00Z",
+  updated_at: "2026-01-01T00:00:00Z",
+  captured_at: null,
+  media_type: mime,
+  kind: "image",
+});
+const tags: Tag[] = [
+  {
+    id: "parent",
+    name: "Travel",
+    parent_id: null,
+    count: 0,
+    children: [{ id: "child", parent_id: "parent", name: "Japan", count: 0 }],
+  },
+];
+beforeEach(() => {
+  sessionStorage.clear();
+  localStorage.setItem(
+    storageKey,
+    JSON.stringify({
+      language: "en",
+      formatLocale: "en-US",
+      timezone: "UTC",
+      direction: "auto",
+    }),
+  );
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+  localStorage.clear();
+  sessionStorage.clear();
+});
+it("locks a failed box edit and retries the exact request before closing", async () => {
+  const fetch = vi
+    .fn()
+    .mockRejectedValueOnce(new TypeError("Lost response"))
+    .mockResolvedValueOnce(new Response('{"op_id":42}'));
+  vi.stubGlobal("fetch", fetch);
+  const close = vi.fn();
+  render(<BoxEditor close={close} />, { wrapper });
+  const user = userEvent.setup();
+  await user.type(screen.getByLabelText("Name"), "旅行 / رحلة");
+  await user.click(screen.getByRole("button", { name: "Save" }));
+  expect(await screen.findByRole("alert")).toBeVisible();
+  expect(screen.getByLabelText("Name")).toBeDisabled();
+  expect(close).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "Try again" }));
+  await waitFor(() => expect(close).toHaveBeenCalledOnce());
+  expect(fetch.mock.calls[1][1]).toEqual(fetch.mock.calls[0][1]);
+  expect(JSON.parse(fetch.mock.calls[0][1].body).name).toBe("旅行 / رحلة");
+});
+it("excludes a tag and its descendants from parent choices and preserves keys across a partial edit", async () => {
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(new Response('{"op_id":1}'))
+    .mockRejectedValueOnce(new TypeError("Lost response"))
+    .mockResolvedValueOnce(new Response('{"op_id":1}'))
+    .mockResolvedValueOnce(new Response('{"op_id":2}'));
+  vi.stubGlobal("fetch", fetch);
+  render(<TagManager tags={tags} close={vi.fn()} />, { wrapper });
+  const user = userEvent.setup();
+  await user.selectOptions(screen.getByLabelText("Select a tag"), "parent");
+  expect(
+    screen.getByLabelText("Parent tag").querySelectorAll("option"),
+  ).toHaveLength(1);
+  await user.clear(screen.getByLabelText("Name"));
+  await user.type(screen.getByLabelText("Name"), "Journeys");
+  await user.click(screen.getByRole("button", { name: "Save" }));
+  await screen.findByRole("alert");
+  await user.click(screen.getByRole("button", { name: "Try again" }));
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(4));
+  expect(fetch.mock.calls[2][1]).toEqual(fetch.mock.calls[0][1]);
+  expect(fetch.mock.calls[3][1]).toEqual(fetch.mock.calls[1][1]);
+});
+it("adds and removes associations through explicit target IDs", async () => {
+  const fetch = vi.fn(
+    async (_path: string, _init: RequestInit) => new Response('{"op_id":3}'),
+  );
+  vi.stubGlobal("fetch", fetch);
+  const view = render(
+    <TagAssignment target="file-1" kind="files" tags={tags} assigned={[]} />,
+    { wrapper },
+  );
+  const user = userEvent.setup();
+  await user.selectOptions(screen.getByLabelText("Select a tag"), "child");
+  await user.click(screen.getByRole("button", { name: "Add tag" }));
+  await waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+  expect(fetch.mock.calls[0][0]).toBe("/api/v1/tags/child/files");
+  expect(fetch.mock.calls[0][1]).toMatchObject({
+    method: "PUT",
+    body: '{"ids":["file-1"]}',
+  });
+  view.unmount();
+  render(
+    <TagAssignment
+      target="box-1"
+      kind="boxes"
+      tags={tags}
+      assigned={["child"]}
+    />,
+    { wrapper },
+  );
+  await user.click(screen.getByRole("button", { name: "Remove tag: Japan" }));
+  expect(fetch.mock.calls[1][0]).toBe("/api/v1/tags/child/boxes");
+  expect(fetch.mock.calls[1][1]).toMatchObject({
+    method: "DELETE",
+    body: '{"ids":["box-1"]}',
+  });
+});
+it("never loads unsupported originals and replaces failed previews", () => {
+  const view = render(<Media file={file("heic", "image/heic")} detail />, {
+    wrapper,
+  });
+  expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  view.rerender(<Media file={file("jpeg")} detail />);
+  fireEvent.error(screen.getByRole("img"));
+  expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  expect(screen.getByText(/preview/i)).toBeVisible();
+});
+it("bounds originals to visible supported images", () => {
+  const files = Array.from({ length: 1000 }, (_, i) =>
+    file(String(i), i % 2 ? "image/jpeg" : "image/heic"),
+  );
+  const active = activeImages(files, 100, 200);
+  expect(active.size).toBe(MAX_ACTIVE_IMAGES);
+  for (const id of active) {
+    expect(Number(id)).toBeGreaterThanOrEqual(100);
+    expect(Number(id)).toBeLessThan(200);
+    expect(Number(id) % 2).toBe(1);
+  }
+});
+it("serializes extraction per file, caps concurrency and retries failures without upload", async () => {
+  const active = new Set<string>();
+  let peak = 0;
+  let fail = true;
+  const calls: { path: string; key: string }[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string, init: RequestInit) => {
+      const id = path.split("/")[4];
+      expect(active.has(id)).toBe(false);
+      active.add(id);
+      peak = Math.max(peak, active.size);
+      calls.push({
+        path,
+        key: (init.headers as Record<string, string>)["Idempotency-Key"],
+      });
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      active.delete(id);
+      if (fail && path.endsWith("/exif")) throw new TypeError("Unavailable");
+      return new Response('{"op_id":4}');
+    }),
+  );
+  const files = Array.from({ length: 5 }, (_, i) => ({
+    ...file(String(i)),
+    extraction_pending: ["media", "exif"],
+  }));
+  const hook = renderHook(useExtraction, { wrapper });
+  await act(() => hook.result.current.run(files));
+  expect(peak).toBeLessThanOrEqual(3);
+  expect(peak).toBeGreaterThan(1);
+  expect(hook.result.current.failed).toBe(true);
+  expect(hook.result.current.done).toBe(10);
+  fail = false;
+  await act(() =>
+    hook.result.current.run(
+      files.map((f) => ({ ...f, extraction_pending: ["exif"] })),
+    ),
+  );
+  expect(hook.result.current.failed).toBe(false);
+  for (const call of calls.slice(10))
+    expect(call.key).toBe(calls.find((first) => first.path === call.path)?.key);
+});
+it("does not report an extraction failure as an upload failure", async () => {
+  class XHR {
+    upload = {};
+    status = 200;
+    responseText = '{"op_id":8}';
+    onload?: () => void;
+    onloadend?: () => void;
+    open() {}
+    setRequestHeader() {}
+    abort() {}
+    send() {
+      queueMicrotask(() => {
+        this.onload?.();
+        this.onloadend?.();
+      });
+    }
+  }
+  vi.stubGlobal("XMLHttpRequest", XHR);
+  const complete = vi.fn().mockRejectedValue(new Error("Metadata unavailable"));
+  render(
+    <Upload box="box" maxFiles={10} maxBytes={10000} onComplete={complete} />,
+    { wrapper },
+  );
+  const user = userEvent.setup();
+  await user.upload(
+    screen.getByLabelText("Choose files"),
+    new File(["hello"], "report.txt"),
+  );
+  await waitFor(() => expect(complete).toHaveBeenCalledOnce());
+  expect(screen.getByText("Files saved")).toBeVisible();
+  expect(screen.getByRole("alert")).toHaveTextContent(/metadata/i);
+  expect(
+    screen.queryByRole("button", { name: "Try again" }),
+  ).not.toBeInTheDocument();
+});

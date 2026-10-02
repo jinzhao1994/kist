@@ -1,11 +1,21 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "./api";
+import { api, type Box } from "./api";
 import { formatLocalDate, useI18n } from "./i18n";
 import { Settings } from "./Settings";
+import { BoxEditor } from "./BoxEditor";
+import { TagManager, TagTree } from "./Tags";
+import { FiltersPanel, emptyFilters, type Filters } from "./Filters";
+import { FileBrowser } from "./FileBrowser";
+import { FileDetail } from "./FileDetail";
+import { useNavigation } from "./navigation";
 export function App() {
   const { t, prefs } = useI18n();
+  const { route, go } = useNavigation();
   const [settings, setSettings] = useState(false);
+  const [editor, setEditor] = useState<Box | "new" | null>(null);
+  const [manage, setManage] = useState(false);
+  const [filters, setFilters] = useState<Filters>({ ...emptyFilters });
   const boxes = useQuery({
     queryKey: ["boxes"],
     queryFn: ({ signal }) => api.boxes(signal),
@@ -14,20 +24,66 @@ export function App() {
     queryKey: ["info"],
     queryFn: ({ signal }) => api.info(signal),
   });
+  const tags = useQuery({
+    queryKey: ["tags"],
+    queryFn: ({ signal }) => api.tags(signal),
+  });
   const client = useQueryClient();
+  const selected = boxes.data?.boxes?.find((box) => box.id === route.box);
+  const tree = tags.data?.tags || [];
+  const navigate = (box?: Box, files = false) => {
+    setFilters({ ...emptyFilters });
+    go({ box: box?.id, files: !!box || files });
+  };
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <a className="wordmark" href="/">
+        <a
+          className="wordmark"
+          href="/"
+          onClick={(event) => {
+            event.preventDefault();
+            navigate();
+          }}
+        >
           kist
           <span className="brand-dot" />
         </a>
         <p className="sidebar-caption">{t("archive")}</p>
         <nav aria-label={t("archive")}>
-          <a className="nav-link active" href="/">
+          <button
+            className={`nav-link ${!route.files ? "active" : ""}`}
+            onClick={() => navigate()}
+          >
             ▤ <span>{t("boxes")}</span>
-          </a>
+          </button>
+          <button
+            className={`nav-link ${route.files && !route.box ? "active" : ""}`}
+            onClick={() => navigate(undefined, true)}
+          >
+            ▦ <span>{t("allFiles")}</span>
+          </button>
         </nav>
+        <details className="sidebar-tags" open>
+          <summary>{t("tags")}</summary>
+          {tags.isError ? (
+            <button onClick={() => tags.refetch()}>{t("retry")}</button>
+          ) : (
+            <TagTree
+              tags={tree}
+              choose={(id) => {
+                setFilters({ ...emptyFilters, tag_all: [id] });
+                go({ ...route, files: true, file: undefined });
+              }}
+            />
+          )}
+          <button className="text-button" onClick={() => setManage(true)}>
+            {t("manageTags")}
+          </button>
+        </details>
+        {route.files && (
+          <FiltersPanel value={filters} onChange={setFilters} tags={tree} />
+        )}
         <div className="sidebar-footer">
           <button onClick={() => setSettings(true)}>{t("settings")}</button>
           <small>kist · {info.data?.version || "v0.1"}</small>
@@ -37,11 +93,28 @@ export function App() {
         <header className="page-header">
           <div>
             <span className="eyebrow">{t("archive")}</span>
-            <h1>{t("boxes")}</h1>
+            <h1>
+              <bdi>
+                {selected?.name || t(route.files ? "allFiles" : "boxes")}
+              </bdi>
+            </h1>
           </div>
-          <button onClick={() => client.invalidateQueries()}>
-            {t("refresh")}
-          </button>
+          <div className="header-actions">
+            <button onClick={() => client.invalidateQueries()}>
+              {t("refresh")}
+            </button>
+            {selected ? (
+              <button onClick={() => setEditor(selected)}>
+                {t("editBox")}
+              </button>
+            ) : (
+              !route.files && (
+                <button className="primary" onClick={() => setEditor("new")}>
+                  {t("createBox")}
+                </button>
+              )
+            )}
+          </div>
         </header>
         {info.data?.projection_dirty && (
           <p className="notice" role="status">
@@ -55,35 +128,75 @@ export function App() {
             <button onClick={() => boxes.refetch()}>{t("retry")}</button>
           </div>
         )}
-        {boxes.data && !boxes.data.boxes?.length && (
-          <section className="empty-state">
-            <span className="archive-mark" aria-hidden="true">
-              ▤
-            </span>
-            <h2>{t("emptyBoxes")}</h2>
-            <p>{t("emptyBoxesHint")}</p>
-          </section>
+        {route.box && boxes.data && !selected ? (
+          <p role="alert">{t("notFound")}</p>
+        ) : route.files && (!route.box || selected) ? (
+          <FileBrowser
+            key={route.box || "all"}
+            box={selected}
+            paused={!!route.file}
+            filters={filters}
+            tags={tree}
+            open={(file) => go({ ...route, file: file.id })}
+          />
+        ) : (
+          <>
+            {boxes.data && !boxes.data.boxes?.length && (
+              <section className="empty-state">
+                <span className="archive-mark" aria-hidden="true">
+                  ▤
+                </span>
+                <h2>{t("emptyBoxes")}</h2>
+                <p>{t("emptyBoxesHint")}</p>
+                <button className="primary" onClick={() => setEditor("new")}>
+                  {t("createBox")}
+                </button>
+              </section>
+            )}
+            <div className="box-grid">
+              {boxes.data?.boxes?.map((box) => (
+                <button
+                  className="box-card"
+                  key={box.id}
+                  onClick={() => navigate(box)}
+                >
+                  <span className="box-icon" aria-hidden="true">
+                    ▤
+                  </span>
+                  <h2>
+                    <bdi>{box.name}</bdi>
+                  </h2>
+                  <p>
+                    <bdi>{box.description}</bdi>
+                  </p>
+                  <time>
+                    {box.start_at ? formatLocalDate(box.start_at, prefs) : ""}
+                    {box.end_at
+                      ? ` — ${formatLocalDate(box.end_at, prefs)}`
+                      : ""}
+                  </time>
+                </button>
+              ))}
+            </div>
+          </>
         )}
-        <div className="box-grid">
-          {boxes.data?.boxes?.map((box) => (
-            <article className="box-card" key={box.id}>
-              <span className="box-icon" aria-hidden="true">
-                ▤
-              </span>
-              <h2>
-                <bdi>{box.name}</bdi>
-              </h2>
-              <p>
-                <bdi>{box.description}</bdi>
-              </p>
-              <time>
-                {box.start_at ? formatLocalDate(box.start_at, prefs) : ""}
-              </time>
-            </article>
-          ))}
-        </div>
       </main>
-      {settings && <Settings open={settings} onOpenChange={setSettings} />}
+      {settings && <Settings open={settings} onOpenChange={setSettings} />}{" "}
+      {editor && (
+        <BoxEditor
+          box={editor === "new" ? undefined : editor}
+          close={() => setEditor(null)}
+        />
+      )}{" "}
+      {manage && <TagManager tags={tree} close={() => setManage(false)} />}{" "}
+      {route.file && (
+        <FileDetail
+          key={route.file}
+          id={route.file}
+          tags={tree}
+          close={() => go({ ...route, file: undefined })}
+        />
+      )}
     </div>
   );
 }

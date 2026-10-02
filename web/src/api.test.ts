@@ -39,3 +39,76 @@ it("distinguishes a committed write from an unknown result", async () => {
     APIError,
   );
 });
+it("recovers unresolved JSON writes after remount and retires successful keys", async () => {
+  sessionStorage.clear();
+  const first = createWrite("POST", "/boxes", { name: "Archive" });
+  const restored = createWrite("POST", "/boxes", { name: "Archive" });
+  expect(restored.key).toBe(first.key);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response('{"op_id":11}')),
+  );
+  await restored.run();
+  expect(createWrite("POST", "/boxes", { name: "Archive" }).key).not.toBe(
+    first.key,
+  );
+  sessionStorage.clear();
+});
+it("retains upload bytes, manifest and key after a cancelled connection", async () => {
+  const sent: FormData[] = [];
+  const headers: string[] = [];
+  const instances: XHR[] = [];
+  class XHR {
+    upload: {
+      onprogress?: (event: {
+        lengthComputable: boolean;
+        loaded: number;
+        total: number;
+      }) => void;
+    } = {};
+    status = 200;
+    responseText = '{"op_id":12}';
+    onabort?: () => void;
+    onload?: () => void;
+    onloadend?: () => void;
+    constructor() {
+      instances.push(this);
+    }
+    open() {}
+    setRequestHeader(_name: string, key: string) {
+      headers.push(key);
+    }
+    send(form: FormData) {
+      sent.push(form);
+    }
+    abort() {
+      this.onabort?.();
+      this.onloadend?.();
+    }
+  }
+  vi.stubGlobal("XMLHttpRequest", XHR);
+  const { createUpload } = await import("./api");
+  const upload = createUpload("box", [
+    new File(["original"], "旅行.txt", { lastModified: 1234 }),
+  ]);
+  const progress = vi.fn();
+  const first = upload.run(progress);
+  const rejected = expect(first).rejects.toMatchObject({ name: "AbortError" });
+  instances[0].upload.onprogress?.({
+    lengthComputable: true,
+    loaded: 1,
+    total: 2,
+  });
+  upload.cancel();
+  await rejected;
+  expect(progress).toHaveBeenCalledWith(0.5);
+  const retry = upload.run(progress);
+  instances[1].onload?.();
+  await expect(retry).resolves.toEqual({ op_id: 12 });
+  expect(headers).toEqual([upload.key, upload.key]);
+  expect(sent[0].get("manifest")).toBe(sent[1].get("manifest"));
+  expect(JSON.parse(String(sent[1].get("manifest"))).files).toEqual([
+    { path: "旅行.txt", last_modified: 1234 },
+  ]);
+  expect((sent[1].get("files") as File).size).toBe(8);
+});
