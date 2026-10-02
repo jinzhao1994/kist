@@ -203,3 +203,74 @@ func TestVerifyReportsTheLagInsteadOfFixingIt(t *testing.T) {
 		t.Errorf("verify did not report the lag: %d LogAhead findings", report.Count(integrity.LogAhead))
 	}
 }
+
+func TestRejectedWritesLeaveTheJournalReplayable(t *testing.T) {
+	for _, kind := range []string{"tag in use", "stale undo", "unique constraint"} {
+		t.Run(kind, func(t *testing.T) {
+			l := openTestLibrary(t)
+			ctx := context.Background()
+			parent, err := l.CreateTag(ctx, "parent", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := l.CreateTag(ctx, "child", &parent.ID); err != nil {
+				t.Fatal(err)
+			}
+			before, _, err := l.ops.Last()
+			if err != nil {
+				t.Fatal(err)
+			}
+			switch kind {
+			case "tag in use":
+				err = l.DeleteTag(ctx, parent.ID)
+			case "stale undo":
+				if err := l.RenameTag(ctx, parent.ID, "renamed"); err != nil {
+					t.Fatal(err)
+				}
+				before, _, err = l.ops.Last()
+				if err != nil {
+					t.Fatal(err)
+				}
+				_, err = l.Undo(ctx, 1)
+			case "unique constraint":
+				raw, marshalErr := oplog.Marshal(oplog.CreateTagPayload{TagID: domain.NewTagID(), Name: "parent"})
+				if marshalErr != nil {
+					t.Fatal(marshalErr)
+				}
+				_, err = l.write(ctx, oplog.ActionCreateTag, raw, oplog.OriginUser, writeOptions{})
+			}
+			if err == nil {
+				t.Fatal("invalid operation succeeded")
+			}
+			after, _, err := l.ops.Last()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if after.ID != before.ID {
+				t.Fatalf("rejected write advanced journal: %d -> %d", before.ID, after.ID)
+			}
+			root := l.Layout().Root
+			if err := l.Close(); err != nil {
+				t.Fatal(err)
+			}
+			reopened, err := Open(root)
+			if err != nil {
+				t.Fatalf("reopen after rejection: %v", err)
+			}
+			defer reopened.Close()
+			if _, err := reopened.CreateTag(ctx, "next", nil); err != nil {
+				t.Fatalf("write after rejection: %v", err)
+			}
+			if err := reopened.Rebuild(ctx); err != nil {
+				t.Fatalf("rebuild: %v", err)
+			}
+			report, err := reopened.Verify(ctx, VerifyOptions{Deep: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if report.Count(integrity.ViewDrift) != 0 {
+				t.Fatal("rebuild differs from live state")
+			}
+		})
+	}
+}

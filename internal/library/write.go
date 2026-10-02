@@ -107,6 +107,21 @@ func (l *Library) write(
 		RootOpID:  opt.RootOpID,
 	}
 
+	// Validate the exact replay path before making the event authoritative.
+	// The lock stays held across rollback, append and apply, so another
+	// library writer cannot invalidate the checked state in between.
+	check, err := l.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin validation: %w", err)
+	}
+	if _, err := applyOp(check, row); err != nil {
+		check.Rollback()
+		return 0, err
+	}
+	if err := check.Rollback(); err != nil {
+		return 0, fmt.Errorf("rollback validation: %w", err)
+	}
+
 	// Phase 1. After this returns the op exists, whatever happens next.
 	if err := l.ops.Append(lineFromRow(row)); err != nil {
 		return 0, err

@@ -17,9 +17,10 @@ import (
 // same line. When they were three copies, adding op_blobs updated two of them
 // and the third stayed green (the bug verify --deep caught on 2026-09-02).
 //
-// It does not append to the journal. By the time it runs the line is already
-// durable: that ordering is invariant 2 (spec 2.2.2), and keeping the append
-// out of here is what stops a replay from writing the log a second time.
+// It does not append to the journal. The write path first runs it in a transaction
+// that is always rolled back to validate the event. Only after the line is
+// durable may a caller commit its effects (invariant 2, spec 2.2.2). Keeping
+// the append out of here also stops a replay from writing the log again.
 func applyOp(tx *sql.Tx, row store.OpRow) (oplog.Targets, error) {
 	action := oplog.Action(row.Action)
 	handler, err := oplog.Lookup(action)
