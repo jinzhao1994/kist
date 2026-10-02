@@ -354,3 +354,19 @@ func keysOf(m map[string]store.MetadataRow) []string {
 	}
 	return out
 }
+
+func TestMergedObservationsRespectOwnership(t *testing.T) {
+	stored := []store.MetadataRow{
+		{KV: text("exif:DateTimeOriginal", "2001:01:01 00:00:00"), Source: "other"},
+		{KV: extract.KV{Key: "exif:OffsetTimeOriginal"}, Source: "user", Tombstone: true},
+		{KV: text("exif:Make", "old"), Source: "exif"},
+	}
+	got := mergedTags(stored, "exif", []extract.KV{
+		text("exif:DateTimeOriginal", "2020:01:01 00:00:00"),
+		text("exif:OffsetTimeOriginal", "+08:00"),
+		text("exif:Make", "new"),
+	})
+	if len(got) != 2 || got[0] != stored[0].KV || got[1] != text("exif:Make", "new") {
+		t.Fatalf("merged observations ignored ownership or suppression: %+v", got)
+	}
+}

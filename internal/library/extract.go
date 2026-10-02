@@ -334,13 +334,22 @@ func (l *Library) diffExtraction(
 // mergedTags is every row this file will have once this extraction lands.
 func mergedTags(stored []store.MetadataRow, extractor string, found []extract.KV) []extract.KV {
 	out := make([]extract.KV, 0, len(stored)+len(found))
+	protected := make(map[string]bool)
 	for _, row := range stored {
-		if row.Source == extractor || row.Tombstone {
-			continue // replaced by found, or suppressed
+		if row.Source == extractor && !row.Tombstone {
+			continue // this extractor replaces its own observations
 		}
-		out = append(out, row.KV)
+		protected[row.Key] = true
+		if !row.Tombstone {
+			out = append(out, row.KV)
+		}
 	}
-	return append(out, found...)
+	for _, kv := range found {
+		if !protected[kv.Key] {
+			out = append(out, kv)
+		}
+	}
+	return out
 }
 
 // observations drops tombstones, which carry no value and must not reach the

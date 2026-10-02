@@ -210,3 +210,44 @@ func TestMetadataUndoDoesNotOverwriteUnchangedCaptureTime(t *testing.T) {
 		t.Fatal("undo overwrote an unrelated capture time change")
 	}
 }
+
+func TestReExtractionCannotUseASuppressedCaptureKey(t *testing.T) {
+	l, box := openWithBox(t)
+	file := importOneFile(t, l, box, "a.jpg", "x")
+	e := &fakeExtractor{id: "exif", version: 1, ns: []string{"exif"},
+		tags: []extract.KV{text("exif:DateTimeOriginal", "2019:08:12 14:03:22")}}
+	extractWith(t, l, e)
+	if _, err := l.RemoveMetadata(t.Context(), file.ID, "exif:DateTimeOriginal"); err != nil {
+		t.Fatal(err)
+	}
+	before, _, err := l.File(t.Context(), file.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.version++
+	extractWith(t, l, e)
+	for _, rebuild := range []bool{false, true} {
+		if rebuild {
+			if err := l.Rebuild(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+		}
+		got, _, err := l.File(t.Context(), file.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.CapturedAt != before.CapturedAt {
+			t.Fatal("suppressed EXIF time influenced capture time")
+		}
+		if !metaOf(t, l, file.ID)["exif:DateTimeOriginal"].Tombstone {
+			t.Fatal("tombstone lost")
+		}
+		info, err := l.CapturedInfo(t.Context(), got)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.From != "file:mtime" {
+			t.Fatalf("capture source = %s", info.From)
+		}
+	}
+}
