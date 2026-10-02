@@ -60,6 +60,8 @@ func New(l *library.Library, opt Options) (*Server, error) {
 	cfg.Transformers = nil // Keep wire JSON identical to the CLI: no injected $schema.
 	s.contract = humago.New(s.mux, cfg)
 	s.readRoutes()
+	s.fileRoutes()
+	s.tagRoutes()
 	s.writeRoutes()
 	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		writeFailure(w, huma.Error404NotFound("No such endpoint"))
@@ -100,7 +102,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	if r.Method == "POST" || r.Method == "PUT" || r.Method == "PATCH" {
+	if r.Method == "POST" || r.Method == "PUT" || r.Method == "PATCH" || (r.Method == "DELETE" && r.ContentLength != 0) {
 		media, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 		if err != nil || media != "application/json" {
 			writeFailure(w, huma.Error415UnsupportedMediaType("Use application/json"))

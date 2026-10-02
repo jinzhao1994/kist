@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/jinzhao1994/kist/internal/buildinfo"
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/library"
 	"github.com/jinzhao1994/kist/internal/wire"
@@ -59,7 +60,16 @@ func (b boxBody) fields() (library.BoxFields, error) {
 	return f, nil
 }
 
+type libraryInfo struct {
+	Version         string `json:"version"`
+	Timezone        string `json:"timezone"`
+	ProjectionDirty bool   `json:"projection_dirty"`
+}
+
 func (s *Server) readRoutes() {
+	huma.Get(s.contract, Prefix+"/info", func(ctx context.Context, _ *struct{}) (*output[libraryInfo], error) {
+		return response(libraryInfo{Version: buildinfo.Get().Version, Timezone: s.library.Zone().String(), ProjectionDirty: s.library.ProjectionDirty()}, nil)
+	})
 	huma.Get(s.contract, Prefix+"/boxes", func(ctx context.Context, _ *struct{}) (*output[wire.BoxList], error) {
 		boxes, err := s.library.Boxes(ctx, library.ListBoxesOptions{})
 		return response(wire.BoxList{Boxes: wire.NewBoxes(boxes)}, err)
