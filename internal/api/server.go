@@ -8,6 +8,7 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"path"
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -111,7 +112,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeFailure(w, huma.Error403Forbidden("Origin is not allowed"))
 		return
 	}
-	if r.Header.Get("Sec-Fetch-Site") == "cross-site" && origin == "" {
+	// External links may open the UI shell, but never bypass API protection.
+	uiPath := path.Clean(r.URL.Path)
+	uiNavigation := r.Method == http.MethodGet &&
+		r.Header.Get("Sec-Fetch-Mode") == "navigate" &&
+		r.Header.Get("Sec-Fetch-Dest") == "document" &&
+		uiPath != "/api" && !strings.HasPrefix(uiPath, "/api/")
+	if r.Header.Get("Sec-Fetch-Site") == "cross-site" && origin == "" && !uiNavigation {
 		writeFailure(w, huma.Error403Forbidden("Cross-site access is not allowed"))
 		return
 	}

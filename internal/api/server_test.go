@@ -148,3 +148,47 @@ func TestStaticFallbackDoesNotHideAPI404(t *testing.T) {
 		t.Fatalf("UI fallback: %d %s", w.Code, w.Body)
 	}
 }
+
+func TestCrossSiteUINavigation(t *testing.T) {
+	_, l := testServer(t)
+	s, err := New(l, Options{AllowedHosts: []string{"localhost:8473"}, UI: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("UI document")) })})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name, method, path, mode, dest, host, origin string
+		status                                       int
+	}{
+		{"root", "GET", "/", "navigate", "document", "", "", 200},
+		{"deep link", "GET", "/boxes/example", "navigate", "document", "", "", 200},
+		{"API", "GET", "/api/v1/boxes", "navigate", "document", "", "", 403},
+		{"API root", "GET", "/api", "navigate", "document", "", "", 403},
+		{"normalized API", "GET", "/ui/../api/v1/boxes", "navigate", "document", "", "", 403},
+		{"encoded API", "GET", "/%61pi/v1/boxes", "navigate", "document", "", "", 403},
+		{"write", "POST", "/", "navigate", "document", "", "", 403},
+		{"iframe", "GET", "/", "navigate", "iframe", "", "", 403},
+		{"fetch", "GET", "/", "cors", "empty", "", "", 403},
+		{"missing metadata", "GET", "/", "", "", "", "", 403},
+		{"foreign host", "GET", "/", "navigate", "document", "evil.example", "", 403},
+		{"foreign origin", "GET", "/", "navigate", "document", "", "https://evil.example", 403},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := httptest.NewRequest(tc.method, "http://localhost:8473"+tc.path, nil)
+			if tc.host != "" {
+				r.Host = tc.host
+			}
+			r.Header.Set("Sec-Fetch-Site", "cross-site")
+			r.Header.Set("Sec-Fetch-Mode", tc.mode)
+			r.Header.Set("Sec-Fetch-Dest", tc.dest)
+			r.Header.Set("Origin", tc.origin)
+			w := httptest.NewRecorder()
+			s.ServeHTTP(w, r)
+			if w.Code != tc.status {
+				t.Fatalf("status=%d body=%s", w.Code, w.Body)
+			}
+			if tc.status == 200 && w.Body.String() != "UI document" {
+				t.Fatalf("unexpected UI: %s", w.Body)
+			}
+		})
+	}
+}
