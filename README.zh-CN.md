@@ -66,7 +66,7 @@ docker compose run --rm kist init /library --yes
 docker compose up -d
 ```
 
-打开 `http://127.0.0.1:8473`。镜像以 UID/GID `10001:10001` 运行，内置 FFmpeg、ffprobe 和时区数据。整个库保存在命名卷中，重建容器不会丢失；`docker compose down` 保留数据，`docker compose down -v` 会删除数据。已有库不要再次初始化。CLI 使用同一个库，例如：
+打开 `http://127.0.0.1:8473`。镜像以 UID/GID `10001:10001` 运行，内置 FFmpeg、ffprobe、libheif 工具和时区数据。整个库保存在命名卷中，重建容器不会丢失；`docker compose down` 保留数据，`docker compose down -v` 会删除数据。已有库不要再次初始化。CLI 使用同一个库，例如：
 
 ```sh
 docker compose exec kist kist --library /library verify --deep

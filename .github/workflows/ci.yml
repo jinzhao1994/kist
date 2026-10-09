@@ -42,6 +42,9 @@ jobs:
       # Identical to what `make check` runs locally. Keep it that way: the
       # point of the Makefile is that the red X never appears in the first
       # place.
+      - name: Install media tools for integration tests
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg libheif-examples
+
       - run: make check
 
   # Tests only, on the platforms `check` does not cover. The storage layer is

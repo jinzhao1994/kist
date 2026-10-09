@@ -78,7 +78,7 @@ docker compose up -d
 ```
 
 Open `http://127.0.0.1:8473`. The image runs as UID/GID `10001:10001` and
-includes FFmpeg, ffprobe and timezone data. The default named volume retains
+includes FFmpeg, ffprobe, libheif tools and timezone data. The default named volume retains
 the whole library across container recreation. `docker compose down` keeps it;
 `docker compose down -v` deletes it. Do not run initialization again for an
 existing library. CLI operations use the same library, for example:

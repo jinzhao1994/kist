@@ -6,9 +6,11 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/bep/imagemeta v1.0.0
 	github.com/danielgtaylor/huma/v2 v2.39.1
+	github.com/disintegration/imaging v1.6.2
 	github.com/google/uuid v1.6.0
 	github.com/pressly/goose/v3 v3.27.3
 	github.com/spf13/cobra v1.10.2
+	golang.org/x/image v0.38.0
 	golang.org/x/sys v0.47.0
 	golang.org/x/text v0.41.0
 	modernc.org/sqlite v1.57.0

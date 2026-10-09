@@ -24,6 +24,9 @@ RUN apt-get update \
     && groupadd --gid 10001 kist \
     && useradd --uid 10001 --gid kist --no-create-home --home-dir /library kist \
     && mkdir /library && chown kist:kist /library
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libheif-examples \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=build /out/kist /usr/local/bin/kist
 COPY LICENSE /usr/share/doc/kist/LICENSE
 ENV TZ=UTC

@@ -2,6 +2,7 @@
 # Exercise the actual runtime image using only disposable, named test resources.
 set -eu
 image=${1:-kist:local}
+fixture_dir=$(CDPATH= cd -- "$(dirname -- "$0")/../internal/derive/testdata" && pwd)
 name="kist-smoke-$$"
 volume="$name-library"
 cleanup() {
@@ -13,7 +14,7 @@ docker volume create "$volume" >/dev/null
 docker run --rm -e TZ=Asia/Shanghai --mount "type=volume,src=$volume,dst=/library" "$image" init /library --yes
 docker run --rm --mount "type=volume,src=$volume,dst=/library" "$image" --library /library box new 'Docker smoke'
 # The image must have working encoders, not merely an ffmpeg executable.
-docker run --rm --read-only --tmpfs /tmp --mount "type=volume,src=$volume,dst=/library" --entrypoint sh "$image" -ec '
+docker run --rm --read-only --tmpfs /tmp --mount "type=volume,src=$volume,dst=/library" --mount "type=bind,src=$fixture_dir,dst=/fixtures,readonly" --entrypoint sh "$image" -ec '
     test "$(id -u)" != 0
     ffmpeg -v error -f lavfi -i color=c=blue:s=240x160 -frames:v 1 -threads 1 /tmp/sample.png
     ffmpeg -v error -i /tmp/sample.png -frames:v 1 -threads 1 /tmp/thumb.webp
@@ -22,6 +23,9 @@ docker run --rm --read-only --tmpfs /tmp --mount "type=volume,src=$volume,dst=/l
     grep -qx h264 /tmp/codecs
     grep -qx aac /tmp/codecs
     test -s /tmp/thumb.webp
+    decoder=$(command -v heif-dec || command -v heif-convert)
+    "$decoder" /fixtures/tiled.heic /tmp/heif.png
+    ffprobe -v error -show_entries stream=width,height -of csv=p=0 /tmp/heif.png | grep -qx "3072,2048"
     kist --library /library import --box "Docker smoke" /tmp/sample.png
 '
 start_server() {
