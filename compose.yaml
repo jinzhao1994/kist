@@ -1,0 +1,28 @@
+services:
+  kist:
+    build: .
+    image: kist:local
+    init: true
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      TZ: ${TZ:-UTC}
+    ports:
+      - "127.0.0.1:${KIST_PORT:-8473}:8473"
+    volumes:
+      - library:/library
+    command:
+      - serve
+      - --library
+      - /library
+      - --listen
+      - 0.0.0.0:8473
+      - --allow-origin
+      - ${KIST_ORIGIN:-http://127.0.0.1:8473}
+      - --allow-origin
+      - http://localhost:8473
+volumes:
+  library:

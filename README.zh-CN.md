@@ -9,7 +9,7 @@ Go 单二进制 + SQLite，Apache-2.0。
 
 > **开发中。** 存储内核、导入、完整性工具、查询与 metadata 提取已经实现。
 > M4 的 HTTP API 和内嵌中英文 Web UI 已完成，并通过浏览器与端到端验收。
-> 下一阶段是 M5 派生媒体。见[里程碑](#里程碑)。
+> 正在推进 M5 派生媒体。见[里程碑](#里程碑)。
 
 ## 想法
 
@@ -55,6 +55,28 @@ make check   # 前端检查以及 tidy、gofmt、vet、race 测试和构建
 make build   # -> bin/kist
 make dist    # -> dist/，四个发布平台
 ```
+
+## Docker（内置 FFmpeg）
+
+显式构建并初始化一个持久化的新库：
+
+```sh
+docker compose build
+docker compose run --rm kist init /library --yes
+docker compose up -d
+```
+
+打开 `http://127.0.0.1:8473`。镜像以 UID/GID `10001:10001` 运行，内置 FFmpeg、ffprobe 和时区数据。整个库保存在命名卷中，重建容器不会丢失；`docker compose down` 保留数据，`docker compose down -v` 会删除数据。已有库不要再次初始化。CLI 使用同一个库，例如：
+
+```sh
+docker compose exec kist kist --library /library verify --deep
+```
+
+初始化前设置 `TZ=Asia/Shanghai` 可指定库时区。改用本机其他端口时，同时设置 `KIST_PORT=18473` 和 `KIST_ORIGIN=http://127.0.0.1:18473`。默认只发布宿主机 loopback 端口；远程访问须显式修改端口绑定，并把 `KIST_ORIGIN` 设置为浏览器使用的可信来源。当前没有登录，只能部署在可信网络或带认证的反向代理后。
+
+使用现有库时，将命名卷改为宿主机绝对路径，并确保 UID/GID `10001:10001` 有权限访问，或用 `user:` 配置库的现有所有者。必须挂载整个库，不能只挂 `kist.db` 或 `blobs/`。启动不会自动创建库，也不会递归修改文件所有权。
+
+此阶段为 M5 提供依赖环境，尚未给 UI 增加缩略图或转码功能，也尚未发布 registry 镜像。可运行 `sh scripts/docker-smoke.sh kist:local` 检查镜像内编码器、网页、访问保护与持久化库。
 
 ## 怎么用
 
@@ -154,11 +176,12 @@ kist 从不往远端写，也从不信任远端：取回来的内容边读边哈
 | M0 | 仓库地基 | 已完成 |
 | M1 | 内核：op log、blob 存储、命令行导入与检索 | 已完成 |
 | M2a | 完整性：`verify`、`scrub`、`repair`、`rebuild` | 已完成 |
-| **M2b** | Query 契约与 conformance suite | ← 当前 |
-| M3 | 提取：EXIF、缩略图、预览图 | |
-| M4 | Web UI | 第一个能给别人看的版本 |
-| M5 | 历史 UI：浏览并撤销任意历史操作 | |
-| M6 | 文档、打包、v0.1 | |
+| M2b | Query 契约与 conformance suite | 已完成 |
+| M3 | metadata 提取，含 EXIF | 已完成 |
+| M4 | HTTP API 与内嵌 Web UI | 已完成 |
+| **M5** | 派生媒体：缩略图、预览、转码；内置 FFmpeg 的 Docker | 进行中 |
+| M6 | 历史 UI：浏览并撤销任意历史操作 | |
+| M7 | 文档、打包、v0.1 | |
 
 ## 许可证
 

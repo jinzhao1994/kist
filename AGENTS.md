@@ -24,7 +24,7 @@ Go 单二进制 + SQLite，Apache-2.0。SQLite 是唯一数据库后端。
 
 ## 当前状态
 
-M0–M4 已完成，包括存储内核、op log、导入与投影、完整性检查与修复、查询契约、metadata 提取、结构化错误、HTTP API、持久化请求去重和中英文 React Web UI。op log 位于 `ops/YYYY/MM/YYYY-MM-DD_ops.jsonl`。M4 已通过浏览器与端到端验收，证据见 `docs/plans/2026-10-01-m4-web.md`。下一阶段是 M5 派生媒体；缩略图、ffmpeg 与转码须先收口设计，不属于现有 M4 能力。
+M0–M4 已完成，包括存储内核、op log、导入与投影、完整性检查与修复、查询契约、metadata 提取、结构化错误、HTTP API、持久化请求去重和中英文 React Web UI。op log 位于 `ops/YYYY/MM/YYYY-MM-DD_ops.jsonl`。M4 已通过浏览器与端到端验收，证据见 `docs/plans/2026-10-01-m4-web.md`。M5 已开始：提供内置 ffmpeg 的 Docker 构建、Compose 与镜像验收；缩略图、预览图和转码队列尚未实现，生成时机与任务边界仍须收口设计。
 
 更新这个状态时替换旧文字，不要在下面继续追加历史。
 

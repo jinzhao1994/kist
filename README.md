@@ -12,7 +12,7 @@ One Go binary plus SQLite. Apache-2.0.
 > **In development.** The storage kernel, import, integrity tools, queries and
 > metadata extraction are implemented. M4's HTTP API and embedded English/Chinese
 > Web UI have passed browser and end-to-end acceptance testing. Derived media is
-> next in M5. See [Milestones](#milestones).
+> under development in M5. See [Milestones](#milestones).
 
 ## The idea
 
@@ -66,6 +66,43 @@ make check   # frontend checks plus tidy, gofmt, vet, race tests, and build
 make build   # -> bin/kist
 make dist    # -> dist/, all four release platforms
 ```
+
+## Docker (with FFmpeg)
+
+Build and initialize a new, persistent library explicitly:
+
+```sh
+docker compose build
+docker compose run --rm kist init /library --yes
+docker compose up -d
+```
+
+Open `http://127.0.0.1:8473`. The image runs as UID/GID `10001:10001` and
+includes FFmpeg, ffprobe and timezone data. The default named volume retains
+the whole library across container recreation. `docker compose down` keeps it;
+`docker compose down -v` deletes it. Do not run initialization again for an
+existing library. CLI operations use the same library, for example:
+
+```sh
+docker compose exec kist kist --library /library verify --deep
+```
+
+Set `TZ=Asia/Shanghai` before initialization to choose the library timezone.
+For a different local port, set both `KIST_PORT=18473` and
+`KIST_ORIGIN=http://127.0.0.1:18473`. Remote access requires explicitly changing
+the port binding and setting `KIST_ORIGIN` to the trusted browser origin; use
+only a trusted network or an authenticated reverse proxy because kist has no
+login. The default exposes the service only on the host's loopback address.
+
+To use an existing library, replace the named volume with an absolute host
+path and ensure UID/GID `10001:10001` can access it, or configure `user:` for its
+existing owner. Mount the entire library, not just `kist.db` or `blobs/`.
+There is no automatic library creation or recursive ownership change.
+
+FFmpeg is bundled for M5 development; this packaging step does not yet add
+thumbnail or transcoding features to the UI. A registry image is not published
+yet. Run `sh scripts/docker-smoke.sh kist:local` to check the built image's
+encoders, web app, access checks and persistent library.
 
 ## Using it
 
@@ -193,11 +230,12 @@ hashed on the way in and discarded if it is not what was asked for. Run
 | M0 | repository groundwork | done |
 | M1 | kernel: op log, blob store, CLI import and search | done |
 | M2a | integrity: `verify`, `scrub`, `repair`, `rebuild` | done |
-| **M2b** | the query contract and its conformance suite | ← here |
-| M3 | extraction: EXIF, thumbnails, previews | |
-| M4 | web UI | first version worth showing anyone |
-| M5 | history UI: browse and undo any past operation | |
-| M6 | docs, packaging, v0.1 | |
+| M2b | the query contract and its conformance suite | done |
+| M3 | metadata extraction, including EXIF | done |
+| M4 | HTTP API and embedded web UI | done |
+| **M5** | derived media: thumbnails, previews, transcoding; Docker with FFmpeg | in progress |
+| M6 | history UI: browse and undo any past operation | |
+| M7 | docs, packaging, v0.1 | |
 
 ## License
 

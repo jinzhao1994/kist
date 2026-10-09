@@ -79,3 +79,11 @@ jobs:
         run: |
           go test ./...
           CGO_ENABLED=0 go build ./...
+
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build -t kist:ci .
+      - run: sh scripts/docker-smoke.sh kist:ci
+      - run: docker compose config --quiet
