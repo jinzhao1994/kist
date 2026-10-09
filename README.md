@@ -10,8 +10,9 @@ passports, contracts and lab reports.
 One Go binary plus SQLite. Apache-2.0.
 
 > **In development.** The storage kernel, import, integrity tools, queries and
-> metadata extraction are implemented. M4 adds the HTTP API and embedded Web UI;
-> browser acceptance testing is still in progress. See [Milestones](#milestones).
+> metadata extraction are implemented. M4's HTTP API and embedded English/Chinese
+> Web UI have passed browser and end-to-end acceptance testing. Derived media is
+> next in M5. See [Milestones](#milestones).
 
 ## The idea
 
