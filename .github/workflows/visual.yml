@@ -33,6 +33,8 @@ jobs:
       - run: CGO_ENABLED=0 go build -o bin/kist ./cmd/kist
       - name: Capture in pinned Linux Chromium environment
         run: |
+          # The host writes the manifest after the container creates screenshots.
+          mkdir -p web/visual-results/candidate
           image=$(node -p 'require("./web/visual/environment.json").image')
           docker run --rm --ipc=host --platform linux/amd64 \
             -v "$PWD:/work" -w /work/web -e CI=true \
