@@ -7,11 +7,13 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
     "test": "node --no-experimental-webstorage node_modules/vitest/vitest.mjs run",
-    "check": "npm run check:api && npm run format:check && npm run test && npm run build",
+    "check": "npm run check:api && npm run format:check && npm run check:visual && npm run test && npm run build",
     "generate:api": "node scripts/api-schema.mjs",
     "check:api": "node scripts/api-schema.mjs --check",
-    "format": "prettier --write src scripts vite.config.ts tsconfig.json package.json index.html",
-    "format:check": "prettier --check src scripts vite.config.ts tsconfig.json package.json index.html"
+    "format": "prettier --write src scripts vite.config.ts tsconfig.json package.json index.html playwright.config.ts tsconfig.visual.json visual",
+    "format:check": "prettier --check src scripts vite.config.ts tsconfig.json package.json index.html playwright.config.ts tsconfig.visual.json visual",
+    "test:visual-tools": "node --test scripts/visual-artifacts.test.mjs",
+    "check:visual": "tsc -p tsconfig.visual.json && npm run test:visual-tools"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.23",
@@ -24,6 +26,7 @@
   },
   "devDependencies": {
     "@formatjs/icu-messageformat-parser": "^3.5.20",
+    "@playwright/test": "1.64.0",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
@@ -34,6 +37,8 @@
     "@vitejs/plugin-react": "^6.1.1",
     "jsdom": "^29.1.1",
     "openapi-typescript": "^7.13.0",
+    "pixelmatch": "8.0.0",
+    "pngjs": "7.0.0",
     "prettier": "^3.9.9",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",

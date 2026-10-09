@@ -272,3 +272,5 @@ operations; ordinary archive writes still require request keys.
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).
+
+Visual regression checks run in GitHub Actions with committed Linux-generated baselines. See [reviewing and updating screenshots](docs/testing/visual.md) for reports and the automated baseline acceptance workflow.

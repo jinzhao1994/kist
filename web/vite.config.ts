@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   build: { outDir: "../internal/web/static/build", emptyOutDir: true },
   test: {
+    include: ["src/**/*.test.{ts,tsx}"],
     execArgv: ["--no-experimental-webstorage"],
     environment: "jsdom",
     setupFiles: ["./src/test-setup.ts"],

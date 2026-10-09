@@ -1,0 +1,78 @@
+name: Visual
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: visual-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm --prefix web ci
+      - run: npm --prefix web run build
+      - run: CGO_ENABLED=0 go build -o bin/kist ./cmd/kist
+      - name: Capture in pinned Linux Chromium environment
+        run: |
+          image=$(node -p 'require("./web/visual/environment.json").image')
+          docker run --rm --ipc=host --platform linux/amd64 \
+            -v "$PWD:/work" -w /work/web -e CI=true \
+            "$image" npx --no-install playwright test
+      - name: Validate complete candidate
+        id: candidate
+        run: node web/scripts/visual-artifacts.mjs prepare
+      - name: Compare against committed baselines
+        run: node web/scripts/visual-artifacts.mjs compare
+      - name: Upload candidate
+        id: upload-candidate
+        if: ${{ !cancelled() && steps.candidate.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: visual-candidate-${{ github.run_attempt }}
+          path: web/visual-results/candidate/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload report and failure traces
+        id: report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: visual-report-${{ github.run_attempt }}
+          path: |
+            web/visual-results/report/
+            web/visual-results/test-results/
+            web/visual-results/capture.json
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Summarize
+        if: ${{ !cancelled() }}
+        env:
+          REPORT_URL: ${{ steps.report.outputs.artifact-url }}
+          CANDIDATE_URL: ${{ steps.upload-candidate.outputs.artifact-url }}
+        run: |
+          if [ -f web/visual-results/summary.md ]; then
+            cat web/visual-results/summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Capture failed; no candidate can be accepted. Inspect test results and traces.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "Report: $REPORT_URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "Candidate: $CANDIDATE_URL" >> "$GITHUB_STEP_SUMMARY"
