@@ -102,7 +102,10 @@ the number of loaded files; use **Load more** to continue through the results.
 
 **Display settings** separates English/Chinese language, regional number/date
 formatting, display timezone and reading direction. These preferences stay in
-the browser. Unsupported previews, including HEIC, have a download fallback;
+the browser. Choose Old Paper, Moonlit Moss, Golden Fields, Cherry Rain, Ocean Whispers, or
+Apricot Dusk independently from Light, Dark,
+or Follow system appearance; system changes apply automatically in Follow system
+mode. Unsupported previews, including HEIC, have a download fallback;
 thumbnail generation belongs to M5.
 
 Uploads default to at most 1,000 files and a 2 GiB multipart body per batch.

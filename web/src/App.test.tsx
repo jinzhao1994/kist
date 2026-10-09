@@ -4,15 +4,18 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App } from "./App";
 import { I18nProvider, storageKey } from "./i18n";
+import { ThemeProvider } from "./theme";
 function mount() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={client}>
-      <I18nProvider>
-        <App />
-      </I18nProvider>
+      <ThemeProvider>
+        <I18nProvider>
+          <App />
+        </I18nProvider>
+      </ThemeProvider>
     </QueryClientProvider>,
   );
 }

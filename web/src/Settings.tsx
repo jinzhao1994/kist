@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import { Dialog } from "./Dialog";
 import { useI18n, validFormats, type Preferences } from "./i18n";
+import { themes, useTheme, type Appearance } from "./theme";
 export function Settings({
   open,
   onOpenChange,
@@ -10,6 +11,8 @@ export function Settings({
 }) {
   const { prefs, setPrefs, t } = useI18n();
   const [draft, setDraft] = useState(prefs);
+  const { appearance, setAppearance } = useTheme();
+  const [look, setLook] = useState(appearance);
   const [error, setError] = useState(false);
   const id = useId();
   const field = <K extends keyof Preferences>(key: K, value: Preferences[K]) =>
@@ -24,9 +27,36 @@ export function Settings({
             return;
           }
           setPrefs(draft);
+          setAppearance(look);
           onOpenChange(false);
         }}
       >
+        <label htmlFor={`${id}-theme`}>{t("theme")}</label>
+        <select
+          id={`${id}-theme`}
+          value={look.theme}
+          onChange={(e) =>
+            setLook({ ...look, theme: e.target.value as Appearance["theme"] })
+          }
+        >
+          {Object.entries(themes).map(([key, label]) => (
+            <option key={key} value={key}>
+              {t(label)}
+            </option>
+          ))}
+        </select>
+        <label htmlFor={`${id}-mode`}>{t("colorMode")}</label>
+        <select
+          id={`${id}-mode`}
+          value={look.mode}
+          onChange={(e) =>
+            setLook({ ...look, mode: e.target.value as Appearance["mode"] })
+          }
+        >
+          <option value="system">{t("modeSystem")}</option>
+          <option value="light">{t("modeLight")}</option>
+          <option value="dark">{t("modeDark")}</option>
+        </select>
         <label htmlFor={`${id}-language`}>{t("language")}</label>
         <select
           id={`${id}-language`}
