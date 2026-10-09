@@ -1,7 +1,10 @@
 import { defineConfig } from "@playwright/test";
-import environment from "./visual/environment.json";
+import environment from "./visual/environment.json" with { type: "json" };
 
-if (!process.env.CI || process.platform !== "linux" || process.arch !== "x64") {
+if (
+  !process.argv.includes("--list") &&
+  (!process.env.CI || process.platform !== "linux" || process.arch !== "x64")
+) {
   throw new Error(
     "Formal visual captures run only in the pinned Linux amd64 CI image",
   );

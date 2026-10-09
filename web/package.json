@@ -13,7 +13,7 @@
     "format": "prettier --write src scripts vite.config.ts tsconfig.json package.json index.html playwright.config.ts tsconfig.visual.json visual",
     "format:check": "prettier --check src scripts vite.config.ts tsconfig.json package.json index.html playwright.config.ts tsconfig.visual.json visual",
     "test:visual-tools": "node --test scripts/visual-artifacts.test.mjs",
-    "check:visual": "tsc -p tsconfig.visual.json && npm run test:visual-tools"
+    "check:visual": "tsc -p tsconfig.visual.json && playwright test --list && npm run test:visual-tools"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.23",
