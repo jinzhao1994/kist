@@ -184,3 +184,25 @@ export function createUpload(box: string, files: readonly File[]) {
       }),
   });
 }
+
+export type MediaJob = components["schemas"]["MediaJob"];
+export function mediaPath(file: ArchiveFile, recipe: string) {
+  return `/files/${encodeURIComponent(file.id)}/derived/${encodeURIComponent(recipe)}`;
+}
+export async function mediaAction(
+  path: string,
+  action: "request" | "retry" | "cancel",
+  signal?: AbortSignal,
+): Promise<MediaJob> {
+  return result<MediaJob>(
+    await fetch(`/api/v1${path}`, {
+      method: action === "cancel" ? "DELETE" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body:
+        action === "cancel"
+          ? undefined
+          : JSON.stringify({ retry: action === "retry" }),
+      signal,
+    }),
+  );
+}

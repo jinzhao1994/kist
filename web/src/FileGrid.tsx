@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ArchiveFile } from "./api";
-import { Media, imageTypes } from "./Media";
+import { Media, hasDerivedMedia } from "./Media";
 import { useI18n } from "./i18n";
 export const MAX_ACTIVE_IMAGES = 8;
 export function activeImages(
@@ -12,7 +12,7 @@ export function activeImages(
   return new Set(
     files
       .slice(first, last)
-      .filter((file) => imageTypes.has(file.media_type || ""))
+      .filter(hasDerivedMedia)
       .slice(0, MAX_ACTIVE_IMAGES)
       .map((file) => file.id),
   );

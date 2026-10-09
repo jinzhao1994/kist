@@ -1,21 +1,40 @@
 import { useState } from "react";
-import { contentURL, type ArchiveFile } from "./api";
-import { useI18n } from "./i18n";
-export const imageTypes = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "image/bmp",
-  "image/x-icon",
-]);
-const videoTypes = new Set(["video/mp4", "video/webm", "video/ogg"]);
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  contentURL,
+  get,
+  mediaAction,
+  mediaPath,
+  type ArchiveFile,
+  type MediaJob,
+} from "./api";
+import { useI18n, type MessageKey } from "./i18n";
+
+export function hasDerivedMedia(file: ArchiveFile) {
+  return file.kind === "image" || file.kind === "video";
+}
 const audioTypes = new Set([
   "audio/mpeg",
   "audio/wave",
   "audio/aiff",
   "audio/ogg",
 ]);
+const reasons: Record<string, MessageKey> = {
+  dependency_missing: "mediaDependency",
+  unsupported: "previewUnavailable",
+  limit_exceeded: "mediaLimit",
+  timeout: "mediaTimeout",
+};
+const states: Record<MediaJob["state"], MessageKey> = {
+  missing: "mediaQueued",
+  queued: "mediaQueued",
+  running: "mediaRunning",
+  ready: "mediaFailed",
+  blocked: "mediaDependency",
+  failed: "mediaFailed",
+  cancelled: "mediaCancelled",
+};
+
 export function Media({
   file,
   active = true,
@@ -26,36 +45,73 @@ export function Media({
   detail?: boolean;
 }) {
   const { t } = useI18n();
-  const [failed, setFailed] = useState(false);
-  const mime = file.media_type || "";
-  if (active && !failed && imageTypes.has(mime))
-    return (
-      <img
-        className={detail ? "detail-image" : "file-image"}
-        src={contentURL(file)}
-        alt={file.name}
-        decoding="async"
-        onError={() => setFailed(true)}
-      />
-    );
-  if (detail && !failed && videoTypes.has(mime))
-    return (
+  const client = useQueryClient();
+  const recipe = detail
+    ? file.kind === "video"
+      ? "preview_1080p_v1"
+      : "preview_2048_v1"
+    : "thumb_512_v1";
+  const path = mediaPath(file, recipe);
+  const key = ["media", file.id, file.blob_key, recipe];
+  const enabled = active && hasDerivedMedia(file);
+  const [failedGeneration, setFailedGeneration] = useState("");
+  const query = useQuery({
+    queryKey: key,
+    enabled,
+    queryFn: async ({ signal }) => {
+      const state = await get<MediaJob>(path, signal);
+      return state.state === "missing"
+        ? mediaAction(path, "request", signal)
+        : state;
+    },
+    // Read fresh state after another process cancels, retries, or removes output.
+    refetchInterval: (query) => {
+      if (!enabled || query.state.error) return false;
+      return ["queued", "running", "blocked"].includes(
+        query.state.data?.state || "",
+      )
+        ? 1500
+        : 15000;
+    },
+  });
+  const action = useMutation({
+    mutationFn: (kind: "retry" | "cancel") => mediaAction(path, kind),
+    onSuccess: (job) => client.setQueryData(key, job),
+  });
+  const job = query.data;
+  const failed = failedGeneration === (job?.generation || file.id);
+  if (enabled && job?.state === "ready" && !failed) {
+    const src = `/api/v1${path}/content?v=${encodeURIComponent(job.generation)}`;
+    const fail = () => {
+      setFailedGeneration(job.generation);
+      void query.refetch();
+    };
+    return detail && file.kind === "video" ? (
       <video
         className="detail-image"
-        src={contentURL(file)}
+        src={src}
         controls
         preload="metadata"
-        onError={() => setFailed(true)}
+        onError={fail}
         aria-label={file.name}
       />
+    ) : (
+      <img
+        className={detail ? "detail-image" : "file-image"}
+        src={src}
+        alt={file.name}
+        decoding="async"
+        onError={fail}
+      />
     );
-  if (detail && !failed && audioTypes.has(mime))
+  }
+  if (detail && !failed && audioTypes.has(file.media_type || ""))
     return (
       <audio
         src={contentURL(file)}
         controls
         preload="metadata"
-        onError={() => setFailed(true)}
+        onError={() => setFailedGeneration(file.id)}
         aria-label={file.name}
       />
     );
@@ -63,6 +119,16 @@ export function Media({
     (["image", "video", "audio", "document", "other"] as const).find(
       (kind) => kind === file.kind,
     ) || "unknown";
+  const busy = job && ["queued", "running", "blocked"].includes(job.state);
+  const terminal =
+    job && ["failed", "cancelled", "blocked"].includes(job.state);
+  const message = query.isError
+    ? "mediaRequestFailed"
+    : failed
+      ? "mediaFailed"
+      : job?.reason
+        ? reasons[job.reason] || "mediaFailed"
+        : states[job?.state || "missing"];
   return (
     <div className="media-placeholder">
       <span aria-hidden="true">
@@ -75,7 +141,43 @@ export function Media({
               : "▤"}
       </span>
       <small>{t(kind)}</small>
-      {detail && <p>{t("previewUnavailable")}</p>}
+      {enabled ? (
+        <p role={detail ? "status" : undefined}>{t(message)}</p>
+      ) : (
+        detail && <p>{t("previewUnavailable")}</p>
+      )}
+      {detail && enabled && (
+        <>
+          {busy && (
+            <button
+              disabled={action.isPending}
+              onClick={() => action.mutate("cancel")}
+            >
+              {t("cancel")}
+            </button>
+          )}
+          {terminal && (
+            <button
+              disabled={action.isPending}
+              onClick={() => action.mutate("retry")}
+            >
+              {t("retry")}
+            </button>
+          )}
+          {(query.isError || failed) && (
+            <button
+              disabled={query.isFetching}
+              onClick={() => {
+                setFailedGeneration("");
+                void query.refetch();
+              }}
+            >
+              {t("retry")}
+            </button>
+          )}
+          {action.isError && <p role="alert">{t("mediaRequestFailed")}</p>}
+        </>
+      )}
     </div>
   );
 }

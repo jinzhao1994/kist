@@ -26,7 +26,7 @@ docker run --rm --read-only --tmpfs /tmp --mount "type=volume,src=$volume,dst=/l
     decoder=$(command -v heif-dec || command -v heif-convert)
     "$decoder" /fixtures/tiled.heic /tmp/heif.png
     ffprobe -v error -show_entries stream=width,height -of csv=p=0 /tmp/heif.png | grep -qx "3072,2048"
-    kist --library /library import --box "Docker smoke" /tmp/sample.png
+    kist --library /library import --box "Docker smoke" /tmp/sample.png /tmp/preview.mp4 /fixtures/tiled.heic
 '
 start_server() {
     docker run -d --name "$name" --cap-drop ALL \
@@ -47,6 +47,7 @@ curl -fsS -H 'Host: localhost:8473' "$url/" | grep -q '<title>kist</title>'
 curl -fsS -H 'Host: localhost:8473' "$url/api/v1/boxes" | grep -q 'Docker smoke'
 code=$(curl -sS -o /dev/null -w '%{http_code}' -H 'Host: localhost:8473' -H 'Origin: https://untrusted.example' "$url/api/v1/info")
 test "$code" = 403
+python3 "$(dirname -- "$0")/media-smoke.py" "$url" localhost:8473
 docker stop "$name" >/dev/null
 docker rm "$name" >/dev/null
 start_server
@@ -59,6 +60,7 @@ until curl -fsS -H 'Host: localhost:8473' "$url/api/v1/boxes" | grep -q 'Docker 
     sleep 1
 done
 curl -fsS -H 'Host: localhost:8473' "$url/api/v1/files" | grep -q sample.png
+python3 "$(dirname -- "$0")/media-smoke.py" "$url" localhost:8473
 docker exec "$name" kist --library /library verify --deep
 docker exec "$name" kist --library /library scrub
 printf '%s\n' 'Docker smoke passed.'

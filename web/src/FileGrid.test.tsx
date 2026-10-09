@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import { FileBrowser } from "./FileBrowser";
 import { emptyFilters } from "./Filters";
 import { FileGrid } from "./FileGrid";
@@ -18,7 +19,22 @@ const files: ArchiveFile[] = Array.from({ length: 1000 }, (_, index) => ({
   media_type: "image/jpeg",
   kind: "image",
 }));
+let mediaClient: QueryClient;
+const ready = () =>
+  Response.json({ state: "ready", generation: "v1", result: {} });
+function mediaWrapper({ children }: { children: ReactNode }) {
+  return (
+    <QueryClientProvider client={mediaClient}>{children}</QueryClientProvider>
+  );
+}
 beforeEach(() => {
+  mediaClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ready()),
+  );
   localStorage.setItem(
     storageKey,
     JSON.stringify({
@@ -68,6 +84,7 @@ it("virtualizes a thousand files and unloads every grid image while details are 
     <I18nProvider>
       <FileGrid files={files} open={open} />
     </I18nProvider>,
+    { wrapper: mediaWrapper },
   );
   await waitFor(() => expect(screen.getAllByRole("img")).toHaveLength(8));
   expect(screen.getAllByRole("button").length).toBeLessThan(25);
@@ -101,6 +118,7 @@ it("moves keyboard focus by row and respects RTL horizontal navigation", async (
     <I18nProvider>
       <FileGrid files={files} open={vi.fn()} />
     </I18nProvider>,
+    { wrapper: mediaWrapper },
   );
   await screen.findAllByRole("button");
   const buttons = screen.getAllByRole("button");
@@ -118,6 +136,7 @@ it("uses keyset pagination and resets it when filters change", async () => {
     "fetch",
     vi.fn(async (path: string) => {
       const url = new URL(path, "http://localhost");
+      if (url.pathname.includes("/derived/")) return ready();
       if (url.pathname.endsWith("/info"))
         return new Response(
           JSON.stringify({

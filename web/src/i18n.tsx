@@ -7,6 +7,18 @@ import {
 } from "react";
 
 export const en = {
+  mediaQueued: "Waiting to generate preview…",
+  mediaRunning: "Generating preview…",
+  mediaDependency:
+    "Preview tools are missing. Video needs FFmpeg; HEIC needs libheif with an HEVC decoder. Will retry automatically.",
+  mediaFailed:
+    "Preview generation failed. The original is still available to download.",
+  mediaCancelled: "Preview generation cancelled.",
+  mediaLimit:
+    "This file exceeds the preview size or duration limit. Download the original to view it.",
+  mediaTimeout:
+    "Preview generation timed out. You can retry or download the original.",
+  mediaRequestFailed: "Could not read or update preview status. Please retry.",
   files: "Files",
   saving: "Saving…",
   newOperation: "Start a new operation",
@@ -134,6 +146,15 @@ export const en = {
 } as const;
 export type MessageKey = keyof typeof en;
 export const zh: Record<MessageKey, string> = {
+  mediaQueued: "等待生成预览…",
+  mediaRunning: "正在生成预览…",
+  mediaDependency:
+    "缺少预览工具：视频需要 FFmpeg，HEIC 需要带 HEVC 解码器的 libheif。安装后会自动重试。",
+  mediaFailed: "预览生成失败，仍可下载原文件。",
+  mediaCancelled: "已取消预览生成。",
+  mediaLimit: "文件超出预览的尺寸或时长限制，请下载原文件查看。",
+  mediaTimeout: "预览生成超时，可重试或下载原文件。",
+  mediaRequestFailed: "无法读取或更新预览状态，请重试。",
   files: "文件",
   saving: "正在保存…",
   newOperation: "开始新操作",

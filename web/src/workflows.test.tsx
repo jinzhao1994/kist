@@ -12,7 +12,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { BoxEditor } from "./BoxEditor";
 import { TagManager, TagAssignment } from "./Tags";
-import { Media } from "./Media";
 import { activeImages, MAX_ACTIVE_IMAGES } from "./FileGrid";
 import { useExtraction } from "./Extraction";
 import { Upload } from "./Upload";
@@ -143,17 +142,7 @@ it("adds and removes associations through explicit target IDs", async () => {
     body: '{"ids":["box-1"]}',
   });
 });
-it("never loads unsupported originals and replaces failed previews", () => {
-  const view = render(<Media file={file("heic", "image/heic")} detail />, {
-    wrapper,
-  });
-  expect(screen.queryByRole("img")).not.toBeInTheDocument();
-  view.rerender(<Media file={file("jpeg")} detail />);
-  fireEvent.error(screen.getByRole("img"));
-  expect(screen.queryByRole("img")).not.toBeInTheDocument();
-  expect(screen.getByText(/preview/i)).toBeVisible();
-});
-it("bounds originals to visible supported images", () => {
+it("bounds derived media to visible images including HEIC", () => {
   const files = Array.from({ length: 1000 }, (_, i) =>
     file(String(i), i % 2 ? "image/jpeg" : "image/heic"),
   );
@@ -162,7 +151,6 @@ it("bounds originals to visible supported images", () => {
   for (const id of active) {
     expect(Number(id)).toBeGreaterThanOrEqual(100);
     expect(Number(id)).toBeLessThan(200);
-    expect(Number(id) % 2).toBe(1);
   }
 });
 it("serializes extraction per file, caps concurrency and retries failures without upload", async () => {
