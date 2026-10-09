@@ -240,3 +240,8 @@ hashed on the way in and discarded if it is not what was asked for. Run
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).
+
+Derived-media jobs use `GET/POST/DELETE /api/v1/files/{id}/derived/{recipe}` and
+`GET/HEAD .../content`. POST accepts `{ "retry": true }` to retry a terminal
+failure. These disposable jobs do not use `Idempotency-Key` or create archive
+operations; ordinary archive writes still require request keys.

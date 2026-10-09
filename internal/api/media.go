@@ -1,0 +1,94 @@
+package api
+
+import (
+	"context"
+	"net/http"
+
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/jinzhao1994/kist/internal/derive"
+	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/library"
+)
+
+type mediaInput struct {
+	ID     string `path:"id"`
+	Recipe string `path:"recipe"`
+}
+type mediaRequest struct {
+	ID     string `path:"id"`
+	Recipe string `path:"recipe"`
+	Body   struct {
+		Retry bool `json:"retry,omitempty"`
+	}
+}
+type mediaOutput struct{ Body library.MediaJob }
+
+func mediaID(in mediaInput) (domain.FileID, error) {
+	id, err := parseID(in.ID)
+	if err != nil {
+		return domain.FileID{}, err
+	}
+	if _, ok := derive.Lookup(in.Recipe); !ok {
+		return domain.FileID{}, invalid("unknown media recipe")
+	}
+	return domain.FileID{ID: id}, nil
+}
+
+// RunMedia processes disposable derived jobs until shutdown. Callers join it
+// before closing the library; HTTP requests merely enqueue work.
+func (s *Server) RunMedia(ctx context.Context) { s.media.Run(ctx) }
+
+func (s *Server) mediaRoutes() {
+	path := Prefix + "/files/{id}/derived/{recipe}"
+	huma.Get(s.contract, path, func(ctx context.Context, in *mediaInput) (*mediaOutput, error) {
+		id, err := mediaID(*in)
+		if err != nil {
+			return nil, err
+		}
+		j, err := s.media.Status(ctx, id, in.Recipe)
+		return &mediaOutput{Body: j}, failure(err)
+	})
+	huma.Post(s.contract, path, func(ctx context.Context, in *mediaRequest) (*mediaOutput, error) {
+		id, err := mediaID(mediaInput{ID: in.ID, Recipe: in.Recipe})
+		if err != nil {
+			return nil, err
+		}
+		j, err := s.media.Request(ctx, id, in.Recipe, in.Body.Retry)
+		return &mediaOutput{Body: j}, failure(err)
+	})
+	huma.Delete(s.contract, path, func(ctx context.Context, in *mediaInput) (*mediaOutput, error) {
+		id, err := mediaID(*in)
+		if err != nil {
+			return nil, err
+		}
+		j, err := s.media.Cancel(ctx, id, in.Recipe)
+		return &mediaOutput{Body: j}, failure(err)
+	})
+	for _, method := range []string{http.MethodGet, http.MethodHead} {
+		huma.Register(s.contract, huma.Operation{OperationID: method + "-derived-content", Method: method, Path: path + "/content", Summary: "Read completed derived media; supports HTTP ranges", Responses: map[string]*huma.Response{
+			"200": {Description: "Derived image or video", Content: map[string]*huma.MediaType{"image/jpeg": {Schema: &huma.Schema{Type: "string", Format: "binary"}}, "video/mp4": {Schema: &huma.Schema{Type: "string", Format: "binary"}}}},
+			"206": {Description: "Requested byte range"}, "416": {Description: "Unsatisfiable byte range"},
+		}}, func(ctx context.Context, in *mediaInput) (*huma.StreamResponse, error) {
+			id, err := mediaID(*in)
+			if err != nil {
+				return nil, err
+			}
+			return &huma.StreamResponse{Body: func(hctx huma.Context) {
+				req, w := humago.Unwrap(hctx)
+				j, f, err := s.media.Open(ctx, id, in.Recipe)
+				if err != nil {
+					writeFailure(w, err)
+					return
+				}
+				defer f.Close()
+				recipe, _ := derive.Lookup(in.Recipe)
+				w.Header().Set("Content-Type", recipe.MediaType)
+				w.Header().Set("Content-Security-Policy", "sandbox; default-src 'none'")
+				w.Header().Set("Cache-Control", "private, no-cache")
+				w.Header().Set("ETag", `"`+j.Generation+`"`)
+				http.ServeContent(w, req, recipe.Filename(), j.UpdatedAt, f)
+			}}, nil
+		})
+	}
+}

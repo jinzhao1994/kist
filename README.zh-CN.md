@@ -186,3 +186,7 @@ kist 从不往远端写，也从不信任远端：取回来的内容边读边哈
 ## 许可证
 
 Apache-2.0，见 [LICENSE](LICENSE)。
+
+派生任务通过 `GET/POST/DELETE /api/v1/files/{id}/derived/{recipe}` 查询、请求和取消，
+`GET/HEAD .../content` 读取生成结果。POST 的 `{ "retry": true }` 可重试终止任务。
+这些可丢弃任务不使用 `Idempotency-Key`、不生成归档操作；普通归档写入仍须携带请求键。

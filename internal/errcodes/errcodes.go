@@ -84,6 +84,7 @@ func (c Class) String() string {
 // test walks the source of every package listed there and fails if a sentinel
 // has no code.
 const (
+	CodeMediaNotReady   Code = "media_not_ready"
 	CodeInvalidRequest  Code = "invalid_request"
 	CodeRequestConflict Code = "request_conflict"
 	CodeRequestScope    Code = "request_scope"
@@ -141,6 +142,7 @@ var table = []struct {
 	err  error
 	code Code
 }{
+	{library.ErrMediaNotReady, CodeMediaNotReady},
 	{library.ErrInvalidRequest, CodeInvalidRequest},
 	{library.ErrRequestConflict, CodeRequestConflict},
 	{library.ErrRequestScope, CodeRequestScope},
@@ -186,6 +188,7 @@ var table = []struct {
 // classes maps a code to its class. A code missing from here is internal,
 // which is checked by the same test that checks completeness.
 var classes = map[Code]Class{
+	CodeMediaNotReady:    ClassConflict,
 	CodeInvalidRequest:   ClassInvalid,
 	CodeRequestConflict:  ClassConflict,
 	CodeRequestScope:     ClassInternal,

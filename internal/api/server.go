@@ -32,6 +32,7 @@ type Options struct {
 
 type Server struct {
 	library        *library.Library
+	media          *library.Media
 	mux            *http.ServeMux
 	contract       huma.API
 	hosts          map[string]bool
@@ -79,7 +80,9 @@ func New(l *library.Library, opt Options) (*Server, error) {
 	s.readRoutes()
 	s.fileRoutes()
 	s.tagRoutes()
+	s.media = l.Media()
 	s.contentRoutes()
+	s.mediaRoutes()
 	s.uploadRoutes()
 	s.extractionRoutes()
 	s.writeRoutes()

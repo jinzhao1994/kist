@@ -44,6 +44,10 @@ func newServeCmd() *cobra.Command {
 		}
 		ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
+		mediaCtx, cancelMedia := context.WithCancel(ctx)
+		mediaDone := make(chan struct{})
+		go func() { handler.RunMedia(mediaCtx); close(mediaDone) }()
+		defer func() { cancelMedia(); <-mediaDone }()
 		fmt.Fprintf(cmd.ErrOrStderr(), "Serving kist on %s\n", listener.Addr())
 		if len(origins) > 0 {
 			fmt.Fprintln(cmd.ErrOrStderr(), "No authentication: allow access only from trusted networks or an authenticated proxy.")

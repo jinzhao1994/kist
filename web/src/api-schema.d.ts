@@ -142,6 +142,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/files/{id}/derived/{recipe}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 files by ID derived by recipe */
+        get: operations["get-api-v1-files-by-id-derived-by-recipe"];
+        put?: never;
+        /** Post API v1 files by ID derived by recipe */
+        post: operations["post-api-v1-files-by-id-derived-by-recipe"];
+        /** Delete API v1 files by ID derived by recipe */
+        delete: operations["delete-api-v1-files-by-id-derived-by-recipe"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{id}/derived/{recipe}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read completed derived media; supports HTTP ranges */
+        get: operations["GET-derived-content"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        /** Read completed derived media; supports HTTP ranges */
+        head: operations["HEAD-derived-content"];
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/files/{id}/extractions/{extractor}": {
         parameters: {
             query?: never;
@@ -390,6 +427,20 @@ export interface components {
             timezone: string;
             version: string;
         };
+        MediaJob: {
+            blob_key: string;
+            generation: string;
+            reason?: string;
+            recipe: string;
+            result: components["schemas"]["Result"];
+            /** @enum {string} */
+            state: "missing" | "queued" | "running" | "ready" | "blocked" | "failed" | "cancelled";
+            /** Format: date-time */
+            updated_at: string;
+        };
+        MediaRequestBody: {
+            retry?: boolean;
+        };
         Metadata: {
             key: string;
             source: string;
@@ -409,6 +460,17 @@ export interface components {
         RequestResult: {
             /** Format: int64 */
             op_id: number;
+        };
+        Result: {
+            /** Format: int64 */
+            bytes: number;
+            engine: string;
+            /** Format: int64 */
+            generation_ms: number;
+            /** Format: int64 */
+            height: number;
+            /** Format: int64 */
+            width: number;
         };
         Tag: {
             children?: components["schemas"]["Tag"][] | null;
@@ -810,6 +872,182 @@ export interface operations {
                 content: {
                     "application/octet-stream": string;
                 };
+            };
+            /** @description Unsatisfiable byte range */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "get-api-v1-files-by-id-derived-by-recipe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                recipe: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaJob"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-files-by-id-derived-by-recipe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                recipe: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediaRequestBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaJob"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "delete-api-v1-files-by-id-derived-by-recipe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                recipe: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaJob"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "GET-derived-content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                recipe: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Derived image or video */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "video/mp4": string;
+                };
+            };
+            /** @description Requested byte range */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unsatisfiable byte range */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "HEAD-derived-content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                recipe: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Derived image or video */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "video/mp4": string;
+                };
+            };
+            /** @description Requested byte range */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Unsatisfiable byte range */
             416: {
