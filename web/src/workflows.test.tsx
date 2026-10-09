@@ -263,3 +263,142 @@ it("recovers an upload receipt after remount before allowing a new batch", async
   expect(sessionStorage.getItem("kist.pending-upload.v1:box")).toBeNull();
   expect(screen.getByRole("button", { name: "Choose files" })).toBeEnabled();
 });
+
+function droppedFiles(files: File[]) {
+  return {
+    dataTransfer: {
+      files,
+      items: files.map((file) => ({
+        kind: "file",
+        type: file.type,
+        getAsFile: () => file,
+      })),
+      types: ["Files"],
+    },
+  };
+}
+
+it("keeps a dropped batch locked after cancellation and retries it unchanged", async () => {
+  const requests: XHR[] = [];
+  class XHR {
+    upload: {
+      onprogress?: (event: {
+        lengthComputable: boolean;
+        loaded: number;
+        total: number;
+      }) => void;
+    } = {};
+    status = 200;
+    responseText = '{"op_id":31}';
+    key = "";
+    body?: FormData;
+    onabort?: () => void;
+    onload?: () => void;
+    onloadend?: () => void;
+    constructor() {
+      requests.push(this);
+    }
+    open() {}
+    setRequestHeader(_name: string, value: string) {
+      this.key = value;
+    }
+    send(body: FormData) {
+      this.body = body;
+    }
+    abort() {
+      this.onabort?.();
+      this.onloadend?.();
+    }
+  }
+  vi.stubGlobal("XMLHttpRequest", XHR);
+  const complete = vi.fn(async () => {});
+  render(
+    <Upload
+      box="drop-box"
+      maxFiles={10}
+      maxBytes={1000}
+      onComplete={complete}
+    />,
+    { wrapper },
+  );
+  const user = userEvent.setup();
+  const region = screen.getByRole("region", { name: "Add files" });
+  const original = new File(["original"], "旅行.txt", {
+    type: "text/plain",
+    lastModified: 1234,
+  });
+  await act(async () => {
+    fireEvent.drop(region, droppedFiles([original]));
+  });
+  expect(requests).toHaveLength(1);
+  act(() =>
+    requests[0].upload.onprogress?.({
+      lengthComputable: true,
+      loaded: 1,
+      total: 2,
+    }),
+  );
+  expect(screen.getByText("50% uploaded")).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(/cancelled/i);
+  expect(screen.getByRole("button", { name: "Choose files" })).toBeDisabled();
+  expect(sessionStorage.getItem("kist.pending-upload.v1:drop-box")).toBe(
+    requests[0].key,
+  );
+  await act(async () => {
+    fireEvent.drop(region, droppedFiles([new File(["new"], "other.txt")]));
+  });
+  expect(requests).toHaveLength(1);
+  await user.click(screen.getByRole("button", { name: "Try again" }));
+  expect(requests).toHaveLength(2);
+  expect(requests[1].key).toBe(requests[0].key);
+  expect(requests[1].body?.get("manifest")).toBe(
+    requests[0].body?.get("manifest"),
+  );
+  expect((requests[1].body?.get("files") as File).name).toBe("旅行.txt");
+  await act(async () => {
+    requests[1].onload?.();
+    requests[1].onloadend?.();
+  });
+  expect(screen.getByText("Files saved")).toBeVisible();
+  expect(complete).toHaveBeenCalledOnce();
+  expect(sessionStorage.getItem("kist.pending-upload.v1:drop-box")).toBeNull();
+});
+
+it("rejects oversized dropped batches before sending and accepts a corrected batch", async () => {
+  const send = vi.fn();
+  class XHR {
+    upload = {};
+    open() {}
+    setRequestHeader() {}
+    abort() {}
+    send = send;
+  }
+  vi.stubGlobal("XMLHttpRequest", XHR);
+  render(
+    <Upload
+      box="limits"
+      maxFiles={1}
+      maxBytes={4}
+      onComplete={async () => {}}
+    />,
+    { wrapper },
+  );
+  const region = screen.getByRole("region", { name: "Add files" });
+  for (const files of [
+    [new File(["12345"], "large.txt")],
+    [new File(["a"], "a.txt"), new File(["b"], "b.txt")],
+  ]) {
+    await act(async () => {
+      fireEvent.drop(region, droppedFiles(files));
+    });
+    expect(screen.getByRole("alert")).toBeVisible();
+    expect(send).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem("kist.pending-upload.v1:limits")).toBeNull();
+  }
+  await act(async () => {
+    fireEvent.drop(region, droppedFiles([new File(["ok"], "small.txt")]));
+  });
+  expect(send).toHaveBeenCalledOnce();
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});
