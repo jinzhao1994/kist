@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { api, createWrite, type ArchiveFile } from "./api";
 import { useI18n } from "./i18n";
+import { errorMessage } from "./mutations";
 // Metadata is separate from upload success. Each file/extractor pair owns an
 // immutable request key, retained after failures and retried without upload.
 export function useExtraction() {
@@ -11,6 +12,7 @@ export function useExtraction() {
   const running = useRef(false);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [error, setError] = useState<unknown>();
   const [done, setDone] = useState(0);
   const [total, setTotal] = useState(0);
   useEffect(() => {
@@ -24,6 +26,7 @@ export function useExtraction() {
     running.current = true;
     setBusy(true);
     setFailed(false);
+    setError(undefined);
     setDone(0);
     const work = files.filter((file) => file.extraction_pending?.length);
     setTotal(
@@ -54,8 +57,9 @@ export function useExtraction() {
           try {
             await write.run();
             writes.current.delete(id);
-          } catch {
+          } catch (error) {
             hasFailure = true;
+            if (mounted.current) setError(error);
           }
           completed++;
           if (mounted.current) setDone(completed);
@@ -70,7 +74,7 @@ export function useExtraction() {
       setFailed(hasFailure);
     }
   }
-  return { run, busy, failed, done, total };
+  return { run, busy, failed, error, done, total };
 }
 export function ExtractionStatus({
   files,
@@ -93,6 +97,9 @@ export function ExtractionStatus({
               : "extractionPending",
         )}
       </p>
+      {state.failed && state.error instanceof Error && (
+        <p>{errorMessage(state.error, t)}</p>
+      )}
       {state.busy ? (
         <progress
           value={state.done}

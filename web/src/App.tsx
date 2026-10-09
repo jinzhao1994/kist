@@ -9,6 +9,7 @@ import { FiltersPanel, emptyFilters, type Filters } from "./Filters";
 import { FileBrowser } from "./FileBrowser";
 import { FileDetail } from "./FileDetail";
 import { useNavigation } from "./navigation";
+import { errorMessage } from "./mutations";
 export function App() {
   const { t, prefs } = useI18n();
   const { route, go } = useNavigation();
@@ -124,7 +125,7 @@ export function App() {
         {boxes.isPending && <p role="status">{t("loading")}</p>}
         {boxes.isError && (
           <div role="alert">
-            <p>{t("error")}</p>
+            <p>{errorMessage(boxes.error, t)}</p>
             <button onClick={() => boxes.refetch()}>{t("retry")}</button>
           </div>
         )}

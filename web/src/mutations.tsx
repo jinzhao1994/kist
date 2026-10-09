@@ -9,6 +9,10 @@ export function errorMessage(error: unknown, t: Translate) {
     if (error.body.code === "tag_cycle") return t("tagCycle");
     if (error.status === 400 || error.status === 422) return t("invalidInput");
     if (error.status === 409) return t("conflict");
+    return t("errorDetails", {
+      message: error.body.message || t("error"),
+      code: error.body.code || String(error.status),
+    });
   }
   return t("error");
 }

@@ -3,6 +3,7 @@ import { useDropzone } from "react-dropzone";
 import { useQueryClient } from "@tanstack/react-query";
 import { api, APIError, createUpload } from "./api";
 import { formatBytes, formatNumber, useI18n } from "./i18n";
+import { errorMessage } from "./mutations";
 export function Upload({
   box,
   maxFiles,
@@ -64,9 +65,11 @@ export function Upload({
       setError(
         error instanceof APIError && error.status === 413
           ? t("uploadTooLarge")
-          : error instanceof DOMException && error.name === "AbortError"
-            ? t("uploadCancelled")
-            : t("uploadFailed"),
+          : error instanceof APIError
+            ? errorMessage(error, t)
+            : error instanceof DOMException && error.name === "AbortError"
+              ? t("uploadCancelled")
+              : t("uploadFailed"),
       );
     }
   }
@@ -99,7 +102,7 @@ export function Upload({
       setError(
         error instanceof APIError && error.status === 404
           ? t("requestPending")
-          : t("error"),
+          : errorMessage(error, t),
       );
     }
   }

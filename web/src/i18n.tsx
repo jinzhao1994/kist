@@ -36,6 +36,7 @@ export const en = {
   loading: "Loading…",
   retry: "Try again",
   error: "Something went wrong. Please try again.",
+  errorDetails: "Something went wrong. {message} (error: {code})",
   createBox: "New box",
   emptyBoxes: "A place for the things you want to keep.",
   emptyBoxesHint:
@@ -149,6 +150,7 @@ export const zh: Record<MessageKey, string> = {
   loading: "正在加载…",
   retry: "重试",
   error: "操作未完成，请重试。",
+  errorDetails: "操作未完成。{message}（错误码：{code}）",
   createBox: "新建归档盒",
   emptyBoxes: "留存值得珍藏的资料。",
   emptyBoxesHint: "为一次旅行、一段经历或一批档案创建归档盒。",
@@ -275,6 +277,7 @@ export function directionFor(prefs: Preferences): "ltr" | "rtl" {
   return "ltr";
 }
 interface Parameters {
+  errorDetails: { message: string; code: string };
   loadedFiles: { count: number };
   fileCount: { count: number };
   uploadLimit: { count: string; size: string };
