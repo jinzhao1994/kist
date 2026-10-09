@@ -9,7 +9,7 @@ Go 单二进制 + SQLite，Apache-2.0。
 
 > **开发中。** 存储内核、导入、完整性工具、查询与 metadata 提取已经实现。
 > M4 的 HTTP API 和内嵌中英文 Web UI 已完成，并通过浏览器与端到端验收。
-> 正在推进 M5 派生媒体。见[里程碑](#里程碑)。
+> M5 派生媒体已完成，包含缩略图、HEIC 预览、视频转码与 Docker 环境。见[里程碑](#里程碑)。
 
 ## 想法
 
@@ -76,7 +76,7 @@ docker compose exec kist kist --library /library verify --deep
 
 使用现有库时，将命名卷改为宿主机绝对路径，并确保 UID/GID `10001:10001` 有权限访问，或用 `user:` 配置库的现有所有者。必须挂载整个库，不能只挂 `kist.db` 或 `blobs/`。启动不会自动创建库，也不会递归修改文件所有权。
 
-此阶段为 M5 提供依赖环境，尚未给 UI 增加缩略图或转码功能，也尚未发布 registry 镜像。可运行 `sh scripts/docker-smoke.sh kist:local` 检查镜像内编码器、网页、访问保护与持久化库。
+镜像内置缩略图、HEIC 预览和视频转码所需工具，尚未发布 registry 镜像。可运行 `sh scripts/docker-smoke.sh kist:local`（需要 Docker、curl、Python 3）检查真实派生任务、HTTP 范围读取、访问保护与容器重建后的数据保留。
 
 ## 怎么用
 
@@ -108,7 +108,7 @@ kist serve --library ~/kist
 
 打开 `http://127.0.0.1:8473`。先创建 box，再选择或拖入文件；可以浏览文件、查看 metadata、下载原文件和管理 tag。侧栏提供名称、日期、类型及 tag AND/OR/NOT 组合筛选。网格显示已加载数量，点击「加载更多」继续分页。
 
-「显示设置」分别控制中文/英文、地区数字与日期格式、显示时区和阅读方向，偏好只保存在浏览器。主题可选「旧纸藏光」「青苔映月」「麦野流金」「樱雨初晴」「碧海听澜」「橘暮余晖」，明暗模式独立选择「浅色」「深色」或「跟随系统」；跟随系统时自动响应系统配色变化。HEIC 等暂不支持预览的格式提供下载入口；缩略图生成仍属于 M5。
+「显示设置」分别控制中文/英文、地区数字与日期格式、显示时区和阅读方向，偏好只保存在浏览器。主题可选「旧纸藏光」「青苔映月」「麦野流金」「樱雨初晴」「碧海听澜」「橘暮余晖」，明暗模式独立选择「浅色」「深色」或「跟随系统」；跟随系统时自动响应系统配色变化。网格按需加载派生缩略图，详情后台生成大图或 H.264/AAC 视频；不支持预览的格式仍提供原文件下载入口。
 
 上传默认每批最多 1000 个文件、总 multipart 正文 2 GiB，可用 `--max-upload-files` 和 `--max-upload-bytes` 调整。完整收到一批后才提交。响应丢失时使用「重试」或「核对结果」；刷新同一标签页后仍保留请求 key，可核对回执。明确开始新操作后重新选择文件，会创建新请求。metadata 提取独立执行，提取失败不意味着原文件丢失。
 
@@ -169,6 +169,19 @@ rsync -a ~/kist/blobs/ /Volumes/Archive/kist/blobs/
 
 kist 从不往远端写，也从不信任远端：取回来的内容边读边哈希，对不上就丢掉。用 `kist remote list` 让路径打错的那天是今天，而不是你真需要它的那天。
 
+## 派生媒体
+
+打开网格或文件详情才提交后台任务，导入不等待解码。普通 JPEG/PNG/GIF/WebP 等图片由 Go 生成预览；HEIC 需要 `heif-info` 和 `heif-dec`（或 `heif-convert`）及 HEVC 解码器；视频需要带 H.264/AAC 编码器的 `ffmpeg` 与 `ffprobe`。Docker 已内置这些工具。Ubuntu 原生部署安装 `ffmpeg libheif-examples libheif-plugin-libde265`；不装也能归档、检索、下载原文件。
+
+缺依赖任务每 30 秒重新检查，安装工具后无需重启服务。详情提供取消与重试，任务重启后恢复，相同内容共享派生结果。需要清空缓存时，先停服务再删除 `derived/`，下次浏览会按需重建，不影响原文件与撤销历史。
+
+首版 recipe：`thumb_512_v1`（JPEG，最长边 512）、`preview_2048_v1`（JPEG，最长边 2048）、`preview_1080p_v1`（H.264/AAC MP4，最高 1920×1080）。图片保持比例与方向，透明底铺白，动图取首帧；多顶层图片的 HEIF 集合暂不支持。限制包括 6400 万像素、256 MiB 压缩静态图、6 小时视频输入和 2 GiB 输出，超限仍可下载原文件。CLI 导入后需运行 `kist extract` 或点击「读取元数据」以分类媒体类型。
+
+派生任务通过 `GET/POST/DELETE /api/v1/files/{id}/derived/{recipe}` 查询、请求和取消，
+`GET/HEAD .../content` 读取生成结果。POST 的 `{ "retry": true }` 可重试终止任务。
+这些可丢弃任务不使用 `Idempotency-Key`、不生成归档操作；普通归档写入仍须携带请求键。
+
+
 ## 里程碑
 
 | | | |
@@ -179,14 +192,10 @@ kist 从不往远端写，也从不信任远端：取回来的内容边读边哈
 | M2b | Query 契约与 conformance suite | 已完成 |
 | M3 | metadata 提取，含 EXIF | 已完成 |
 | M4 | HTTP API 与内嵌 Web UI | 已完成 |
-| **M5** | 派生媒体：缩略图、预览、转码；内置 FFmpeg 的 Docker | 进行中 |
+| M5 | 派生媒体：缩略图、预览、转码；内置 FFmpeg/libheif 的 Docker | 已完成 |
 | M6 | 历史 UI：浏览并撤销任意历史操作 | |
 | M7 | 文档、打包、v0.1 | |
 
 ## 许可证
 
 Apache-2.0，见 [LICENSE](LICENSE)。
-
-派生任务通过 `GET/POST/DELETE /api/v1/files/{id}/derived/{recipe}` 查询、请求和取消，
-`GET/HEAD .../content` 读取生成结果。POST 的 `{ "retry": true }` 可重试终止任务。
-这些可丢弃任务不使用 `Idempotency-Key`、不生成归档操作；普通归档写入仍须携带请求键。

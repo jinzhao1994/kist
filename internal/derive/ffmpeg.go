@@ -70,8 +70,8 @@ func run(ctx context.Context, path string, args []string, stdout io.Writer) erro
 	if err != nil {
 		code := "decode_failed"
 		message := log.String()
-		if strings.Contains(message, "Unknown encoder") || strings.Contains(message, "Decoder") && strings.Contains(message, "not found") {
-			code = "unsupported"
+		if strings.Contains(message, "Unknown encoder") || strings.Contains(message, "Unsupported codec") || strings.Contains(message, "Decoder") && strings.Contains(message, "not found") {
+			code = "dependency_missing"
 		}
 		return &Failure{code, fmt.Errorf("media tool: %w: %s", err, message)}
 	}

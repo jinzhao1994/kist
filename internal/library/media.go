@@ -281,6 +281,25 @@ func (m *Media) claim(ctx context.Context) (MediaJob, bool, error) {
 		if e != nil {
 			return e
 		}
+		// The worker lock proves no other renderer can own temporary files.
+		// Only remove our names inside a validated blob directory; never walk
+		// or remove arbitrary caller-provided paths from a state record.
+		if strings.HasPrefix(d.Name(), ".render-") || strings.HasPrefix(d.Name(), ".heif-") {
+			rel, e := filepath.Rel(root, filepath.Dir(path))
+			parts := strings.Split(filepath.ToSlash(rel), "/")
+			if e == nil && len(parts) == 4 {
+				key, e := blob.ParseKey("sha256:" + parts[3])
+				if e == nil && filepath.Join(root, key.RelPath()) == filepath.Dir(path) {
+					if e = os.RemoveAll(path); e != nil {
+						return e
+					}
+					if d.IsDir() {
+						return filepath.SkipDir
+					}
+					return nil
+				}
+			}
+		}
 		if d.IsDir() || !strings.HasSuffix(d.Name(), ".json") {
 			return nil
 		}

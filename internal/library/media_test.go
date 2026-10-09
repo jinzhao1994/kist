@@ -260,3 +260,37 @@ func TestMediaPathsRetainCollisionSuffixAndRejectTraversal(t *testing.T) {
 		t.Fatal("accepted traversal")
 	}
 }
+
+func TestMediaRecoveryCleansOnlyRendererTemps(t *testing.T) {
+	l, id, _ := mediaFixture(t)
+	m := l.Media()
+	ctx := t.Context()
+	j, err := m.Request(ctx, id, derive.Thumbnail, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, out, _ := m.paths(j)
+	dir := filepath.Dir(out)
+	stale := filepath.Join(dir, ".render-dead")
+	keep := filepath.Join(dir, "keep.txt")
+	heif := filepath.Join(dir, ".heif-dead")
+	for _, p := range []string{stale, keep} {
+		if err = os.WriteFile(p, []byte("data"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err = os.Mkdir(heif, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, err := m.claim(ctx); err != nil || !ok {
+		t.Fatalf("%v %v", ok, err)
+	}
+	for _, p := range []string{stale, heif} {
+		if _, err = os.Stat(p); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("stale output remains: %s %v", p, err)
+		}
+	}
+	if _, err = os.Stat(keep); err != nil {
+		t.Fatal(err)
+	}
+}

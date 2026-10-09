@@ -12,7 +12,7 @@ One Go binary plus SQLite. Apache-2.0.
 > **In development.** The storage kernel, import, integrity tools, queries and
 > metadata extraction are implemented. M4's HTTP API and embedded English/Chinese
 > Web UI have passed browser and end-to-end acceptance testing. Derived media is
-> under development in M5. See [Milestones](#milestones).
+> implemented in M5. See [Milestones](#milestones).
 
 ## The idea
 
@@ -99,10 +99,10 @@ path and ensure UID/GID `10001:10001` can access it, or configure `user:` for it
 existing owner. Mount the entire library, not just `kist.db` or `blobs/`.
 There is no automatic library creation or recursive ownership change.
 
-FFmpeg is bundled for M5 development; this packaging step does not yet add
-thumbnail or transcoding features to the UI. A registry image is not published
-yet. Run `sh scripts/docker-smoke.sh kist:local` to check the built image's
-encoders, web app, access checks and persistent library.
+The image includes the tools for thumbnails, HEIC previews and video transcoding.
+A registry image is not published yet. Run `sh scripts/docker-smoke.sh kist:local`
+(with Docker, curl and Python 3) to exercise actual media jobs, HTTP ranges,
+access checks and persistence across container recreation.
 
 ## Using it
 
@@ -142,8 +142,9 @@ formatting, display timezone and reading direction. These preferences stay in
 the browser. Choose Old Paper, Moonlit Moss, Golden Fields, Cherry Rain, Ocean Whispers, or
 Apricot Dusk independently from Light, Dark,
 or Follow system appearance; system changes apply automatically in Follow system
-mode. Unsupported previews, including HEIC, have a download fallback;
-thumbnail generation belongs to M5.
+mode. The grid loads derived thumbnails, and details generate larger image
+previews or H.264/AAC video on demand. Unsupported files keep an original
+download link.
 
 Uploads default to at most 1,000 files and a 2 GiB multipart body per batch.
 Use `--max-upload-files` and `--max-upload-bytes` to adjust those limits. A batch
@@ -223,6 +224,37 @@ kist never writes to a remote, and never trusts one: content fetched from it is
 hashed on the way in and discarded if it is not what was asked for. Run
 `kist remote list` to check a path today rather than on the day you need it.
 
+## Derived media
+
+Opening a grid or file requests background work: imports do not wait for image
+processing. JPEG/PNG/GIF/WebP and other supported raster images use the Go
+renderer; HEIC needs `heif-info` and `heif-dec` (or `heif-convert`) with an HEVC
+decoder. Video needs `ffmpeg` and `ffprobe` with H.264/AAC encoders. Docker
+includes these tools. On Ubuntu, install `ffmpeg libheif-examples
+libheif-plugin-libde265`; native deployments may omit them and still archive,
+search and download originals.
+
+Missing tools are checked again every 30 seconds; installation takes effect
+without restarting the server. Details offer cancel and retry controls.
+Jobs survive restart and share outputs for identical content. Stop the server
+before removing the disposable `derived/` directory; browsing regenerates
+requested outputs. This never changes originals or undo history.
+
+Recipes are `thumb_512_v1` (JPEG, longest edge 512), `preview_2048_v1`
+(JPEG, longest edge 2048), and `preview_1080p_v1` (H.264/AAC MP4, up to
+1920×1080). Images preserve aspect ratio and orientation, flatten alpha onto
+white, and show the first animation frame. Multi-image HEIF collections are
+currently unsupported. Limits include 64 million pixels, 256 MiB compressed
+still images, six-hour video inputs and 2 GiB output; unsupported or oversized
+files remain downloadable. CLI-imported files need `kist extract` or the UI's
+**Read metadata** action to classify their media type.
+
+Derived-media jobs use `GET/POST/DELETE /api/v1/files/{id}/derived/{recipe}` and
+`GET/HEAD .../content`. POST accepts `{ "retry": true }` to retry a terminal
+failure. These disposable jobs do not use `Idempotency-Key` or create archive
+operations; ordinary archive writes still require request keys.
+
+
 ## Milestones
 
 | | | |
@@ -233,15 +265,10 @@ hashed on the way in and discarded if it is not what was asked for. Run
 | M2b | the query contract and its conformance suite | done |
 | M3 | metadata extraction, including EXIF | done |
 | M4 | HTTP API and embedded web UI | done |
-| **M5** | derived media: thumbnails, previews, transcoding; Docker with FFmpeg | in progress |
+| M5 | derived media: thumbnails, previews, transcoding; Docker with FFmpeg/libheif | done |
 | M6 | history UI: browse and undo any past operation | |
 | M7 | docs, packaging, v0.1 | |
 
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).
-
-Derived-media jobs use `GET/POST/DELETE /api/v1/files/{id}/derived/{recipe}` and
-`GET/HEAD .../content`. POST accepts `{ "retry": true }` to retry a terminal
-failure. These disposable jobs do not use `Idempotency-Key` or create archive
-operations; ordinary archive writes still require request keys.

@@ -229,7 +229,18 @@ func TestProcessCancellationAndBoundedDiagnostics(t *testing.T) {
 		t.Fatal(n, e, b.Len())
 	}
 }
+func TestMissingDecoderPlugin(t *testing.T) {
+	err := run(t.Context(), os.Args[0], []string{"-test.run=TestDeriveProcessHelper", "--", "derive-missing-codec"}, io.Discard)
+	if Code(err) != "dependency_missing" {
+		t.Fatalf("missing codec classified as file damage: %v", err)
+	}
+}
+
 func TestDeriveProcessHelper(t *testing.T) {
+	if os.Args[len(os.Args)-1] == "derive-missing-codec" {
+		os.Stderr.WriteString("Could not decode image Unsupported feature: Unsupported codec")
+		os.Exit(1)
+	}
 	if os.Args[len(os.Args)-1] != "derive-child" {
 		return
 	}
