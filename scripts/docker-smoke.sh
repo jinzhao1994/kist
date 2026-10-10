@@ -2,6 +2,18 @@
 # Exercise the actual runtime image using only disposable, named test resources.
 set -eu
 image=${1:-kist:local}
+# CI passes an independent expectation, not one inferred from the tested image.
+expected_platform=${2:-}
+if [ -n "$expected_platform" ]; then
+    actual_platform=$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "$image")
+    test "$actual_platform" = "$expected_platform"
+    docker run --rm "$image" version --json | python3 -c '
+import json, sys
+version = json.load(sys.stdin)
+assert version["platform"] == sys.argv[1], version
+print("Runtime platform verified:", version["platform"])
+' "$expected_platform"
+fi
 fixture_dir=$(CDPATH= cd -- "$(dirname -- "$0")/../internal/derive/testdata" && pwd)
 name="kist-smoke-$$"
 volume="$name-library"

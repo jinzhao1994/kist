@@ -56,7 +56,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        os: [macos-latest, windows-latest, ubuntu-24.04-arm]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -85,9 +85,32 @@ jobs:
           CGO_ENABLED=0 go build ./...
 
   container:
-    runs-on: ubuntu-latest
+    name: container (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    env:
+      EXPECTED_PLATFORM: linux/${{ matrix.arch }}
     steps:
       - uses: actions/checkout@v7
-      - run: docker build -t kist:ci .
-      - run: sh scripts/docker-smoke.sh kist:ci
+      # Assert native execution so a runner change cannot silently introduce emulation.
+      - name: Check runner architecture
+        run: |
+          case "$RUNNER_ARCH" in
+            X64) actual=linux/amd64 ;;
+            ARM64) actual=linux/arm64 ;;
+            *) echo "Unexpected runner architecture: $RUNNER_ARCH"; exit 1 ;;
+          esac
+          test "$actual" = "$EXPECTED_PLATFORM"
+      - name: Build the native runtime image
+        run: docker build --platform "$EXPECTED_PLATFORM" -t kist:ci .
+      - name: Exercise media, access checks and persistence
+        run: sh scripts/docker-smoke.sh kist:ci "$EXPECTED_PLATFORM"
       - run: docker compose config --quiet

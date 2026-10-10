@@ -107,6 +107,8 @@ existing owner. Mount the entire library, not just `kist.db` or `blobs/`.
 There is no automatic library creation or recursive ownership change.
 
 The image includes the tools for thumbnails, HEIC previews and video transcoding.
+CI builds and exercises the image natively on both Linux amd64 and arm64,
+including real media processing and persistence across container recreation.
 A registry image is not published yet. Run `sh scripts/docker-smoke.sh kist:local`
 (with Docker, curl and Python 3) to exercise actual media jobs, HTTP ranges,
 access checks and persistence across container recreation.

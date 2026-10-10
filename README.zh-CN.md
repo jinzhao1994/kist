@@ -81,7 +81,7 @@ docker compose exec kist kist --library /library verify --deep
 
 使用现有库时，将命名卷改为宿主机绝对路径，并确保 UID/GID `10001:10001` 有权限访问，或用 `user:` 配置库的现有所有者。必须挂载整个库，不能只挂 `kist.db` 或 `blobs/`。启动不会自动创建库，也不会递归修改文件所有权。
 
-镜像内置缩略图、HEIC 预览和视频转码所需工具，尚未发布 registry 镜像。可运行 `sh scripts/docker-smoke.sh kist:local`（需要 Docker、curl、Python 3）检查真实派生任务、HTTP 范围读取、访问保护与容器重建后的数据保留。
+镜像内置缩略图、HEIC 预览和视频转码所需工具。CI 在 Linux amd64 与 arm64 原生 runner 分别构建并验收真实媒体处理及容器重建后的持久化。尚未发布 registry 镜像。可运行 `sh scripts/docker-smoke.sh kist:local`（需要 Docker、curl、Python 3）检查真实派生任务、HTTP 范围读取、访问保护与容器重建后的数据保留。
 
 ## 怎么用
 
