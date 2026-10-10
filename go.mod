@@ -11,7 +11,7 @@ require (
 	github.com/pressly/goose/v3 v3.27.3
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/image v0.38.0
-	golang.org/x/sys v0.47.0
+	golang.org/x/sys v0.49.0
 	golang.org/x/text v0.41.0
 	modernc.org/sqlite v1.57.0
 )
