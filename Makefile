@@ -25,7 +25,7 @@ GOBUILD := CGO_ENABLED=0 go build -trimpath
 all: check
 
 .PHONY: check
-check: web-check tidy-check fmt-check vet test build ## Everything CI runs, locally
+check: release-check web-check tidy-check fmt-check vet test build ## Everything CI runs, locally
 
 .PHONY: tidy-check
 tidy-check: ## Fail if go.mod/go.sum are not tidy
@@ -83,3 +83,7 @@ web-build: ## Build the embedded browser app
 
 web-check: ## Check generated API types, browser tests, and production assets
 	npm --prefix web run check
+
+.PHONY: release-check
+release-check: ## Check container publication validation
+	python3 scripts/test-container-release.py

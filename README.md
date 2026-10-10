@@ -10,7 +10,7 @@ passports, contracts and lab reports.
 One Go binary plus SQLite. Apache-2.0.
 
 > **v0.1.0 is available.** Download the [release archives](https://github.com/jinzhao1994/kist/releases/tag/v0.1.0)
-> or build with Docker. M0–M7 are complete; see [Milestones](#milestones).
+> or deploy with Docker. M0–M7 are complete; see [Milestones](#milestones).
 > kist has no built-in login and retains historical originals permanently.
 
 ## The idea
@@ -65,6 +65,7 @@ Untagged workflow artifacts are development builds. Docker instructions are belo
 ## Building from source
 
 Go 1.26.1 or newer and Node.js 24 or newer are needed to build from source.
+Checks and release packaging also require Python 3.
 The resulting binary includes the web assets and needs neither Node.js nor a C toolchain.
 
 ```sh
@@ -76,7 +77,22 @@ make dist    # -> dist/, four platform archives + SHA256SUMS (requires Python 3)
 
 ## Docker (with FFmpeg)
 
-Build and initialize a new, persistent library explicitly:
+For prebuilt Linux amd64/arm64 images, use `compose.image.yaml`; see the
+[NAS installation and upgrade guide](docs/docker.md). The GHCR package is private,
+so log in with a GitHub account that can read it before pulling:
+
+```sh
+docker login ghcr.io -u YOUR_GITHUB_USERNAME
+docker compose -f compose.image.yaml pull
+docker compose -f compose.image.yaml run --rm kist init /library --yes
+docker compose -f compose.image.yaml up -d
+```
+
+Use a classic personal access token with `read:packages` as the password.
+Only initialize a new library. The image defaults to `ghcr.io/jinzhao1994/kist:v0.1.0`;
+Docker selects the native architecture. Set `KIST_IMAGE` to pin another version or digest.
+
+To build from source instead, use the original Compose file:
 
 ```sh
 docker compose build
@@ -97,7 +113,7 @@ docker compose exec kist kist --library /library verify --deep
 Set `TZ=Asia/Shanghai` before initialization to choose the library timezone.
 For a different local port, set both `KIST_PORT=18473` and
 `KIST_ORIGIN=http://127.0.0.1:18473`. Remote access requires explicitly changing
-the port binding and setting `KIST_ORIGIN` to the trusted browser origin; use
+`KIST_BIND` to the host interface address and setting `KIST_ORIGIN` to the trusted browser origin; use
 only a trusted network or an authenticated reverse proxy because kist has no
 login. The default exposes the service only on the host's loopback address.
 
@@ -109,7 +125,7 @@ There is no automatic library creation or recursive ownership change.
 The image includes the tools for thumbnails, HEIC previews and video transcoding.
 CI builds and exercises the image natively on both Linux amd64 and arm64,
 including real media processing and persistence across container recreation.
-A registry image is not published yet. Run `sh scripts/docker-smoke.sh kist:local`
+Versioned GHCR images pass the same checks before publication and after pulling. Run `sh scripts/docker-smoke.sh kist:local`
 (with Docker, curl and Python 3) to exercise actual media jobs, HTTP ranges,
 access checks and persistence across container recreation.
 

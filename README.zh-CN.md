@@ -7,7 +7,7 @@
 
 Go 单二进制 + SQLite，Apache-2.0。
 
-> **v0.1.0 已发布。** 可下载[四平台安装包](https://github.com/jinzhao1994/kist/releases/tag/v0.1.0)，或使用 Docker 构建。
+> **v0.1.0 已发布。** 可下载[四平台安装包](https://github.com/jinzhao1994/kist/releases/tag/v0.1.0)，或使用 Docker 部署。
 > M0–M7 已完成，见[里程碑](#里程碑)。当前没有内置登录，历史原文件永久保留。
 
 ## 想法
@@ -52,7 +52,7 @@ tag 树与所有 box 正交，于是"我历年所有的保险单据"和"京都�
 
 ## 从源码构建
 
-从源码构建需要 Go 1.26.1 和 Node.js 24 或更新版本。生成的单二进制包含网页资源，运行时不需要 Node.js 或 C 工具链。
+从源码构建需要 Go 1.26.1 和 Node.js 24 或更新版本。检查和发布打包还需要 Python 3。生成的单二进制包含网页资源，运行时不需要 Node.js 或 C 工具链。
 
 ```sh
 npm --prefix web ci
@@ -63,7 +63,18 @@ make dist    # -> dist/，四平台压缩包与 SHA256SUMS（需要 Python 3）
 
 ## Docker（内置 FFmpeg）
 
-显式构建并初始化一个持久化的新库：
+预构建镜像支持 Linux amd64 / arm64，Docker 会自动选择本机架构。使用 `compose.image.yaml`，详见 [NAS 部署与升级说明](docs/docker.md)。当前 GHCR 镜像保持私有，拉取前用有读取权限的 GitHub 账号登录，密码填写带 `read:packages` 权限的 classic PAT：
+
+```sh
+docker login ghcr.io -u YOUR_GITHUB_USERNAME
+docker compose -f compose.image.yaml pull
+docker compose -f compose.image.yaml run --rm kist init /library --yes
+docker compose -f compose.image.yaml up -d
+```
+
+只对新库执行初始化。默认镜像为 `ghcr.io/jinzhao1994/kist:v0.1.0`，可用 `KIST_IMAGE` 固定其他版本或 digest。NAS 局域网访问时，在 `.env` 中设置 `KIST_BIND=NAS的局域网IP` 和 `KIST_ORIGIN=http://NAS的局域网IP:8473`，初始化前可设置 `TZ=Asia/Shanghai`。
+
+如需从源码构建，继续使用原有 Compose 文件：
 
 ```sh
 docker compose build
@@ -77,11 +88,11 @@ docker compose up -d
 docker compose exec kist kist --library /library verify --deep
 ```
 
-初始化前设置 `TZ=Asia/Shanghai` 可指定库时区。改用本机其他端口时，同时设置 `KIST_PORT=18473` 和 `KIST_ORIGIN=http://127.0.0.1:18473`。默认只发布宿主机 loopback 端口；远程访问须显式修改端口绑定，并把 `KIST_ORIGIN` 设置为浏览器使用的可信来源。当前没有登录，只能部署在可信网络或带认证的反向代理后。
+初始化前设置 `TZ=Asia/Shanghai` 可指定库时区。改用本机其他端口时，同时设置 `KIST_PORT=18473` 和 `KIST_ORIGIN=http://127.0.0.1:18473`。默认只发布宿主机 loopback 端口；远程访问须显式设置 `KIST_BIND` 为宿主机网卡地址，并把 `KIST_ORIGIN` 设置为浏览器使用的可信来源。当前没有登录，只能部署在可信网络或带认证的反向代理后。
 
 使用现有库时，将命名卷改为宿主机绝对路径，并确保 UID/GID `10001:10001` 有权限访问，或用 `user:` 配置库的现有所有者。必须挂载整个库，不能只挂 `kist.db` 或 `blobs/`。启动不会自动创建库，也不会递归修改文件所有权。
 
-镜像内置缩略图、HEIC 预览和视频转码所需工具。CI 在 Linux amd64 与 arm64 原生 runner 分别构建并验收真实媒体处理及容器重建后的持久化。尚未发布 registry 镜像。可运行 `sh scripts/docker-smoke.sh kist:local`（需要 Docker、curl、Python 3）检查真实派生任务、HTTP 范围读取、访问保护与容器重建后的数据保留。
+镜像内置缩略图、HEIC 预览和视频转码所需工具。CI 在 Linux amd64 与 arm64 原生 runner 分别构建并验收真实媒体处理及容器重建后的持久化。版本化 GHCR 镜像在发布前、从 registry 拉取后分别通过同样的验收。可运行 `sh scripts/docker-smoke.sh kist:local`（需要 Docker、curl、Python 3）检查真实派生任务、HTTP 范围读取、访问保护与容器重建后的数据保留。
 
 ## 怎么用
 

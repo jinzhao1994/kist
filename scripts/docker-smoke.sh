@@ -4,6 +4,7 @@ set -eu
 image=${1:-kist:local}
 # CI passes an independent expectation, not one inferred from the tested image.
 expected_platform=${2:-}
+expected_version=${3:-}
 if [ -n "$expected_platform" ]; then
     actual_platform=$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "$image")
     test "$actual_platform" = "$expected_platform"
@@ -11,8 +12,10 @@ if [ -n "$expected_platform" ]; then
 import json, sys
 version = json.load(sys.stdin)
 assert version["platform"] == sys.argv[1], version
+if sys.argv[2]:
+    assert version["version"] == sys.argv[2], version
 print("Runtime platform verified:", version["platform"])
-' "$expected_platform"
+' "$expected_platform" "$expected_version"
 fi
 fixture_dir=$(CDPATH= cd -- "$(dirname -- "$0")/../internal/derive/testdata" && pwd)
 name="kist-smoke-$$"

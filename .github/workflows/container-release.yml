@@ -1,0 +1,209 @@
+name: Container Release
+
+# workflow_run also fires when Release used GITHUB_TOKEN to create the GitHub
+# Release; a release.published trigger would not fire for that token's writes.
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published stable release to build (vMAJOR.MINOR.PATCH)
+        required: true
+        default: v0.1.0
+      publish:
+        description: Push tested images and publish the version tag to GHCR
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: container-release-${{ github.event.workflow_run.head_branch || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       startsWith(github.event.workflow_run.head_branch, 'v'))
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      revision: ${{ steps.release.outputs.revision }}
+      image: ${{ steps.release.outputs.image }}
+      publish: ${{ steps.release.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Resolve the published release to an immutable source commit
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.workflow_run.head_branch || inputs.tag }}
+          EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
+          DO_PUBLISH: ${{ github.event_name == 'workflow_run' || inputs.publish }}
+        run: |
+          python3 scripts/container-release.py prepare "$RELEASE_TAG" "$GITHUB_REPOSITORY" --expected-sha "$EXPECTED_SHA" >> "$GITHUB_OUTPUT"
+          echo "publish=$DO_PUBLISH" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    name: build and test (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ${{ needs.prepare.outputs.image }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+      REVISION: ${{ needs.prepare.outputs.revision }}
+      EXPECTED_PLATFORM: linux/${{ matrix.arch }}
+      CANDIDATE: ${{ needs.prepare.outputs.image }}:candidate-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.arch }}
+    steps:
+      # Workflow tooling comes from this workflow's commit; build input comes
+      # exclusively from the already published release tag's resolved commit.
+      - uses: actions/checkout@v7
+        with:
+          path: tooling
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.revision }}
+          path: source
+          persist-credentials: false
+      - name: Check native runner
+        run: |
+          case "$RUNNER_ARCH" in
+            X64) actual=linux/amd64 ;;
+            ARM64) actual=linux/arm64 ;;
+            *) exit 1 ;;
+          esac
+          test "$actual" = "$EXPECTED_PLATFORM"
+      - name: Build the release image
+        run: |
+          docker build --platform "$EXPECTED_PLATFORM" --provenance=false \
+            --build-arg "VERSION=$VERSION" \
+            --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            --label "org.opencontainers.image.version=$VERSION" \
+            --label "org.opencontainers.image.revision=$REVISION" \
+            --label "org.opencontainers.image.licenses=Apache-2.0" \
+            -t "$CANDIDATE" source
+      - name: Test the image before any push
+        run: |
+          python3 tooling/scripts/container-release.py check-image "$CANDIDATE" "$VERSION" "$REVISION"
+          sh tooling/scripts/docker-smoke.sh "$CANDIDATE" "$EXPECTED_PLATFORM" "$VERSION"
+      - name: Push the tested platform image
+        if: needs.prepare.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker push "$CANDIDATE"
+          mkdir digests
+          python3 tooling/scripts/container-release.py digest "$CANDIDATE" "$IMAGE" > "digests/${{ matrix.arch }}"
+      - uses: actions/upload-artifact@v7
+        if: needs.prepare.outputs.publish == 'true'
+        with:
+          name: container-digest-${{ matrix.arch }}
+          path: digests/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: [prepare, build]
+    if: needs.prepare.outputs.publish == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.manifest.outputs.digest }}
+    env:
+      IMAGE: ${{ needs.prepare.outputs.image }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: container-digest-*
+          merge-multiple: true
+          path: digests
+      - name: Publish the index without replacing an existing version
+        id: manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          if docker manifest inspect "$IMAGE:$VERSION" > existing.json 2> inspect-error.txt; then
+            echo "Version already exists: $IMAGE:$VERSION. Refusing to overwrite."
+            exit 1
+          fi
+          # Auth/network errors must never be mistaken for an absent version.
+          if ! grep -Eq 'manifest unknown|no such manifest' inspect-error.txt; then
+            cat inspect-error.txt >&2
+            exit 1
+          fi
+          amd64=$(cat digests/amd64)
+          arm64=$(cat digests/arm64)
+          docker buildx imagetools create --tag "$IMAGE:$VERSION" "$IMAGE@$amd64" "$IMAGE@$arm64"
+          docker buildx imagetools inspect --raw "$IMAGE:$VERSION" > index.json
+          python3 scripts/container-release.py check-index index.json "$amd64" "$arm64"
+          digest=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' "$IMAGE:$VERSION")
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          printf '### Published container\n\n`%s:%s`\n\n`%s@%s`\n' "$IMAGE" "$VERSION" "$IMAGE" "$digest" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: container-release-manifest
+          path: index.json
+          if-no-files-found: error
+          retention-days: 90
+
+  verify:
+    needs: [prepare, publish]
+    name: pull and verify (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
+    env:
+      IMAGE_REF: ${{ needs.prepare.outputs.image }}@${{ needs.publish.outputs.digest }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+      REVISION: ${{ needs.prepare.outputs.revision }}
+      EXPECTED_PLATFORM: linux/${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Pull the published index and repeat acceptance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker pull --platform "$EXPECTED_PLATFORM" "$IMAGE_REF"
+          python3 scripts/container-release.py check-image "$IMAGE_REF" "$VERSION" "$REVISION"
+          sh scripts/docker-smoke.sh "$IMAGE_REF" "$EXPECTED_PLATFORM" "$VERSION"
+          printf 'Verified `%s` on `%s`, including media and persistent storage.\n' "$IMAGE_REF" "$EXPECTED_PLATFORM" >> "$GITHUB_STEP_SUMMARY"

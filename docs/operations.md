@@ -48,7 +48,7 @@ For video previews, install `ffmpeg` and `ffprobe` with H.264/AAC encoding.
 HEIC needs libheif's `heif-info` and `heif-dec` or `heif-convert`, with an HEVC
 decoder. Missing tools disable those previews, not storage or downloads.
 The Docker build includes and tests these dependencies; see README's Docker
-instructions. Registry images are not published yet.
+instructions. For prebuilt images and NAS deployment, see [Docker deployment](docker.md).
 
 ## Back up and restore
 

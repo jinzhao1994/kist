@@ -11,7 +11,7 @@ services:
     environment:
       TZ: ${TZ:-UTC}
     ports:
-      - "127.0.0.1:${KIST_PORT:-8473}:8473"
+      - "${KIST_BIND:-127.0.0.1}:${KIST_PORT:-8473}:8473"
     volumes:
       - library:/library
     command:
