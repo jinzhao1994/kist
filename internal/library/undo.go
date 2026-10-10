@@ -58,7 +58,7 @@ func (l *Library) Undo(ctx context.Context, opID int64) (int64, error) {
 		if errors.As(err, &outcome) {
 			return undoID, err
 		}
-		if errors.Is(err, oplog.ErrStaleBefore) {
+		if errors.Is(err, oplog.ErrStaleBefore) || store.IsStateConflict(err) {
 			return 0, l.explainBlockedUndo(target, err)
 		}
 		return 0, err

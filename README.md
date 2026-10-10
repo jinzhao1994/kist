@@ -12,7 +12,9 @@ One Go binary plus SQLite. Apache-2.0.
 > **In development.** The storage kernel, import, integrity tools, queries and
 > metadata extraction are implemented. M4's HTTP API and embedded English/Chinese
 > Web UI have passed browser and end-to-end acceptance testing. Derived media is
-> implemented in M5. See [Milestones](#milestones).
+> implemented in M5. M6 adds operation history, read-only historical states,
+> file version comparison, strict undo and recycle-bin restoration.
+> See [Milestones](#milestones).
 
 ## The idea
 
@@ -119,7 +121,8 @@ kist file tag people <file-id>             # attach a tag
 kist relink                                # rebuild boxes/, the human-readable mirror
 ```
 
-Everything is undoable, because every write is an entry in an append-only log:
+Business changes can be undone by appending a compensating operation, provided
+later changes do not conflict. Request receipts are not undoable:
 
 ```sh
 kist log            # what has happened to this library
@@ -136,6 +139,22 @@ Open `http://127.0.0.1:8473`. Create a box, choose or drop files into it, then
 browse files, inspect metadata, download originals, and manage tags. Filters
 combine names, dates, media types and tag AND/OR/NOT conditions. The grid shows
 the number of loaded files; use **Load more** to continue through the results.
+
+Open **History** in the sidebar, or from a box, to inspect operations and undo
+them. **File versions** in file details opens that file's operation history;
+**Compare versions** compares its state after two operation numbers, including
+metadata, tag paths and whether the file existed. **View box at this point** shows
+the box at that operation, with downloads bound to that historical state. These
+views are read-only and do not start extraction or preview jobs.
+
+**Recycle bin** lists deletion operations that have not been restored. Restore
+applies to the whole operation, including every file in a batch. Undo and restore
+append new operations; they never erase history. Conflicting later changes cause
+an atomic refusal: inspect the reported blocking operation before deciding what
+to undo next. In particular, undo later metadata extraction or suppression before
+undoing an import. v0.1 retains historical originals permanently and offers no
+empty-bin or retention-period setting. Historical queries replay the log; large
+histories may exceed the 30-second request limit and return a retryable error.
 
 **Display settings** separates English/Chinese language, regional number/date
 formatting, display timezone and reading direction. These preferences stay in
@@ -266,7 +285,7 @@ operations; ordinary archive writes still require request keys.
 | M3 | metadata extraction, including EXIF | done |
 | M4 | HTTP API and embedded web UI | done |
 | M5 | derived media: thumbnails, previews, transcoding; Docker with FFmpeg/libheif | done |
-| M6 | history UI: browse and undo any past operation | |
+| M6 | history, historical boxes, file version comparison, strict undo and recycle bin | done |
 | M7 | docs, packaging, v0.1 | |
 
 ## License

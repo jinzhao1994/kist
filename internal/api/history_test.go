@@ -3,11 +3,14 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/library"
+	"github.com/jinzhao1994/kist/internal/wire"
 )
 
 func TestHistoryAPIAndIdempotentUndo(t *testing.T) {
@@ -58,6 +61,72 @@ func TestHistoryAPIAndIdempotentUndo(t *testing.T) {
 	replay := call(s, "POST", Prefix+"/ops/2/undo", "undo-update-2", `{}`)
 	if replay.Code != 200 || replay.Body.String() != first.Body.String() {
 		t.Fatalf("rebuild retry: %d %s", replay.Code, replay.Body)
+	}
+}
+
+func TestHistoryGroupFilterAndAtomicRestoreConflict(t *testing.T) {
+	s, l := testServer(t)
+	ctx := t.Context()
+	box, err := l.CreateBox(ctx, "history group", "", domain.LocalDate{}, domain.LocalDate{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	importFiles := func(names ...string) {
+		t.Helper()
+		dir := t.TempDir()
+		for _, name := range names {
+			if err := os.WriteFile(filepath.Join(dir, name), []byte(name), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		root := int64(2)
+		opt := library.ImportOptions{Box: box.ID}
+		if n, _ := l.OpCount(ctx); n >= root {
+			opt.RootOp = &root
+		}
+		if _, err := l.Import(ctx, dir, opt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	importFiles("first.txt")               // #2 heads a group.
+	importFiles("second.txt", "third.txt") // #3 joins it.
+	for _, member := range []int{2, 3} {
+		page := decodeBody[historyList](t, s, fmt.Sprintf("/ops?group=%d&action=import_files&limit=1", member))
+		if len(page.Ops) != 1 || page.Ops[0].ID != 3 || page.Before != 3 {
+			t.Fatalf("group member %d: %+v", member, page)
+		}
+		older := decodeBody[historyList](t, s, fmt.Sprintf("/ops?group=%d&before=3", member))
+		if len(older.Ops) != 1 || older.Ops[0].ID != 2 {
+			t.Fatalf("group older: %+v", older)
+		}
+	}
+	mustWrite(t, s, "POST", "/ops/3/undo", "delete-group-member", `{}`) // #4, outside group.
+	// Occupy one of the deleted batch's names using a new file identity.
+	importFiles("third.txt") // #5
+	before := decodeBody[wire.FileList](t, s, "/files")
+	conflict := call(s, "POST", Prefix+"/ops/4/undo", "restore-name-conflict", `{}`)
+	if conflict.Code != 409 || !strings.Contains(conflict.Body.String(), `"blocking_op":5`) {
+		t.Fatalf("restore conflict: %d %s", conflict.Code, conflict.Body)
+	}
+	after := decodeBody[wire.FileList](t, s, "/files")
+	a, _ := json.Marshal(before)
+	b, _ := json.Marshal(after)
+	if string(a) != string(b) {
+		t.Fatal("conflicting restore partially changed the batch")
+	}
+	if count, _ := l.OpCount(ctx); count != 5 {
+		t.Fatalf("failed restore wrote an event: %d", count)
+	}
+	if err := l.Rebuild(ctx); err != nil {
+		t.Fatal(err)
+	}
+	group := decodeBody[historyList](t, s, "/ops?group=3")
+	if len(group.Ops) != 3 || group.Ops[0].ID != 5 || group.Ops[1].ID != 3 || group.Ops[2].ID != 2 {
+		t.Fatalf("rebuilt group included undo or lost members: %+v", group)
+	}
+	trash := decodeBody[historyList](t, s, "/ops?trash=true")
+	if len(trash.Ops) != 1 || trash.Ops[0].ID != 4 {
+		t.Fatalf("failed restore changed recycle bin: %+v", trash)
 	}
 }
 func TestHistoryAPIRejectsInvalidRequests(t *testing.T) {
