@@ -111,6 +111,11 @@ func (l *Library) writeLocked(ctx context.Context, action oplog.Action, payload 
 		} else if done {
 			return 0, &AlreadyRevertedError{OpID: *opt.RevertsID, RevertedBy: by}
 		}
+		if action == oplog.ActionDeleteFiles {
+			if err := l.checkImportUndoMetadata(ctx, payload, *opt.RevertsID); err != nil {
+				return 0, err
+			}
+		}
 	}
 	if action == oplog.ActionMoveTag {
 		p, err := oplog.Payload[oplog.MoveTagPayload](payload)

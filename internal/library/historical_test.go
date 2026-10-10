@@ -61,12 +61,16 @@ func TestHistoricalPrefixesMatchOriginalStates(t *testing.T) {
 	checkpoint()
 	e := &fakeExtractor{id: "fake", version: 1, ns: []string{"fake"}, tags: []extract.KV{text("fake:description", "historical metadata")}}
 	extractWith(t, l, e)
-	checkpoint()
+	extracted := checkpoint()
 	if _, err := l.UpdateBox(ctx, b1.ID, BoxFields{Name: "renamed box"}); err != nil {
 		t.Fatal(err)
 	}
 	checkpoint()
 	if _, err := l.Undo(ctx, tagged); err != nil {
+		t.Fatal(err)
+	}
+	checkpoint()
+	if _, err := l.Undo(ctx, extracted); err != nil {
 		t.Fatal(err)
 	}
 	checkpoint()

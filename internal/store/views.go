@@ -345,11 +345,9 @@ func (v *ViewTx) GetFile(id domain.FileID) (domain.File, bool, error) {
 
 // DeleteFile removes a file and everything hanging off it.
 //
-// The metadata and extraction rows go too, and deliberately without asking:
-// unlike a tag, nothing in them is a person's decision. They are observations
-// that `kist extract` can produce again, so refusing the delete until they are
-// cleared — the way delete_files refuses a file that has been tagged — would
-// be a demand nobody could act on for no gain.
+// Metadata and extraction rows are removed too. The library guards new import
+// undo commands against losing later metadata (including user tombstones).
+// This historical apply behavior remains unchanged so old logs still replay.
 //
 // The cascade is written out rather than left to ON DELETE CASCADE, because
 // the schema states its foreign keys plainly and one clause that behaves

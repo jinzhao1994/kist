@@ -2,7 +2,7 @@
 
 `Visual` builds the production UI and kist binary, serves an isolated empty library, and captures deterministic UI fixtures in a pinned Linux amd64 Playwright image. API responses and preview artwork are synthetic; this is a visual check, not a substitute for backend or media integration tests.
 
-The suite covers every built-in theme in light/dark mode, boxes, box files/upload controls, settings, tags, an empty library, English, a mobile grid, and six media detail states. Fixtures use fixed dates, locale, timezone and preview artwork. No personal archive is accessed.
+The suite covers every built-in theme in light/dark mode, boxes, box files/upload controls, settings, tags, an empty library, English, a mobile grid, six media detail states, operation history/details, the recycle bin, historical boxes, and file version comparison. Fixtures use fixed dates, locale, timezone and preview artwork. No personal archive is accessed.
 
 ## Review a change
 
