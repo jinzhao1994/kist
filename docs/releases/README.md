@@ -24,10 +24,12 @@ retrying; do not silently overwrite already-published files.
 
 ## Container images
 
-`Container Release` publishes private GHCR images independently of binary assets.
+`Container Release` publishes public GHCR images independently of binary assets.
 It follows a successful tag-triggered `Release` via `workflow_run`; this also works
 when `GITHUB_TOKEN` created the Release. A manually dispatched binary rehearsal
-does not publish images. Repository/package visibility is never changed.
+does not publish images. The source repository remains private. Package visibility is configured once
+by its owner; the workflow does not change visibility. Post-publication verification
+uses an empty Docker credential configuration to prove anonymous access.
 
 For an already published stable release, rehearse on `main`:
 
@@ -46,7 +48,7 @@ only the resolved release source; OCI labels record source, version and revision
 3. Push each passing image under a unique candidate tag and collect its digest.
 4. Refuse an existing version tag. Combine exactly the two tested digests into the
    version index; do not publish `latest` or moving minor-version aliases.
-5. Pull that index by digest on both native runners and repeat acceptance.
+5. Pull that index anonymously by digest on both native runners and repeat acceptance.
 
 Check **all** jobs before announcing success. The publish job summary includes
 the version reference and index digest; `container-release-manifest` retains the
@@ -58,5 +60,5 @@ index was published, inspect the failure and rerun failed jobs; rerunning the
 entire publication intentionally refuses to overwrite the version. A necessary
 image correction gets a new release version rather than silently replacing an
 existing deployment. Binary Releases can succeed while image publication fails:
-check both workflows separately. See [Docker deployment](../docker.md) for private
-registry login, NAS configuration and upgrade steps.
+check both workflows separately. See [Docker deployment](../docker.md) for anonymous
+image pulls, NAS configuration and upgrade steps.

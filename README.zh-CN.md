@@ -63,10 +63,9 @@ make dist    # -> dist/，四平台压缩包与 SHA256SUMS（需要 Python 3）
 
 ## Docker（内置 FFmpeg）
 
-预构建镜像支持 Linux amd64 / arm64，Docker 会自动选择本机架构。使用 `compose.image.yaml`，详见 [NAS 部署与升级说明](docs/docker.md)。当前 GHCR 镜像保持私有，拉取前用有读取权限的 GitHub 账号登录，密码填写带 `read:packages` 权限的 classic PAT：
+预构建镜像支持 Linux amd64 / arm64，Docker 会自动选择本机架构。使用 `compose.image.yaml`，详见 [NAS 部署与升级说明](docs/docker.md)。GHCR 镜像公开，无需 GitHub 账号、PAT 或 registry 登录：
 
 ```sh
-docker login ghcr.io -u YOUR_GITHUB_USERNAME
 docker compose -f compose.image.yaml pull
 docker compose -f compose.image.yaml run --rm kist init /library --yes
 docker compose -f compose.image.yaml up -d

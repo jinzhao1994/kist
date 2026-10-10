@@ -11,17 +11,11 @@ Save the repository's `compose.image.yaml` in a persistent deployment directory.
 It is standalone; no source build is needed. Keep this directory and Compose
 project name stable because they determine the default named volume's name.
 
-The package is private, matching the repository. Log in with an account granted
-read access to the package. Use a classic personal access token with
-`read:packages` as the password (and authorize SSO if your organization requires it):
-
-```sh
-docker login ghcr.io -u YOUR_GITHUB_USERNAME
-```
-
-Enter the token at the password prompt, not in the command or `.env`. A NAS
-registry interface can use the same registry, username and token. Package access
-must be granted separately if the account does not inherit it from the repository.
+The image is public even while the source repository remains private. Pulling
+requires no GitHub account, personal access token or `docker login`. In a NAS
+registry interface, use `ghcr.io` and image `jinzhao1994/kist:v0.1.0` with anonymous
+access. The Compose file and these docs remain subject to repository access;
+share a copy of the standalone Compose file with users who cannot read the repo.
 
 For local access, defaults work without an `.env` file. For a trusted LAN, create
 `.env` next to the Compose file, substituting your NAS address:

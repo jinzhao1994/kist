@@ -190,7 +190,6 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
-      packages: read
     env:
       IMAGE_REF: ${{ needs.prepare.outputs.image }}@${{ needs.publish.outputs.digest }}
       VERSION: ${{ needs.prepare.outputs.version }}
@@ -199,10 +198,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Pull the published index and repeat acceptance
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          # A clean Docker config proves public users do not need credentials.
+          export DOCKER_CONFIG="$RUNNER_TEMP/kist-docker-anonymous"
+          mkdir -p "$DOCKER_CONFIG"
           docker pull --platform "$EXPECTED_PLATFORM" "$IMAGE_REF"
           python3 scripts/container-release.py check-image "$IMAGE_REF" "$VERSION" "$REVISION"
           sh scripts/docker-smoke.sh "$IMAGE_REF" "$EXPECTED_PLATFORM" "$VERSION"

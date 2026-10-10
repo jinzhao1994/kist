@@ -78,17 +78,15 @@ make dist    # -> dist/, four platform archives + SHA256SUMS (requires Python 3)
 ## Docker (with FFmpeg)
 
 For prebuilt Linux amd64/arm64 images, use `compose.image.yaml`; see the
-[NAS installation and upgrade guide](docs/docker.md). The GHCR package is private,
-so log in with a GitHub account that can read it before pulling:
+[NAS installation and upgrade guide](docs/docker.md). The GHCR image is public;
+no GitHub account or registry login is needed:
 
 ```sh
-docker login ghcr.io -u YOUR_GITHUB_USERNAME
 docker compose -f compose.image.yaml pull
 docker compose -f compose.image.yaml run --rm kist init /library --yes
 docker compose -f compose.image.yaml up -d
 ```
 
-Use a classic personal access token with `read:packages` as the password.
 Only initialize a new library. The image defaults to `ghcr.io/jinzhao1994/kist:v0.1.0`;
 Docker selects the native architecture. Set `KIST_IMAGE` to pin another version or digest.
 
