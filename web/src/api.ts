@@ -4,6 +4,12 @@ export type ArchiveFile = components["schemas"]["File"];
 export type FileDetail = components["schemas"]["FileDetail"];
 export type Tag = components["schemas"]["Tag"];
 export type Receipt = components["schemas"]["RequestResult"];
+export type HistoryOp = components["schemas"]["HistoryOp"];
+export type HistoryDetail = components["schemas"]["HistoryDetail"];
+export type HistoricalFile = components["schemas"]["HistoricalFile"];
+export type HistoryQuery = NonNullable<
+  operations["get-api-v1-ops"]["parameters"]["query"]
+>;
 export type APIErrorBody = components["schemas"]["HTTPError"];
 export type FileQuery = NonNullable<
   operations["get-api-v1-files"]["parameters"]["query"]
@@ -31,6 +37,24 @@ export async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
   return result<T>(await fetch(`/api/v1${path}`, { signal }));
 }
 export const api = {
+  history: (query: HistoryQuery, signal?: AbortSignal) => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query))
+      if (value !== undefined && value !== "") params.set(key, String(value));
+    return get<components["schemas"]["HistoryList"]>(`/ops?${params}`, signal);
+  },
+  operation: (id: number, signal?: AbortSignal) =>
+    get<HistoryDetail>(`/ops/${id}`, signal),
+  historicalBox: (op: number, box: string, cursor = "", signal?: AbortSignal) =>
+    get<components["schemas"]["HistoricalBox"]>(
+      `/history/${op}/boxes/${encodeURIComponent(box)}?cursor=${encodeURIComponent(cursor)}`,
+      signal,
+    ),
+  historicalFile: (op: number, file: string, signal?: AbortSignal) =>
+    get<HistoricalFile>(
+      `/history/${op}/files/${encodeURIComponent(file)}`,
+      signal,
+    ),
   boxes: (signal?: AbortSignal) =>
     get<components["schemas"]["BoxList"]>("/boxes", signal),
   info: (signal?: AbortSignal) =>

@@ -10,6 +10,7 @@ import { FileBrowser } from "./FileBrowser";
 import { FileDetail } from "./FileDetail";
 import { useNavigation } from "./navigation";
 import { errorMessage } from "./mutations";
+import { HistoryPage } from "./History";
 export function App() {
   const { t, prefs } = useI18n();
   const { route, go } = useNavigation();
@@ -53,11 +54,20 @@ export function App() {
         <p className="sidebar-caption">{t("archive")}</p>
         <nav aria-label={t("archive")}>
           <button
-            className={`nav-link ${!route.files ? "active" : ""}`}
+            className={`nav-link ${!route.files && !route.section ? "active" : ""}`}
             onClick={() => navigate()}
           >
             ▤ <span>{t("boxes")}</span>
           </button>
+          {(["history", "trash"] as const).map((section) => (
+            <button
+              key={section}
+              className={`nav-link ${route.section === section ? "active" : ""}`}
+              onClick={() => go({ files: false, section })}
+            >
+              {section === "history" ? "◷" : "⌫"} <span>{t(section)}</span>
+            </button>
+          ))}
           <button
             className={`nav-link ${route.files && !route.box ? "active" : ""}`}
             onClick={() => navigate(undefined, true)}
@@ -74,7 +84,7 @@ export function App() {
               tags={tree}
               choose={(id) => {
                 setFilters({ ...emptyFilters, tag_all: [id] });
-                go({ ...route, files: true, file: undefined });
+                go({ files: true, box: route.section ? undefined : route.box });
               }}
             />
           )}
@@ -96,7 +106,9 @@ export function App() {
             <span className="eyebrow">{t("archive")}</span>
             <h1>
               <bdi>
-                {selected?.name || t(route.files ? "allFiles" : "boxes")}
+                {route.section
+                  ? t(route.section)
+                  : selected?.name || t(route.files ? "allFiles" : "boxes")}
               </bdi>
             </h1>
           </div>
@@ -104,17 +116,27 @@ export function App() {
             <button onClick={() => client.invalidateQueries()}>
               {t("refresh")}
             </button>
-            {selected ? (
-              <button onClick={() => setEditor(selected)}>
-                {t("editBox")}
+            {!route.section && selected && (
+              <button
+                onClick={() =>
+                  go({ files: false, section: "history", box: selected.id })
+                }
+              >
+                {t("history")}
               </button>
-            ) : (
-              !route.files && (
-                <button className="primary" onClick={() => setEditor("new")}>
-                  {t("createBox")}
-                </button>
-              )
             )}
+            {!route.section &&
+              (selected ? (
+                <button onClick={() => setEditor(selected)}>
+                  {t("editBox")}
+                </button>
+              ) : (
+                !route.files && (
+                  <button className="primary" onClick={() => setEditor("new")}>
+                    {t("createBox")}
+                  </button>
+                )
+              ))}
           </div>
         </header>
         {info.data?.projection_dirty && (
@@ -129,7 +151,23 @@ export function App() {
             <button onClick={() => boxes.refetch()}>{t("retry")}</button>
           </div>
         )}
-        {route.box && boxes.data && !selected ? (
+        {route.section ? (
+          <HistoryPage
+            key={`${route.section}:${route.box || ""}:${route.file || ""}`}
+            box={route.box}
+            file={route.file}
+            trash={route.section === "trash"}
+            boxes={boxes.data?.boxes || []}
+            scope={(box, file) =>
+              go({
+                files: false,
+                section: file ? "history" : route.section,
+                box,
+                file,
+              })
+            }
+          />
+        ) : route.box && boxes.data && !selected ? (
           <p role="alert">{t("notFound")}</p>
         ) : route.files && (!route.box || selected) ? (
           <FileBrowser
@@ -190,12 +228,20 @@ export function App() {
         />
       )}{" "}
       {manage && <TagManager tags={tree} close={() => setManage(false)} />}{" "}
-      {route.file && (
+      {route.file && !route.section && (
         <FileDetail
           key={route.file}
           id={route.file}
           tags={tree}
           close={() => go({ ...route, file: undefined })}
+          history={() =>
+            go({
+              files: false,
+              section: "history",
+              file: route.file,
+              box: route.box,
+            })
+          }
         />
       )}
     </div>

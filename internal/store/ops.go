@@ -158,6 +158,10 @@ type ListOpsOptions struct {
 	File *domain.FileID
 	// Action restricts to an exact action discriminator.
 	Action string
+	// Actions restricts to any of these discriminators.
+	Actions []string
+	// Unreverted excludes events that have already been compensated.
+	Unreverted bool
 	// Group restricts to the ops one command wrote, addressed by any op in
 	// it: nobody wants to type a UUID that is printed nowhere.
 	Group *int64
@@ -190,6 +194,15 @@ func ListOps(q Queryer, opt ListOpsOptions) ([]OpRow, error) {
 	if opt.Action != "" {
 		sb.WriteString(` AND action = ?`)
 		args = append(args, opt.Action)
+	}
+	if len(opt.Actions) > 0 {
+		sb.WriteString(` AND action IN (` + strings.TrimSuffix(strings.Repeat("?,", len(opt.Actions)), ",") + `)`)
+		for _, action := range opt.Actions {
+			args = append(args, action)
+		}
+	}
+	if opt.Unreverted {
+		sb.WriteString(` AND NOT EXISTS (SELECT 1 FROM ops AS inverse WHERE inverse.reverts_id = ops.id)`)
 	}
 	if opt.Group != nil {
 		// A group is named by any op in it, root or not: the group has no id

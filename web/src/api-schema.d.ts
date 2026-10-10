@@ -520,9 +520,24 @@ export interface components {
             tags: components["schemas"]["Tag"][] | null;
         };
         HistoryDetail: {
+            action: string;
+            boxes: string[] | null;
+            files: string[] | null;
+            /** Format: int64 */
+            id: number;
+            origin: string;
             payload: {
                 [key: string]: unknown;
             };
+            /** Format: int64 */
+            reverts_id: number | null;
+            /** Format: int64 */
+            root_op_id?: number;
+            /** Format: date-time */
+            ts: string;
+            undoable: boolean;
+            /** Format: int64 */
+            undone_by: number | null;
         };
         HistoryList: {
             /** Format: int64 */
@@ -1330,6 +1345,7 @@ export interface operations {
                 group?: number;
                 before?: number;
                 limit?: number;
+                trash?: boolean;
             };
             header?: never;
             path?: never;

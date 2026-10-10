@@ -75,3 +75,41 @@ func TestHistoryAPIRejectsInvalidRequests(t *testing.T) {
 		t.Fatalf("%d %s", r.Code, r.Body)
 	}
 }
+
+func TestTrashFiltersBeforePagingAndRestoresAtomically(t *testing.T) {
+	s, l := testServer(t)
+	for _, name := range []string{"first", "second"} {
+		tag, err := l.CreateTag(t.Context(), name, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := l.DeleteTag(t.Context(), tag.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	page := decodeBody[historyList](t, s, "/ops?trash=true&limit=1")
+	if len(page.Ops) != 1 || page.Ops[0].ID != 4 || page.Before != 4 {
+		t.Fatalf("page=%+v", page)
+	}
+	older := decodeBody[historyList](t, s, "/ops?trash=true&limit=1&before=4")
+	if len(older.Ops) != 1 || older.Ops[0].ID != 2 || older.Before != 0 {
+		t.Fatalf("older=%+v", older)
+	}
+	mustWrite(t, s, "POST", "/ops/4/undo", "trash-restore-4", `{}`)
+	remaining := decodeBody[historyList](t, s, "/ops?trash=true")
+	if len(remaining.Ops) != 1 || remaining.Ops[0].ID != 2 {
+		t.Fatalf("remaining=%+v", remaining)
+	}
+	mustWrite(t, s, "POST", "/ops/5/undo", "trash-redelete-5", `{}`)
+	latest := decodeBody[historyList](t, s, "/ops?trash=true")
+	if len(latest.Ops) != 2 || latest.Ops[0].ID != 6 {
+		t.Fatalf("latest=%+v", latest)
+	}
+	if err := l.Rebuild(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	rebuilt := decodeBody[historyList](t, s, "/ops?trash=true")
+	if len(rebuilt.Ops) != 2 || rebuilt.Ops[0].ID != 6 {
+		t.Fatalf("rebuilt=%+v", rebuilt)
+	}
+}

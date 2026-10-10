@@ -18,18 +18,21 @@ type historyInput struct {
 	Group  int64  `query:"group" minimum:"0"`
 	Before int64  `query:"before" minimum:"0"`
 	Limit  int    `query:"limit" minimum:"0" maximum:"1000"`
+	Trash  bool   `query:"trash"`
 }
-type historyOp struct {
+type HistoryOp struct {
 	wire.Op
 	Undoable bool `json:"undoable"`
 }
 type historyList struct {
-	Ops    []historyOp `json:"ops"`
+	Ops    []HistoryOp `json:"ops"`
 	Before int64       `json:"before,omitempty"`
 }
 type historyDetail struct {
-	historyOp
+	HistoryOp
 	Payload map[string]any `json:"payload"`
+	Boxes   []string       `json:"boxes"`
+	Files   []string       `json:"files"`
 }
 type opInput struct {
 	ID int64 `path:"id" minimum:"1"`
@@ -40,12 +43,15 @@ type undoInput struct {
 	Body struct{}
 }
 
-func renderHistory(entry library.HistoryEntry) historyOp {
-	return historyOp{Op: wire.Op{ID: entry.ID, TS: entry.TS, Action: string(entry.Action), Origin: string(entry.Origin), RevertsID: entry.RevertsID, RootOpID: entry.RootOpID, UndoneBy: entry.UndoneBy}, Undoable: entry.Undoable}
+func renderHistory(entry library.HistoryEntry) HistoryOp {
+	return HistoryOp{Op: wire.Op{ID: entry.ID, TS: entry.TS, Action: string(entry.Action), Origin: string(entry.Origin), RevertsID: entry.RevertsID, RootOpID: entry.RootOpID, UndoneBy: entry.UndoneBy}, Undoable: entry.Undoable}
 }
 func (s *Server) historyRoutes() {
 	huma.Get(s.contract, Prefix+"/ops", func(ctx context.Context, in *historyInput) (*output[historyList], error) {
 		opt := library.ListOpsOptions{Action: in.Action, Before: in.Before, Limit: in.Limit}
+		if in.Trash {
+			opt = library.TrashOptions(opt)
+		}
 		if in.Group != 0 {
 			opt.Group = &in.Group
 		}
@@ -66,7 +72,7 @@ func (s *Server) historyRoutes() {
 			opt.File = &file
 		}
 		entries, before, err := s.library.History(ctx, opt)
-		out := historyList{Ops: make([]historyOp, 0, len(entries)), Before: before}
+		out := historyList{Ops: make([]HistoryOp, 0, len(entries)), Before: before}
 		for _, entry := range entries {
 			out.Ops = append(out.Ops, renderHistory(entry))
 		}
@@ -77,7 +83,15 @@ func (s *Server) historyRoutes() {
 		if err != nil {
 			return nil, failure(err)
 		}
-		out := historyDetail{historyOp: renderHistory(entry)}
+		out := historyDetail{HistoryOp: renderHistory(entry)}
+		out.Boxes = make([]string, 0, len(entry.Boxes))
+		out.Files = make([]string, 0, len(entry.Files))
+		for _, id := range entry.Boxes {
+			out.Boxes = append(out.Boxes, id.String())
+		}
+		for _, id := range entry.Files {
+			out.Files = append(out.Files, id.String())
+		}
 		// Keep JSON numbers exact, including nanosecond metadata in old payloads.
 		var payload map[string]json.RawMessage
 		if err := json.Unmarshal(entry.Payload, &payload); err != nil {

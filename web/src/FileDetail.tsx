@@ -10,10 +10,12 @@ export function FileDetail({
   id,
   tags,
   close,
+  history,
 }: {
   id: string;
   tags: Tag[];
   close: () => void;
+  history?: () => void;
 }) {
   const { t, prefs } = useI18n();
   const extraction = useExtraction();
@@ -84,6 +86,7 @@ export function FileDetail({
           </div>
           <ExtractionStatus files={[data.file]} state={extraction} />
           <h3>{t("metadata")}</h3>
+          {history && <button onClick={history}>{t("versionHistory")}</button>}
           <dl className="metadata-list">
             {data.metadata?.map((row) => (
               <div key={row.key}>

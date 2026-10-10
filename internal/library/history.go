@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/jinzhao1994/kist/internal/domain"
 
 	"github.com/jinzhao1994/kist/internal/oplog"
 	"github.com/jinzhao1994/kist/internal/query"
@@ -16,6 +17,8 @@ type HistoryEntry struct {
 	Op
 	UndoneBy *int64
 	Undoable bool
+	Boxes    []domain.BoxID
+	Files    []domain.FileID
 }
 
 // History reads one bounded page and its undo relationships in the same snapshot.
@@ -27,6 +30,11 @@ func (l *Library) History(ctx context.Context, opt ListOpsOptions) ([]HistoryEnt
 	if opt.Action != "" {
 		if _, err := oplog.Lookup(oplog.Action(opt.Action)); err != nil {
 			return nil, 0, fmt.Errorf("invalid history action: %w", ErrInvalidRequest)
+		}
+	}
+	for _, action := range opt.Actions {
+		if _, err := oplog.Lookup(oplog.Action(action)); err != nil {
+			return nil, 0, ErrInvalidRequest
 		}
 	}
 	limit := opt.Limit
@@ -73,7 +81,24 @@ func (l *Library) HistoryOp(ctx context.Context, id int64) (HistoryEntry, error)
 	if !found {
 		return HistoryEntry{}, ErrNoSuchOp
 	}
-	return historyEntry(tx, row)
+	entry, err := historyEntry(tx, row)
+	if err != nil {
+		return entry, err
+	}
+	handler, err := oplog.Lookup(entry.Action)
+	if err != nil {
+		return entry, err
+	}
+	targets, err := handler.Targets(entry.Payload)
+	entry.Boxes, entry.Files = targets.Boxes, targets.Files
+	return entry, err
+}
+
+// TrashOptions lists uncompensated deletion events, preserving atomic restore.
+func TrashOptions(opt ListOpsOptions) ListOpsOptions {
+	opt.Actions = []string{string(oplog.ActionDeleteFiles), string(oplog.ActionDeleteBox), string(oplog.ActionDeleteTag)}
+	opt.Unreverted = true
+	return opt
 }
 
 func historyEntry(q store.Queryer, row store.OpRow) (HistoryEntry, error) {

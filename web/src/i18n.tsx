@@ -7,6 +7,58 @@ import {
 } from "react";
 
 export const en = {
+  folders: "Folders",
+  history: "History",
+  trash: "Recycle bin",
+  historyEmpty: "No operations here yet.",
+  trashHint:
+    "Deleted items are retained. Restore an entire operation; later changes may prevent restoration.",
+  historyScope: "History scope",
+  allHistory: "All operations",
+  operation: "Operation #{id}",
+  undo: "Undo",
+  restore: "Restore",
+  undoConfirm:
+    "Append an inverse operation? This applies to every item in this operation and may be refused if later changes conflict.",
+  undoneBy: "Reverted by #{id}",
+  reverts: "Reverts #{id}",
+  blockedBy: "Blocked by operation #{id}",
+  viewOperation: "View operation",
+  viewHistoricalBox: "View box at this point",
+  historicalState: "Read-only state after operation #{id}",
+  versionHistory: "File versions",
+  compareVersions: "Compare versions",
+  beforeVersion: "Earlier operation",
+  afterVersion: "Later operation",
+  compare: "Compare",
+  field: "Field",
+  notPresent: "Not present at this point",
+  noDifferences: "No differences between these states.",
+  changedFields: "Changed fields are highlighted.",
+  viewBeforeDeletion: "View before deletion",
+  affectedFiles: "Affected files",
+  affectedBoxes: "Affected boxes",
+  operationData: "Recorded operation data",
+  blobKey: "Content fingerprint",
+  updated: "Updated",
+  origin: "Origin",
+  action_create_box: "Create box",
+  action_delete_box: "Delete box",
+  action_update_box: "Edit box",
+  action_create_tag: "Create tag",
+  action_delete_tag: "Delete tag",
+  action_rename_tag: "Rename tag",
+  action_move_tag: "Move tag",
+  action_tag_boxes: "Tag boxes",
+  action_untag_boxes: "Untag boxes",
+  action_import_files: "Import files",
+  action_delete_files: "Delete files",
+  action_extract_metadata: "Extract metadata",
+  action_set_metadata: "Edit metadata",
+  action_tag_files: "Tag files",
+  action_untag_files: "Untag files",
+  action_request_receipt: "No-change receipt",
+
   mediaQueued: "Waiting to generate preview…",
   mediaRunning: "Generating preview…",
   mediaDependency:
@@ -146,6 +198,58 @@ export const en = {
 } as const;
 export type MessageKey = keyof typeof en;
 export const zh: Record<MessageKey, string> = {
+  folders: "文件夹",
+  history: "操作历史",
+  trash: "回收站",
+  historyEmpty: "暂无操作记录。",
+  trashHint:
+    "已删除内容会永久保留。恢复以整条操作为单位，后续更改可能阻止恢复。",
+  historyScope: "历史范围",
+  allHistory: "全部操作",
+  operation: "操作 #{id}",
+  undo: "撤销",
+  restore: "恢复",
+  undoConfirm:
+    "将追加一条反向操作，作用于本次操作的所有条目。如与后续更改冲突，将拒绝执行。",
+  undoneBy: "已由 #{id} 撤销",
+  reverts: "撤销了 #{id}",
+  blockedBy: "被操作 #{id} 阻挡",
+  viewOperation: "查看操作",
+  viewHistoricalBox: "查看此时的归档箱",
+  historicalState: "操作 #{id} 之后的只读历史状态",
+  versionHistory: "文件版本",
+  compareVersions: "比较版本",
+  beforeVersion: "较早操作编号",
+  afterVersion: "较晚操作编号",
+  compare: "对比",
+  field: "字段",
+  notPresent: "此时尚不存在或已删除",
+  noDifferences: "两个时间点的状态没有差异。",
+  changedFields: "变化的字段已高亮。",
+  viewBeforeDeletion: "查看删除前的状态",
+  affectedFiles: "涉及文件",
+  affectedBoxes: "涉及归档箱",
+  operationData: "操作记录详情",
+  blobKey: "内容指纹",
+  updated: "修改时间",
+  origin: "来源",
+  action_create_box: "创建归档箱",
+  action_delete_box: "删除归档箱",
+  action_update_box: "修改归档箱",
+  action_create_tag: "创建标签",
+  action_delete_tag: "删除标签",
+  action_rename_tag: "重命名标签",
+  action_move_tag: "移动标签",
+  action_tag_boxes: "为归档箱添加标签",
+  action_untag_boxes: "移除归档箱标签",
+  action_import_files: "导入文件",
+  action_delete_files: "删除文件",
+  action_extract_metadata: "提取元数据",
+  action_set_metadata: "修改元数据",
+  action_tag_files: "为文件添加标签",
+  action_untag_files: "移除文件标签",
+  action_request_receipt: "无变更回执",
+
   mediaQueued: "等待生成预览…",
   mediaRunning: "正在生成预览…",
   mediaDependency:
@@ -320,6 +424,11 @@ export function directionFor(prefs: Preferences): "ltr" | "rtl" {
   return "ltr";
 }
 interface Parameters {
+  operation: { id: number };
+  undoneBy: { id: number };
+  reverts: { id: number };
+  blockedBy: { id: number };
+  historicalState: { id: number };
   errorDetails: { message: string; code: string };
   loadedFiles: { count: number };
   fileCount: { count: number };

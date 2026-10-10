@@ -3,6 +3,7 @@ export interface Route {
   files: boolean;
   box?: string;
   file?: string;
+  section?: "history" | "trash";
 }
 function read(): Route {
   const url = new URL(window.location.href);
@@ -15,7 +16,13 @@ function read(): Route {
   }
   return {
     files: url.pathname === "/files" || !!match,
-    box,
+    box: box || url.searchParams.get("box") || undefined,
+    section:
+      url.pathname === "/history"
+        ? "history"
+        : url.pathname === "/trash"
+          ? "trash"
+          : undefined,
     file: url.searchParams.get("file") || undefined,
   };
 }
@@ -29,16 +36,17 @@ export function useNavigation() {
   return {
     route,
     go: (next: Route) => {
-      const path = next.box
-        ? `/boxes/${encodeURIComponent(next.box)}`
-        : next.files
-          ? "/files"
-          : "/";
-      history.pushState(
-        null,
-        "",
-        path + (next.file ? `?file=${encodeURIComponent(next.file)}` : ""),
-      );
+      const path = next.section
+        ? `/${next.section}`
+        : next.box
+          ? `/boxes/${encodeURIComponent(next.box)}`
+          : next.files
+            ? "/files"
+            : "/";
+      const params = new URLSearchParams();
+      if (next.file) params.set("file", next.file);
+      if (next.section && next.box) params.set("box", next.box);
+      history.pushState(null, "", path + (params.size ? `?${params}` : ""));
       setRoute(next);
     },
   };

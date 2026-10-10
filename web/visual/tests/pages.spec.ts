@@ -101,6 +101,68 @@ async function prepare(page: Page, options: Options = {}) {
               },
             ],
       };
+    else if (path === "/ops") {
+      const deleted = {
+        id: 12,
+        action: "delete_files",
+        ts: time,
+        origin: "user",
+        reverts_id: 10,
+        undone_by: null,
+        undoable: true,
+      };
+      body = {
+        ops:
+          new URL(route.request().url()).searchParams.get("trash") === "true"
+            ? [deleted]
+            : [
+                deleted,
+                {
+                  ...deleted,
+                  id: 10,
+                  action: "import_files",
+                  reverts_id: null,
+                  undone_by: 12,
+                },
+              ],
+      };
+    } else if (path === "/ops/12")
+      body = {
+        id: 12,
+        action: "delete_files",
+        ts: time,
+        origin: "user",
+        reverts_id: 10,
+        undone_by: null,
+        undoable: true,
+        boxes: [box.id],
+        files: [files[0].id],
+        payload: { files: [{ file_id: files[0].id, name: files[0].name }] },
+      };
+    else if (path === "/history/11/boxes/box-1")
+      body = { op: 11, box, files, folders: [], box_tags: ["tag-1"], tags };
+    else if (path === "/history/11/files/file-1")
+      body = {
+        op: 11,
+        file: {
+          file: files[0],
+          tags: ["tag-2"],
+          metadata: [
+            { key: "file:size", value: "204800", type: "int", source: "file" },
+          ],
+          extracted: ["file"],
+        },
+        tags,
+      };
+    else if (path === "/history/12/files/file-1")
+      return route.fulfill({
+        status: 404,
+        json: {
+          code: "file_not_found",
+          class: "not_found",
+          message: "Not present",
+        },
+      });
     else if (path === "/tags") body = { tags };
     else if (path === "/info")
       body = {
@@ -252,6 +314,42 @@ for (const state of [
       await expect(
         page.getByRole("dialog").locator(".media-placeholder [role=status]"),
       ).toBeVisible();
+    await capture(page, errors, info.title);
+  });
+}
+
+for (const scenario of [
+  "history",
+  "trash",
+  "operation",
+  "historical-box",
+  "version-comparison",
+] as const) {
+  test(scenario, async ({ page }, info) => {
+    const errors = await prepare(page);
+    await page.goto(scenario === "trash" ? "/trash" : "/history");
+    await expect(page.locator(".history-entry").first()).toBeVisible();
+    if (
+      ["operation", "historical-box", "version-comparison"].includes(scenario)
+    ) {
+      await page.locator(".history-entry").first().click();
+      await expect(
+        page.getByRole("dialog").getByRole("heading", { name: "删除文件" }),
+      ).toBeVisible();
+    }
+    if (scenario === "historical-box") {
+      await page.getByRole("button", { name: "查看删除前的状态" }).click();
+      await expect(page.getByText("操作 #11 之后的只读历史状态")).toBeVisible();
+      await expect(
+        page
+          .getByRole("dialog")
+          .getByText("旅途/山间清晨.jpg", { exact: true }),
+      ).toBeVisible();
+    }
+    if (scenario === "version-comparison") {
+      await page.getByRole("button", { name: "比较版本", exact: true }).click();
+      await expect(page.getByText("此时尚不存在或已删除")).toBeVisible();
+    }
     await capture(page, errors, info.title);
   });
 }
