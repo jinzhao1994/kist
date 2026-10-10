@@ -19,7 +19,7 @@ def main():
     for binary in binaries:
         windows = binary.suffix == ".exe"
         name = "kist.exe" if windows else "kist"
-        members = [(binary, name)] + [(path, path.name) for path in documents]
+        members = [(binary, name)] + [(path, path.relative_to(root).as_posix()) for path in documents]
         archive = dist / (binary.stem + (".zip" if windows else ".tar.gz"))
         if windows:
             with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as output:
