@@ -40,6 +40,7 @@ type Server struct {
 	maxUploadBytes int64
 	maxUploadFiles int
 	uploadTempDir  string
+	historySlots   chan struct{}
 }
 
 func New(l *library.Library, opt Options) (*Server, error) {
@@ -53,6 +54,7 @@ func New(l *library.Library, opt Options) (*Server, error) {
 		return nil, fmt.Errorf("upload limits must be positive")
 	}
 	s := &Server{maxUploadBytes: opt.MaxUploadBytes, maxUploadFiles: opt.MaxUploadFiles, uploadTempDir: opt.UploadTempDir, library: l, mux: http.NewServeMux(), hosts: map[string]bool{}, origins: map[string]bool{}}
+	s.historySlots = make(chan struct{}, 2)
 	if l == nil || len(opt.AllowedHosts) == 0 {
 		return nil, fmt.Errorf("a library and explicit allowed hosts are required")
 	}
@@ -79,6 +81,7 @@ func New(l *library.Library, opt Options) (*Server, error) {
 	s.contract = humago.New(s.mux, cfg)
 	s.readRoutes()
 	s.historyRoutes()
+	s.historicalRoutes()
 	s.fileRoutes()
 	s.tagRoutes()
 	s.media = l.Media()

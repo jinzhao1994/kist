@@ -5,15 +5,18 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"os"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/library"
 )
 
 type contentInput struct {
 	ID       string `path:"id"`
 	Download bool   `query:"download"`
+	At       int64  `query:"at" minimum:"0"`
 }
 
 // Only inert browser media may render inline. File extensions and uploaded
@@ -39,12 +42,25 @@ func (s *Server) contentRoutes() {
 			}
 			return &huma.StreamResponse{Body: func(hctx huma.Context) {
 				req, w := humago.Unwrap(hctx)
-				file, handle, err := s.library.OpenContent(ctx, domain.FileID{ID: id})
+				var file domain.File
+				var handle *os.File
+				var err error
+				if in.At == 0 {
+					file, handle, err = s.library.OpenContent(ctx, domain.FileID{ID: id})
+				} else {
+					err = s.withHistory(ctx, in.At, func(ctx context.Context, view *library.HistoricalView) error {
+						var err error
+						file, handle, err = view.OpenContent(ctx, domain.FileID{ID: id})
+						return err
+					})
+				}
+				if handle != nil {
+					defer handle.Close()
+				}
 				if err != nil {
 					writeFailure(w, err)
 					return
 				}
-				defer handle.Close()
 				var head [512]byte
 				n, err := handle.Read(head[:])
 				if err != nil && err != io.EOF {

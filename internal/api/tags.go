@@ -59,17 +59,7 @@ func (s *Server) tagRoutes() {
 		if err != nil {
 			return nil, failure(err)
 		}
-		var render func([]domain.Tag) []wire.Tag
-		render = func(tags []domain.Tag) []wire.Tag {
-			out := make([]wire.Tag, 0, len(tags))
-			for _, tag := range tags {
-				item := wire.NewTagCounted(tag, counts[tag.ID])
-				item.Children = render(tree.Children(tag.ID))
-				out = append(out, item)
-			}
-			return out
-		}
-		return response(wire.TagTree{Tags: render(tree.Roots())}, nil)
+		return response(wire.TagTree{Tags: renderTags(tree, counts)}, nil)
 	})
 	huma.Post(s.contract, Prefix+"/tags", func(ctx context.Context, in *createTagInput) (*output[library.RequestResult], error) {
 		parent, err := optionalTagID(in.Body.ParentID)
@@ -149,4 +139,18 @@ func (s *Server) tagRoutes() {
 			})
 		}
 	}
+}
+
+func renderTags(tree *library.TagTree, counts map[domain.TagID]int) []wire.Tag {
+	var render func([]domain.Tag) []wire.Tag
+	render = func(tags []domain.Tag) []wire.Tag {
+		out := make([]wire.Tag, 0, len(tags))
+		for _, tag := range tags {
+			item := wire.NewTagCounted(tag, counts[tag.ID])
+			item.Children = render(tree.Children(tag.ID))
+			out = append(out, item)
+		}
+		return out
+	}
+	return render(tree.Roots())
 }

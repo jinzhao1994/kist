@@ -196,6 +196,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/history/{op}/boxes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 history by op boxes by ID */
+        get: operations["get-api-v1-history-by-op-boxes-by-id"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/history/{op}/files/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 history by op files by ID */
+        get: operations["get-api-v1-history-by-op-files-by-id"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/info": {
         parameters: {
             query?: never;
@@ -468,6 +502,22 @@ export interface components {
             op_id?: number;
             /** Format: int64 */
             reverted_by?: number;
+        };
+        HistoricalBox: {
+            box: components["schemas"]["Box"];
+            box_tags: string[] | null;
+            cursor?: string;
+            files: components["schemas"]["File"][] | null;
+            folders: components["schemas"]["Folder"][] | null;
+            /** Format: int64 */
+            op: number;
+            tags: components["schemas"]["Tag"][] | null;
+        };
+        HistoricalFile: {
+            file: components["schemas"]["FileDetail"];
+            /** Format: int64 */
+            op: number;
+            tags: components["schemas"]["Tag"][] | null;
         };
         HistoryDetail: {
             payload: {
@@ -883,6 +933,7 @@ export interface operations {
         parameters: {
             query?: {
                 download?: boolean;
+                at?: number;
             };
             header?: never;
             path: {
@@ -923,6 +974,7 @@ export interface operations {
         parameters: {
             query?: {
                 download?: boolean;
+                at?: number;
             };
             header?: never;
             path: {
@@ -1160,6 +1212,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RequestResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-history-by-op-boxes-by-id": {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                op: number;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoricalBox"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-history-by-op-files-by-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                op: number;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoricalFile"];
                 };
             };
             /** @description Error */

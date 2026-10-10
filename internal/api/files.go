@@ -2,9 +2,11 @@ package api
 
 import (
 	"context"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/extract"
 	"github.com/jinzhao1994/kist/internal/library"
 	"github.com/jinzhao1994/kist/internal/query"
 	"github.com/jinzhao1994/kist/internal/wire"
@@ -115,17 +117,56 @@ func (s *Server) fileQuery(in *fileQueryInput) (query.Query, error) {
 	}
 	return q, nil
 }
-func (s *Server) wireFile(ctx context.Context, f domain.File) (wire.File, error) {
-	box, path, err := s.library.FileLocation(ctx, f)
+
+type fileReader interface {
+	FileLocation(context.Context, domain.File) (domain.BoxID, string, error)
+	Zone() *time.Location
+	MediaInfo(context.Context, domain.FileID) (library.MediaInfo, error)
+	CapturedInfo(context.Context, domain.File) (library.CapturedInfo, error)
+	FileMetadata(context.Context, domain.FileID) ([]extract.Row, error)
+	FileTags(context.Context, domain.FileID) ([]domain.TagID, error)
+}
+
+func renderFile(ctx context.Context, reader fileReader, f domain.File) (wire.File, error) {
+	box, path, err := reader.FileLocation(ctx, f)
 	if err != nil {
 		return wire.File{}, err
 	}
-	out := wire.NewFile(f, box.String(), path, s.library.Zone())
-	info, err := s.library.MediaInfo(ctx, f.ID)
+	out := wire.NewFile(f, box.String(), path, reader.Zone())
+	info, err := reader.MediaInfo(ctx, f.ID)
 	if err != nil {
 		return out, err
 	}
 	out.MediaType, out.Kind, out.ExtractionPending = info.MIME, info.Kind, info.Pending
+	return out, nil
+}
+
+func renderFileDetail(ctx context.Context, reader fileReader, f domain.File) (fileDetail, error) {
+	item, err := renderFile(ctx, reader, f)
+	if err != nil {
+		return fileDetail{}, err
+	}
+	info, err := reader.CapturedInfo(ctx, f)
+	if err != nil {
+		return fileDetail{}, err
+	}
+	rows, err := reader.FileMetadata(ctx, f.ID)
+	if err != nil {
+		return fileDetail{}, err
+	}
+	tags, err := reader.FileTags(ctx, f.ID)
+	if err != nil {
+		return fileDetail{}, err
+	}
+	out := fileDetail{FileDetail: wire.FileDetail{File: item, CapturedFrom: info.From, CapturedZone: info.Zone, Extracted: info.Extracted, Metadata: make([]wire.Metadata, 0, len(rows))}, Tags: tagStrings(tags)}
+	if out.Extracted == nil {
+		out.Extracted = []string{}
+	}
+	for _, row := range rows {
+		if !row.Tombstone {
+			out.Metadata = append(out.Metadata, wire.Metadata{Key: row.Key, Value: row.Value, Type: string(row.Type), Source: row.Source})
+		}
+	}
 	return out, nil
 }
 func tagStrings(tags []domain.TagID) []string {
@@ -147,7 +188,7 @@ func (s *Server) fileRoutes() {
 		}
 		out := wire.FileList{Files: make([]wire.File, 0, len(files)), Cursor: cursor}
 		for _, f := range files {
-			item, err := s.wireFile(ctx, f)
+			item, err := renderFile(ctx, s.library, f)
 			if err != nil {
 				return nil, failure(err)
 			}
@@ -167,33 +208,8 @@ func (s *Server) fileRoutes() {
 		if !found {
 			return nil, failure(library.ErrNoSuchFile)
 		}
-		item, err := s.wireFile(ctx, f)
-		if err != nil {
-			return nil, failure(err)
-		}
-		info, err := s.library.CapturedInfo(ctx, f)
-		if err != nil {
-			return nil, failure(err)
-		}
-		rows, err := s.library.FileMetadata(ctx, f.ID)
-		if err != nil {
-			return nil, failure(err)
-		}
-		tags, err := s.library.FileTags(ctx, f.ID)
-		if err != nil {
-			return nil, failure(err)
-		}
-		out := fileDetail{FileDetail: wire.FileDetail{File: item, CapturedFrom: info.From, CapturedZone: info.Zone, Extracted: info.Extracted, Metadata: make([]wire.Metadata, 0, len(rows))}, Tags: tagStrings(tags)}
-		if out.Extracted == nil {
-			out.Extracted = []string{}
-		}
-		for _, row := range rows {
-			if row.Tombstone {
-				continue
-			}
-			out.Metadata = append(out.Metadata, wire.Metadata{Key: row.Key, Value: row.Value, Type: string(row.Type), Source: row.Source})
-		}
-		return response(out, nil)
+		out, err := renderFileDetail(ctx, s.library, f)
+		return response(out, err)
 	})
 	huma.Get(s.contract, Prefix+"/boxes/{id}/folders", func(ctx context.Context, in *entityInput) (*output[folderList], error) {
 		id, err := parseID(in.ID)
