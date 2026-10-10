@@ -1,158 +1,188 @@
 {
   "schema": 1,
   "repository": "jinzhao1994/kist",
-  "sha": "cb8e6a20ea5810ebdc0127012e31d2b88f4dbf84",
-  "runId": "38005866214",
+  "sha": "e5cb5d852f66b3f858d779718f71d00882beab78",
+  "runId": "38010796733",
   "attempt": "1",
   "environmentHash": "ff30cdbf2cccb8f30cf697826e58c33ef60a3f9e629f2026b38f54d2dd34ae51",
   "files": [
     {
       "name": "box-files.png",
-      "sha256": "0810b57dd2042e62955df010f8a0ae7ec134c5adc384c2e05f944c82a5c57dc7",
+      "sha256": "84cf30c993516fde6b2f9d70e6f80e4042d133df691948985b4d2cdfd99e9175",
       "width": 1280,
-      "height": 1241
+      "height": 1326
     },
     {
       "name": "boxes.png",
-      "sha256": "f20028feb1bcebc57ef102f4fe8ca24e83ac481de7216b9c49592d34128335ff",
+      "sha256": "b625dde3ed3589678b5bb358104b0f0ef0b7e0f47119b198a4e28e8c784b9199",
       "width": 1280,
       "height": 900
     },
     {
       "name": "detail-blocked.png",
-      "sha256": "dc7349bd1dd5ef8a34d3d6da83762238c3d6bb02591eb78027ccfaca82e7b5ff",
+      "sha256": "a7b0ff0565eb66bb0a93e64d461425a5d3263d5eb5aef9c2ee34c2d47e9f0626",
       "width": 1280,
-      "height": 1241
+      "height": 1326
     },
     {
       "name": "detail-cancelled.png",
-      "sha256": "6e5850164b9f8c8ca8fbd2144748b9dbc3c4e9e61f424ec9060d80974d046f6f",
+      "sha256": "f8e7a5753048c9f16a3fcbf8458d9bb896db97d4999aecfffebd4c755486e9f2",
       "width": 1280,
-      "height": 1241
+      "height": 1326
     },
     {
       "name": "detail-failed.png",
-      "sha256": "8e1da76bf118cf58195d45cd6d7a7ad70ad3055d0032e580794171005d4d9384",
+      "sha256": "ef4929e6c1e82aa709f0b2c589c156d2623f6f3698ff9e96364c22036a3bdbef",
       "width": 1280,
-      "height": 1241
+      "height": 1326
     },
     {
       "name": "detail-queued.png",
-      "sha256": "05715dd81437ec14f6a9466343c6a01a83ebbd8a31ff11865136db4a8df6fe75",
+      "sha256": "a79658355ac0339a5f3e0ab9506fa804c70ec990c9a3c36a68ca220cbc071ca0",
       "width": 1280,
-      "height": 1241
+      "height": 1326
     },
     {
       "name": "detail-ready.png",
-      "sha256": "bbe8af01a60676bf2a942375a7f35e44bc65b7c1613db62abb83590da2b1c5c3",
+      "sha256": "0641ec2614043a8da6dba2702b318982a0eda24d7322d0243239fa617fc2dcbc",
       "width": 1280,
-      "height": 1241
+      "height": 1326
     },
     {
       "name": "detail-running.png",
-      "sha256": "92ceba617dcfd8f6d293a85cd28aafdfb0666e3f6888b2c54947243bebc4f6cb",
+      "sha256": "75505a9d61467229b23c4b4caaeadf40da6dec0eb996f14a3843cc14587e5a97",
       "width": 1280,
-      "height": 1241
+      "height": 1326
     },
     {
       "name": "empty.png",
-      "sha256": "b17ce2ffbf0ae70c0e4eeb4b12fe417f617a876c80c446904b1ae5b5bf4cf048",
+      "sha256": "0ecfb92358df9a25cc7543992bf3ad3d18e47e3abcca0f914714928f214425cf",
       "width": 1280,
       "height": 900
     },
     {
       "name": "english.png",
-      "sha256": "2728bc555d85e812986583715d9872cd00b5730d21e5fe9f0a417d9ac2a608e0",
+      "sha256": "563c10f34d3b7696d7a5ea4a7c06db68df8925aa04f96a53738b15172a70cbda",
       "width": 1280,
       "height": 900
     },
     {
       "name": "grid-archive-dark.png",
-      "sha256": "bdd76c14be10f834358b6128980f87edb8cb7abfc27f1671b29bc13e1845f4ec",
+      "sha256": "75dba4cd53dafb390a64d3eef96cfe177c79cfc61cc6feed32f7854aad7985c4",
       "width": 1280,
-      "height": 1241
+      "height": 1326
     },
     {
       "name": "grid-archive-light.png",
-      "sha256": "5f7e3280fdebaf27131c52a4621a2865bcd5245c5a638faea941af492131f0d9",
+      "sha256": "053cdc22b74a76d8a26a1ff7e5a7bae407c328f136b79154f2d3634e440bf2c7",
       "width": 1280,
-      "height": 1241
+      "height": 1326
     },
     {
       "name": "grid-blossom-dark.png",
-      "sha256": "62e4a916ec7f5ed89d87281da38e9d9302826df3ffd4426c2a0bcf3bd20ba2e5",
+      "sha256": "ff35bb6e24d0be1af57e3aea7d226e29505a4e8be82e05257f90339aac8e76bf",
       "width": 1280,
-      "height": 1241
+      "height": 1326
     },
     {
       "name": "grid-blossom-light.png",
-      "sha256": "c56fab28eafc5d285d30e441bae25d096a5809b66859571524a788ceef1ed36a",
+      "sha256": "f09d811b902ad69ceb90241f597d4ae7c4c608f6439153494f964379504626ef",
       "width": 1280,
-      "height": 1241
+      "height": 1326
     },
     {
       "name": "grid-forest-dark.png",
-      "sha256": "0a7758dbbac3c924e0efad8846fcf277cb5ab9b01f6154d945a05964a7a8afc6",
+      "sha256": "a9b492946f4c75a2a2830760b558ff88bf9c57e03a59dddd4a5d2b8a91f028f2",
       "width": 1280,
-      "height": 1241
+      "height": 1326
     },
     {
       "name": "grid-forest-light.png",
-      "sha256": "1e1fefbb0b77d9c0fc5d636ab2945c8abc36a18ba37de862bdecb1bfb00ef4d8",
+      "sha256": "8a5db1729b78c9c7ed61531b3337ec1f02cf023998da6060dacd90cd2b39ad5d",
       "width": 1280,
-      "height": 1241
+      "height": 1326
     },
     {
       "name": "grid-slate-dark.png",
-      "sha256": "265f5c237e445419b68864947e79a147a23e62bb2878d191a997e947bf64cbf5",
+      "sha256": "b2d74b59256ff3b9afc7cc5bd2b11e6a22ad981e020e147111ac525faaa04d14",
       "width": 1280,
-      "height": 1241
+      "height": 1326
     },
     {
       "name": "grid-slate-light.png",
-      "sha256": "6e470deb26a908603622a76d5eb1a38910e72ab164cb165b1d7bcb557e448d9e",
+      "sha256": "9f1c7a6c90d5a06128089288545dd69c447fbf0e12b71c407031d13c3e6e64a3",
       "width": 1280,
-      "height": 1241
+      "height": 1326
     },
     {
       "name": "grid-sunset-dark.png",
-      "sha256": "59a0e350cd56e925c238a75b304a1edf49a4ce57e919d057d3b40895759231e4",
+      "sha256": "d6dd9208f9194234f4864fa5c1edb6eec56ac14d1d2bea4199a1fb9ba3e6cb2c",
       "width": 1280,
-      "height": 1241
+      "height": 1326
     },
     {
       "name": "grid-sunset-light.png",
-      "sha256": "ebec9658dae0f5fdb746c5ace68f4e50c1664cff21cf72ce09467c6c3595a9f6",
+      "sha256": "040d37a5693827e9a6edc23914f91418d773780471c9f29379be34ca3842087a",
       "width": 1280,
-      "height": 1241
+      "height": 1326
     },
     {
       "name": "grid-wheat-dark.png",
-      "sha256": "33c1454bc44840d328c79e8151bdc742d365804d2a43bface0de4809165a1aaa",
+      "sha256": "72b4a2618b6ceff30ba294b95460221d6d8463a2e835d44f4f43d6563f38399b",
       "width": 1280,
-      "height": 1241
+      "height": 1326
     },
     {
       "name": "grid-wheat-light.png",
-      "sha256": "24f8485db255653e6fab5b047ccba756a3ea416e971c44fb39ea239fb8e92054",
+      "sha256": "d47003109d56b93be65b8a19fc575739595aa9a87084e915b1d5ae0731a77b0b",
       "width": 1280,
-      "height": 1241
+      "height": 1326
+    },
+    {
+      "name": "historical-box.png",
+      "sha256": "4125686b3e13f894cb480e3d1d5f0f09c542e24d3d6820cf20425c638b8b7efa",
+      "width": 1280,
+      "height": 900
+    },
+    {
+      "name": "history.png",
+      "sha256": "64433920d69ed72cb70120153464fb1b803e035d46c391ead2c9860e3af832ef",
+      "width": 1280,
+      "height": 900
     },
     {
       "name": "mobile.png",
-      "sha256": "746a41b12c4dd9094bb0f75fe0c4a2c7a25be736de5401161d48827724d8d1c8",
+      "sha256": "07671159ca104ff011cd0ac4a16b332b207874f11371e470902412e871a7e733",
       "width": 390,
-      "height": 1779
+      "height": 1804
+    },
+    {
+      "name": "operation.png",
+      "sha256": "d7637c18b4e792aabc0d670a3ddd8d7b11c402221446cb22f58204562801c9a8",
+      "width": 1280,
+      "height": 900
     },
     {
       "name": "settings.png",
-      "sha256": "96d17040a901b5535b3a9766f9ed8791f8e415a58e9643abd3ad9bec2e84f4e8",
+      "sha256": "47fa49619ede6ae33d6460d662989d6ab16bd1f0c357fdab206b53d9cef4dd60",
       "width": 1280,
       "height": 900
     },
     {
       "name": "tags.png",
-      "sha256": "d6b7515257655b346f79034bec80696f6702f74fb0a7adafab6e23b859c7d0c4",
+      "sha256": "0c9f8ff40d87ab946ddad66184c3c60a811e8aa267631b687bc47837ea61fef8",
+      "width": 1280,
+      "height": 900
+    },
+    {
+      "name": "trash.png",
+      "sha256": "f4f17e397982fb44ec1548d52940045066a4f808ebd907392f5b153118ecc0c6",
+      "width": 1280,
+      "height": 900
+    },
+    {
+      "name": "version-comparison.png",
+      "sha256": "1aab46074adc7ea0020c47b88b3349fbe4b4b3965209de39ab4ac06e431d559e",
       "width": 1280,
       "height": 900
     }
