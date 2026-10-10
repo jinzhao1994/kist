@@ -2,7 +2,7 @@
 
 Release notes are reviewed in version-named Markdown files in this directory.
 Do not create or push a version tag until the maintainer explicitly authorizes
-publication. A tag triggers a public release operation; workflow dispatch on
+publication. A tag triggers publication of a GitHub Release; workflow dispatch on
 `main` only tests and uploads development artifacts.
 
 1. Run `make check`, commit, push, and inspect CI and Visual on that exact SHA.

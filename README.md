@@ -9,12 +9,9 @@ passports, contracts and lab reports.
 
 One Go binary plus SQLite. Apache-2.0.
 
-> **In development.** The storage kernel, import, integrity tools, queries and
-> metadata extraction are implemented. M4's HTTP API and embedded English/Chinese
-> Web UI have passed browser and end-to-end acceptance testing. Derived media is
-> implemented in M5. M6 adds operation history, read-only historical states,
-> file version comparison, strict undo and recycle-bin restoration.
-> See [Milestones](#milestones).
+> **v0.1.0 is available.** Download the [release archives](https://github.com/jinzhao1994/kist/releases/tag/v0.1.0)
+> or build with Docker. M0–M7 are complete; see [Milestones](#milestones).
+> kist has no built-in login and retains historical originals permanently.
 
 ## The idea
 
@@ -62,8 +59,8 @@ Written in Chinese, and worth reading before the code:
 
 Release archives contain the executable, license and usage documentation.
 See [installation, backup, recovery and upgrades](docs/operations.md) for platform
-selection and checksum verification. Until v0.1 is published, build from source
-or use Docker below; workflow artifacts are development builds.
+selection and checksum verification. Download stable builds from [GitHub Releases](https://github.com/jinzhao1994/kist/releases/tag/v0.1.0).
+Untagged workflow artifacts are development builds. Docker instructions are below.
 
 ## Building from source
 
@@ -295,7 +292,7 @@ operations; ordinary archive writes still require request keys.
 | M4 | HTTP API and embedded web UI | done |
 | M5 | derived media: thumbnails, previews, transcoding; Docker with FFmpeg/libheif | done |
 | M6 | history, historical boxes, file version comparison, strict undo and recycle bin | done |
-| M7 | docs, packaging, v0.1 | in progress |
+| M7 | docs, packaging, v0.1 | done |
 
 ## License
 

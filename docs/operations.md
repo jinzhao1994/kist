@@ -6,8 +6,9 @@ The service account can read and modify every file in its library.
 
 ## Install a binary
 
-Download an archive and `SHA256SUMS` from the same GitHub Release. Before the
-first release, the Release workflow's `dist` artifact is a test build, not a
+Download an archive and `SHA256SUMS` from the same
+[GitHub Release](https://github.com/jinzhao1994/kist/releases/tag/v0.1.0).
+An untagged Release workflow's `dist` artifact is a development build, not a
 published version.
 
 | Machine | Archive |
