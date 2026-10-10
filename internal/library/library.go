@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log/slog"
+	"path/filepath"
 	"time"
 
 	"github.com/jinzhao1994/kist/internal/blob"
@@ -108,7 +109,10 @@ func Open(root string, opts ...Option) (*Library, error) {
 		l.db.Close()
 		return nil, err
 	}
-	if l.blobs, err = blob.NewDir(layout.Blobs(), l.log); err != nil {
+	// Blob publication is independent of the journal/database commit lock.
+	// Every library instance uses the same file, including repair-only opens.
+	blobPlacement := lockfile.New(filepath.Join(layout.Root, "blobs.lock"))
+	if l.blobs, err = blob.NewDir(layout.Blobs(), l.log, blob.WithPlacementLock(blobPlacement.Acquire)); err != nil {
 		l.db.Close()
 		return nil, err
 	}

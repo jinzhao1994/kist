@@ -61,6 +61,12 @@ func (d *Dir) Restore(ctx context.Context, r io.Reader, want Key) (Outcome, erro
 		return 0, fmt.Errorf("%w: wanted %s, got %s", ErrContentMismatch, want.Hex(), got)
 	}
 
+	release, err := d.lockPlacement(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer release()
+
 	dst := filepath.Join(d.root, want.RelPath())
 	_, statErr := os.Stat(dst)
 	switch {

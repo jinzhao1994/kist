@@ -16,14 +16,36 @@ import (
 // Dir stores blobs in a local directory: <root>/sha256/ab/cd/<hex>, with
 // <root>/tmp as the staging area.
 type Dir struct {
-	root string
-	log  *slog.Logger
+	root             string
+	log              *slog.Logger
+	acquirePlacement func(context.Context) (func(), error)
 }
 
 var _ Store = (*Dir)(nil)
 
+// Option configures a local blob directory.
+type Option func(*Dir)
+
+// WithPlacementLock supplies the caller's cross-process lock for final blob
+// placement and repair. Staging and hashing the input do not hold this lock.
+// Callers sharing a writable root must use the same lock file; without this
+// option the caller is responsible for serializing mutations.
+func WithPlacementLock(acquire func(context.Context) (func(), error)) Option {
+	return func(d *Dir) { d.acquirePlacement = acquire }
+}
+
+func (d *Dir) lockPlacement(ctx context.Context) (func(), error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if d.acquirePlacement == nil {
+		return func() {}, nil
+	}
+	return d.acquirePlacement(ctx)
+}
+
 // NewDir prepares root as a blob directory, creating it if needed.
-func NewDir(root string, log *slog.Logger) (*Dir, error) {
+func NewDir(root string, log *slog.Logger, opts ...Option) (*Dir, error) {
 	if log == nil {
 		log = slog.Default()
 	}
@@ -34,7 +56,11 @@ func NewDir(root string, log *slog.Logger) (*Dir, error) {
 	if err := os.MkdirAll(filepath.Join(abs, "tmp"), 0o755); err != nil {
 		return nil, fmt.Errorf("create blob layout: %w", err)
 	}
-	return &Dir{root: abs, log: log}, nil
+	d := &Dir{root: abs, log: log}
+	for _, opt := range opts {
+		opt(d)
+	}
+	return d, nil
 }
 
 // OpenDir opens an existing blob directory without creating anything.
@@ -140,6 +166,11 @@ func (d *Dir) putWithHash(ctx context.Context, r io.Reader, digest string, size 
 
 // place walks the collision suffixes until it finds a home for the staged file.
 func (d *Dir) place(ctx context.Context, tmpPath, digest string, size int64) (PutResult, error) {
+	release, err := d.lockPlacement(ctx)
+	if err != nil {
+		return PutResult{}, err
+	}
+	defer release()
 	for suffix := 0; ; suffix++ {
 		if err := ctx.Err(); err != nil {
 			return PutResult{}, err
