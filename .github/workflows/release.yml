@@ -30,13 +30,19 @@ jobs:
 
       - run: npm --prefix web ci
 
+      - name: Check the release source
+        run: make check
+
       # On a tag, github.ref_name is the tag itself. On workflow_dispatch it is
       # the branch, so VERSION stays empty and the binary honestly reports
       # "dev".
       - name: Cross-compile
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          if [ "${{ github.ref_type }}" = "tag" ]; then
-            make dist VERSION="${{ github.ref_name }}"
+          if [ "$REF_TYPE" = "tag" ]; then
+            make dist VERSION="$REF_NAME"
           else
             make dist
           fi
@@ -62,7 +68,7 @@ jobs:
           - runner: ubuntu-latest
             binary: kist_linux_amd64
             platform: linux/amd64
-          - runner: macos-13 # the last amd64 macOS runner
+          - runner: macos-15-intel # explicit Intel runner; macos-13 is retired
             binary: kist_darwin_amd64
             platform: darwin/amd64
           - runner: macos-latest # arm64
@@ -73,23 +79,24 @@ jobs:
             platform: windows/amd64
     runs-on: ${{ matrix.runner }}
     steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
       - uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist
 
-      # bash on every runner, including Windows, so this stays one step.
-      # upload-artifact drops the executable bit, hence the chmod.
-      - name: Run it
+      - name: Verify and exercise the actual artifact
         shell: bash
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          chmod +x "dist/${{ matrix.binary }}" || true
-          out=$("./dist/${{ matrix.binary }}" version)
-          echo "$out"
-          case "$out" in
-            *"${{ matrix.platform }}"*) ;;
-            *) echo "expected ${{ matrix.platform }} in version output"; exit 1 ;;
-          esac
+          version=dev
+          if [ "$REF_TYPE" = tag ]; then version="$REF_NAME"; fi
+          python scripts/release-smoke.py "dist/${{ matrix.binary }}" "${{ matrix.platform }}" --version "$version"
 
   release:
     needs: smoke
