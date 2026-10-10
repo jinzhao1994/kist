@@ -154,6 +154,10 @@ func GetOp(q Queryer, id int64) (OpRow, bool, error) {
 type ListOpsOptions struct {
 	// Box restricts to ops that touched this box, via the op_boxes index.
 	Box *domain.BoxID
+	// File restricts to the complete history of one file, including deletion.
+	File *domain.FileID
+	// Action restricts to an exact action discriminator.
+	Action string
 	// Group restricts to the ops one command wrote, addressed by any op in
 	// it: nobody wants to type a UUID that is printed nowhere.
 	Group *int64
@@ -178,6 +182,14 @@ func ListOps(q Queryer, opt ListOpsOptions) ([]OpRow, error) {
 		// 94.63ms at 200k ops, and the gap widens forever (spec 2.2.1).
 		sb.WriteString(` AND id IN (SELECT op_id FROM op_boxes WHERE box_id = ?)`)
 		args = append(args, *opt.Box)
+	}
+	if opt.File != nil {
+		sb.WriteString(` AND id IN (SELECT op_id FROM op_files WHERE file_id = ?)`)
+		args = append(args, *opt.File)
+	}
+	if opt.Action != "" {
+		sb.WriteString(` AND action = ?`)
+		args = append(args, opt.Action)
 	}
 	if opt.Group != nil {
 		// A group is named by any op in it, root or not: the group has no id

@@ -213,6 +213,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ops": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 ops */
+        get: operations["get-api-v1-ops"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ops/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 ops by ID */
+        get: operations["get-api-v1-ops-by-id"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ops/{id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 ops by ID undo */
+        post: operations["post-api-v1-ops-by-id-undo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/requests/{key}": {
         parameters: {
             query?: never;
@@ -418,6 +469,31 @@ export interface components {
             /** Format: int64 */
             reverted_by?: number;
         };
+        HistoryDetail: {
+            payload: {
+                [key: string]: unknown;
+            };
+        };
+        HistoryList: {
+            /** Format: int64 */
+            before?: number;
+            ops: components["schemas"]["HistoryOp"][] | null;
+        };
+        HistoryOp: {
+            action: string;
+            /** Format: int64 */
+            id: number;
+            origin: string;
+            /** Format: int64 */
+            reverts_id: number | null;
+            /** Format: int64 */
+            root_op_id?: number;
+            /** Format: date-time */
+            ts: string;
+            undoable: boolean;
+            /** Format: int64 */
+            undone_by: number | null;
+        };
         LibraryInfo: {
             /** Format: int64 */
             max_upload_bytes: number;
@@ -486,6 +562,7 @@ export interface components {
         TagTree: {
             tags: components["schemas"]["Tag"][] | null;
         };
+        UndoInputBody: Record<string, never>;
     };
     responses: never;
     parameters: never;
@@ -1112,6 +1189,110 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LibraryInfo"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-ops": {
+        parameters: {
+            query?: {
+                box?: string;
+                file?: string;
+                action?: string;
+                group?: number;
+                before?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoryList"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-ops-by-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoryDetail"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-ops-by-id-undo": {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UndoInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestResult"];
                 };
             };
             /** @description Error */

@@ -75,6 +75,12 @@ func (l *Library) ExecuteRequest(ctx context.Context, req Request, fn func(conte
 	attempted, opID, writeErr := scope.attempted, scope.opID, scope.err
 	scope.mu.Unlock()
 	if writeErr != nil {
+		// Commands may enrich a pre-commit refusal (for example, Undo names
+		// the blocking op). Never discard a durable/uncertain write outcome.
+		var outcome *WriteOutcomeError
+		if opID == 0 && callbackErr != nil && !errors.As(writeErr, &outcome) {
+			return RequestResult{}, callbackErr
+		}
 		return RequestResult{OpID: opID}, writeErr
 	}
 	if callbackErr != nil {

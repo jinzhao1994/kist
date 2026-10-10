@@ -78,6 +78,7 @@ func New(l *library.Library, opt Options) (*Server, error) {
 	cfg.Transformers = nil // Keep wire JSON identical to the CLI: no injected $schema.
 	s.contract = humago.New(s.mux, cfg)
 	s.readRoutes()
+	s.historyRoutes()
 	s.fileRoutes()
 	s.tagRoutes()
 	s.media = l.Media()
