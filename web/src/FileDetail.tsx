@@ -76,6 +76,9 @@ export function FileDetail({
                   <bdi>{id}</bdi>
                 </dd>
               </dl>
+              {history && (
+                <button onClick={history}>{t("versionHistory")}</button>
+              )}
               <TagAssignment
                 target={id}
                 kind="files"
@@ -86,7 +89,6 @@ export function FileDetail({
           </div>
           <ExtractionStatus files={[data.file]} state={extraction} />
           <h3>{t("metadata")}</h3>
-          {history && <button onClick={history}>{t("versionHistory")}</button>}
           <dl className="metadata-list">
             {data.metadata?.map((row) => (
               <div key={row.key}>
