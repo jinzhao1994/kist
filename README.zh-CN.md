@@ -220,3 +220,10 @@ kist 从不往远端写，也从不信任远端：取回来的内容边读边哈
 Apache-2.0，见 [LICENSE](LICENSE)。
 
 页面视觉回归在 GitHub Actions 的固定 Linux 环境中分别生成已认可版本和当前版本的截图。Git 仅保存已认可提交的 SHA，截图与差异报告保留在 Actions artifacts。审阅后可通过工作流自动校验并更新基准提交，操作见[视觉回归说明](docs/testing/visual.md)。
+
+## 安全与第三方许可
+
+安全问题请按照 [SECURITY.md](SECURITY.md) 私下报告。第三方许可全文记录在
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)，随二进制发布包和容器镜像分发。
+依赖更新后执行 `npm --prefix web ci` 和 `python3 scripts/third-party-notices.py` 重新生成；
+`make check` 会检查通知是否与实际依赖一致。

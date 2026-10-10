@@ -1,5 +1,7 @@
 **
 !LICENSE
+!THIRD_PARTY_NOTICES.md
+!SECURITY.md
 !go.mod
 !go.sum
 !cmd/

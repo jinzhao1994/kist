@@ -40,7 +40,7 @@ jobs:
       image: ${{ steps.release.outputs.image }}
       publish: ${{ steps.release.outputs.publish }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - name: Resolve the published release to an immutable source commit
@@ -79,10 +79,10 @@ jobs:
     steps:
       # Workflow tooling comes from this workflow's commit; build input comes
       # exclusively from the already published release tag's resolved commit.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           path: tooling
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ needs.prepare.outputs.revision }}
           path: source
@@ -117,7 +117,7 @@ jobs:
           docker push "$CANDIDATE"
           mkdir digests
           python3 tooling/scripts/container-release.py digest "$CANDIDATE" "$IMAGE" > "digests/${{ matrix.arch }}"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: needs.prepare.outputs.publish == 'true'
         with:
           name: container-digest-${{ matrix.arch }}
@@ -138,8 +138,8 @@ jobs:
       IMAGE: ${{ needs.prepare.outputs.image }}
       VERSION: ${{ needs.prepare.outputs.version }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           pattern: container-digest-*
           merge-multiple: true
@@ -168,7 +168,7 @@ jobs:
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
           printf '### Published container\n\n`%s:%s`\n\n`%s@%s`\n' "$IMAGE" "$VERSION" "$IMAGE" "$digest" >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: container-release-manifest
           path: index.json
@@ -196,7 +196,7 @@ jobs:
       REVISION: ${{ needs.prepare.outputs.revision }}
       EXPECTED_PLATFORM: linux/${{ matrix.arch }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Pull the published index and repeat acceptance
         run: |
           # A clean Docker config proves public users do not need credentials.

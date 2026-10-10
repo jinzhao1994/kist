@@ -28,7 +28,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends libheif-examples \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=build /out/kist /usr/local/bin/kist
-COPY LICENSE /usr/share/doc/kist/LICENSE
+COPY LICENSE THIRD_PARTY_NOTICES.md SECURITY.md /usr/share/doc/kist/
 ENV TZ=UTC
 USER 10001:10001
 WORKDIR /library

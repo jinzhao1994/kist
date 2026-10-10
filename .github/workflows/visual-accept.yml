@@ -22,10 +22,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: main
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '24'
           cache: npm
@@ -33,7 +33,7 @@ jobs:
       - run: npm --prefix web ci
       - name: Validate source run and current main
         id: source
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           SOURCE_RUN_ID: ${{ inputs.run_id }}
         with:
@@ -53,7 +53,7 @@ jobs:
             core.setOutput('artifact_id', String(matches[0].id));
             core.setOutput('sha', run.head_sha);
             core.setOutput('attempt', String(run.run_attempt));
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           artifact-ids: ${{ steps.source.outputs.artifact_id }}
           path: ${{ runner.temp }}/visual-candidate
@@ -87,11 +87,11 @@ jobs:
           fi
       # GITHUB_TOKEN pushes do not trigger push workflows. Dispatch both explicitly.
       - name: Rerun full CI and visual comparison
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
-            for (const workflow_id of ['ci.yml', 'visual.yml']) {
+            for (const workflow_id of ['ci.yml', 'visual.yml', 'secrets.yml']) {
               await github.rest.actions.createWorkflowDispatch({ ...context.repo, workflow_id, ref: 'main' });
             }
             await core.summary.addHeading('Baselines accepted')
-              .addRaw('The reviewed commit reference is saved; no PNG files are committed. CI and Visual were explicitly dispatched; inspect both runs before considering this change complete.').write();
+              .addRaw('The reviewed commit reference is saved; no PNG files are committed. CI, Visual and Secret scan were explicitly dispatched; inspect both runs before considering this change complete.').write();

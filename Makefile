@@ -25,7 +25,7 @@ GOBUILD := CGO_ENABLED=0 go build -trimpath
 all: check
 
 .PHONY: check
-check: release-check web-check tidy-check fmt-check vet test build ## Everything CI runs, locally
+check: release-check web-check notices-check tidy-check fmt-check vet test build ## Everything CI runs, locally
 
 .PHONY: tidy-check
 tidy-check: ## Fail if go.mod/go.sum are not tidy
@@ -55,7 +55,7 @@ build: web-build ## Build for the host platform into bin/
 	$(GOBUILD) -ldflags '$(LDFLAGS)' -o $(BIN) ./cmd/kist
 
 .PHONY: dist
-dist: web-build ## Cross-compile every release platform into dist/
+dist: web-build notices-check ## Cross-compile every release platform into dist/
 	@rm -rf $(DIST) && mkdir -p $(DIST)
 	@for p in $(PLATFORMS); do \
 		os=$${p%/*}; arch=$${p#*/}; \
@@ -87,3 +87,8 @@ web-check: ## Check generated API types, browser tests, and production assets
 .PHONY: release-check
 release-check: ## Check container publication validation
 	python3 scripts/test-container-release.py
+	python3 scripts/test-package-release.py
+
+.PHONY: notices-check
+notices-check: ## Verify third-party notices against linked production dependencies
+	python3 scripts/third-party-notices.py --check

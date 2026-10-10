@@ -34,3 +34,13 @@ web/visual-results/
 # Disposable source checkout and legacy visual images.
 /.visual-baseline/
 /web/visual/baselines/
+
+# Local deployment settings may contain private addresses or credentials.
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Python release tooling caches.
+__pycache__/
+*.py[cod]

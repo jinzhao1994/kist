@@ -1,0 +1,14 @@
+title = "kist secret scanning"
+
+[extend]
+useDefault = true
+
+# This exact localStorage key is public UI configuration, never a credential.
+[[rules]]
+id = "generic-api-key"
+[[rules.allowlists]]
+description = "Public appearance preference key in the theme module"
+condition = "AND"
+paths = ['''(^|/)web/src/theme\.tsx$''']
+regexTarget = "secret"
+regexes = ['''^kist\.appearance\.v1$''']
