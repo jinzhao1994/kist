@@ -47,14 +47,14 @@ jobs:
             make dist
           fi
 
-      - name: Checksums
-        working-directory: dist
-        run: sha256sum * > SHA256SUMS && cat SHA256SUMS
-
       - uses: actions/upload-artifact@v7
         with:
           name: dist
-          path: dist/
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/SHA256SUMS
+          if-no-files-found: error
 
   # CI already ran the tests per platform, but from source, built on the host.
   # This runs the artifact we are about to hand to users, on the platform we
@@ -66,16 +66,16 @@ jobs:
       matrix:
         include:
           - runner: ubuntu-latest
-            binary: kist_linux_amd64
+            binary: kist_linux_amd64.tar.gz
             platform: linux/amd64
           - runner: macos-15-intel # explicit Intel runner; macos-13 is retired
-            binary: kist_darwin_amd64
+            binary: kist_darwin_amd64.tar.gz
             platform: darwin/amd64
           - runner: macos-latest # arm64
-            binary: kist_darwin_arm64
+            binary: kist_darwin_arm64.tar.gz
             platform: darwin/arm64
           - runner: windows-latest
-            binary: kist_windows_amd64.exe
+            binary: kist_windows_amd64.zip
             platform: windows/amd64
     runs-on: ${{ matrix.runner }}
     steps:
@@ -96,7 +96,7 @@ jobs:
         run: |
           version=dev
           if [ "$REF_TYPE" = tag ]; then version="$REF_NAME"; fi
-          python scripts/release-smoke.py "dist/${{ matrix.binary }}" "${{ matrix.platform }}" --version "$version"
+          python scripts/release-smoke.py "dist/${{ matrix.binary }}" "${{ matrix.platform }}" --version "$version" --commit "$GITHUB_SHA"
 
   release:
     needs: smoke
@@ -105,6 +105,7 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           name: dist
@@ -116,4 +117,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: gh release create "${{ github.ref_name }}" --generate-notes dist/*
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh release create "$RELEASE_TAG" --verify-tag --notes-file "docs/releases/$RELEASE_TAG.md" dist/*

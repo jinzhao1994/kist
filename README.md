@@ -34,9 +34,10 @@ one query, and neither one had to be anticipated at filing time.
 
 ## Why not one of the existing ones
 
-- **Every operation is undoable.** The authority is an append-only op log, not
+- **Business changes support strict undo.** The authority is an append-only op log, not
   the database. Undo appends an inverse op, so undos are themselves undoable,
-  and the whole database can be rebuilt from the log.
+  when later changes do not conflict. Request receipts are not undoable.
+  The whole database can be rebuilt from the log.
 - **Documents and photos in one archive.** Photo managers assume everything has
   an EXIF date; document managers have no idea what to do with 4000 pictures.
 - **Nothing traps your data.** A library is two ordinary directories: content
@@ -57,16 +58,23 @@ Written in Chinese, and worth reading before the code:
 - [`docs/design/open-questions.md`](docs/design/open-questions.md) — what is
   still undecided.
 
+## Installation and operations
+
+Release archives contain the executable, license and usage documentation.
+See [installation, backup, recovery and upgrades](docs/operations.md) for platform
+selection and checksum verification. Until v0.1 is published, build from source
+or use Docker below; workflow artifacts are development builds.
+
 ## Building from source
 
-Go 1.26 or newer and Node.js 24 or newer are needed to build from source.
+Go 1.26.1 or newer and Node.js 24 or newer are needed to build from source.
 The resulting binary includes the web assets and needs neither Node.js nor a C toolchain.
 
 ```sh
 npm --prefix web ci
 make check   # frontend checks plus tidy, gofmt, vet, race tests, and build
 make build   # -> bin/kist
-make dist    # -> dist/, all four release platforms
+make dist    # -> dist/, four platform archives + SHA256SUMS (requires Python 3)
 ```
 
 ## Docker (with FFmpeg)
@@ -199,7 +207,8 @@ kist verify --json | jq -e '.findings | length == 0'   # exit 1 if anything is w
 ```
 
 `find` pages with a cursor: `--json` gives you `.cursor`, and `--cursor` takes
-it back. Errors stay as plain text on stderr with a non-zero exit status.
+it back. Errors go to stderr with a non-zero exit status; `--json` renders
+structured errors with stable codes instead of plain text.
 
 ### Checking that nothing has gone wrong
 
@@ -286,7 +295,7 @@ operations; ordinary archive writes still require request keys.
 | M4 | HTTP API and embedded web UI | done |
 | M5 | derived media: thumbnails, previews, transcoding; Docker with FFmpeg/libheif | done |
 | M6 | history, historical boxes, file version comparison, strict undo and recycle bin | done |
-| M7 | docs, packaging, v0.1 | |
+| M7 | docs, packaging, v0.1 | in progress |
 
 ## License
 

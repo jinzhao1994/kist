@@ -65,6 +65,7 @@ dist: web-build ## Cross-compile every release platform into dist/
 		GOOS=$$os GOARCH=$$arch $(GOBUILD) \
 			-ldflags '$(LDFLAGS) -s -w' -o $$out ./cmd/kist || exit 1; \
 	done
+	python3 scripts/package-release.py
 	@ls -lh $(DIST)
 
 .PHONY: clean

@@ -6,12 +6,15 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import shutil
 import socket
 import subprocess
+import tarfile
 import tempfile
 import time
 import urllib.error
 import urllib.request
+import zipfile
 
 
 def main():
@@ -19,9 +22,12 @@ def main():
     parser.add_argument("binary", type=Path)
     parser.add_argument("platform")
     parser.add_argument("--version", default="dev")
+    parser.add_argument("--commit", help="expected source commit")
     args = parser.parse_args()
     binary = args.binary.resolve()
     checksums = binary.parent / "SHA256SUMS"
+    if binary.name.endswith((".tar.gz", ".zip")) and not checksums.exists():
+        raise RuntimeError("Release archive is missing SHA256SUMS")
     if checksums.exists():
         entries = dict(line.split(maxsplit=1)[::-1] for line in checksums.read_text().splitlines())
         assert hashlib.sha256(binary.read_bytes()).hexdigest() == entries[binary.name]
@@ -30,6 +36,21 @@ def main():
     # A separate cwd proves the UI is embedded rather than read from the checkout.
     with tempfile.TemporaryDirectory(prefix="kist-release-") as temporary:
         work = Path(temporary)
+        if binary.name.endswith((".tar.gz", ".zip")):
+            executable = "kist.exe" if args.platform.startswith("windows/") else "kist"
+            expected = {executable, "LICENSE", "README.md", "README.zh-CN.md", "operations.md"}
+            if binary.suffix == ".zip":
+                with zipfile.ZipFile(binary) as archive:
+                    assert set(archive.namelist()) == expected
+                    content = archive.read(executable)
+            else:
+                with tarfile.open(binary) as archive:
+                    assert set(archive.getnames()) == expected
+                    assert all(member.isfile() for member in archive.getmembers())
+                    content = archive.extractfile(executable).read()
+            binary = work / executable
+            binary.write_bytes(content)
+            binary.chmod(0o755)
         library = work / "library"
 
         def cli(*command):
@@ -44,6 +65,9 @@ def main():
         version = cli("version")
         assert version["platform"] == args.platform, version
         assert version["version"] == args.version, version
+        if args.commit:
+            assert version["commit"] == args.commit[:12], version
+            assert version["dirty"] is False, version
         print(json.dumps(version), flush=True)
         cli("init", str(library), "--yes")
         cli("box", "new", "Release smoke")
@@ -58,6 +82,19 @@ def main():
         deleted = cli("undo", str(imported))["undone_by"]
         assert not cli("find")["files"]
         cli("undo", str(deleted))
+        cli("rebuild", "--yes")
+        cli("relink")
+        cli("verify", "--deep")
+        cli("scrub")
+        assert cli("find")["files"][0]["id"] == file_id
+
+        # Restore only authoritative data and settings, as the operations guide says.
+        restored = work / "restored"
+        restored.mkdir()
+        shutil.copy2(library / "kist.toml", restored / "kist.toml")
+        for directory in ("ops", "blobs"):
+            shutil.copytree(library / directory, restored / directory)
+        library = restored
         cli("rebuild", "--yes")
         cli("relink")
         cli("verify", "--deep")
