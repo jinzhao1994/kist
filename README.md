@@ -314,4 +314,4 @@ operations; ordinary archive writes still require request keys.
 
 Apache-2.0. See [LICENSE](LICENSE).
 
-Visual regression checks run in GitHub Actions with committed Linux-generated baselines. See [reviewing and updating screenshots](docs/testing/visual.md) for reports and the automated baseline acceptance workflow.
+Visual regression checks run in GitHub Actions by capturing the last approved commit and the current commit in the same Linux environment. Git stores only the approved commit reference; screenshots stay in Actions artifacts. See [reviewing and updating screenshots](docs/testing/visual.md) for reports and the automated baseline acceptance workflow.

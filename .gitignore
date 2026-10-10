@@ -30,3 +30,7 @@
 docs/review/
 
 web/visual-results/
+
+# Disposable source checkout and legacy visual images.
+/.visual-baseline/
+/web/visual/baselines/

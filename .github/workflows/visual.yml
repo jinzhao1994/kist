@@ -16,9 +16,11 @@ concurrency:
 jobs:
   screenshots:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
@@ -29,20 +31,36 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm --prefix web ci
+      - name: Resolve approved revision (PRs use their base branch reference)
+        id: baseline
+        env:
+          REFERENCE_REVISION: ${{ github.event.pull_request.base.sha || github.sha }}
+        run: node web/scripts/visual-artifacts.mjs resolve "$REFERENCE_REVISION" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.baseline.outputs.sha }}
+          path: .visual-baseline
+          persist-credentials: false
+      - run: npm --prefix .visual-baseline/web ci
+      - run: npm --prefix .visual-baseline/web run build
+      - run: CGO_ENABLED=0 go build -o bin/kist ./cmd/kist
+        working-directory: .visual-baseline
       - run: npm --prefix web run build
       - run: CGO_ENABLED=0 go build -o bin/kist ./cmd/kist
       - name: Capture in pinned Linux Chromium environment
         run: |
-          # The host writes the manifest after the container creates screenshots.
-          mkdir -p web/visual-results/candidate
           image=$(node -p 'require("./web/visual/environment.json").image')
-          docker run --rm --ipc=host --platform linux/amd64 \
-            -v "$PWD:/work" -w /work/web -e CI=true \
-            "$image" npx --no-install playwright test
+          for side in baseline candidate; do
+            docker run --rm --ipc=host --platform linux/amd64 \
+              -v "$PWD:/work" -w /work/web -e CI=true \
+              "$image" node scripts/visual-capture.mjs "$side"
+          done
       - name: Validate complete candidate
         id: candidate
-        run: node web/scripts/visual-artifacts.mjs prepare
-      - name: Compare against committed baselines
+        run: |
+          node web/scripts/visual-artifacts.mjs prepare baseline
+          node web/scripts/visual-artifacts.mjs prepare candidate
+      - name: Compare freshly captured approved and current revisions
         run: node web/scripts/visual-artifacts.mjs compare
       - name: Upload candidate
         id: upload-candidate
@@ -62,7 +80,8 @@ jobs:
           path: |
             web/visual-results/report/
             web/visual-results/test-results/
-            web/visual-results/capture.json
+            web/visual-results/baseline/capture.json
+            web/visual-results/candidate/capture.json
           if-no-files-found: warn
           retention-days: 30
       - name: Summarize

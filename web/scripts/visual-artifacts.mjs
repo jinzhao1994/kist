@@ -1,13 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { PNG } from "pngjs";
 import pixelmatch from "pixelmatch";
 
 const web = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const results = path.join(web, "visual-results");
-const baseline = path.join(web, "visual/baselines");
+const referenceFile = path.join(web, "visual/baseline.json");
 const environment = JSON.parse(
   fs.readFileSync(path.join(web, "visual/environment.json")),
 );
@@ -112,10 +113,14 @@ export function validateCandidate(directory, expected) {
   const manifest = JSON.parse(
     fs.readFileSync(path.join(directory, "manifest.json")),
   );
-  requireThat(manifest.schema === 1, "Unknown manifest schema");
+  requireThat(manifest.schema === 2, "Unknown manifest schema");
   for (const [key, value] of Object.entries(expected))
     requireThat(manifest[key] === value, `Manifest mismatch: ${key}`);
   requireThat(/^[a-f0-9]{40}$/.test(manifest.sha), "Invalid source SHA");
+  requireThat(
+    /^[a-f0-9]{40}$/.test(manifest.baselineSha),
+    "Invalid baseline SHA",
+  );
   const names = captureNames(
     JSON.parse(fs.readFileSync(path.join(directory, "capture.json"))),
   );
@@ -145,18 +150,74 @@ export function validateCandidate(directory, expected) {
   });
   return { manifest, files };
 }
+export function validateReference(reference) {
+  requireThat(reference.schema === 1, "Unknown baseline reference schema");
+  requireThat(
+    /^[a-f0-9]{40}$/.test(reference.approvedCommit),
+    "Invalid approved commit",
+  );
+  requireThat(
+    /^[a-f0-9]{64}$/.test(reference.environmentHash),
+    "Invalid approved environment",
+  );
+  requireThat(
+    /^[1-9][0-9]*$/.test(reference.reviewedRunId),
+    "Invalid reviewed run",
+  );
+  return reference;
+}
+function reference() {
+  const captured = path.join(results, "reference.json");
+  return validateReference(
+    JSON.parse(
+      fs.readFileSync(fs.existsSync(captured) ? captured : referenceFile),
+    ),
+  );
+}
+export function resolveReference(repository, ref = "HEAD") {
+  requireThat(
+    ref === "HEAD" || /^[a-f0-9]{40}$/.test(ref),
+    "Invalid reference revision",
+  );
+  const approved = validateReference(
+    JSON.parse(
+      execFileSync("git", ["show", `${ref}:web/visual/baseline.json`], {
+        cwd: repository,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      }),
+    ),
+  );
+  execFileSync(
+    "git",
+    ["merge-base", "--is-ancestor", approved.approvedCommit, "HEAD"],
+    { cwd: repository, stdio: ["ignore", "pipe", "pipe"] },
+  );
+  return approved;
+}
+function resolve(ref = "HEAD") {
+  const approved = resolveReference(web, ref);
+  fs.mkdirSync(results, { recursive: true });
+  fs.writeFileSync(
+    path.join(results, "reference.json"),
+    JSON.stringify(approved),
+  );
+  console.log(`sha=${approved.approvedCommit}`);
+}
 function context() {
   return {
     repository: process.env.GITHUB_REPOSITORY,
     sha: process.env.SOURCE_SHA || process.env.GITHUB_SHA,
+    baselineSha: process.env.BASELINE_SHA || reference().approvedCommit,
     runId: process.env.SOURCE_RUN_ID || process.env.GITHUB_RUN_ID,
     attempt: process.env.SOURCE_ATTEMPT || process.env.GITHUB_RUN_ATTEMPT,
     environmentHash,
   };
 }
-function prepare() {
-  const directory = path.join(results, "candidate");
-  const report = fs.readFileSync(path.join(results, "capture.json"));
+function prepare(side) {
+  requireThat(["candidate", "baseline"].includes(side), "Invalid capture side");
+  const directory = path.join(results, side);
+  const report = fs.readFileSync(path.join(directory, "capture.json"));
   const names = captureNames(JSON.parse(report));
   const files = names.map((name) => {
     const { bytes, decoded, ...entry } = png(
@@ -164,12 +225,13 @@ function prepare() {
     );
     return entry;
   });
-  fs.writeFileSync(path.join(directory, "capture.json"), report);
+  const provenance = context();
+  if (side === "baseline") provenance.sha = provenance.baselineSha;
   fs.writeFileSync(
     path.join(directory, "manifest.json"),
-    JSON.stringify({ schema: 1, ...context(), files }, null, 2) + "\n",
+    JSON.stringify({ schema: 2, ...provenance, files }, null, 2) + "\n",
   );
-  validateCandidate(directory, context());
+  validateCandidate(directory, provenance);
 }
 export function difference(a, b) {
   if (a.width !== b.width || a.height !== b.height)
@@ -188,26 +250,30 @@ const escape = (text) =>
         char
       ],
   );
-function compare() {
-  const { files } = validateCandidate(
-    path.join(results, "candidate"),
-    context(),
+export function compareCandidates(
+  candidate,
+  baseline,
+  report,
+  expected,
+  approved,
+) {
+  validateReference(approved);
+  requireThat(
+    expected.baselineSha === approved.approvedCommit,
+    "Baseline reference changed",
   );
-  const report = path.join(results, "report");
+  const { files } = validateCandidate(candidate, expected);
+  const { files: oldFiles } = validateCandidate(baseline, {
+    ...expected,
+    sha: approved.approvedCommit,
+  });
   fs.mkdirSync(report, { recursive: true });
-  const oldNames = fs.existsSync(baseline)
-    ? fs.readdirSync(baseline).filter((name) => name.endsWith(".png"))
-    : [];
+  const oldNames = oldFiles.map((file) => file.name);
   const changes = [],
     sections = [];
-  const baselineManifest = path.join(baseline, "manifest.json");
-  if (
-    fs.existsSync(baselineManifest) &&
-    JSON.parse(fs.readFileSync(baselineManifest)).environmentHash !==
-      environmentHash
-  )
+  if (approved.environmentHash !== expected.environmentHash)
     changes.push(
-      "Capture environment changed; review and regenerate baselines",
+      "Capture environment changed; both revisions were captured in the new environment; review required",
     );
   for (const file of files) {
     fs.writeFileSync(path.join(report, `current-${file.name}`), file.bytes);
@@ -215,7 +281,7 @@ function compare() {
     let result = { changed: true, pixels: null },
       status = "NEW";
     if (exists) {
-      const old = png(path.join(baseline, file.name));
+      const old = oldFiles.find((old) => old.name === file.name);
       fs.writeFileSync(path.join(report, `expected-${file.name}`), old.bytes);
       result = difference(old.decoded, file.decoded);
       status = result.changed
@@ -232,50 +298,66 @@ function compare() {
     );
   }
   for (const name of oldNames)
-    if (!files.some((file) => file.name === name))
+    if (!files.some((file) => file.name === name)) {
       changes.push(`${name}: REMOVED`);
+      fs.writeFileSync(
+        path.join(report, `expected-${name}`),
+        oldFiles.find((file) => file.name === name).bytes,
+      );
+      sections.push(
+        `<section><h2>${escape(name)} — REMOVED</h2><img src="expected-${name}" alt="Removed baseline screenshot"></section>`,
+      );
+    }
   const summary = `${files.length} screenshots; ${changes.length} differences`;
   fs.writeFileSync(
     path.join(report, "index.html"),
-    `<!doctype html><meta charset="utf-8"><title>kist visual report</title><style>body{font:16px system-ui;margin:24px;background:#fafafa;color:#222}.images{display:flex;align-items:flex-start;gap:12px}figure{margin:0;flex:1;min-width:0}img{width:100%;border:1px solid #ccc}section{border-top:1px solid #bbb;margin-top:24px}figcaption{padding:8px}</style><h1>${summary}</h1><p>Commit ${escape(context().sha)} · run ${escape(context().runId)}</p><pre>${escape(changes.join("\n"))}</pre>${sections.join("")}`,
+    `<!doctype html><meta charset="utf-8"><title>kist visual report</title><style>body{font:16px system-ui;margin:24px;background:#fafafa;color:#222}.images{display:flex;align-items:flex-start;gap:12px}figure{margin:0;flex:1;min-width:0}img{width:100%;border:1px solid #ccc}section{border-top:1px solid #bbb;margin-top:24px}figcaption{padding:8px}</style><h1>${summary}</h1><p>Baseline ${escape(approved.approvedCommit)} · current ${escape(expected.sha)} · run ${escape(expected.runId)}</p><pre>${escape(changes.join("\n"))}</pre>${sections.join("")}`,
+  );
+  return { summary, changes };
+}
+function compare() {
+  const { summary, changes } = compareCandidates(
+    path.join(results, "candidate"),
+    path.join(results, "baseline"),
+    path.join(results, "report"),
+    context(),
+    reference(),
   );
   fs.writeFileSync(
     path.join(results, "summary.md"),
-    `## Visual: ${summary}\n\nSource: \`${context().sha}\`\n\n${changes.map((change) => `- ${change}`).join("\n")}\n\nDownload the visual report artifact and open report/index.html for expected/current/diff images. Baselines are never accepted automatically.\n`,
+    `## Visual: ${summary}\n\nBaseline: \`${reference().approvedCommit}\`\nCurrent: \`${context().sha}\`\n\n${changes.map((change) => `- ${change}`).join("\n")}\n\nDownload the report and open report/index.html. Approval updates only the baseline commit reference, never PNG files.\n`,
   );
   console.log(summary);
   if (changes.length) process.exitCode = 1;
 }
-function accept(directory) {
-  const { manifest, files } = validateCandidate(directory, context());
-  fs.mkdirSync(baseline, { recursive: true });
-  // Validate the entire candidate before touching any tracked baseline.
-  for (const name of fs.readdirSync(baseline)) {
-    requireThat(
-      /^[a-z0-9-]+\.png$/.test(name) || name === "manifest.json",
-      "Unexpected tracked baseline file",
-    );
-    regular(path.join(baseline, name));
-  }
-  for (const name of fs.readdirSync(baseline))
-    fs.unlinkSync(path.join(baseline, name));
-  for (const file of files)
-    fs.writeFileSync(path.join(baseline, file.name), file.bytes);
-  fs.writeFileSync(
-    path.join(baseline, "manifest.json"),
-    JSON.stringify(manifest, null, 2) + "\n",
+export function acceptCandidate(directory, expected, destination) {
+  const approved = validateReference(JSON.parse(fs.readFileSync(destination)));
+  requireThat(
+    expected.baselineSha === approved.approvedCommit,
+    "Baseline reference changed",
   );
+  const { manifest } = validateCandidate(directory, expected);
+  const next = validateReference({
+    schema: 1,
+    approvedCommit: manifest.sha,
+    environmentHash: manifest.environmentHash,
+    reviewedRunId: manifest.runId,
+  });
+  fs.writeFileSync(destination, JSON.stringify(next, null, 2) + "\n");
 }
+
 if (
   process.argv[1] &&
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
   const command = process.argv[2];
-  if (command === "prepare") prepare();
+  if (command === "resolve") resolve(process.argv[3]);
+  else if (command === "prepare") prepare(process.argv[3] || "candidate");
   else if (command === "compare") compare();
-  else if (command === "accept") accept(path.resolve(process.argv[3]));
+  else if (command === "accept")
+    acceptCandidate(path.resolve(process.argv[3]), context(), referenceFile);
   else
     throw new Error(
-      "Expected prepare, compare, or accept <candidate-directory>",
+      "Expected resolve [ref], prepare [candidate|baseline], compare, or accept <candidate-directory>",
     );
 }

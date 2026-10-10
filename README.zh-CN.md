@@ -219,4 +219,4 @@ kist 从不往远端写，也从不信任远端：取回来的内容边读边哈
 
 Apache-2.0，见 [LICENSE](LICENSE)。
 
-页面视觉回归在 GitHub Actions 的固定 Linux 环境运行，基准图入库，差异报告保留在 Actions artifacts。审阅后可通过工作流自动下载、校验并提交新基准，操作见[视觉回归说明](docs/testing/visual.md)。
+页面视觉回归在 GitHub Actions 的固定 Linux 环境中分别生成已认可版本和当前版本的截图。Git 仅保存已认可提交的 SHA，截图与差异报告保留在 Actions artifacts。审阅后可通过工作流自动校验并更新基准提交，操作见[视觉回归说明](docs/testing/visual.md)。

@@ -60,7 +60,7 @@ jobs:
           merge-multiple: true
           github-token: ${{ github.token }}
           run-id: ${{ inputs.run_id }}
-      - name: Validate and install reviewed candidate
+      - name: Validate reviewed candidate and update reference
         env:
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
           SOURCE_RUN_ID: ${{ inputs.run_id }}
@@ -68,7 +68,7 @@ jobs:
         run: |
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           node web/scripts/visual-artifacts.mjs accept "$RUNNER_TEMP/visual-candidate"
-      - name: Commit baselines without overwriting newer work
+      - name: Commit reference without overwriting newer work
         id: commit
         env:
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
@@ -77,11 +77,11 @@ jobs:
           test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$SOURCE_SHA"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add web/visual/baselines
+          git add web/visual/baseline.json
           if git diff --cached --quiet; then
             echo 'changed=false' >> "$GITHUB_OUTPUT"
           else
-            git commit -m "更新已审阅的页面视觉基准（运行 $SOURCE_RUN_ID）"
+            git commit -m "更新已审阅的页面视觉基准提交（运行 $SOURCE_RUN_ID）"
             git push origin HEAD:main
             echo 'changed=true' >> "$GITHUB_OUTPUT"
           fi
@@ -94,4 +94,4 @@ jobs:
               await github.rest.actions.createWorkflowDispatch({ ...context.repo, workflow_id, ref: 'main' });
             }
             await core.summary.addHeading('Baselines accepted')
-              .addRaw('The reviewed candidate is committed. CI and Visual were explicitly dispatched; inspect both runs before considering this change complete.').write();
+              .addRaw('The reviewed commit reference is saved; no PNG files are committed. CI and Visual were explicitly dispatched; inspect both runs before considering this change complete.').write();
