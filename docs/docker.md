@@ -5,17 +5,19 @@ The GHCR image `ghcr.io/jinzhao1994/kist:v0.1.0` supports `linux/amd64` and
 arm64 for Docker on Apple Silicon. Both images include FFmpeg, ffprobe, libheif
 and timezone data, and run as UID/GID `10001:10001`.
 
+For DSM web-only setup with a dedicated user and a shared-folder bind mount,
+see the [Synology guide (Chinese)](synology.zh-CN.md).
+
 ## Install a new library
 
 Save the repository's `compose.image.yaml` in a persistent deployment directory.
 It is standalone; no source build is needed. Keep this directory and Compose
 project name stable because they determine the default named volume's name.
 
-The image is public even while the source repository remains private. Pulling
-requires no GitHub account, personal access token or `docker login`. In a NAS
-registry interface, use `ghcr.io` and image `jinzhao1994/kist:v0.1.0` with anonymous
-access. The Compose file and these docs remain subject to repository access;
-share a copy of the standalone Compose file with users who cannot read the repo.
+The image and source repository are public. Pulling requires no GitHub account,
+personal access token or `docker login`. Use
+`ghcr.io/jinzhao1994/kist:v0.1.0` with anonymous access; if the NAS registry UI
+cannot browse GHCR, use its Compose project interface instead.
 
 For local access, defaults work without an `.env` file. For a trusted LAN, create
 `.env` next to the Compose file, substituting your NAS address:

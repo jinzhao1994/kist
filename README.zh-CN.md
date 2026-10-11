@@ -63,6 +63,8 @@ make dist    # -> dist/，四平台压缩包与 SHA256SUMS（需要 Python 3）
 
 ## Docker（内置 FFmpeg）
 
+群晖用户请看[网页部署指南](docs/synology.zh-CN.md)：专用用户、共享文件夹直接挂载，全程无需 SSH。
+
 预构建镜像支持 Linux amd64 / arm64，Docker 会自动选择本机架构。使用 `compose.image.yaml`，详见 [NAS 部署与升级说明](docs/docker.md)。GHCR 镜像公开，无需 GitHub 账号、PAT 或 registry 登录：
 
 ```sh

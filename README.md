@@ -77,6 +77,8 @@ make dist    # -> dist/, four platform archives + SHA256SUMS (requires Python 3)
 
 ## Docker (with FFmpeg)
 
+For Synology's web interface, see the [Synology guide (Chinese)](docs/synology.zh-CN.md).
+
 For prebuilt Linux amd64/arm64 images, use `compose.image.yaml`; see the
 [NAS installation and upgrade guide](docs/docker.md). The GHCR image is public;
 no GitHub account or registry login is needed:
