@@ -11,4 +11,4 @@ description = "Public appearance preference key in the theme module"
 condition = "AND"
 paths = ['''(^|/)web/src/theme\.tsx$''']
 regexTarget = "secret"
-regexes = ['''^kist\.appearance\.v1$''']
+regexes = ['''^kist\.appearance\.v[12]$''']
