@@ -87,6 +87,7 @@ web-check: ## Check generated API types, browser tests, and production assets
 .PHONY: release-check
 release-check: ## Check container publication validation
 	python3 scripts/test-container-release.py
+	python3 scripts/test-container-channel.py
 	python3 scripts/test-package-release.py
 
 .PHONY: notices-check

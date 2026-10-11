@@ -74,7 +74,25 @@ Release tags are never overwritten by the publication workflow. To also pin the
 registry content, copy the multi-platform index digest from the successful
 **Container Release** run's summary and use
 `KIST_IMAGE=ghcr.io/jinzhao1994/kist@sha256:...`. Docker still selects the matching
-architecture. There is no `latest` alias or automatic upgrade service.
+architecture.
+
+| Tag | Updated when | Intended use |
+| --- | --- | --- |
+| `vX.Y.Z` | Once, for that stable release | Reproducible NAS deployments |
+| `latest` | GitHub's latest stable release image passes native acceptance on both architectures | Following stable releases |
+| `edge` | Current main passes push CI and native image acceptance on both architectures | Development previews |
+
+All images are published at `ghcr.io/jinzhao1994/kist`. Channel updates reuse the
+verified multi-platform index digest. Old queued runs recheck the current source
+before promotion, so backfilling an older release cannot roll back `latest`.
+The **Container Latest** and **Container Edge** workflow summaries record the
+source revision and digest. Both workflows also support manual dispatch on main
+for initial publication or recovery; manual edge runs still require successful
+push CI for the current main commit.
+
+To opt in, set `KIST_IMAGE=ghcr.io/jinzhao1994/kist:latest` (or `:edge`) and use the
+same pull/recreate commands above. Running containers do not update themselves;
+there is no automatic upgrade service. Edge may contain unreleased changes.
 
 Downgrades are not guaranteed; restore the matching backup if a newer version
 has introduced incompatible data or operations. Keep the same volume and project

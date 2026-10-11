@@ -1,0 +1,91 @@
+name: Container Latest
+
+on:
+  workflow_run:
+    workflows: [Container Release]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: container-latest
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.source.outputs.version }}
+      revision: ${{ steps.source.outputs.revision }}
+      image: ${{ steps.source.outputs.image }}
+      digest: ${{ steps.source.outputs.digest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - name: Resolve the latest stable release's existing image
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/container-channel.py prepare latest "$GITHUB_REPOSITORY" >> "$GITHUB_OUTPUT"
+
+  verify:
+    needs: prepare
+    name: pull and verify (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      IMAGE_REF: ${{ needs.prepare.outputs.image }}@${{ needs.prepare.outputs.digest }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+      REVISION: ${{ needs.prepare.outputs.revision }}
+      EXPECTED_PLATFORM: linux/${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Pull the published index and repeat acceptance
+        run: |
+          # A clean Docker config proves public users do not need credentials.
+          export DOCKER_CONFIG="$RUNNER_TEMP/kist-docker-anonymous"
+          mkdir -p "$DOCKER_CONFIG"
+          docker pull --platform "$EXPECTED_PLATFORM" "$IMAGE_REF"
+          python3 scripts/container-release.py check-image "$IMAGE_REF" "$VERSION" "$REVISION"
+          sh scripts/docker-smoke.sh "$IMAGE_REF" "$EXPECTED_PLATFORM" "$VERSION"
+          printf 'Verified `%s` on `%s`, including media and persistent storage.\n' "$IMAGE_REF" "$EXPECTED_PLATFORM" >> "$GITHUB_STEP_SUMMARY"
+
+  promote:
+    needs: [prepare, verify]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      IMAGE: ${{ needs.prepare.outputs.image }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+      REVISION: ${{ needs.prepare.outputs.revision }}
+      DIGEST: ${{ needs.prepare.outputs.digest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - name: Promote only the still-current verified candidate
+        run: |
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          python3 scripts/container-channel.py promote latest "$GITHUB_REPOSITORY" "$VERSION" "$REVISION" "$DIGEST"
