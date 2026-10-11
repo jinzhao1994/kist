@@ -413,6 +413,32 @@ summary {
   align-items: center;
   gap: 0.5rem;
 }
+select:not([multiple]):not([size]),
+select[size="1"]:not([multiple]) {
+  appearance: none;
+  padding-inline-end: 2.5rem;
+  background-image:
+    linear-gradient(45deg, transparent 40%, currentColor 40% 60%, transparent 60%),
+    linear-gradient(135deg, transparent 40%, currentColor 40% 60%, transparent 60%);
+  background-position:
+    right 21px center,
+    right 16px center;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+select:not([multiple]):not([size]):dir(rtl),
+select[size="1"]:not([multiple]):dir(rtl) {
+  background-position:
+    left 16px center,
+    left 21px center;
+}
+@media (forced-colors: active) {
+  select:not([multiple]):not([size]),
+  select[size="1"]:not([multiple]) {
+    appearance: auto;
+    background-image: none;
+  }
+}
 input[type="checkbox"] {
   inline-size: auto;
 }
