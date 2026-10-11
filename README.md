@@ -64,7 +64,7 @@ Untagged workflow artifacts are development builds. Docker instructions are belo
 
 ## Building from source
 
-Go 1.26.1 or newer and Node.js 24 or newer are needed to build from source.
+Go 1.26.1 or newer and Node.js 24 LTS or 26+ are needed to build from source.
 Checks and release packaging also require Python 3.
 The resulting binary includes the web assets and needs neither Node.js nor a C toolchain.
 
