@@ -474,5 +474,22 @@ test("automatic-pagination", async ({ page }, info) => {
   });
   await expect(page.getByRole("button", { name: /last.pdf/ })).toBeVisible();
   expect(nextRequests).toBe(1);
+  await page.evaluate(() => document.fonts.ready);
+  // The appended virtual row can settle after the total-count text updates.
+  // Pin the completed footer inside the viewport before capturing.
+  await expect
+    .poll(() =>
+      page.locator(".load-more").evaluate((footer) => {
+        const main = footer.closest("main")!;
+        main.scrollTop = main.scrollHeight;
+        return Math.max(
+          0,
+          footer.getBoundingClientRect().bottom -
+            main.getBoundingClientRect().bottom,
+        );
+      }),
+    )
+    .toBe(0);
+  await expect(page.locator(".load-more")).toBeInViewport({ ratio: 1 });
   await capture(page, errors, info.title);
 });
