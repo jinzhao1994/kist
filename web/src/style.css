@@ -48,9 +48,13 @@ small {
 .app-shell {
   display: grid;
   grid-template-columns: 228px minmax(0, 1fr);
-  min-height: 100dvh;
+  block-size: 100dvh;
+  overflow: hidden;
 }
 .sidebar {
+  min-block-size: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
   padding: 2rem 1.3rem;
   background: var(--sidebar);
   border-inline-end: 1px solid var(--border);
@@ -101,6 +105,9 @@ small {
 }
 main {
   min-width: 0;
+  min-block-size: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
   padding: 2.4rem clamp(1.2rem, 4vw, 4.2rem);
 }
 .page-header {
@@ -192,6 +199,14 @@ main {
 @media (max-width: 680px) {
   .app-shell {
     grid-template-columns: 1fr;
+    block-size: auto;
+    min-block-size: 100dvh;
+    overflow: visible;
+  }
+  .sidebar,
+  main {
+    overflow: visible;
+    overscroll-behavior: auto;
   }
   .sidebar {
     padding: 0.85rem 1.2rem;
@@ -401,9 +416,6 @@ progress {
   margin-block: 1rem;
 }
 .file-scroll {
-  block-size: 65dvh;
-  min-block-size: 280px;
-  overflow: auto;
   padding: 4px;
   border-radius: 8px;
 }

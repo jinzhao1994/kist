@@ -49,6 +49,7 @@ type Options = {
   language?: "zh" | "en";
   empty?: boolean;
   mobile?: boolean;
+  manyFiles?: boolean;
 };
 async function prepare(page: Page, options: Options = {}) {
   if (options.mobile) await page.setViewportSize({ width: 390, height: 844 });
@@ -173,7 +174,18 @@ async function prepare(page: Page, options: Options = {}) {
         max_upload_files: 100,
       };
     else if (path === "/boxes/box-1/tags") body = { tags: ["tag-1"] };
-    else if (path === "/files") body = { files: options.empty ? [] : files };
+    else if (path === "/files")
+      body = {
+        files: options.empty
+          ? []
+          : options.manyFiles
+            ? Array.from({ length: 100 }, (_, index) => ({
+                ...files[2],
+                id: `scroll-${index}`,
+                name: `document-${index}.pdf`,
+              }))
+            : files,
+      };
     else if (/^\/files\/file-[1-4]$/.test(path))
       body = {
         file: files[Number(path.at(-1)) - 1],
@@ -266,8 +278,27 @@ for (const scenario of [
           ? "/files"
           : "/",
     );
-    if (scenario === "box-files" || scenario === "mobile")
-      await grid(page, scenario === "mobile" ? 2 : 3);
+    if (scenario === "mobile") {
+      await expect(page.locator(".file-count")).toContainText("4");
+      await page
+        .locator(".file-scroll")
+        .evaluate((element) =>
+          window.scrollTo(
+            0,
+            element.getBoundingClientRect().top + window.scrollY,
+          ),
+        );
+      await grid(page);
+      expect(
+        await page.locator("main").evaluate((element) => element.scrollTop),
+      ).toBe(0);
+      expect(
+        await page
+          .locator(".file-scroll")
+          .evaluate((element) => element.scrollTop),
+      ).toBe(0);
+      expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+    } else if (scenario === "box-files") await grid(page);
     else if (scenario === "empty")
       await expect(page.locator(".empty-state")).toBeVisible();
     else await expect(page.locator(".box-card")).toHaveCount(2);
@@ -366,3 +397,36 @@ for (const mode of ["light", "dark"] as const) {
     await capture(page, errors, info.title);
   });
 }
+
+test("independent-scroll", async ({ page }, info) => {
+  const errors = await prepare(page, { manyFiles: true });
+  await page.goto("/files");
+  await expect(page.locator(".file-count")).toContainText("100");
+  const sidebar = page.locator(".sidebar");
+  const main = page.locator("main");
+  await sidebar.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  expect(
+    await sidebar.evaluate((element) => element.scrollTop),
+  ).toBeGreaterThan(0);
+  expect(await main.evaluate((element) => element.scrollTop)).toBe(0);
+  const sidebarTop = await sidebar.evaluate((element) => element.scrollTop);
+  await main.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  await expect(
+    page.getByRole("button", { name: /document-99.pdf/ }),
+  ).toBeVisible();
+  expect(await sidebar.evaluate((element) => element.scrollTop)).toBe(
+    sidebarTop,
+  );
+  expect(await page.locator(".file-card").count()).toBeLessThan(30);
+  expect(
+    await page.locator(".file-scroll").evaluate((element) => element.scrollTop),
+  ).toBe(0);
+  expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBe(
+    page.viewportSize()!.height,
+  );
+  await capture(page, errors, info.title);
+});
