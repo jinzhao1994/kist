@@ -280,14 +280,20 @@ for (const scenario of [
     );
     if (scenario === "mobile") {
       await expect(page.locator(".file-count")).toContainText("4");
-      await page
-        .locator(".file-scroll")
-        .evaluate((element) =>
-          window.scrollTo(
-            0,
-            element.getBoundingClientRect().top + window.scrollY,
-          ),
-        );
+      await page.evaluate(() => document.fonts.ready);
+      // Column measurement changes the document height after the first render.
+      // Wait for the requested scroll position, not just the file-count text.
+      await expect
+        .poll(() =>
+          page.locator(".file-scroll").evaluate((element) => {
+            window.scrollTo(
+              0,
+              element.getBoundingClientRect().top + window.scrollY,
+            );
+            return Math.abs(element.getBoundingClientRect().top);
+          }),
+        )
+        .toBeLessThan(1);
       await grid(page);
       expect(
         await page.locator("main").evaluate((element) => element.scrollTop),
