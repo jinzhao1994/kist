@@ -181,9 +181,10 @@ histories may exceed the 30-second request limit and return a retryable error.
 
 **Display settings** separates English/Chinese language, regional number/date
 formatting, display timezone and reading direction. These preferences stay in
-the browser. Choose Old Paper, Moonlit Moss, Golden Fields, Cherry Rain, Ocean Whispers, or
-Apricot Dusk independently from Light, Dark,
-or Follow system appearance; system changes apply automatically in Follow system
+the browser. Mantine controls support gray, green, yellow, pink, blue, and orange
+primary colors, independently from Light, Dark, or Follow system appearance.
+Existing skin preferences migrate to the corresponding primary color. System
+changes apply automatically in Follow system
 mode. The grid loads derived thumbnails, and details generate larger image
 previews or H.264/AAC video on demand. Unsupported files keep an original
 download link.

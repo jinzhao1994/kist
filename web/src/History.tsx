@@ -1,3 +1,4 @@
+import { Button, UnstyledButton, TextInput } from "@mantine/core";
 import { useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import {
@@ -8,6 +9,7 @@ import {
   type HistoricalFile,
   type Tag,
 } from "./api";
+import { Select } from "./Select";
 import { Dialog } from "./Dialog";
 import {
   en,
@@ -34,7 +36,7 @@ function QueryError({
   return (
     <div role="alert">
       <p>{errorMessage(error, t)}</p>
-      <button onClick={() => retry()}>{t("retry")}</button>
+      <Button onClick={() => retry()}>{t("retry")}</Button>
     </div>
   );
 }
@@ -71,27 +73,22 @@ export function HistoryPage({
     <section className="history-page">
       {trash && <p className="notice">{t("trashHint")}</p>}
       <div className="history-toolbar">
-        <label>
-          {t("historyScope")}
-          <select
-            value={box || ""}
-            onChange={(event) => scope(event.target.value || undefined)}
-          >
-            <option value="">{t("allHistory")}</option>
-            {box && !boxes.some((item) => item.id === box) && (
-              <option value={box}>{box}</option>
-            )}
-            {boxes.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select
+          label={t("historyScope")}
+          value={box || ""}
+          onValueChange={(value) => scope(value || undefined)}
+          options={[
+            { value: "", label: t("allHistory") },
+            ...(box && !boxes.some((item) => item.id === box)
+              ? [{ value: box, label: box }]
+              : []),
+            ...boxes.map((item) => ({ value: item.id, label: item.name })),
+          ]}
+        />
         {file && (
           <p>
             {t("versionHistory")} · <bdi>{file}</bdi>
-            <button onClick={() => scope()}>{t("allHistory")}</button>
+            <Button onClick={() => scope()}>{t("allHistory")}</Button>
           </p>
         )}
       </div>
@@ -105,7 +102,7 @@ export function HistoryPage({
       <ol className="history-list">
         {ops.map((op) => (
           <li key={op.id}>
-            <button
+            <UnstyledButton
               className="history-entry"
               onClick={() => setSelected(op.id)}
             >
@@ -121,27 +118,27 @@ export function HistoryPage({
                     ? t("reverts", { id: op.reverts_id })
                     : ""}
               </span>
-            </button>
+            </UnstyledButton>
             {file && (
-              <button
+              <UnstyledButton
                 className="text-button"
                 onClick={() =>
                   setVersions({ file, from: Math.max(0, op.id - 1), to: op.id })
                 }
               >
                 {t("compareVersions")}
-              </button>
+              </UnstyledButton>
             )}
           </li>
         ))}
       </ol>
       {query.hasNextPage && (
-        <button
+        <Button
           disabled={query.isFetchingNextPage}
           onClick={() => query.fetchNextPage()}
         >
           {t(query.isFetchingNextPage ? "loading" : "loadMore")}
-        </button>
+        </Button>
       )}
       {selected !== undefined && (
         <OperationDetail
@@ -227,52 +224,52 @@ function OperationDetail({
             <time>{formatInstant(op.ts, prefs)}</time>
           </p>
           {op.reverts_id && (
-            <button onClick={() => select(op.reverts_id!)}>
+            <Button onClick={() => select(op.reverts_id!)}>
               {t("reverts", { id: op.reverts_id })}
-            </button>
+            </Button>
           )}
           {op.undone_by && (
-            <button onClick={() => select(op.undone_by!)}>
+            <Button onClick={() => select(op.undone_by!)}>
               {t("undoneBy", { id: op.undone_by })}
-            </button>
+            </Button>
           )}
           <div className="actions">
-            <button
+            <Button
               disabled={
                 !op.undoable || !!op.undone_by || writes.busy || writes.locked
               }
               onClick={() => setConfirm(true)}
             >
               {t(deleting ? "restore" : "undo")}
-            </button>
+            </Button>
           </div>
           {confirm && (
             <div className="notice">
               <p>{t("undoConfirm")}</p>
               <div className="actions">
-                <button
-                  className="primary"
+                <Button
+                  variant="filled"
                   disabled={writes.busy || writes.locked}
                   onClick={() =>
                     writes.run([createWrite("POST", `/ops/${id}/undo`, {})])
                   }
                 >
                   {t(writes.busy ? "saving" : deleting ? "restore" : "undo")}
-                </button>
-                <button
+                </Button>
+                <Button
                   disabled={writes.busy}
                   onClick={() => setConfirm(false)}
                 >
                   {t("cancel")}
-                </button>
+                </Button>
               </div>
             </div>
           )}
           <WriteFeedback state={writes} />
           {blocking && (
-            <button onClick={() => select(blocking)}>
+            <Button onClick={() => select(blocking)}>
               {t("blockedBy", { id: blocking })} · {t("viewOperation")}
-            </button>
+            </Button>
           )}
           {!!op.boxes?.length && (
             <>
@@ -281,11 +278,11 @@ function OperationDetail({
                 {op.boxes.map((box) => (
                   <li key={box}>
                     <bdi>{box}</bdi>{" "}
-                    <button
+                    <Button
                       onClick={() => viewBox(box, deleting ? id - 1 : id)}
                     >
                       {t(deleting ? "viewBeforeDeletion" : "viewHistoricalBox")}
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>
@@ -298,12 +295,12 @@ function OperationDetail({
                 {op.files.map((file) => (
                   <li key={file}>
                     <bdi>{fileName(op.payload, file)}</bdi>{" "}
-                    <button onClick={() => fileHistory(file)}>
+                    <Button onClick={() => fileHistory(file)}>
                       {t("versionHistory")}
-                    </button>
-                    <button onClick={() => compare(file, id)}>
+                    </Button>
+                    <Button onClick={() => compare(file, id)}>
                       {t("compareVersions")}
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>
@@ -405,9 +402,9 @@ function HistoricalBoxDialog({
               .flatMap((page) => page.files || [])
               .map((file) => (
                 <li key={file.id}>
-                  <button onClick={() => compare(file.id)}>
+                  <Button onClick={() => compare(file.id)}>
                     <bdi>{file.path || file.name}</bdi>
-                  </button>
+                  </Button>
                   <a
                     className="button-link"
                     href={historicalContent(file.id, op)}
@@ -420,12 +417,12 @@ function HistoricalBoxDialog({
           </ul>
           {!first.files?.length && <p>{t("noFiles")}</p>}
           {query.hasNextPage && (
-            <button
+            <Button
               disabled={query.isFetchingNextPage}
               onClick={() => query.fetchNextPage()}
             >
               {t("loadMore")}
-            </button>
+            </Button>
           )}
         </>
       )}
@@ -527,7 +524,7 @@ function VersionComparison({
       >
         <label>
           {t("beforeVersion")}
-          <input
+          <TextInput
             type="number"
             min="0"
             value={draftFrom}
@@ -536,14 +533,16 @@ function VersionComparison({
         </label>
         <label>
           {t("afterVersion")}
-          <input
+          <TextInput
             type="number"
             min="1"
             value={draftTo}
             onChange={(event) => setDraftTo(event.target.value)}
           />
         </label>
-        <button disabled={!valid || pending}>{t("compare")}</button>
+        <Button type="submit" disabled={!valid || pending}>
+          {t("compare")}
+        </Button>
       </form>
       {pending && <p role="status">{t("loading")}</p>}
       {before.isError && (

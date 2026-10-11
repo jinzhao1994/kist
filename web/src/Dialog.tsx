@@ -1,5 +1,5 @@
-import * as Primitive from "@radix-ui/react-dialog";
-import { useState, type ReactNode } from "react";
+import { Modal } from "@mantine/core";
+import { useId, useState, type ReactNode } from "react";
 import { useI18n } from "./i18n";
 export function Dialog({
   open,
@@ -17,36 +17,31 @@ export function Dialog({
   className?: string;
 }) {
   const { t } = useI18n();
+  const descriptionId = useId();
   const [opener] = useState(() =>
     document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null,
   );
   return (
-    <Primitive.Root open={open} onOpenChange={onOpenChange}>
-      <Primitive.Portal>
-        <Primitive.Overlay className="dialog-overlay" />
-        <Primitive.Content
-          className={`dialog ${className}`}
-          onCloseAutoFocus={(event) => {
-            event.preventDefault();
-            opener?.focus();
-          }}
-        >
-          <div className="dialog-heading">
-            <Primitive.Title>
-              <bdi>{title}</bdi>
-            </Primitive.Title>
-            <Primitive.Close className="icon-button" aria-label={t("close")}>
-              ×
-            </Primitive.Close>
-          </div>
-          <Primitive.Description className={description ? "" : "sr-only"}>
-            {description || title}
-          </Primitive.Description>
-          {children}
-        </Primitive.Content>
-      </Primitive.Portal>
-    </Primitive.Root>
+    <Modal
+      opened={open}
+      onClose={() => {
+        onOpenChange(false);
+        requestAnimationFrame(() => {
+          if (opener?.isConnected) opener.focus();
+        });
+      }}
+      title={<bdi>{title}</bdi>}
+      size={
+        className === "detail-dialog" ? "min(1100px, calc(100vw - 2rem))" : "md"
+      }
+      centered
+      closeButtonProps={{ "aria-label": t("close") }}
+      aria-describedby={description ? descriptionId : undefined}
+    >
+      {description && <p id={descriptionId}>{description}</p>}
+      {children}
+    </Modal>
   );
 }

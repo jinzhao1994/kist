@@ -1,7 +1,9 @@
+import { TextInput, Button, Checkbox, MultiSelect } from "@mantine/core";
 import { useId } from "react";
 import type { FileQuery, Tag } from "./api";
 import { flattenTags } from "./Tags";
 import { useI18n } from "./i18n";
+import { Select } from "./Select";
 export type Filters = Omit<FileQuery, "box" | "folder" | "cursor" | "limit">;
 export const emptyFilters: Filters = {
   name: "",
@@ -31,62 +33,55 @@ export function FiltersPanel({
     <details className="filters-panel" open>
       <summary>{t("filters")}</summary>
       <div className="filter-fields">
-        <label htmlFor={`${id}-name`}>{t("search")}</label>
-        <input
+        <TextInput
           id={`${id}-name`}
+          label={t("search")}
           type="search"
           value={value.name || ""}
           onChange={(e) => change({ name: e.target.value })}
         />
-        <label htmlFor={`${id}-kind`}>{t("kind")}</label>
-        <select
+        <Select
           id={`${id}-kind`}
+          label={t("kind")}
           value={value.kind?.[0] || ""}
-          onChange={(e) =>
-            change({ kind: e.target.value ? [e.target.value] : [] })
-          }
-        >
-          <option value="">{t("allTypes")}</option>
-          {(["image", "video", "audio", "document", "other"] as const).map(
-            (kind) => (
-              <option key={kind} value={kind}>
-                {t(kind)}
-              </option>
+          onValueChange={(kind) => change({ kind: kind ? [kind] : [] })}
+          options={[
+            { value: "", label: t("allTypes") },
+            ...(["image", "video", "audio", "document", "other"] as const).map(
+              (kind) => ({ value: kind, label: t(kind) }),
             ),
-          )}
-        </select>
-        <label htmlFor={`${id}-sort`}>{t("sort")}</label>
-        <select
+          ]}
+        />
+        <Select
           id={`${id}-sort`}
-          value={value.sort}
-          onChange={(e) => change({ sort: e.target.value as Filters["sort"] })}
-        >
-          <option value="captured">{t("captured")}</option>
-          <option value="imported">{t("imported")}</option>
-          <option value="name">{t("filename")}</option>
-        </select>
-        <label className="checkbox-label">
-          <input
-            type="checkbox"
-            checked={!!value.asc}
-            onChange={(e) => change({ asc: e.target.checked })}
-          />
-          {t("ascending")}
-        </label>
+          label={t("sort")}
+          value={value.sort || "captured"}
+          onValueChange={(sort) => change({ sort: sort as Filters["sort"] })}
+          options={[
+            { value: "captured", label: t("captured") },
+            { value: "imported", label: t("imported") },
+            { value: "name", label: t("filename") },
+          ]}
+        />
+        <Checkbox
+          label={t("ascending")}
+          checked={!!value.asc}
+          onChange={(e) => change({ asc: e.currentTarget.checked })}
+        />
         <div className="field-pair">
           <div>
-            <label htmlFor={`${id}-from`}>{t("from")}</label>
-            <input
+            <TextInput
               id={`${id}-from`}
+              label={t("from")}
               value={value.from || ""}
               onChange={(e) => change({ from: e.target.value })}
               placeholder="2026"
             />
           </div>
           <div>
-            <label htmlFor={`${id}-to`}>{t("to")}</label>
-            <input
+            <TextInput
               id={`${id}-to`}
+              label={t("to")}
               value={value.to || ""}
               onChange={(e) => change({ to: e.target.value })}
               placeholder="2026-12"
@@ -100,34 +95,23 @@ export function FiltersPanel({
             ["tag_not", "tagNot"],
           ] as const
         ).map(([field, label]) => (
-          <div key={field}>
-            <label htmlFor={`${id}-${field}`}>{t(label)}</label>
-            <select
-              multiple
-              size={Math.min(4, Math.max(2, flat.length))}
-              id={`${id}-${field}`}
-              value={value[field] || []}
-              onChange={(e) =>
-                change({
-                  [field]: Array.from(
-                    e.target.selectedOptions,
-                    (option) => option.value,
-                  ),
-                })
-              }
-            >
-              {flat.map((tag) => (
-                <option key={tag.id} value={tag.id}>
-                  {"　".repeat(tag.depth)}
-                  {tag.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <MultiSelect
+            key={field}
+            label={t(label)}
+            id={`${id}-${field}`}
+            value={value[field] || []}
+            onChange={(values) => change({ [field]: values })}
+            data={flat.map((tag) => ({
+              value: tag.id,
+              label: `${"　".repeat(tag.depth)}${tag.name}`,
+            }))}
+            searchable
+            clearable
+          />
         ))}
-        <button onClick={() => onChange({ ...emptyFilters })}>
+        <Button onClick={() => onChange({ ...emptyFilters })}>
           {t("clearFilters")}
-        </button>
+        </Button>
       </div>
     </details>
   );

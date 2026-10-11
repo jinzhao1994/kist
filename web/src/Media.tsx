@@ -1,3 +1,4 @@
+import { Button } from "@mantine/core";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -149,23 +150,23 @@ export function Media({
       {detail && enabled && (
         <>
           {busy && (
-            <button
+            <Button
               disabled={action.isPending}
               onClick={() => action.mutate("cancel")}
             >
               {t("cancel")}
-            </button>
+            </Button>
           )}
           {terminal && (
-            <button
+            <Button
               disabled={action.isPending}
               onClick={() => action.mutate("retry")}
             >
               {t("retry")}
-            </button>
+            </Button>
           )}
           {(query.isError || failed) && (
-            <button
+            <Button
               disabled={query.isFetching}
               onClick={() => {
                 setFailedGeneration("");
@@ -173,7 +174,7 @@ export function Media({
               }}
             >
               {t("retry")}
-            </button>
+            </Button>
           )}
           {action.isError && <p role="alert">{t("mediaRequestFailed")}</p>}
         </>

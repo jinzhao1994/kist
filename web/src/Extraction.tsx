@@ -1,3 +1,4 @@
+import { Button } from "@mantine/core";
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { api, createWrite, type ArchiveFile } from "./api";
@@ -107,9 +108,9 @@ export function ExtractionStatus({
           aria-label={t("extracting")}
         />
       ) : (
-        <button onClick={() => state.run(files)}>
+        <Button onClick={() => state.run(files)}>
           {t(state.failed ? "retry" : "extract")}
-        </button>
+        </Button>
       )}
     </div>
   );

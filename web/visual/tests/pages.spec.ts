@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { themes, type Appearance } from "../../src/theme";
+import { colors, type Appearance } from "../../src/theme";
 import type { ArchiveFile, Box, MediaJob, Tag } from "../../src/api";
 
 const time = "2026-01-02T10:30:00Z";
@@ -43,7 +43,7 @@ const files: ArchiveFile[] = [
 const landscape = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600"><rect width="800" height="600" fill="#d7e4df"/><circle cx="620" cy="130" r="58" fill="#f5d99a"/><path d="M0 460L260 120 530 460Z" fill="#718c7c"/><path d="M250 520L560 220 800 460V600H0V460Z" fill="#a4b9a3"/><path d="M0 520Q400 450 800 520V600H0Z" fill="#577c83"/></svg>`;
 
 type Options = {
-  theme?: Appearance["theme"];
+  primaryColor?: Appearance["primaryColor"];
   mode?: Appearance["mode"];
   state?: MediaJob["state"];
   language?: "zh" | "en";
@@ -53,10 +53,10 @@ type Options = {
 async function prepare(page: Page, options: Options = {}) {
   if (options.mobile) await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(
-    ({ theme, mode, language }) => {
+    ({ primaryColor, mode, language }) => {
       localStorage.setItem(
-        "kist.appearance.v1",
-        JSON.stringify({ theme, mode }),
+        "kist.appearance.v2",
+        JSON.stringify({ primaryColor, mode }),
       );
       localStorage.setItem(
         "kist.display.v1",
@@ -69,7 +69,7 @@ async function prepare(page: Page, options: Options = {}) {
       );
     },
     {
-      theme: options.theme || "archive",
+      primaryColor: options.primaryColor || "blue",
       mode: options.mode || "light",
       language: options.language || "zh",
     },
@@ -234,10 +234,10 @@ async function grid(page: Page, expectedImages = 3) {
     )
     .toBe(true);
 }
-for (const theme of Object.keys(themes) as Appearance["theme"][]) {
+for (const primaryColor of colors) {
   for (const mode of ["light", "dark"] as const) {
-    test(`grid-${theme}-${mode}`, async ({ page }, info) => {
-      const errors = await prepare(page, { theme, mode });
+    test(`grid-${primaryColor}-${mode}`, async ({ page }, info) => {
+      const errors = await prepare(page, { primaryColor, mode });
       await page.goto("/files");
       await grid(page);
       await capture(page, errors, info.title);
@@ -350,6 +350,19 @@ for (const scenario of [
       await page.getByRole("button", { name: "比较版本", exact: true }).click();
       await expect(page.getByText("此时尚不存在或已删除")).toBeVisible();
     }
+    await capture(page, errors, info.title);
+  });
+}
+
+for (const mode of ["light", "dark"] as const) {
+  test(`filter-menu-${mode}`, async ({ page }, info) => {
+    const errors = await prepare(page, { mode });
+    await page.goto("/files");
+    await grid(page);
+    await page.getByRole("combobox", { name: "排序", exact: true }).click();
+    await expect(
+      page.getByRole("option", { name: "文件名", exact: true }),
+    ).toBeVisible();
     await capture(page, errors, info.title);
   });
 }

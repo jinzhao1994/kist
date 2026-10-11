@@ -1,3 +1,4 @@
+import { Button } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { api, contentURL, type Tag } from "./api";
 import { Dialog } from "./Dialog";
@@ -37,7 +38,7 @@ export function FileDetail({
       {query.isError && (
         <div role="alert">
           <p>{errorMessage(query.error, t)}</p>
-          <button onClick={() => query.refetch()}>{t("retry")}</button>
+          <Button onClick={() => query.refetch()}>{t("retry")}</Button>
         </div>
       )}
       {data && (
@@ -77,7 +78,7 @@ export function FileDetail({
                 </dd>
               </dl>
               {history && (
-                <button onClick={history}>{t("versionHistory")}</button>
+                <Button onClick={history}>{t("versionHistory")}</Button>
               )}
               <TagAssignment
                 target={id}

@@ -1,3 +1,4 @@
+import { Button } from "@mantine/core";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { api, type Box, type Tag, type ArchiveFile } from "./api";
 import type { Filters } from "./Filters";
@@ -73,7 +74,7 @@ export function FileBrowser({
       {query.isError && (
         <div role="alert">
           <p>{errorMessage(query.error, t)}</p>
-          <button onClick={() => query.refetch()}>{t("retry")}</button>
+          <Button onClick={() => query.refetch()}>{t("retry")}</Button>
         </div>
       )}
       {query.data && (
@@ -95,12 +96,12 @@ export function FileBrowser({
           )}
           {query.hasNextPage && (
             <div className="load-more">
-              <button
+              <Button
                 disabled={query.isFetchingNextPage}
                 onClick={() => query.fetchNextPage()}
               >
                 {t(query.isFetchingNextPage ? "loading" : "loadMore")}
-              </button>
+              </Button>
             </div>
           )}
         </>

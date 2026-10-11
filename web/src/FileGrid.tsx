@@ -1,3 +1,4 @@
+import { UnstyledButton } from "@mantine/core";
 import { useEffect, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ArchiveFile } from "./api";
@@ -91,7 +92,7 @@ export function FileGrid({
               .map((file, offset) => {
                 const index = row.index * columns + offset;
                 return (
-                  <button
+                  <UnstyledButton
                     className="file-card"
                     key={file.id}
                     ref={(node) => {
@@ -132,7 +133,7 @@ export function FileGrid({
                     <small>
                       <bdi>{file.path || file.name}</bdi>
                     </small>
-                  </button>
+                  </UnstyledButton>
                 );
               })}
           </div>

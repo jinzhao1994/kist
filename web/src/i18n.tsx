@@ -1,3 +1,4 @@
+import { useDirection } from "@mantine/core";
 import {
   createContext,
   useContext,
@@ -87,13 +88,13 @@ export const en = {
   allFiles: "All files",
   tags: "Tags",
   settings: "Display settings",
-  theme: "Theme",
-  themeArchive: "Old Paper",
-  themeForest: "Moonlit Moss",
-  themeWheat: "Golden Fields",
-  themeBlossom: "Cherry Rain",
-  themeSunset: "Apricot Dusk",
-  themeSlate: "Ocean Whispers",
+  primaryColor: "Primary color",
+  gray: "Gray",
+  green: "Green",
+  yellow: "Yellow",
+  pink: "Pink",
+  blue: "Blue",
+  orange: "Orange",
   colorMode: "Appearance",
   modeSystem: "Follow system",
   modeLight: "Light",
@@ -273,13 +274,13 @@ export const zh: Record<MessageKey, string> = {
   allFiles: "全部文件",
   tags: "标签",
   settings: "显示设置",
-  theme: "主题",
-  themeArchive: "旧纸藏光",
-  themeForest: "青苔映月",
-  themeWheat: "麦野流金",
-  themeBlossom: "樱雨初晴",
-  themeSunset: "橘暮余晖",
-  themeSlate: "碧海听澜",
+  primaryColor: "主色",
+  gray: "灰色",
+  green: "绿色",
+  yellow: "黄色",
+  pink: "粉色",
+  blue: "蓝色",
+  orange: "橙色",
   colorMode: "明暗模式",
   modeSystem: "跟随系统",
   modeLight: "浅色",
@@ -464,15 +465,17 @@ const I18nContext = createContext<{
 } | null>(null);
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [prefs, setPrefs] = useState(initialPreferences);
+  const { setDirection } = useDirection();
   useEffect(() => {
     document.documentElement.lang = prefs.language;
     document.documentElement.dir = directionFor(prefs);
+    setDirection(directionFor(prefs));
     try {
       window.localStorage.setItem(storageKey, JSON.stringify(prefs));
     } catch {
       /* The current session still retains preferences. */
     }
-  }, [prefs]);
+  }, [prefs, setDirection]);
   return (
     <I18nContext value={{ prefs, setPrefs, t: translator(prefs) }}>
       {children}

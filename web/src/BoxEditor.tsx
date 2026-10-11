@@ -1,3 +1,4 @@
+import { TextInput, Textarea, Button } from "@mantine/core";
 import { useId, useState } from "react";
 import { createWrite, type Box } from "./api";
 import { Dialog } from "./Dialog";
@@ -34,7 +35,7 @@ export function BoxEditor({ box, close }: { box?: Box; close: () => void }) {
       >
         <fieldset disabled={state.busy || state.locked}>
           <label htmlFor={`${id}-name`}>{t("name")}</label>
-          <input
+          <TextInput
             id={`${id}-name`}
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -43,7 +44,7 @@ export function BoxEditor({ box, close }: { box?: Box; close: () => void }) {
             autoFocus
           />
           <label htmlFor={`${id}-description`}>{t("description")}</label>
-          <textarea
+          <Textarea
             id={`${id}-description`}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -52,7 +53,7 @@ export function BoxEditor({ box, close }: { box?: Box; close: () => void }) {
           <div className="field-pair">
             <div>
               <label htmlFor={`${id}-start`}>{t("startAt")}</label>
-              <input
+              <TextInput
                 id={`${id}-start`}
                 value={start}
                 onChange={(e) => setStart(e.target.value)}
@@ -61,7 +62,7 @@ export function BoxEditor({ box, close }: { box?: Box; close: () => void }) {
             </div>
             <div>
               <label htmlFor={`${id}-end`}>{t("endAt")}</label>
-              <input
+              <TextInput
                 id={`${id}-end`}
                 value={end}
                 onChange={(e) => setEnd(e.target.value)}
@@ -75,12 +76,16 @@ export function BoxEditor({ box, close }: { box?: Box; close: () => void }) {
         </fieldset>
         <WriteFeedback state={state} />
         <div className="actions">
-          <button type="button" disabled={state.busy} onClick={close}>
+          <Button type="button" disabled={state.busy} onClick={close}>
             {t("cancel")}
-          </button>
-          <button className="primary" disabled={state.busy || state.locked}>
+          </Button>
+          <Button
+            variant="filled"
+            type="submit"
+            disabled={state.busy || state.locked}
+          >
             {t(state.busy ? "saving" : "save")}
-          </button>
+          </Button>
         </div>
       </form>
     </Dialog>

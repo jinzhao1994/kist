@@ -1,4 +1,10 @@
 import {
+  MantineProvider,
+  DirectionProvider,
+  createTheme,
+  Button,
+} from "@mantine/core";
+import {
   createContext,
   useContext,
   useLayoutEffect,
@@ -6,40 +12,51 @@ import {
   type ReactNode,
 } from "react";
 
-export const themes = {
-  archive: "themeArchive",
-  forest: "themeForest",
-  wheat: "themeWheat",
-  blossom: "themeBlossom",
-  slate: "themeSlate",
-  sunset: "themeSunset",
-} as const;
+export const colors = [
+  "gray",
+  "green",
+  "yellow",
+  "pink",
+  "blue",
+  "orange",
+] as const;
 export type Appearance = {
-  theme: keyof typeof themes;
+  primaryColor: (typeof colors)[number];
   mode: "system" | "light" | "dark";
 };
-export const appearanceKey = "kist.appearance.v1";
+export const appearanceKey = "kist.appearance.v2";
+const legacyColors: Record<string, Appearance["primaryColor"]> = {
+  archive: "gray",
+  forest: "green",
+  wheat: "yellow",
+  blossom: "pink",
+  slate: "blue",
+  sunset: "orange",
+};
 export function readAppearance(): Appearance {
   try {
-    const value = JSON.parse(localStorage.getItem(appearanceKey) || "null");
+    const raw = localStorage.getItem(appearanceKey);
+    const value = JSON.parse(
+      raw ?? localStorage.getItem("kist.appearance.v1") ?? "null",
+    );
+    const primaryColor =
+      raw === null ? legacyColors[value?.theme] : value?.primaryColor;
     return {
-      theme:
-        typeof value?.theme === "string" && Object.hasOwn(themes, value.theme)
-          ? value.theme
-          : "archive",
+      primaryColor: colors.includes(primaryColor) ? primaryColor : "blue",
       mode: ["system", "light", "dark"].includes(value?.mode)
         ? value.mode
         : "system",
     };
   } catch {
-    return { theme: "archive", mode: "system" };
+    return { primaryColor: "blue", mode: "system" };
   }
 }
 export function applyAppearance(value: Appearance, systemDark: boolean) {
   const mode =
     value.mode === "system" ? (systemDark ? "dark" : "light") : value.mode;
-  document.documentElement.dataset.theme = value.theme;
+  delete document.documentElement.dataset.theme;
   document.documentElement.dataset.mode = mode;
+  document.documentElement.dataset.mantineColorScheme = mode;
   document.documentElement.style.colorScheme = mode;
 }
 export function initializeAppearance() {
@@ -52,23 +69,52 @@ const ThemeContext = createContext<{
   appearance: Appearance;
   setAppearance: (value: Appearance) => void;
 } | null>(null);
-export function ThemeProvider({ children }: { children: ReactNode }) {
+export function ThemeProvider({
+  children,
+  env = "default",
+}: {
+  children: ReactNode;
+  env?: "default" | "test";
+}) {
   const [appearance, setAppearance] = useState(readAppearance);
+  const [systemDark, setSystemDark] = useState(
+    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
+  );
   useLayoutEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const apply = () => applyAppearance(appearance, media.matches);
-    apply();
-    media.addEventListener("change", apply);
+    const update = () => setSystemDark(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  useLayoutEffect(() => {
+    applyAppearance(appearance, systemDark);
     try {
       localStorage.setItem(appearanceKey, JSON.stringify(appearance));
     } catch {
-      // The active session still retains the preference when storage is unavailable.
+      /* The active session retains preferences when storage is unavailable. */
     }
-    return () => media.removeEventListener("change", apply);
-  }, [appearance]);
+  }, [appearance, systemDark]);
+  const mode =
+    appearance.mode === "system"
+      ? systemDark
+        ? "dark"
+        : "light"
+      : appearance.mode;
+  const theme = createTheme({
+    primaryColor: appearance.primaryColor,
+    autoContrast: true,
+    components: {
+      Button: Button.extend({ defaultProps: { variant: "default" } }),
+    },
+  });
   return (
     <ThemeContext value={{ appearance, setAppearance }}>
-      {children}
+      <DirectionProvider>
+        <MantineProvider theme={theme} forceColorScheme={mode} env={env}>
+          {children}
+        </MantineProvider>
+      </DirectionProvider>
     </ThemeContext>
   );
 }

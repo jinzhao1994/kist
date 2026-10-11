@@ -1,3 +1,4 @@
+import { ThemeProvider } from "./theme";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -81,9 +82,11 @@ afterEach(() => {
 it("virtualizes a thousand files and unloads every grid image while details are open", async () => {
   const open = vi.fn();
   const view = render(
-    <I18nProvider>
-      <FileGrid files={files} open={open} />
-    </I18nProvider>,
+    <ThemeProvider env="test">
+      <I18nProvider>
+        <FileGrid files={files} open={open} />
+      </I18nProvider>
+    </ThemeProvider>,
     { wrapper: mediaWrapper },
   );
   await waitFor(() => expect(screen.getAllByRole("img")).toHaveLength(8));
@@ -92,15 +95,19 @@ it("virtualizes a thousand files and unloads every grid image while details are 
   await user.click(screen.getAllByRole("button")[0]);
   expect(open).toHaveBeenCalledWith(files[0]);
   view.rerender(
-    <I18nProvider>
-      <FileGrid files={files} open={open} paused />
-    </I18nProvider>,
+    <ThemeProvider env="test">
+      <I18nProvider>
+        <FileGrid files={files} open={open} paused />
+      </I18nProvider>
+    </ThemeProvider>,
   );
   expect(screen.queryAllByRole("img")).toHaveLength(0);
   view.rerender(
-    <I18nProvider>
-      <FileGrid files={files} open={open} />
-    </I18nProvider>,
+    <ThemeProvider env="test">
+      <I18nProvider>
+        <FileGrid files={files} open={open} />
+      </I18nProvider>
+    </ThemeProvider>,
   );
   await waitFor(() => expect(screen.getAllByRole("img")).toHaveLength(8));
 });
@@ -115,9 +122,11 @@ it("moves keyboard focus by row and respects RTL horizontal navigation", async (
     }),
   );
   render(
-    <I18nProvider>
-      <FileGrid files={files} open={vi.fn()} />
-    </I18nProvider>,
+    <ThemeProvider env="test">
+      <I18nProvider>
+        <FileGrid files={files} open={vi.fn()} />
+      </I18nProvider>
+    </ThemeProvider>,
     { wrapper: mediaWrapper },
   );
   await screen.findAllByRole("button");
@@ -162,13 +171,15 @@ it("uses keyset pagination and resets it when filters change", async () => {
   });
   const page = (name = "") => (
     <QueryClientProvider client={client}>
-      <I18nProvider>
-        <FileBrowser
-          filters={{ ...emptyFilters, name }}
-          tags={[]}
-          open={vi.fn()}
-        />
-      </I18nProvider>
+      <ThemeProvider env="test">
+        <I18nProvider>
+          <FileBrowser
+            filters={{ ...emptyFilters, name }}
+            tags={[]}
+            open={vi.fn()}
+          />
+        </I18nProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
   const view = render(page());

@@ -1,3 +1,4 @@
+import { ThemeProvider } from "./theme";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -47,9 +48,11 @@ function mount(file?: string, trash = false) {
         new QueryClient({ defaultOptions: { queries: { retry: false } } })
       }
     >
-      <I18nProvider>
-        <HistoryPage file={file} trash={trash} boxes={[]} scope={() => {}} />
-      </I18nProvider>
+      <ThemeProvider env="test">
+        <I18nProvider>
+          <HistoryPage file={file} trash={trash} boxes={[]} scope={() => {}} />
+        </I18nProvider>
+      </ThemeProvider>
     </QueryClientProvider>,
   );
 }
@@ -94,7 +97,7 @@ it("pages deletion history and reuses the restore request key after a lost respo
   await user.click(
     screen
       .getAllByRole("button", { name: "Restore" })
-      .find((button) => button.classList.contains("primary"))!,
+      .find((button) => button.getAttribute("data-variant") === "filled")!,
   );
   await user.click(await screen.findByRole("button", { name: "Try again" }));
   expect(keys).toHaveLength(2);
@@ -129,7 +132,7 @@ it("shows the blocking operation and lets the user inspect it", async () => {
   await user.click(
     screen
       .getAllByRole("button", { name: "Restore" })
-      .find((button) => button.classList.contains("primary"))!,
+      .find((button) => button.getAttribute("data-variant") === "filled")!,
   );
   await user.click(
     await screen.findByRole("button", { name: /Blocked by operation #7/ }),

@@ -11,7 +11,7 @@ function mount() {
   });
   return render(
     <QueryClientProvider client={client}>
-      <ThemeProvider>
+      <ThemeProvider env="test">
         <I18nProvider>
           <App />
         </I18nProvider>
@@ -56,11 +56,13 @@ it("renders an empty archive and persists independent language, locale and RTL c
   const settings = screen.getByRole("button", { name: "Display settings" });
   await user.click(settings);
   expect(screen.getByRole("dialog")).toBeVisible();
-  await user.selectOptions(screen.getByLabelText("Language"), "zh");
+  await user.click(screen.getByRole("combobox", { name: "Language" }));
+  await user.click(await screen.findByRole("option", { name: "中文" }));
   const locale = screen.getByLabelText("Regional format");
   await user.clear(locale);
   await user.type(locale, "de-DE");
-  await user.selectOptions(screen.getByLabelText("Reading direction"), "rtl");
+  await user.click(screen.getByRole("combobox", { name: "Reading direction" }));
+  await user.click(screen.getByRole("option", { name: "Right to left" }));
   await user.click(screen.getByRole("button", { name: "Save" }));
   await waitFor(() => expect(document.documentElement.dir).toBe("rtl"));
   expect(document.documentElement.lang).toBe("zh");

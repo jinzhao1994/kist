@@ -13,3 +13,17 @@ beforeEach(() => {
     })),
   );
 });
+
+Object.defineProperty(window, "ResizeObserver", {
+  configurable: true,
+  writable: true,
+  value: class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  },
+});
+Object.defineProperty(Element.prototype, "scrollIntoView", {
+  writable: true,
+  value: () => {},
+});

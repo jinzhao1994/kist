@@ -1,3 +1,4 @@
+import { ThemeProvider } from "./theme";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import {
   act,
@@ -24,7 +25,9 @@ function wrapper({ children }: { children: ReactNode }) {
         new QueryClient({ defaultOptions: { queries: { retry: false } } })
       }
     >
-      <I18nProvider>{children}</I18nProvider>
+      <ThemeProvider env="test">
+        <I18nProvider>{children}</I18nProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
@@ -94,10 +97,11 @@ it("excludes a tag and its descendants from parent choices and preserves keys ac
   vi.stubGlobal("fetch", fetch);
   render(<TagManager tags={tags} close={vi.fn()} />, { wrapper });
   const user = userEvent.setup();
-  await user.selectOptions(screen.getByLabelText("Select a tag"), "parent");
-  expect(
-    screen.getByLabelText("Parent tag").querySelectorAll("option"),
-  ).toHaveLength(1);
+  await user.click(screen.getByRole("combobox", { name: "Select a tag" }));
+  await user.click(await screen.findByRole("option", { name: "Travel" }));
+  await user.click(screen.getByRole("combobox", { name: "Parent tag" }));
+  expect(screen.getAllByRole("option")).toHaveLength(1);
+  await user.keyboard("{Escape}");
   await user.clear(screen.getByLabelText("Name"));
   await user.type(screen.getByLabelText("Name"), "Journeys");
   await user.click(screen.getByRole("button", { name: "Save" }));
@@ -117,7 +121,8 @@ it("adds and removes associations through explicit target IDs", async () => {
     { wrapper },
   );
   const user = userEvent.setup();
-  await user.selectOptions(screen.getByLabelText("Select a tag"), "child");
+  await user.click(screen.getByRole("combobox", { name: "Select a tag" }));
+  await user.click(await screen.findByRole("option", { name: "Japan" }));
   await user.click(screen.getByRole("button", { name: "Add tag" }));
   await waitFor(() => expect(fetch).toHaveBeenCalledOnce());
   expect(fetch.mock.calls[0][0]).toBe("/api/v1/tags/child/files");

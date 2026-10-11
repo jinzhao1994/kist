@@ -2,7 +2,7 @@
 
 `Visual` builds both the last approved commit and the current commit, serves each against its own isolated empty library, and captures deterministic UI fixtures in the same pinned Linux amd64 Playwright image. Each revision uses its own application, dependency lockfile and test scenarios; both use the current capture driver and browser settings. API responses and preview artwork are synthetic; this is a visual check, not a substitute for backend or media integration tests.
 
-The suite covers every built-in theme in light/dark mode, boxes, box files/upload controls, settings, tags, an empty library, English, a mobile grid, six media detail states, operation history/details, the recycle bin, historical boxes, and file version comparison. Fixtures use fixed dates, locale, timezone and preview artwork. No personal archive is accessed.
+The suite covers every built-in primary color in light/dark mode, boxes, box files/upload controls, settings, tags, an empty library, English, a mobile grid, six media detail states, operation history/details, the recycle bin, historical boxes, and file version comparison. Fixtures use fixed dates, locale, timezone and preview artwork. No personal archive is accessed.
 
 ## Review a change
 
@@ -29,7 +29,7 @@ Direct pushes to main do **not** advance this reference. A passing comparison al
 
 ## Maintain the suite
 
-Add cases to `web/visual/tests/`. Each test has a unique lowercase hyphenated title and exactly one screenshot. Theme cases derive from the application's theme registry. Unexpected API requests and page errors fail capture. Keep loading/error states explicit and deterministic.
+Add cases to `web/visual/tests/`. Each test has a unique lowercase hyphenated title and exactly one screenshot. Color cases derive from the application's primary-color registry. Unexpected API requests and page errors fail capture. Keep loading/error states explicit and deterministic.
 
 `make check` validates TypeScript and the artifact guards without launching a browser. Visual capture runs in Actions. Update `web/visual/environment.json` together with the exact `@playwright/test` dependency when changing browser versions, then review the new captures. An environment fingerprint change requires explicit acceptance even if both newly generated sets match. Comparison uses pixelmatch's 0.1 color threshold and default antialias filtering, with zero differing pixels allowed after filtering. Missing, removed and resized images fail too.
 

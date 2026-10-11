@@ -1,7 +1,16 @@
+import {
+  TextInput,
+  Button,
+  Radio,
+  Group,
+  ColorSwatch,
+  DEFAULT_THEME,
+} from "@mantine/core";
 import { useId, useState } from "react";
+import { Select } from "./Select";
 import { Dialog } from "./Dialog";
 import { useI18n, validFormats, type Preferences } from "./i18n";
-import { themes, useTheme, type Appearance } from "./theme";
+import { colors, useTheme, type Appearance } from "./theme";
 export function Settings({
   open,
   onOpenChange,
@@ -20,6 +29,7 @@ export function Settings({
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={t("settings")}>
       <form
+        className="settings-form"
         onSubmit={(event) => {
           event.preventDefault();
           if (!validFormats(draft.formatLocale, draft.timezone)) {
@@ -31,45 +41,62 @@ export function Settings({
           onOpenChange(false);
         }}
       >
-        <label htmlFor={`${id}-theme`}>{t("theme")}</label>
-        <select
-          id={`${id}-theme`}
-          value={look.theme}
-          onChange={(e) =>
-            setLook({ ...look, theme: e.target.value as Appearance["theme"] })
+        <Radio.Group
+          label={t("primaryColor")}
+          value={look.primaryColor}
+          onChange={(primaryColor) =>
+            setLook({
+              ...look,
+              primaryColor: primaryColor as Appearance["primaryColor"],
+            })
           }
         >
-          {Object.entries(themes).map(([key, label]) => (
-            <option key={key} value={key}>
-              {t(label)}
-            </option>
-          ))}
-        </select>
-        <label htmlFor={`${id}-mode`}>{t("colorMode")}</label>
-        <select
+          <Group gap="sm" mt="xs" wrap="wrap">
+            {colors.map((color) => (
+              <Radio
+                key={color}
+                value={color}
+                color={color}
+                label={
+                  <Group gap={6}>
+                    <ColorSwatch
+                      color={DEFAULT_THEME.colors[color][6]}
+                      size={16}
+                    />
+                    {t(color)}
+                  </Group>
+                }
+              />
+            ))}
+          </Group>
+        </Radio.Group>
+        <Select
           id={`${id}-mode`}
+          label={t("colorMode")}
           value={look.mode}
-          onChange={(e) =>
-            setLook({ ...look, mode: e.target.value as Appearance["mode"] })
+          onValueChange={(mode) =>
+            setLook({ ...look, mode: mode as Appearance["mode"] })
           }
-        >
-          <option value="system">{t("modeSystem")}</option>
-          <option value="light">{t("modeLight")}</option>
-          <option value="dark">{t("modeDark")}</option>
-        </select>
-        <label htmlFor={`${id}-language`}>{t("language")}</label>
-        <select
+          options={[
+            { value: "system", label: t("modeSystem") },
+            { value: "light", label: t("modeLight") },
+            { value: "dark", label: t("modeDark") },
+          ]}
+        />
+        <Select
           id={`${id}-language`}
+          label={t("language")}
           value={draft.language}
-          onChange={(e) =>
-            field("language", e.target.value as Preferences["language"])
+          onValueChange={(language) =>
+            field("language", language as Preferences["language"])
           }
-        >
-          <option value="en">English</option>
-          <option value="zh">中文</option>
-        </select>
+          options={[
+            { value: "en", label: "English" },
+            { value: "zh", label: "中文" },
+          ]}
+        />
         <label htmlFor={`${id}-locale`}>{t("formatLocale")}</label>
-        <input
+        <TextInput
           id={`${id}-locale`}
           value={draft.formatLocale}
           onChange={(e) => field("formatLocale", e.target.value)}
@@ -77,31 +104,34 @@ export function Settings({
           required
         />
         <label htmlFor={`${id}-zone`}>{t("timezone")}</label>
-        <input
+        <TextInput
           id={`${id}-zone`}
           value={draft.timezone}
           onChange={(e) => field("timezone", e.target.value)}
           placeholder="Asia/Shanghai"
           required
         />
-        <label htmlFor={`${id}-direction`}>{t("direction")}</label>
-        <select
+        <Select
           id={`${id}-direction`}
+          label={t("direction")}
           value={draft.direction}
-          onChange={(e) =>
-            field("direction", e.target.value as Preferences["direction"])
+          onValueChange={(direction) =>
+            field("direction", direction as Preferences["direction"])
           }
-        >
-          <option value="auto">{t("auto")}</option>
-          <option value="ltr">{t("ltr")}</option>
-          <option value="rtl">{t("rtl")}</option>
-        </select>
+          options={[
+            { value: "auto", label: t("auto") },
+            { value: "ltr", label: t("ltr") },
+            { value: "rtl", label: t("rtl") },
+          ]}
+        />
         {error && <p role="alert">{t("invalidSettings")}</p>}
         <div className="actions">
-          <button type="button" onClick={() => onOpenChange(false)}>
+          <Button type="button" onClick={() => onOpenChange(false)}>
             {t("cancel")}
-          </button>
-          <button className="primary">{t("save")}</button>
+          </Button>
+          <Button variant="filled" type="submit">
+            {t("save")}
+          </Button>
         </div>
       </form>
     </Dialog>

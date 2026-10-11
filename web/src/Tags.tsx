@@ -1,6 +1,8 @@
+import { UnstyledButton, TextInput, Button } from "@mantine/core";
 import { useId, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createWrite, get, type Tag } from "./api";
+import { Select } from "./Select";
 import { Dialog } from "./Dialog";
 import { formatNumber, useI18n } from "./i18n";
 import { useWrites, WriteFeedback } from "./mutations";
@@ -25,12 +27,12 @@ export function TagTree({
     <ul className="tag-tree">
       {tags.map((tag) => (
         <li key={tag.id}>
-          <button onClick={() => choose(tag.id)}>
+          <UnstyledButton onClick={() => choose(tag.id)}>
             <span aria-hidden="true">#</span> <bdi>{tag.name}</bdi>
             <small>
               {tag.count == null ? "" : formatNumber(tag.count, prefs)}
             </small>
-          </button>
+          </UnstyledButton>
           {tag.children?.length ? (
             <TagTree tags={tag.children} choose={choose} />
           ) : null}
@@ -101,21 +103,22 @@ export function TagManager({
       >
         <fieldset disabled={state.busy || state.locked}>
           <label htmlFor={`${id}-tag`}>{t("selectTag")}</label>
-          <select
+          <Select
             id={`${id}-tag`}
             value={selected}
-            onChange={(e) => select(e.target.value)}
-          >
-            <option value="">{t("newTag")}</option>
-            {flat.map((tag) => (
-              <option key={tag.id} value={tag.id}>
-                {"　".repeat(tag.depth)}
-                {tag.name}
-              </option>
-            ))}
-          </select>
+            onValueChange={select}
+            disabled={state.busy || state.locked}
+            searchable
+            options={[
+              { value: "", label: t("newTag") },
+              ...flat.map((tag) => ({
+                value: tag.id,
+                label: `${"　".repeat(tag.depth)}${tag.name}`,
+              })),
+            ]}
+          />
           <label htmlFor={`${id}-name`}>{t("name")}</label>
-          <input
+          <TextInput
             id={`${id}-name`}
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -123,36 +126,41 @@ export function TagManager({
             maxLength={255}
           />
           <label htmlFor={`${id}-parent`}>{t("parentTag")}</label>
-          <select
+          <Select
             id={`${id}-parent`}
             value={parent}
-            onChange={(e) => setParent(e.target.value)}
-          >
-            <option value="">{t("rootTag")}</option>
-            {flat
-              .filter((tag) => !descendants.has(tag.id))
-              .map((tag) => (
-                <option key={tag.id} value={tag.id}>
-                  {"　".repeat(tag.depth)}
-                  {tag.name}
-                </option>
-              ))}
-          </select>
+            onValueChange={setParent}
+            disabled={state.busy || state.locked}
+            searchable
+            options={[
+              { value: "", label: t("rootTag") },
+              ...flat
+                .filter((tag) => !descendants.has(tag.id))
+                .map((tag) => ({
+                  value: tag.id,
+                  label: `${"　".repeat(tag.depth)}${tag.name}`,
+                })),
+            ]}
+          />
         </fieldset>
         <WriteFeedback state={state} />
         <div className="actions">
           {selected && (
-            <button
+            <Button
               type="button"
               disabled={state.busy || state.locked}
               onClick={() => setConfirm(true)}
             >
               {t("remove")}
-            </button>
+            </Button>
           )}
-          <button className="primary" disabled={state.busy || state.locked}>
+          <Button
+            variant="filled"
+            type="submit"
+            disabled={state.busy || state.locked}
+          >
             {t("save")}
-          </button>
+          </Button>
         </div>
         {confirm && (
           <div className="notice">
@@ -160,14 +168,14 @@ export function TagManager({
               {t("deleteTagConfirm")}: <bdi>{current?.name}</bdi>
             </p>
             <div className="actions">
-              <button
+              <Button
                 type="button"
                 disabled={state.busy}
                 onClick={() => setConfirm(false)}
               >
                 {t("cancel")}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 disabled={state.busy || state.locked}
                 onClick={() =>
@@ -175,7 +183,7 @@ export function TagManager({
                 }
               >
                 {t("remove")}
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -206,7 +214,7 @@ export function TagAssignment({
         {assigned.map((tagID) => (
           <li key={tagID}>
             <bdi>{flat.find((tag) => tag.id === tagID)?.name || tagID}</bdi>
-            <button
+            <Button
               disabled={state.busy || state.locked}
               aria-label={`${t("removeTag")}: ${flat.find((tag) => tag.id === tagID)?.name || tagID}`}
               onClick={() =>
@@ -218,7 +226,7 @@ export function TagAssignment({
               }
             >
               ×
-            </button>
+            </Button>
           </li>
         ))}
       </ul>
@@ -226,22 +234,20 @@ export function TagAssignment({
         <label className="sr-only" htmlFor={id}>
           {t("selectTag")}
         </label>
-        <select
+        <Select
           id={id}
           disabled={state.busy || state.locked}
           value={selected}
-          onChange={(e) => setSelected(e.target.value)}
-        >
-          <option value="">{t("selectTag")}</option>
-          {flat
-            .filter((tag) => !assigned.includes(tag.id))
-            .map((tag) => (
-              <option key={tag.id} value={tag.id}>
-                {tag.name}
-              </option>
-            ))}
-        </select>
-        <button
+          onValueChange={setSelected}
+          searchable
+          options={[
+            { value: "", label: t("selectTag") },
+            ...flat
+              .filter((tag) => !assigned.includes(tag.id))
+              .map((tag) => ({ value: tag.id, label: tag.name })),
+          ]}
+        />
+        <Button
           disabled={!selected || state.busy || state.locked}
           onClick={() =>
             state.run([
@@ -252,7 +258,7 @@ export function TagAssignment({
           }
         >
           {t("addTag")}
-        </button>
+        </Button>
       </div>
       <WriteFeedback state={state} />
     </section>

@@ -1,3 +1,4 @@
+import { Button } from "@mantine/core";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { APIError, createWrite } from "./api";
@@ -63,12 +64,12 @@ export function WriteFeedback({
     <div className="write-error" role="alert">
       <p>{errorMessage(state.error, t)}</p>
       <div className="actions">
-        <button type="button" disabled={state.busy} onClick={() => state.run()}>
+        <Button type="button" disabled={state.busy} onClick={() => state.run()}>
           {t("retry")}
-        </button>
-        <button type="button" disabled={state.busy} onClick={state.reset}>
+        </Button>
+        <Button type="button" disabled={state.busy} onClick={state.reset}>
           {t("newOperation")}
-        </button>
+        </Button>
       </div>
     </div>
   );

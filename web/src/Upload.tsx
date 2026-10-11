@@ -1,3 +1,4 @@
+import { Button } from "@mantine/core";
 import { useEffect, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { useQueryClient } from "@tanstack/react-query";
@@ -134,26 +135,26 @@ export function Upload({
                 percent: formatNumber(Math.round(progress * 100), prefs),
               })}
             </span>
-            <button onClick={() => operation.current?.cancel()}>
+            <Button onClick={() => operation.current?.cancel()}>
               {t("cancel")}
-            </button>
+            </Button>
           </>
         ) : (
           <>
-            <button
-              className="primary"
+            <Button
+              variant="filled"
               disabled={phase === "failed"}
               onClick={drop.open}
             >
               {t("chooseFiles")}
-            </button>
+            </Button>
             {phase === "failed" && (
               <>
                 {operation.current && (
-                  <button onClick={run}>{t("retry")}</button>
+                  <Button onClick={run}>{t("retry")}</Button>
                 )}
-                <button onClick={check}>{t("checkResult")}</button>
-                <button
+                <Button onClick={check}>{t("checkResult")}</Button>
+                <Button
                   onClick={() => {
                     remember("");
                     operation.current = null;
@@ -162,7 +163,7 @@ export function Upload({
                   }}
                 >
                   {t("newOperation")}
-                </button>
+                </Button>
               </>
             )}
           </>

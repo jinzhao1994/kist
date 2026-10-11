@@ -1,76 +1,37 @@
-import { readFileSync } from "node:fs";
-import { expect, it } from "vitest";
-import { themes } from "./theme";
+import { beforeEach, expect, it } from "vitest";
+import { appearanceKey, readAppearance } from "./theme";
 
-const css = readFileSync("src/themes.css", "utf8");
-const components = readFileSync("src/style.css", "utf8");
-const rules = Array.from(
-  css.matchAll(/(:root[^{}]*)\{([^}]+)\}/g),
-  ([, selector, body]) => ({
-    selector: selector.trim(),
-    values: Object.fromEntries(
-      Array.from(
-        body.matchAll(/--([\w-]+):\s*(#[\da-f]+);/g),
-        ([, key, value]) => [key, value],
-      ),
-    ),
-  }),
+beforeEach(() => localStorage.clear());
+it.each([
+  ["archive", "gray"],
+  ["forest", "green"],
+  ["wheat", "yellow"],
+  ["blossom", "pink"],
+  ["slate", "blue"],
+  ["sunset", "orange"],
+])(
+  "migrates legacy %s to %s without losing dark mode",
+  (theme, primaryColor) => {
+    localStorage.setItem(
+      "kist.appearance.v1",
+      JSON.stringify({ theme, mode: "dark" }),
+    );
+    expect(readAppearance()).toEqual({ primaryColor, mode: "dark" });
+  },
 );
-function luminance(hex: string) {
-  const rgb = [1, 3, 5].map(
-    (offset) => parseInt(hex.slice(offset, offset + 2), 16) / 255,
+it("prefers new preferences over a legacy skin and validates unknown colors", () => {
+  localStorage.setItem(
+    "kist.appearance.v1",
+    JSON.stringify({ theme: "forest", mode: "dark" }),
   );
-  return rgb
-    .map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
-    .reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0);
-}
-for (const theme of Object.keys(themes)) {
-  for (const mode of ["light", "dark"]) {
-    it(`${theme}/${mode} supplies component tokens and readable text contrast`, () => {
-      if (theme !== "archive") {
-        expect(
-          rules.some((r) => r.selector === `:root[data-theme="${theme}"]`),
-        ).toBe(true);
-        expect(
-          rules.some(
-            (r) =>
-              r.selector === `:root[data-theme="${theme}"][data-mode="dark"]`,
-          ),
-        ).toBe(true);
-      }
-      const palette = Object.assign(
-        {},
-        ...rules
-          .filter(
-            ({ selector }) =>
-              (!selector.includes("data-theme") ||
-                selector.includes(`data-theme="${theme}"`)) &&
-              (!selector.includes("data-mode") ||
-                selector.includes(`data-mode="${mode}"`)),
-          )
-          .map((r) => r.values),
-      ) as Record<string, string>;
-      for (const [, token] of components.matchAll(/var\(--([\w-]+)\)/g))
-        expect(palette[token], token).toBeDefined();
-      for (const [fg, bg] of [
-        ["text", "canvas"],
-        ["text", "surface"],
-        ["muted", "surface"],
-        ["muted", "sidebar"],
-        ["muted", "media"],
-        ["on-accent", "accent"],
-        ["danger", "surface"],
-        ["selected-text", "selected"],
-        ["text", "warning"],
-      ]) {
-        const [a, b] = [luminance(palette[fg]), luminance(palette[bg])].sort(
-          (x, y) => x - y,
-        );
-        expect(
-          (b + 0.05) / (a + 0.05),
-          `${fg} on ${bg}`,
-        ).toBeGreaterThanOrEqual(4.5);
-      }
-    });
-  }
-}
+  localStorage.setItem(
+    appearanceKey,
+    JSON.stringify({ primaryColor: "orange", mode: "light" }),
+  );
+  expect(readAppearance()).toEqual({ primaryColor: "orange", mode: "light" });
+  localStorage.setItem(
+    appearanceKey,
+    JSON.stringify({ primaryColor: "__proto__", mode: "unknown" }),
+  );
+  expect(readAppearance()).toEqual({ primaryColor: "blue", mode: "system" });
+});

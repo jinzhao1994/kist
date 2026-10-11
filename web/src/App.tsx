@@ -1,3 +1,4 @@
+import { UnstyledButton, Button } from "@mantine/core";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Box } from "./api";
@@ -53,32 +54,32 @@ export function App() {
         </a>
         <p className="sidebar-caption">{t("archive")}</p>
         <nav aria-label={t("archive")}>
-          <button
+          <UnstyledButton
             className={`nav-link ${!route.files && !route.section ? "active" : ""}`}
             onClick={() => navigate()}
           >
             ▤ <span>{t("boxes")}</span>
-          </button>
+          </UnstyledButton>
           {(["history", "trash"] as const).map((section) => (
-            <button
+            <UnstyledButton
               key={section}
               className={`nav-link ${route.section === section ? "active" : ""}`}
               onClick={() => go({ files: false, section })}
             >
               {section === "history" ? "◷" : "⌫"} <span>{t(section)}</span>
-            </button>
+            </UnstyledButton>
           ))}
-          <button
+          <UnstyledButton
             className={`nav-link ${route.files && !route.box ? "active" : ""}`}
             onClick={() => navigate(undefined, true)}
           >
             ▦ <span>{t("allFiles")}</span>
-          </button>
+          </UnstyledButton>
         </nav>
         <details className="sidebar-tags" open>
           <summary>{t("tags")}</summary>
           {tags.isError ? (
-            <button onClick={() => tags.refetch()}>{t("retry")}</button>
+            <Button onClick={() => tags.refetch()}>{t("retry")}</Button>
           ) : (
             <TagTree
               tags={tree}
@@ -88,15 +89,18 @@ export function App() {
               }}
             />
           )}
-          <button className="text-button" onClick={() => setManage(true)}>
+          <UnstyledButton
+            className="text-button"
+            onClick={() => setManage(true)}
+          >
             {t("manageTags")}
-          </button>
+          </UnstyledButton>
         </details>
         {route.files && (
           <FiltersPanel value={filters} onChange={setFilters} tags={tree} />
         )}
         <div className="sidebar-footer">
-          <button onClick={() => setSettings(true)}>{t("settings")}</button>
+          <Button onClick={() => setSettings(true)}>{t("settings")}</Button>
           <small>kist · {info.data?.version || "v0.1"}</small>
         </div>
       </aside>
@@ -113,28 +117,28 @@ export function App() {
             </h1>
           </div>
           <div className="header-actions">
-            <button onClick={() => client.invalidateQueries()}>
+            <Button onClick={() => client.invalidateQueries()}>
               {t("refresh")}
-            </button>
+            </Button>
             {!route.section && selected && (
-              <button
+              <Button
                 onClick={() =>
                   go({ files: false, section: "history", box: selected.id })
                 }
               >
                 {t("history")}
-              </button>
+              </Button>
             )}
             {!route.section &&
               (selected ? (
-                <button onClick={() => setEditor(selected)}>
+                <Button onClick={() => setEditor(selected)}>
                   {t("editBox")}
-                </button>
+                </Button>
               ) : (
                 !route.files && (
-                  <button className="primary" onClick={() => setEditor("new")}>
+                  <Button variant="filled" onClick={() => setEditor("new")}>
                     {t("createBox")}
-                  </button>
+                  </Button>
                 )
               ))}
           </div>
@@ -148,7 +152,7 @@ export function App() {
         {boxes.isError && (
           <div role="alert">
             <p>{errorMessage(boxes.error, t)}</p>
-            <button onClick={() => boxes.refetch()}>{t("retry")}</button>
+            <Button onClick={() => boxes.refetch()}>{t("retry")}</Button>
           </div>
         )}
         {route.section ? (
@@ -187,14 +191,14 @@ export function App() {
                 </span>
                 <h2>{t("emptyBoxes")}</h2>
                 <p>{t("emptyBoxesHint")}</p>
-                <button className="primary" onClick={() => setEditor("new")}>
+                <Button variant="filled" onClick={() => setEditor("new")}>
                   {t("createBox")}
-                </button>
+                </Button>
               </section>
             )}
             <div className="box-grid">
               {boxes.data?.boxes?.map((box) => (
-                <button
+                <UnstyledButton
                   className="box-card"
                   key={box.id}
                   onClick={() => navigate(box)}
@@ -214,7 +218,7 @@ export function App() {
                       ? ` — ${formatLocalDate(box.end_at, prefs)}`
                       : ""}
                   </time>
-                </button>
+                </UnstyledButton>
               ))}
             </div>
           </>

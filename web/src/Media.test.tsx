@@ -1,3 +1,4 @@
+import { ThemeProvider } from "./theme";
 import { afterEach, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -46,9 +47,11 @@ function mount(props: Partial<Parameters<typeof Media>[0]> = {}) {
     client,
     ...render(
       <QueryClientProvider client={client}>
-        <I18nProvider>
-          <Media file={file} detail {...props} />
-        </I18nProvider>
+        <ThemeProvider env="test">
+          <I18nProvider>
+            <Media file={file} detail {...props} />
+          </I18nProvider>
+        </ThemeProvider>
       </QueryClientProvider>,
     ),
   };
