@@ -59,33 +59,65 @@ function mount(close = vi.fn()) {
     </ThemeProvider>,
   );
 }
-it("saves independent primary color and mode, restores them on remount, and leaves cancelled drafts unchanged", async () => {
+it("applies selections immediately, keeps them when closed, and restores them on remount", async () => {
   const user = userEvent.setup();
   const close = vi.fn();
   const first = mount(close);
   const originalDisplay = localStorage.getItem(storageKey);
-  await user.click(screen.getByRole("radio", { name: "Blue" }));
-  await user.click(screen.getByRole("combobox", { name: "Appearance" }));
-  await user.click(await screen.findByRole("option", { name: "Dark" }));
-  expect(document.documentElement.dataset.mode).toBe("light");
-  await user.click(screen.getByRole("button", { name: "Cancel" }));
-  expect(close).toHaveBeenCalledWith(false);
-  expect(readAppearance()).toEqual({ primaryColor: "blue", mode: "system" });
-  first.unmount();
-  const second = mount();
+  expect(
+    screen.queryByRole("button", { name: "Save" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Cancel" }),
+  ).not.toBeInTheDocument();
   await user.click(screen.getByRole("radio", { name: "Green" }));
+  expect(readAppearance()).toEqual({ primaryColor: "green", mode: "system" });
   await user.click(screen.getByRole("combobox", { name: "Appearance" }));
   await user.click(await screen.findByRole("option", { name: "Dark" }));
-  await user.click(screen.getByRole("button", { name: "Save" }));
   expect(readAppearance()).toEqual({ primaryColor: "green", mode: "dark" });
-  expect(localStorage.getItem(storageKey)).toBe(originalDisplay);
-  expect(document.documentElement.dir).toBe("rtl");
   expect(document.documentElement.style.colorScheme).toBe("dark");
-  second.unmount();
+  expect(localStorage.getItem(storageKey)).toBe(originalDisplay);
+  await user.click(screen.getByRole("button", { name: "Close" }));
+  expect(close).toHaveBeenCalledWith(false);
+  first.unmount();
   mount();
   expect(screen.getByRole("radio", { name: "Green" })).toBeChecked();
   expect(screen.getByRole("combobox", { name: "Appearance" })).toHaveValue(
     "Dark",
+  );
+});
+it("searches regional formats and time zones and persists only selected options", async () => {
+  const user = userEvent.setup();
+  const first = mount();
+  const locale = screen.getByRole("combobox", { name: "Regional format" });
+  await user.click(locale);
+  await user.clear(locale);
+  await user.type(locale, "ja-JP", { skipClick: true });
+  expect(JSON.parse(localStorage.getItem(storageKey)!).formatLocale).toBe(
+    "de-DE",
+  );
+  await user.click(screen.getByRole("option", { name: /ja-JP/ }));
+  expect(JSON.parse(localStorage.getItem(storageKey)!).formatLocale).toBe(
+    "ja-JP",
+  );
+  const zone = screen.getByRole("combobox", { name: "Time zone" });
+  await user.click(zone);
+  await user.clear(zone);
+  await user.type(zone, "Asia/Tokyo", { skipClick: true });
+  await user.click(screen.getByRole("option", { name: "Asia/Tokyo" }));
+  expect(JSON.parse(localStorage.getItem(storageKey)!).timezone).toBe(
+    "Asia/Tokyo",
+  );
+  await user.click(screen.getByRole("combobox", { name: "Reading direction" }));
+  await user.click(screen.getByRole("option", { name: "Left to right" }));
+  expect(document.documentElement.dir).toBe("ltr");
+  first.unmount();
+  mount();
+  expect(screen.getByRole("combobox", { name: "Regional format" })).toHaveValue(
+    "Japanese (Japan) · ja-JP",
+  );
+  expect(screen.getByRole("combobox", { name: "Time zone" })).toHaveValue(
+    "Asia/Tokyo",
   );
 });
 it("tracks system changes only in system mode and removes its listener on unmount", async () => {
@@ -98,7 +130,6 @@ it("tracks system changes only in system mode and removes its listener on unmoun
   expect(document.documentElement.dataset.mode).toBe("dark");
   await user.click(screen.getByRole("combobox", { name: "Appearance" }));
   await user.click(await screen.findByRole("option", { name: "Light" }));
-  await user.click(screen.getByRole("button", { name: "Save" }));
   act(() => {
     media.matches = true;
     change();
@@ -106,7 +137,6 @@ it("tracks system changes only in system mode and removes its listener on unmoun
   expect(document.documentElement.dataset.mode).toBe("light");
   await user.click(screen.getByRole("combobox", { name: "Appearance" }));
   await user.click(screen.getByRole("option", { name: "Follow system" }));
-  await user.click(screen.getByRole("button", { name: "Save" }));
   expect(document.documentElement.dataset.mode).toBe("dark");
   act(() => {
     media.matches = false;
@@ -139,6 +169,5 @@ it("applies persisted appearance before mounting and tolerates corrupt or inacce
   const user = userEvent.setup();
   await user.click(screen.getByRole("combobox", { name: "Appearance" }));
   await user.click(await screen.findByRole("option", { name: "Dark" }));
-  await user.click(screen.getByRole("button", { name: "Save" }));
   expect(document.documentElement.dataset.mode).toBe("dark");
 });

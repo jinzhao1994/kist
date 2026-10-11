@@ -58,12 +58,14 @@ it("renders an empty archive and persists independent language, locale and RTL c
   expect(screen.getByRole("dialog")).toBeVisible();
   await user.click(screen.getByRole("combobox", { name: "Language" }));
   await user.click(await screen.findByRole("option", { name: "中文" }));
-  const locale = screen.getByLabelText("Regional format");
+  const locale = screen.getByRole("combobox", { name: "地区格式" });
+  await user.click(locale);
   await user.clear(locale);
-  await user.type(locale, "de-DE");
-  await user.click(screen.getByRole("combobox", { name: "Reading direction" }));
-  await user.click(screen.getByRole("option", { name: "Right to left" }));
-  await user.click(screen.getByRole("button", { name: "Save" }));
+  await user.type(locale, "de-DE", { skipClick: true });
+  await user.click(screen.getByRole("option", { name: /de-DE/ }));
+  await user.click(screen.getByRole("combobox", { name: "阅读方向" }));
+  await user.click(screen.getByRole("option", { name: "从右到左" }));
+  await user.click(screen.getByRole("button", { name: "关闭" }));
   await waitFor(() => expect(document.documentElement.dir).toBe("rtl"));
   expect(document.documentElement.lang).toBe("zh");
   expect(

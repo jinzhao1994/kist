@@ -1,15 +1,8 @@
-import {
-  TextInput,
-  Button,
-  Radio,
-  Group,
-  ColorSwatch,
-  DEFAULT_THEME,
-} from "@mantine/core";
-import { useId, useState } from "react";
+import { Radio, Group, ColorSwatch, DEFAULT_THEME } from "@mantine/core";
+import { useId } from "react";
 import { Select } from "./Select";
 import { Dialog } from "./Dialog";
-import { useI18n, validFormats, type Preferences } from "./i18n";
+import { useI18n, type Preferences } from "./i18n";
 import { colors, useTheme, type Appearance } from "./theme";
 export function Settings({
   open,
@@ -19,34 +12,19 @@ export function Settings({
   onOpenChange: (open: boolean) => void;
 }) {
   const { prefs, setPrefs, t } = useI18n();
-  const [draft, setDraft] = useState(prefs);
   const { appearance, setAppearance } = useTheme();
-  const [look, setLook] = useState(appearance);
-  const [error, setError] = useState(false);
   const id = useId();
   const field = <K extends keyof Preferences>(key: K, value: Preferences[K]) =>
-    setDraft({ ...draft, [key]: value });
+    setPrefs({ ...prefs, [key]: value });
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={t("settings")}>
-      <form
-        className="settings-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (!validFormats(draft.formatLocale, draft.timezone)) {
-            setError(true);
-            return;
-          }
-          setPrefs(draft);
-          setAppearance(look);
-          onOpenChange(false);
-        }}
-      >
+      <div className="settings-form">
         <Radio.Group
           label={t("primaryColor")}
-          value={look.primaryColor}
+          value={appearance.primaryColor}
           onChange={(primaryColor) =>
-            setLook({
-              ...look,
+            setAppearance({
+              ...appearance,
               primaryColor: primaryColor as Appearance["primaryColor"],
             })
           }
@@ -73,9 +51,9 @@ export function Settings({
         <Select
           id={`${id}-mode`}
           label={t("colorMode")}
-          value={look.mode}
+          value={appearance.mode}
           onValueChange={(mode) =>
-            setLook({ ...look, mode: mode as Appearance["mode"] })
+            setAppearance({ ...appearance, mode: mode as Appearance["mode"] })
           }
           options={[
             { value: "system", label: t("modeSystem") },
@@ -86,7 +64,7 @@ export function Settings({
         <Select
           id={`${id}-language`}
           label={t("language")}
-          value={draft.language}
+          value={prefs.language}
           onValueChange={(language) =>
             field("language", language as Preferences["language"])
           }
@@ -95,26 +73,34 @@ export function Settings({
             { value: "zh", label: "中文" },
           ]}
         />
-        <label htmlFor={`${id}-locale`}>{t("formatLocale")}</label>
-        <TextInput
+        <Select
           id={`${id}-locale`}
-          value={draft.formatLocale}
-          onChange={(e) => field("formatLocale", e.target.value)}
-          placeholder="zh-CN / en-US / de-DE"
-          required
+          label={t("formatLocale")}
+          value={prefs.formatLocale}
+          onValueChange={(locale) => field("formatLocale", locale)}
+          options={localeOptions(prefs.language, prefs.formatLocale)}
+          searchable
         />
-        <label htmlFor={`${id}-zone`}>{t("timezone")}</label>
-        <TextInput
+        <Select
           id={`${id}-zone`}
-          value={draft.timezone}
-          onChange={(e) => field("timezone", e.target.value)}
-          placeholder="Asia/Shanghai"
-          required
+          label={t("timezone")}
+          value={prefs.timezone}
+          onValueChange={(timezone) => field("timezone", timezone)}
+          options={[
+            ...new Set([
+              "UTC",
+              prefs.timezone,
+              ...Intl.supportedValuesOf("timeZone"),
+            ]),
+          ]
+            .sort()
+            .map((value) => ({ value, label: value }))}
+          searchable
         />
         <Select
           id={`${id}-direction`}
           label={t("direction")}
-          value={draft.direction}
+          value={prefs.direction}
           onValueChange={(direction) =>
             field("direction", direction as Preferences["direction"])
           }
@@ -124,16 +110,56 @@ export function Settings({
             { value: "rtl", label: t("rtl") },
           ]}
         />
-        {error && <p role="alert">{t("invalidSettings")}</p>}
-        <div className="actions">
-          <Button type="button" onClick={() => onOpenChange(false)}>
-            {t("cancel")}
-          </Button>
-          <Button variant="filled" type="submit">
-            {t("save")}
-          </Button>
-        </div>
-      </form>
+      </div>
     </Dialog>
   );
+}
+
+// Common regional formats; keep existing browser preferences selectable as well.
+const regionalLocales = [
+  "zh-CN",
+  "zh-TW",
+  "zh-HK",
+  "en-US",
+  "en-GB",
+  "en-CA",
+  "en-AU",
+  "en-IN",
+  "en-SG",
+  "ja-JP",
+  "ko-KR",
+  "fr-FR",
+  "fr-CA",
+  "de-DE",
+  "de-CH",
+  "es-ES",
+  "es-MX",
+  "es-AR",
+  "pt-BR",
+  "pt-PT",
+  "it-IT",
+  "nl-NL",
+  "sv-SE",
+  "nb-NO",
+  "da-DK",
+  "fi-FI",
+  "pl-PL",
+  "cs-CZ",
+  "tr-TR",
+  "ru-RU",
+  "uk-UA",
+  "ar-SA",
+  "he-IL",
+  "hi-IN",
+  "th-TH",
+  "vi-VN",
+  "id-ID",
+  "ms-MY",
+];
+function localeOptions(language: string, current: string) {
+  const names = new Intl.DisplayNames([language], { type: "language" });
+  return [...new Set([current, ...regionalLocales])].map((value) => ({
+    value,
+    label: `${names.of(new Intl.Locale(value).baseName)} · ${value}`,
+  }));
 }
