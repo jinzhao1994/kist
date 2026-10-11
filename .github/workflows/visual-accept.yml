@@ -33,7 +33,7 @@ jobs:
       - run: npm --prefix web ci
       - name: Validate source run and current main
         id: source
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           SOURCE_RUN_ID: ${{ inputs.run_id }}
         with:
@@ -87,7 +87,7 @@ jobs:
           fi
       # GITHUB_TOKEN pushes do not trigger push workflows. Dispatch both explicitly.
       - name: Rerun full CI and visual comparison
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             for (const workflow_id of ['ci.yml', 'visual.yml', 'secrets.yml']) {
