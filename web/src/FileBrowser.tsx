@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Button } from "@mantine/core";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { api, type Box, type Tag, type ArchiveFile } from "./api";
@@ -42,6 +43,21 @@ export function FileBrowser({
       ),
     getNextPageParam: (page) => page.cursor || undefined,
   });
+  const end = useRef<HTMLDivElement>(null);
+  const { hasNextPage, isFetching, isError, fetchNextPage, dataUpdatedAt } =
+    query;
+  useEffect(() => {
+    const element = end.current;
+    if (!element || !hasNextPage || isFetching || isError || paused) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) void fetchNextPage({ cancelRefetch: false });
+      },
+      { rootMargin: "160px 0px" },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetching, isError, paused, fetchNextPage, dataUpdatedAt]);
   const files = Array.from(
     new Map(
       (query.data?.pages.flatMap((page) => page.files || []) || []).map(
@@ -71,7 +87,7 @@ export function FileBrowser({
         </>
       )}
       {query.isPending && <p role="status">{t("loading")}</p>}
-      {query.isError && (
+      {query.isError && !query.isFetchNextPageError && (
         <div role="alert">
           <p>{errorMessage(query.error, t)}</p>
           <Button onClick={() => query.refetch()}>{t("retry")}</Button>
@@ -94,16 +110,26 @@ export function FileBrowser({
               <p>{box ? t("importHint") : t("clearFilters")}</p>
             </section>
           )}
-          {query.hasNextPage && (
-            <div className="load-more">
-              <Button
-                disabled={query.isFetchingNextPage}
-                onClick={() => query.fetchNextPage()}
-              >
-                {t(query.isFetchingNextPage ? "loading" : "loadMore")}
-              </Button>
-            </div>
-          )}
+          <div className="load-more" ref={end}>
+            {query.isFetchNextPageError && !query.isFetchingNextPage ? (
+              <div role="alert">
+                <p>{errorMessage(query.error, t)}</p>
+                <Button
+                  onClick={() => query.fetchNextPage({ cancelRefetch: false })}
+                >
+                  {t("retry")}
+                </Button>
+              </div>
+            ) : (
+              <p role="status">
+                {query.isFetchingNextPage
+                  ? t("loading")
+                  : !query.hasNextPage && files.length > 0
+                    ? t("allFilesShown", { count: files.length })
+                    : null}
+              </p>
+            )}
+          </div>
         </>
       )}
     </>

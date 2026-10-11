@@ -436,3 +436,43 @@ test("independent-scroll", async ({ page }, info) => {
   );
   await capture(page, errors, info.title);
 });
+
+test("automatic-pagination", async ({ page }, info) => {
+  const errors = await prepare(page);
+  const firstPage = Array.from({ length: 100 }, (_, index) => ({
+    ...files[2],
+    id: `auto-${index}`,
+    name: `document-${index}.pdf`,
+  }));
+  let nextRequests = 0;
+  let release: () => void = () => {};
+  const responseReady = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/api/v1/files?**", async (route) => {
+    const cursor = new URL(route.request().url()).searchParams.get("cursor");
+    if (!cursor)
+      return route.fulfill({ json: { files: firstPage, cursor: "next" } });
+    expect(cursor).toBe("next");
+    nextRequests++;
+    await responseReady;
+    await route.fulfill({
+      json: { files: [{ ...files[2], id: "last", name: "last.pdf" }] },
+    });
+  });
+  await page.goto("/files");
+  await expect(page.locator(".file-count")).toContainText("100");
+  await page.locator("main").evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  await expect(page.locator(".load-more")).toHaveText("正在加载…");
+  expect(nextRequests).toBe(1);
+  release();
+  await expect(page.locator(".load-more")).toHaveText("已全部显示 101 个文件");
+  await page.locator("main").evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  await expect(page.getByRole("button", { name: /last.pdf/ })).toBeVisible();
+  expect(nextRequests).toBe(1);
+  await capture(page, errors, info.title);
+});

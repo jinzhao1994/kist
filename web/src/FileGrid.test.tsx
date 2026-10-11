@@ -1,6 +1,6 @@
 import { ThemeProvider } from "./theme";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -21,6 +21,16 @@ const files: ArchiveFile[] = Array.from({ length: 1000 }, (_, index) => ({
   kind: "image",
 }));
 let mediaClient: QueryClient;
+let intersections: Set<IntersectionObserverCallback>;
+function reachEnd() {
+  act(() => {
+    for (const callback of intersections)
+      callback(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      );
+  });
+}
 const ready = () =>
   Response.json({ state: "ready", generation: "v1", result: {} });
 function mediaWrapper({ children }: { children: ReactNode }) {
@@ -29,6 +39,19 @@ function mediaWrapper({ children }: { children: ReactNode }) {
   );
 }
 beforeEach(() => {
+  intersections = new Set();
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class {
+      constructor(private callback: IntersectionObserverCallback) {}
+      observe() {
+        intersections.add(this.callback);
+      }
+      disconnect() {
+        intersections.delete(this.callback);
+      }
+    },
+  );
   mediaClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -139,7 +162,7 @@ it("moves keyboard focus by row and respects RTL horizontal navigation", async (
   await waitFor(() => expect(buttons[5]).toHaveFocus());
 });
 
-it("uses keyset pagination and resets it when filters change", async () => {
+it("automatically uses keyset pagination, shows the total and resets when filters change", async () => {
   const requests: URL[] = [];
   vi.stubGlobal(
     "fetch",
@@ -169,11 +192,12 @@ it("uses keyset pagination and resets it when filters change", async () => {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  const page = (name = "") => (
+  const page = (name = "", paused = false) => (
     <QueryClientProvider client={client}>
       <ThemeProvider env="test">
         <I18nProvider>
           <FileBrowser
+            paused={paused}
             filters={{ ...emptyFilters, name }}
             tags={[]}
             open={vi.fn()}
@@ -182,11 +206,20 @@ it("uses keyset pagination and resets it when filters change", async () => {
       </ThemeProvider>
     </QueryClientProvider>
   );
-  const view = render(page());
-  const user = userEvent.setup();
-  await user.click(await screen.findByRole("button", { name: "Load more" }));
+  const view = render(page("", true));
+  await screen.findByText("1 file loaded");
+  expect(intersections.size).toBe(0);
+  view.rerender(page());
+  await waitFor(() => expect(intersections.size).toBe(1));
+  expect(
+    screen.queryByRole("button", { name: "Load more" }),
+  ).not.toBeInTheDocument();
+  reachEnd();
   await waitFor(() => expect(screen.getAllByRole("img")).toHaveLength(2));
   expect(requests[1].searchParams.get("cursor")).toBe("next-page");
+  expect(screen.getByText("All 2 files shown")).toBeVisible();
+  reachEnd();
+  expect(requests).toHaveLength(2);
   expect(
     screen.queryByRole("button", { name: "Load more" }),
   ).not.toBeInTheDocument();
@@ -196,4 +229,57 @@ it("uses keyset pagination and resets it when filters change", async () => {
   );
   expect(requests.at(-1)?.searchParams.has("cursor")).toBe(false);
   await waitFor(() => expect(screen.queryAllByRole("img")).toHaveLength(0));
+});
+
+it("keeps loaded files on pagination failure and retries only on request", async () => {
+  let attempts = 0;
+  let finish: (response: Response) => void = () => {};
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string) => {
+      const url = new URL(path, "http://localhost");
+      if (url.pathname.includes("/derived/")) return Promise.resolve(ready());
+      if (url.pathname.endsWith("/info"))
+        return Promise.resolve(Response.json({ timezone: "UTC" }));
+      if (!url.searchParams.get("cursor"))
+        return Promise.resolve(
+          Response.json({ files: [files[0]], cursor: "next-page" }),
+        );
+      attempts++;
+      return new Promise<Response>((resolve) => {
+        finish = resolve;
+      });
+    }),
+  );
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  render(
+    <QueryClientProvider client={client}>
+      <ThemeProvider env="test">
+        <I18nProvider>
+          <FileBrowser filters={emptyFilters} tags={[]} open={vi.fn()} />
+        </I18nProvider>
+      </ThemeProvider>
+    </QueryClientProvider>,
+  );
+  await waitFor(() => expect(intersections.size).toBe(1));
+  reachEnd();
+  reachEnd();
+  expect(attempts).toBe(1);
+  expect(await screen.findByText("Loading…")).toBeVisible();
+  await act(async () => {
+    finish(Response.json({ message: "offline" }, { status: 503 }));
+  });
+  const retry = await screen.findByRole("button", { name: "Try again" });
+  expect(screen.getByRole("button", { name: /photo-0.jpg/ })).toBeVisible();
+  reachEnd();
+  expect(attempts).toBe(1);
+  await userEvent.setup().click(retry);
+  expect(attempts).toBe(2);
+  expect(await screen.findByText("Loading…")).toBeVisible();
+  await act(async () => {
+    finish(Response.json({ files: [files[1]] }));
+  });
+  expect(await screen.findByText("All 2 files shown")).toBeVisible();
 });

@@ -150,6 +150,8 @@ export const en = {
   to: "Until",
   clearFilters: "Clear filters",
   loadMore: "Load more",
+  allFilesShown:
+    "{count, plural, one {All # file shown} other {All # files shown}}",
   filters: "Filters",
   tagAll: "All of these tags",
   tagAny: "Any of these tags",
@@ -334,6 +336,7 @@ export const zh: Record<MessageKey, string> = {
   to: "至",
   clearFilters: "清除筛选",
   loadMore: "加载更多",
+  allFilesShown: "已全部显示 {count, number} 个文件",
   filters: "筛选",
   tagAll: "同时包含这些标签",
   tagAny: "包含任一标签",
@@ -432,6 +435,7 @@ interface Parameters {
   historicalState: { id: number };
   errorDetails: { message: string; code: string };
   loadedFiles: { count: number };
+  allFilesShown: { count: number };
   fileCount: { count: number };
   uploadLimit: { count: string; size: string };
   uploadProgress: { percent: string };
