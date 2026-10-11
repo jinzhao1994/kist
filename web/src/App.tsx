@@ -55,12 +55,18 @@ export function App() {
         <p className="sidebar-caption">{t("archive")}</p>
         <nav aria-label={t("archive")}>
           <UnstyledButton
+            className={`nav-link ${route.files && !route.box ? "active" : ""}`}
+            onClick={() => navigate(undefined, true)}
+          >
+            ▦ <span>{t("allFiles")}</span>
+          </UnstyledButton>
+          <UnstyledButton
             className={`nav-link ${!route.files && !route.section ? "active" : ""}`}
             onClick={() => navigate()}
           >
             ▤ <span>{t("boxes")}</span>
           </UnstyledButton>
-          {(["history", "trash"] as const).map((section) => (
+          {(["trash", "history"] as const).map((section) => (
             <UnstyledButton
               key={section}
               className={`nav-link ${route.section === section ? "active" : ""}`}
@@ -69,12 +75,6 @@ export function App() {
               {section === "history" ? "◷" : "⌫"} <span>{t(section)}</span>
             </UnstyledButton>
           ))}
-          <UnstyledButton
-            className={`nav-link ${route.files && !route.box ? "active" : ""}`}
-            onClick={() => navigate(undefined, true)}
-          >
-            ▦ <span>{t("allFiles")}</span>
-          </UnstyledButton>
         </nav>
         <details className="sidebar-tags" open>
           <summary>{t("tags")}</summary>
