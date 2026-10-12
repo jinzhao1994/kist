@@ -3,6 +3,7 @@ import {
   Button,
   MultiSelect,
   Pill,
+  CheckIcon,
   Popover,
   ActionIcon,
   UnstyledButton,
@@ -151,14 +152,23 @@ export function FiltersPanel({
                       ).map((kind) => ({ value: kind, label: t(kind) }))
                     : flat.map(tagOption)
                 }
-                renderOption={({ option }) => {
-                  const tag = flat.find((tag) => tag.id === option.value);
-                  return tag ? (
-                    <TagPath option={tagOption(tag)} />
-                  ) : (
-                    option.label
-                  );
-                }}
+                renderOption={
+                  field === "kind"
+                    ? undefined
+                    : ({ option, checked }) => {
+                        const tag = flat.find((tag) => tag.id === option.value);
+                        return (
+                          <>
+                            {checked && <CheckIcon size={12} aria-hidden />}
+                            {tag ? (
+                              <TagPath option={tagOption(tag)} />
+                            ) : (
+                              option.label
+                            )}
+                          </>
+                        );
+                      }
+                }
                 renderPill={
                   field === "kind"
                     ? undefined
