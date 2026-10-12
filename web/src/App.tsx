@@ -5,12 +5,18 @@ import { api, type Box } from "./api";
 import { useI18n } from "./i18n";
 import { Settings } from "./Settings";
 import { BoxTrashDialog } from "./BoxTrashDialog";
-import { BoxGrid } from "./BoxGrid";
+import { BoxBrowser } from "./BoxBrowser";
 import { TagResults } from "./TagResults";
 import { flattenTags } from "./TagPath";
 import { BoxEditor } from "./BoxEditor";
 import { TagManager, TagTree } from "./Tags";
-import { FiltersPanel, emptyFilters, type Filters } from "./Filters";
+import {
+  FiltersPanel,
+  emptyFilters,
+  emptyBoxFilters,
+  type BoxFilters,
+  type Filters,
+} from "./Filters";
 import { FileBrowser } from "./FileBrowser";
 import { FileDetail } from "./FileDetail";
 import { useNavigation } from "./navigation";
@@ -24,9 +30,18 @@ export function App() {
   const [trashing, setTrashing] = useState<Box | null>(null);
   const [manage, setManage] = useState(false);
   const [filters, setFilters] = useState<Filters>({ ...emptyFilters });
+  const [boxFilters, setBoxFilters] = useState<BoxFilters>({
+    ...emptyBoxFilters,
+  });
+  const box = useQuery({
+    queryKey: ["boxes", "detail", route.box],
+    queryFn: ({ signal }) => api.box(route.box!, signal),
+    enabled: !!route.box,
+  });
   const boxes = useQuery({
     queryKey: ["boxes"],
     queryFn: ({ signal }) => api.boxes(signal),
+    enabled: !!route.section,
   });
   const info = useQuery({
     queryKey: ["info"],
@@ -37,7 +52,7 @@ export function App() {
     queryFn: ({ signal }) => api.tags(signal),
   });
   const client = useQueryClient();
-  const selected = boxes.data?.boxes?.find((box) => box.id === route.box);
+  const selected = box.data;
   const tree = tags.data?.tags || [];
   const selectedTag = flattenTags(tree).find((tag) => tag.id === route.tag);
   const navigate = (box?: Box, files = false) => {
@@ -163,8 +178,10 @@ export function App() {
             {t("projectionDirty")}
           </p>
         )}
-        {boxes.isPending && <p role="status">{t("loading")}</p>}
-        {boxes.isError && (
+        {route.section && boxes.isPending && (
+          <p role="status">{t("loading")}</p>
+        )}
+        {route.section && boxes.isError && (
           <div role="alert">
             <p>{errorMessage(boxes.error, t)}</p>
             <Button onClick={() => boxes.refetch()}>{t("retry")}</Button>
@@ -203,8 +220,13 @@ export function App() {
               openFile={(file) => go({ ...route, file: file.id })}
             />
           )
-        ) : route.box && boxes.data && !selected ? (
-          <p role="alert">{t("notFound")}</p>
+        ) : route.box && box.isPending ? (
+          <p role="status">{t("loading")}</p>
+        ) : route.box && box.isError ? (
+          <div role="alert">
+            <p>{errorMessage(box.error, t)}</p>
+            <Button onClick={() => box.refetch()}>{t("retry")}</Button>
+          </div>
         ) : route.files && (!route.box || selected) ? (
           <>
             <FiltersPanel value={filters} onChange={setFilters} tags={tree} />
@@ -219,19 +241,18 @@ export function App() {
           </>
         ) : (
           <>
-            {boxes.data && !boxes.data.boxes?.length && (
-              <section className="empty-state">
-                <span className="archive-mark" aria-hidden="true">
-                  ▤
-                </span>
-                <h2>{t("emptyBoxes")}</h2>
-                <p>{t("emptyBoxesHint")}</p>
-                <Button variant="filled" onClick={() => setEditor("new")}>
-                  {t("createBox")}
-                </Button>
-              </section>
-            )}
-            <BoxGrid boxes={boxes.data?.boxes || []} open={navigate} />
+            <FiltersPanel
+              entity="boxes"
+              value={boxFilters}
+              onChange={setBoxFilters}
+              tags={tree}
+            />
+            <BoxBrowser
+              filters={boxFilters}
+              open={navigate}
+              paused={!!route.file}
+              create={() => setEditor("new")}
+            />
           </>
         )}
       </main>

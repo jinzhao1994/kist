@@ -14,6 +14,9 @@ export type APIErrorBody = components["schemas"]["HTTPError"];
 export type FileQuery = NonNullable<
   operations["get-api-v1-files"]["parameters"]["query"]
 >;
+export type BoxQuery = NonNullable<
+  operations["get-api-v1-boxes-search"]["parameters"]["query"]
+>;
 export class APIError extends Error {
   constructor(
     public readonly status: number,
@@ -60,6 +63,18 @@ export const api = {
       `/history/${op}/files/${encodeURIComponent(file)}`,
       signal,
     ),
+  box: (id: string, signal?: AbortSignal) =>
+    get<Box>(`/boxes/${encodeURIComponent(id)}`, signal),
+  searchBoxes: (query: BoxQuery, signal?: AbortSignal) => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query))
+      if (value !== undefined && value !== "")
+        params.set(key, Array.isArray(value) ? value.join(",") : String(value));
+    return get<components["schemas"]["BoxSearchResult"]>(
+      `/boxes/search?${params}`,
+      signal,
+    );
+  },
   boxes: (signal?: AbortSignal) =>
     get<components["schemas"]["BoxList"]>("/boxes", signal),
   boxesByTag: (tag: string, signal?: AbortSignal) =>

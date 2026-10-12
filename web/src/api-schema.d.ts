@@ -18,6 +18,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/boxes/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 boxes search */
+        get: operations["get-api-v1-boxes-search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/boxes/{id}": {
         parameters: {
             query?: never;
@@ -468,6 +485,10 @@ export interface components {
         BoxList: {
             boxes: components["schemas"]["Box"][] | null;
         };
+        BoxSearchResult: {
+            boxes: components["schemas"]["Box"][] | null;
+            cursor?: string;
+        };
         CreateTagInputBody: {
             name: string;
             parent_id?: string;
@@ -723,6 +744,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RequestResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-boxes-search": {
+        parameters: {
+            query?: {
+                text?: string;
+                tag_all?: string[] | null;
+                tag_any?: string[] | null;
+                tag_not?: string[] | null;
+                from?: string;
+                to?: string;
+                sort?: "updated" | "name" | "activity";
+                asc?: boolean;
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoxSearchResult"];
                 };
             };
             /** @description Error */

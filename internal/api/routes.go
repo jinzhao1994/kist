@@ -69,6 +69,7 @@ type libraryInfo struct {
 }
 
 func (s *Server) readRoutes() {
+	s.boxSearchRoute()
 	huma.Get(s.contract, Prefix+"/boxes/{id}/deletion-preview", func(ctx context.Context, in *entityInput) (*output[library.BoxDeletionPreview], error) {
 		id, err := parseID(in.ID)
 		if err != nil {

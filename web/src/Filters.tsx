@@ -9,7 +9,7 @@ import {
   UnstyledButton,
 } from "@mantine/core";
 import { useState } from "react";
-import type { FileQuery, Tag } from "./api";
+import type { FileQuery, BoxQuery, Tag } from "./api";
 import { flattenTags, tagOption, TagPath } from "./TagPath";
 import { useI18n } from "./i18n";
 import { Select } from "./Select";
@@ -25,6 +25,14 @@ export const emptyFilters: Filters = {
   tag_any: [],
   tag_not: [],
 };
+export type BoxFilters = Omit<BoxQuery, "text" | "cursor" | "limit"> & {
+  name?: string;
+  kind?: string[] | null;
+};
+export const emptyBoxFilters: BoxFilters = { ...emptyFilters, sort: "updated" };
+type FilterValues = Omit<Filters, "sort"> & {
+  sort?: Filters["sort"] | BoxFilters["sort"];
+};
 type Field = "kind" | "from" | "to" | "tag_all" | "tag_any" | "tag_not";
 const fields = [
   ["kind", "kind"],
@@ -34,13 +42,15 @@ const fields = [
   ["tag_any", "tagAny"],
   ["tag_not", "tagNot"],
 ] as const;
-export function FiltersPanel({
+export function FiltersPanel<T extends FilterValues>({
   value,
   onChange,
   tags,
+  entity = "files",
 }: {
-  value: Filters;
-  onChange: (value: Filters) => void;
+  value: T;
+  onChange: (value: T) => void;
+  entity?: "files" | "boxes";
   tags: Tag[];
 }) {
   const { t } = useI18n();
@@ -48,13 +58,17 @@ export function FiltersPanel({
   const [field, setField] = useState<Field | null>(null);
   const [date, setDate] = useState("");
   const flat = flattenTags(tags);
-  const change = (patch: Partial<Filters>) => onChange({ ...value, ...patch });
+  const change = (patch: Partial<FilterValues>) =>
+    onChange({ ...value, ...patch });
   const edit = (next: Field | null) => {
     setField(next);
     setDate(next === "from" || next === "to" ? value[next] || "" : "");
     setOpened(true);
   };
-  const active = fields.filter(([key]) => !!value[key]?.length);
+  const visibleFields = fields.filter(
+    ([key]) => entity !== "boxes" || key !== "kind",
+  );
+  const active = visibleFields.filter(([key]) => !!value[key]?.length);
   const label = fields.find(([key]) => key === field)?.[1];
   const describe = (key: Field) => {
     const selected = value[key];
@@ -72,8 +86,8 @@ export function FiltersPanel({
       <div className="filter-search">
         <TextInput
           className="filter-search-input"
-          aria-label={t("search")}
-          placeholder={t("search")}
+          aria-label={t(entity === "boxes" ? "searchBoxes" : "search")}
+          placeholder={t(entity === "boxes" ? "searchBoxes" : "search")}
           type="search"
           value={value.name || ""}
           onChange={(event) => change({ name: event.currentTarget.value })}
@@ -108,7 +122,7 @@ export function FiltersPanel({
             </div>
             {field === null ? (
               <div className="filter-options">
-                {fields.map(([key, title]) => (
+                {visibleFields.map(([key, title]) => (
                   <Button key={key} variant="subtle" onClick={() => edit(key)}>
                     {t(title)}
                   </Button>
@@ -127,7 +141,9 @@ export function FiltersPanel({
                   value={date}
                   onChange={(event) => setDate(event.currentTarget.value)}
                   placeholder="2026-10"
-                  description={t("filterDateHint")}
+                  description={t(
+                    entity === "boxes" ? "boxDateHint" : "filterDateHint",
+                  )}
                   autoFocus
                 />
                 <Button type="submit" mt="sm">
@@ -198,12 +214,20 @@ export function FiltersPanel({
         <Select
           label={t("sort")}
           value={value.sort || "captured"}
-          onValueChange={(sort) => change({ sort: sort as Filters["sort"] })}
-          options={[
-            { value: "captured", label: t("captured") },
-            { value: "imported", label: t("imported") },
-            { value: "name", label: t("filename") },
-          ]}
+          onValueChange={(sort) => change({ sort: sort as T["sort"] })}
+          options={
+            entity === "boxes"
+              ? [
+                  { value: "updated", label: t("updated") },
+                  { value: "activity", label: t("activityDate") },
+                  { value: "name", label: t("name") },
+                ]
+              : [
+                  { value: "captured", label: t("captured") },
+                  { value: "imported", label: t("imported") },
+                  { value: "name", label: t("filename") },
+                ]
+          }
         />
         <ActionIcon
           size="lg"
@@ -242,7 +266,12 @@ export function FiltersPanel({
             variant="subtle"
             size="compact-sm"
             onClick={() => {
-              onChange({ ...emptyFilters, sort: value.sort, asc: value.asc });
+              onChange({
+                ...value,
+                ...emptyFilters,
+                sort: value.sort,
+                asc: value.asc,
+              });
               setOpened(false);
             }}
           >

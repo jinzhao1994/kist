@@ -35,7 +35,7 @@ beforeEach(() => {
       async (path: string) =>
         new Response(
           JSON.stringify(
-            path.endsWith("/boxes")
+            path.includes("/boxes/search?")
               ? { boxes: [] }
               : { version: "test", timezone: "UTC", projection_dirty: false },
           ),
@@ -104,10 +104,14 @@ it("opens global tag results from a box and preserves the tag URL on back and re
       requests.push(path);
       const url = new URL(path, "http://localhost");
       let data: unknown;
-      if (url.pathname.endsWith("/boxes"))
+      if (url.pathname.endsWith("/boxes/search"))
         data = {
-          boxes: url.searchParams.has("tag") ? [matching] : [current, matching],
+          boxes: url.searchParams.has("tag_all")
+            ? [matching]
+            : [current, matching],
         };
+      else if (url.pathname === "/api/v1/boxes/current") data = current;
+      else if (url.pathname === "/api/v1/boxes/matching") data = matching;
       else if (
         url.pathname.includes("/boxes/") &&
         url.pathname.endsWith("/tags")

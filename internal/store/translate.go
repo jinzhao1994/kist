@@ -110,6 +110,11 @@ func translate(q query.Query, zone *time.Location) (string, []any, error) {
 // fail closed (spec 4.2.1). Everything composite is bracketed, because
 // unbracketed "a AND b OR c" does not mean what it was built to mean.
 func tagPredicate(e query.TagExpr) (string, []any) {
+	return entityTagPredicate(e, "file_tags", "file_id", "files")
+}
+
+// Table and column names are internal constants, never user input.
+func entityTagPredicate(e query.TagExpr, table, idColumn, entity string) (string, []any) {
 	switch v := e.(type) {
 	case nil:
 		return "1", nil
@@ -122,17 +127,17 @@ func tagPredicate(e query.TagExpr) (string, []any) {
 		for i, id := range v {
 			args[i] = id
 		}
-		return `EXISTS (SELECT 1 FROM file_tags WHERE file_id = files.id AND tag_id IN (` +
+		return `EXISTS (SELECT 1 FROM ` + table + ` WHERE ` + idColumn + ` = ` + entity + `.id AND tag_id IN (` +
 			placeholders(len(v)) + `))`, args
 
 	case query.TagAll:
-		return joinPredicates(v, " AND ", "1")
+		return joinPredicates(v, " AND ", "1", table, idColumn, entity)
 
 	case query.TagAnyOf:
-		return joinPredicates(v, " OR ", "0")
+		return joinPredicates(v, " OR ", "0", table, idColumn, entity)
 
 	case query.TagNot:
-		inner, args := tagPredicate(v.Expr)
+		inner, args := entityTagPredicate(v.Expr, table, idColumn, entity)
 		return "NOT (" + inner + ")", args
 	}
 	// TagExpr is a closed interface, so this is unreachable — but a silent
@@ -141,14 +146,14 @@ func tagPredicate(e query.TagExpr) (string, []any) {
 	return "0", nil
 }
 
-func joinPredicates(children []query.TagExpr, op, empty string) (string, []any) {
+func joinPredicates(children []query.TagExpr, op, empty, table, idColumn, entity string) (string, []any) {
 	if len(children) == 0 {
 		return empty, nil
 	}
 	parts := make([]string, len(children))
 	var args []any
 	for i, c := range children {
-		p, a := tagPredicate(c)
+		p, a := entityTagPredicate(c, table, idColumn, entity)
 		parts[i] = p
 		args = append(args, a...)
 	}

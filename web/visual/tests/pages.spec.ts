@@ -86,7 +86,7 @@ async function prepare(page: Page, options: Options = {}) {
       return route.abort();
     }
     let body: unknown;
-    if (path === "/boxes")
+    if (path === "/boxes" || path === "/boxes/search")
       body = {
         boxes: options.empty
           ? []
@@ -102,6 +102,7 @@ async function prepare(page: Page, options: Options = {}) {
               },
             ],
       };
+    else if (path === "/boxes/box-1") body = box;
     else if (path === "/ops") {
       const deleted = {
         id: 12,
@@ -623,7 +624,7 @@ for (const scenario of [
         },
       }),
     );
-    await page.route("**/api/v1/boxes?*", (route) =>
+    await page.route("**/api/v1/boxes/search?*", (route) =>
       route.fulfill({ json: { boxes: matchingBoxes } }),
     );
     await page.route("**/api/v1/files?*", (route) =>
@@ -648,3 +649,87 @@ for (const scenario of [
     await capture(page, errors, info.title);
   });
 }
+
+for (const mobile of [false, true]) {
+  test(`box-search-${mobile ? "mobile" : "desktop"}`, async ({
+    page,
+  }, info) => {
+    const errors = await prepare(page, { mobile });
+    await page.route("**/api/v1/boxes/search?**", (route) => {
+      const params = new URL(route.request().url()).searchParams;
+      return route.fulfill({
+        json: {
+          boxes:
+            params.get("text") === "年度报告"
+              ? [{ ...box, name: "工作档案", description: "年度报告和合同" }]
+              : [box],
+        },
+      });
+    });
+    await page.goto("/");
+    await page
+      .getByRole("searchbox", { name: "搜索归档盒名称和描述" })
+      .fill("年度报告");
+    await expect(page.getByRole("heading", { name: "工作档案" })).toBeVisible();
+    await expect(page.locator(".load-more")).toHaveText(
+      "已全部显示 1 个归档盒",
+    );
+    await page.getByRole("button", { name: "添加条件" }).click();
+    await expect(
+      page.getByRole("button", { name: "文件类型", exact: true }),
+    ).toHaveCount(0);
+    await page.getByRole("button", { name: "关闭", exact: true }).click();
+    await capture(page, errors, info.title);
+  });
+}
+
+test("box-automatic-pagination-and-search-reset", async ({ page }, info) => {
+  const errors = await prepare(page);
+  const firstPage = Array.from({ length: 100 }, (_, i) => ({
+    ...box,
+    id: `box-${i}`,
+    name: `Archive ${i}`,
+  }));
+  let nextRequests = 0;
+  let release: () => void = () => {};
+  const ready = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/api/v1/boxes/search?**", async (route) => {
+    const params = new URL(route.request().url()).searchParams;
+    if (params.get("text")) {
+      expect(params.get("cursor") || "").toBe("");
+      return route.fulfill({
+        json: { boxes: [{ ...box, name: "Search result" }] },
+      });
+    }
+    if (!params.get("cursor"))
+      return route.fulfill({ json: { boxes: firstPage, cursor: "next" } });
+    expect(params.get("cursor")).toBe("next");
+    nextRequests++;
+    await ready;
+    return route.fulfill({
+      json: { boxes: [{ ...box, id: "last-box", name: "Last archive" }] },
+    });
+  });
+  await page.goto("/");
+  await expect(page.locator(".box-card")).toHaveCount(100);
+  await page.locator("main").evaluate((e) => {
+    e.scrollTop = e.scrollHeight;
+  });
+  await expect(page.locator(".load-more")).toHaveText("正在加载…");
+  expect(nextRequests).toBe(1);
+  release();
+  await expect(page.locator(".box-card")).toHaveCount(101);
+  await expect(page.locator(".load-more")).toHaveText(
+    "已全部显示 101 个归档盒",
+  );
+  await page.getByRole("searchbox").fill("new search");
+  await expect(page.locator(".box-card")).toHaveCount(1);
+  await expect(
+    page.getByRole("heading", { name: "Search result" }),
+  ).toBeVisible();
+  await expect(page.locator(".load-more")).toHaveText("已全部显示 1 个归档盒");
+  expect(nextRequests).toBe(1);
+  await capture(page, errors, info.title);
+});
