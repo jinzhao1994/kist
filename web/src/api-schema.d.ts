@@ -30,6 +30,24 @@ export interface paths {
         /** Put API v1 boxes by ID */
         put: operations["put-api-v1-boxes-by-id"];
         post?: never;
+        /** Delete API v1 boxes by ID */
+        delete: operations["delete-api-v1-boxes-by-id"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boxes/{id}/deletion-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 boxes by ID deletion preview */
+        get: operations["get-api-v1-boxes-by-id-deletion-preview"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -440,12 +458,23 @@ export interface components {
             name: string;
             start_at?: string;
         };
+        BoxDeletionPreview: {
+            /** Format: int64 */
+            file_count: number;
+            name: string;
+            /** Format: int64 */
+            revision: number;
+        };
         BoxList: {
             boxes: components["schemas"]["Box"][] | null;
         };
         CreateTagInputBody: {
             name: string;
             parent_id?: string;
+        };
+        "Delete-api-v1-boxes-by-idRequest": {
+            /** Format: int64 */
+            revision: number;
         };
         ExtractionInputBody: Record<string, never>;
         File: {
@@ -756,6 +785,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RequestResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "delete-api-v1-boxes-by-id": {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Delete-api-v1-boxes-by-idRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-boxes-by-id-deletion-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoxDeletionPreview"];
                 };
             };
             /** @description Error */

@@ -113,6 +113,10 @@ func busyLibrary(t *testing.T) *Library {
 	}
 
 	seedExtractions(t, l)
+	deleted := trashBox(t, l, boxes[1])
+	if _, err := l.Undo(ctx, deleted); err != nil {
+		t.Fatal(err)
+	}
 	return l
 }
 

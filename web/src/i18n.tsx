@@ -45,6 +45,13 @@ export const en = {
   origin: "Origin",
   action_create_box: "Create box",
   action_delete_box: "Delete box",
+  action_delete_box_contents: "Move box to trash",
+  action_restore_box_contents: "Restore box",
+  moveBoxToTrash: "Move to trash",
+  trashBoxConfirm:
+    "Move “{name}” and all {count, number} files to trash? Folders, tags and metadata will be restored together. Original files are retained.",
+  trashBoxChanged:
+    "The box may have changed. Close this dialog and try again to review its current contents.",
   action_update_box: "Edit box",
   action_create_tag: "Create tag",
   action_delete_tag: "Delete tag",
@@ -243,6 +250,12 @@ export const zh: Record<MessageKey, string> = {
   origin: "来源",
   action_create_box: "创建归档箱",
   action_delete_box: "删除归档箱",
+  action_delete_box_contents: "归档盒移入回收站",
+  action_restore_box_contents: "恢复归档盒",
+  moveBoxToTrash: "移入回收站",
+  trashBoxConfirm:
+    "将“{name}”及其中全部 {count, number} 个文件移入回收站？目录、标签和元数据可一并恢复，原始文件会保留。",
+  trashBoxChanged: "归档盒可能已发生变化，请关闭窗口并重试，重新确认当前内容。",
   action_update_box: "修改归档箱",
   action_create_tag: "创建标签",
   action_delete_tag: "删除标签",
@@ -438,6 +451,7 @@ export function directionFor(prefs: Preferences): "ltr" | "rtl" {
   return "ltr";
 }
 interface Parameters {
+  trashBoxConfirm: { name: string; count: number };
   operation: { id: number };
   undoneBy: { id: number };
   reverts: { id: number };

@@ -16,10 +16,12 @@ package oplog
 type Action string
 
 const (
-	ActionRequestReceipt Action = "request_receipt"
-	ActionCreateBox      Action = "create_box"
-	ActionDeleteBox      Action = "delete_box"
-	ActionUpdateBox      Action = "update_box"
+	ActionRequestReceipt     Action = "request_receipt"
+	ActionCreateBox          Action = "create_box"
+	ActionDeleteBox          Action = "delete_box"
+	ActionUpdateBox          Action = "update_box"
+	ActionDeleteBoxContents  Action = "delete_box_contents"
+	ActionRestoreBoxContents Action = "restore_box_contents"
 
 	ActionCreateTag Action = "create_tag"
 	ActionDeleteTag Action = "delete_tag"
@@ -62,7 +64,7 @@ func AllActions() []Action {
 // Finder.
 func (a Action) ChangesContent() bool {
 	switch a {
-	case ActionCreateBox, ActionDeleteBox, ActionUpdateBox,
+	case ActionCreateBox, ActionDeleteBox, ActionUpdateBox, ActionDeleteBoxContents, ActionRestoreBoxContents,
 		ActionImportFiles, ActionDeleteFiles:
 		return true
 	}

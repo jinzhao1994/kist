@@ -37,6 +37,11 @@ export async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
   return result<T>(await fetch(`/api/v1${path}`, { signal }));
 }
 export const api = {
+  boxDeletionPreview: (id: string, signal?: AbortSignal) =>
+    get<components["schemas"]["BoxDeletionPreview"]>(
+      `/boxes/${encodeURIComponent(id)}/deletion-preview`,
+      signal,
+    ),
   history: (query: HistoryQuery, signal?: AbortSignal) => {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(query))

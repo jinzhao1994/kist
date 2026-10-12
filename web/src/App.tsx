@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Box } from "./api";
 import { formatLocalDate, useI18n } from "./i18n";
 import { Settings } from "./Settings";
+import { BoxTrashDialog } from "./BoxTrashDialog";
 import { BoxEditor } from "./BoxEditor";
 import { TagManager, TagTree } from "./Tags";
 import { FiltersPanel, emptyFilters, type Filters } from "./Filters";
@@ -17,6 +18,7 @@ export function App() {
   const { route, go } = useNavigation();
   const [settings, setSettings] = useState(false);
   const [editor, setEditor] = useState<Box | "new" | null>(null);
+  const [trashing, setTrashing] = useState<Box | null>(null);
   const [manage, setManage] = useState(false);
   const [filters, setFilters] = useState<Filters>({ ...emptyFilters });
   const boxes = useQuery({
@@ -128,9 +130,18 @@ export function App() {
             )}
             {!route.section &&
               (selected ? (
-                <Button onClick={() => setEditor(selected)}>
-                  {t("editBox")}
-                </Button>
+                <>
+                  <Button onClick={() => setEditor(selected)}>
+                    {t("editBox")}
+                  </Button>
+                  <Button
+                    color="red"
+                    variant="subtle"
+                    onClick={() => setTrashing(selected)}
+                  >
+                    {t("moveBoxToTrash")}
+                  </Button>
+                </>
               ) : (
                 !route.files && (
                   <Button variant="filled" onClick={() => setEditor("new")}>
@@ -224,6 +235,16 @@ export function App() {
           </>
         )}
       </main>
+      {trashing && (
+        <BoxTrashDialog
+          box={trashing}
+          close={() => setTrashing(null)}
+          done={() => {
+            setTrashing(null);
+            navigate();
+          }}
+        />
+      )}
       {settings && <Settings open={settings} onOpenChange={setSettings} />}{" "}
       {editor && (
         <BoxEditor

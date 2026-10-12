@@ -340,3 +340,14 @@ func (f *fakeTx) SetCapturedAt(file domain.FileID, at domain.Instant) error {
 	f.files[file] = got
 	return nil
 }
+
+// Composite archive handlers use real SQLite in library's integration tests.
+func (*fakeTx) BoxContents(domain.BoxID) (domain.BoxContents, bool, error) {
+	return domain.BoxContents{}, false, fmt.Errorf("box archive is not implemented by fakeTx")
+}
+func (*fakeTx) DeleteBoxContents(domain.BoxContents) error {
+	return fmt.Errorf("box archive is not implemented by fakeTx")
+}
+func (*fakeTx) RestoreBoxContents(domain.BoxContents) error {
+	return fmt.Errorf("box archive is not implemented by fakeTx")
+}

@@ -306,6 +306,14 @@ function OperationDetail({
               </ul>
             </>
           )}
+          {op.payload.box &&
+          typeof op.payload.box === "object" &&
+          "Name" in op.payload.box &&
+          typeof op.payload.box.Name === "string" ? (
+            <p>
+              <bdi>{op.payload.box.Name}</bdi>
+            </p>
+          ) : null}
           {typeof op.payload.name === "string" && (
             <p>
               <bdi>{op.payload.name}</bdi>
@@ -318,6 +326,18 @@ function OperationDetail({
 }
 function fileName(payload: Record<string, unknown>, id: string): string {
   if (!Array.isArray(payload.files)) return id;
+  const archived = payload.files.find(
+    (item: unknown) =>
+      typeof item === "object" &&
+      item !== null &&
+      "file" in item &&
+      typeof item.file === "object" &&
+      item.file !== null &&
+      "ID" in item.file &&
+      item.file.ID === id,
+  );
+  if (archived && typeof archived.file?.Name === "string")
+    return archived.file.Name;
   const item = payload.files.find(
     (item: unknown) =>
       typeof item === "object" &&

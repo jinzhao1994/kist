@@ -28,6 +28,10 @@ type Tx interface {
 	// here, so a rebuild reproduces the same values (spec 2.3.1).
 	TS() time.Time
 
+	BoxContents(domain.BoxID) (domain.BoxContents, bool, error)
+	DeleteBoxContents(domain.BoxContents) error
+	RestoreBoxContents(domain.BoxContents) error
+
 	InsertBox(b domain.Box) error
 	UpdateBox(b domain.Box) error
 	DeleteBox(id domain.BoxID) error

@@ -69,6 +69,15 @@ type libraryInfo struct {
 }
 
 func (s *Server) readRoutes() {
+	huma.Get(s.contract, Prefix+"/boxes/{id}/deletion-preview", func(ctx context.Context, in *entityInput) (*output[library.BoxDeletionPreview], error) {
+		id, err := parseID(in.ID)
+		if err != nil {
+			return nil, err
+		}
+		preview, err := s.library.PreviewBoxDeletion(ctx, domain.BoxID{ID: id})
+		return response(preview, err)
+	})
+
 	huma.Get(s.contract, Prefix+"/info", func(ctx context.Context, _ *struct{}) (*output[libraryInfo], error) {
 		return response(libraryInfo{Version: buildinfo.Get().Version, Timezone: s.library.Zone().String(), ProjectionDirty: s.library.ProjectionDirty(), MaxUploadBytes: s.maxUploadBytes, MaxUploadFiles: s.maxUploadFiles}, nil)
 	})
@@ -113,6 +122,23 @@ func (s *Server) mutate(ctx context.Context, key, method, target string, body an
 	return response(result, err)
 }
 func (s *Server) writeRoutes() {
+	huma.Delete(s.contract, Prefix+"/boxes/{id}", func(ctx context.Context, in *struct {
+		ID   string `path:"id"`
+		Key  string `header:"Idempotency-Key" required:"true"`
+		Body struct {
+			Revision int64 `json:"revision" minimum:"1"`
+		}
+	}) (*output[library.RequestResult], error) {
+		id, err := parseID(in.ID)
+		if err != nil {
+			return nil, err
+		}
+		return s.mutate(ctx, in.Key, "DELETE", Prefix+"/boxes/"+id.String(), in.Body, func(ctx context.Context) error {
+			_, err := s.library.DeleteBox(ctx, domain.BoxID{ID: id}, in.Body.Revision)
+			return err
+		})
+	})
+
 	huma.Post(s.contract, Prefix+"/boxes", func(ctx context.Context, in *createBoxInput) (*output[library.RequestResult], error) {
 		fields, err := in.Body.fields()
 		if err != nil {

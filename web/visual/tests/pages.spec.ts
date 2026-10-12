@@ -173,6 +173,8 @@ async function prepare(page: Page, options: Options = {}) {
         max_upload_bytes: 1073741824,
         max_upload_files: 100,
       };
+    else if (path === "/boxes/box-1/deletion-preview")
+      body = { name: box.name, file_count: 4, revision: 42 };
     else if (path === "/boxes/box-1/tags") body = { tags: ["tag-1"] };
     else if (path === "/files")
       body = {
@@ -497,3 +499,18 @@ test("automatic-pagination", async ({ page }, info) => {
   await expect(page.locator(".load-more")).toBeInViewport({ ratio: 1 });
   await capture(page, errors, info.title);
 });
+
+for (const mobile of [false, true]) {
+  test(`box-trash-confirm-${mobile ? "mobile" : "desktop"}`, async ({
+    page,
+  }, info) => {
+    const errors = await prepare(page, { mobile });
+    await page.goto("/boxes/box-1");
+    await expect(page.locator(".file-count")).toContainText("4");
+    await page.getByRole("button", { name: "移入回收站", exact: true }).click();
+    await expect(page.getByRole("dialog")).toContainText("全部 4 个文件");
+    await capture(page, errors, info.title);
+    await page.getByRole("button", { name: "取消", exact: true }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  });
+}

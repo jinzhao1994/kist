@@ -163,6 +163,12 @@ browse files, inspect metadata, download originals, and manage tags. Filters
 combine names, dates, media types and tag AND/OR/NOT conditions. The grid shows
 the number of loaded files; use **Load more** to continue through the results.
 
+Use **Move to trash** on a box page to remove the entire box after confirming
+its name and total file count. Restoring the deletion restores folders, files,
+tag assignments, metadata tombstones and extraction records together. A stale
+confirmation is rejected. Once these operations are recorded, older kist
+versions cannot read the new actions; do not downgrade that library.
+
 Open **History** in the sidebar, or from a box, to inspect operations and undo
 them. **File versions** in file details opens that file's operation history;
 **Compare versions** compares its state after two operation numbers, including
