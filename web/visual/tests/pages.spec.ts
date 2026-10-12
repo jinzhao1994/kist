@@ -39,6 +39,7 @@ const files: ArchiveFile[] = [
   created_at: time,
   updated_at: time,
   captured_at: time,
+  size: 123456,
 }));
 const landscape = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600"><rect width="800" height="600" fill="#d7e4df"/><circle cx="620" cy="130" r="58" fill="#f5d99a"/><path d="M0 460L260 120 530 460Z" fill="#718c7c"/><path d="M250 520L560 220 800 460V600H0V460Z" fill="#a4b9a3"/><path d="M0 520Q400 450 800 520V600H0Z" fill="#577c83"/></svg>`;
 
@@ -733,3 +734,39 @@ test("box-automatic-pagination-and-search-reset", async ({ page }, info) => {
   expect(nextRequests).toBe(1);
   await capture(page, errors, info.title);
 });
+
+for (const kind of ["boxes", "files"] as const) {
+  for (const [mode, label] of [
+    ["large", "大图标"],
+    ["medium", "中图标"],
+    ["small", "小图标"],
+    ["list", "列表"],
+  ]) {
+    test(`display-${kind}-${mode}`, async ({ page }, info) => {
+      const errors = await prepare(page);
+      await page.goto(kind === "boxes" ? "/" : "/files");
+      await page.getByText(label, { exact: true }).click();
+      const root = page.locator(
+        kind === "boxes" ? ".box-grid" : ".file-scroll",
+      );
+      await expect(root).toHaveClass(new RegExp(`view-${mode}`));
+      if (kind === "files") await grid(page);
+      await page.reload();
+      await expect(root).toHaveClass(new RegExp(`view-${mode}`));
+      if (kind === "files") await grid(page);
+      await capture(page, errors, info.title);
+    });
+  }
+  test(`display-${kind}-list-mobile`, async ({ page }, info) => {
+    const errors = await prepare(page, { mobile: true });
+    await page.goto(kind === "boxes" ? "/" : "/files");
+    await page.getByText("列表", { exact: true }).click();
+    await expect(
+      page.locator(kind === "boxes" ? ".box-grid" : ".file-scroll"),
+    ).toHaveClass(/view-list/);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBe(390);
+    await capture(page, errors, info.title);
+  });
+}

@@ -829,3 +829,196 @@ fieldset > label,
 .tag-results-boxes {
   margin-block-end: 2rem;
 }
+
+.display-mode {
+  display: flex;
+  justify-content: flex-end;
+  margin-block: 0.75rem;
+}
+.box-grid.view-large {
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+.box-grid.view-large .box-card {
+  min-height: 260px;
+}
+.box-grid.view-large .box-icon {
+  font-size: 2.5rem;
+}
+.box-grid.view-small {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.65rem;
+}
+.box-grid.view-small .box-card {
+  padding: 0.75rem;
+  min-height: 140px;
+}
+.box-grid.view-small h2 {
+  font-size: 0.9rem;
+  margin-block: 0.4rem;
+}
+.box-grid.view-small p {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.box-grid.view-small time {
+  margin-block-start: 0.5rem;
+}
+.box-grid.view-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.box-list-heading,
+.box-grid.view-list .box-card {
+  display: grid;
+  grid-template-columns:
+    minmax(140px, 1fr) minmax(140px, 1.5fr) minmax(140px, 1fr)
+    minmax(140px, 1fr);
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+}
+.box-list-heading,
+.file-list-heading {
+  color: var(--muted);
+  font-size: 0.8rem;
+  border-bottom: 1px solid var(--border);
+}
+.box-grid.view-list .box-card {
+  min-height: 72px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+}
+.box-grid.view-list .box-icon {
+  display: none;
+}
+.box-grid.view-list h2,
+.box-grid.view-list p,
+.box-grid.view-list time {
+  margin: 0;
+  font-size: 0.85rem;
+}
+.file-scroll.view-large .file-card {
+  block-size: 312px;
+}
+.file-scroll.view-large .file-preview {
+  block-size: 248px;
+}
+.file-scroll.view-small .file-card {
+  block-size: 152px;
+}
+.file-scroll.view-small .file-preview {
+  block-size: 96px;
+}
+.file-scroll.view-small .media-placeholder {
+  padding: 0.25rem;
+  font-size: 0.7rem;
+}
+.file-scroll.view-small .media-icon {
+  font-size: 1.5rem;
+}
+.file-list-heading {
+  display: grid;
+  grid-template-columns: minmax(160px, 2fr) minmax(100px, 1fr) 90px minmax(
+      140px,
+      1fr
+    );
+  gap: 1rem;
+  padding: 0.75rem;
+}
+.file-scroll.view-list .file-card {
+  display: grid;
+  grid-template-columns: 48px minmax(100px, 2fr) minmax(100px, 1fr) 90px minmax(
+      140px,
+      1fr
+    );
+  gap: 0.75rem;
+  align-items: center;
+  block-size: 64px;
+  padding: 0.5rem;
+  border-radius: 4px;
+}
+.file-scroll.view-list .file-preview {
+  block-size: 48px;
+}
+.file-scroll.view-list .file-name {
+  margin: 0;
+}
+.file-scroll.view-list .file-card > small {
+  display: none;
+}
+.file-scroll.view-list .media-placeholder {
+  padding: 0;
+  font-size: 0;
+}
+.file-scroll.view-list .media-icon {
+  font-size: 1.4rem;
+}
+.file-list-kind,
+.file-list-size,
+.file-list-date {
+  color: var(--muted);
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 680px) {
+  .display-mode {
+    justify-content: center;
+  }
+  .box-grid.view-large {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .box-list-heading,
+  .file-list-heading {
+    display: none;
+  }
+  .box-grid.view-list .box-card {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.25rem;
+  }
+  .box-grid.view-list .box-updated {
+    display: none;
+  }
+  .file-scroll.view-list .file-card {
+    grid-template-columns: 48px minmax(0, 1fr) 70px;
+  }
+  .file-list-kind,
+  .file-list-date {
+    display: none;
+  }
+}
+.file-list-heading {
+  grid-template-columns: 48px minmax(100px, 2fr) minmax(100px, 1fr) 90px minmax(
+      140px,
+      1fr
+    );
+  gap: 0.75rem;
+}
+.file-list-heading > span:first-child {
+  grid-column: span 2;
+}
+@media (min-width: 681px) and (max-width: 1100px) {
+  .box-list-heading,
+  .box-grid.view-list .box-card {
+    grid-template-columns: minmax(100px, 1fr) minmax(120px, 1fr) minmax(
+        120px,
+        1fr
+      );
+  }
+  .box-list-heading > span:nth-child(2),
+  .box-grid.view-list p {
+    display: none;
+  }
+  .file-list-heading,
+  .file-scroll.view-list .file-card {
+    grid-template-columns: 48px minmax(80px, 1fr) 70px 140px;
+  }
+  .file-list-heading > span:nth-child(2),
+  .file-list-kind {
+    display: none;
+  }
+}

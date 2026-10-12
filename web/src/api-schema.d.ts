@@ -512,6 +512,8 @@ export interface components {
             media_type?: string;
             name: string;
             path?: string;
+            /** Format: int64 */
+            size?: number;
             /** Format: date-time */
             updated_at: string;
         };

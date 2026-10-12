@@ -65,6 +65,9 @@ func TestFileQueryAndTagMutations(t *testing.T) {
 		t.Fatal(all)
 	}
 	for i, f := range all.Files {
+		if f.Size == nil || *f.Size != int64(len(f.Name)) {
+			t.Fatalf("unexpected file size: %+v", f)
+		}
 		if f.Name != []string{"a.txt", "b.txt", "c.txt"}[i] || f.BoxID != box.ID.String() || f.Path != f.Name {
 			t.Fatal(f)
 		}

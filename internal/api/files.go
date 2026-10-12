@@ -138,6 +138,7 @@ func renderFile(ctx context.Context, reader fileReader, f domain.File) (wire.Fil
 		return out, err
 	}
 	out.MediaType, out.Kind, out.ExtractionPending = info.MIME, info.Kind, info.Pending
+	out.Size = info.Size
 	return out, nil
 }
 

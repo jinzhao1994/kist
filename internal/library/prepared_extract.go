@@ -2,6 +2,7 @@ package library
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/extract"
@@ -63,6 +64,7 @@ func (p *PreparedExtraction) Commit(ctx context.Context) error {
 // MediaInfo is persisted classification plus extraction work still needed by
 // the current build. Missing classification is distinct from the "other" kind.
 type MediaInfo struct {
+	Size    *int64
 	MIME    string
 	Kind    string
 	Pending []string
@@ -79,6 +81,10 @@ func (l *Library) MediaInfo(ctx context.Context, id domain.FileID) (MediaInfo, e
 			continue
 		}
 		switch row.Key {
+		case "file:size":
+			if size, err := strconv.ParseInt(row.Value, 10, 64); err == nil && size >= 0 {
+				out.Size = &size
+			}
 		case "media:mime":
 			out.MIME = row.Value
 		case "media:kind":
