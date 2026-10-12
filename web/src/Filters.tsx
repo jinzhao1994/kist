@@ -2,13 +2,14 @@ import {
   TextInput,
   Button,
   MultiSelect,
+  Pill,
   Popover,
   ActionIcon,
   UnstyledButton,
 } from "@mantine/core";
 import { useState } from "react";
 import type { FileQuery, Tag } from "./api";
-import { flattenTags } from "./Tags";
+import { flattenTags, tagOption, TagPath } from "./TagPath";
 import { useI18n } from "./i18n";
 import { Select } from "./Select";
 export type Filters = Omit<FileQuery, "box" | "folder" | "cursor" | "limit">;
@@ -148,10 +149,31 @@ export function FiltersPanel({
                           "other",
                         ] as const
                       ).map((kind) => ({ value: kind, label: t(kind) }))
-                    : flat.map((tag) => ({
-                        value: tag.id,
-                        label: `${"　".repeat(tag.depth)}${tag.name}`,
-                      }))
+                    : flat.map(tagOption)
+                }
+                renderOption={({ option }) => {
+                  const tag = flat.find((tag) => tag.id === option.value);
+                  return tag ? (
+                    <TagPath option={tagOption(tag)} />
+                  ) : (
+                    option.label
+                  );
+                }}
+                renderPill={
+                  field === "kind"
+                    ? undefined
+                    : ({ value, onRemove, disabled }) => {
+                        const tag = flat.find((tag) => tag.id === value);
+                        return (
+                          <Pill
+                            withRemoveButton
+                            onRemove={onRemove}
+                            disabled={disabled}
+                          >
+                            {tag ? <TagPath option={tagOption(tag)} /> : value}
+                          </Pill>
+                        );
+                      }
                 }
                 searchable
                 clearable

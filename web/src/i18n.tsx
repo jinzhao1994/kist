@@ -8,6 +8,7 @@ import {
 } from "react";
 
 export const en = {
+  searchTags: "Search tags",
   folders: "Folders",
   history: "History",
   trash: "Recycle bin",
@@ -374,6 +375,7 @@ export const zh: Record<MessageKey, string> = {
   addTag: "添加标签",
   removeTag: "移除标签",
   selectTag: "选择标签",
+  searchTags: "搜索标签",
   created: "添加时间",
   modified: "更新时间",
   capturedAt: "拍摄时间",

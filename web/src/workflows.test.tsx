@@ -122,7 +122,9 @@ it("adds and removes associations through explicit target IDs", async () => {
   );
   const user = userEvent.setup();
   await user.click(screen.getByRole("combobox", { name: "Select a tag" }));
-  await user.click(await screen.findByRole("option", { name: "Japan" }));
+  await user.click(
+    await screen.findByRole("option", { name: "Travel / Japan" }),
+  );
   await user.click(screen.getByRole("button", { name: "Add tag" }));
   await waitFor(() => expect(fetch).toHaveBeenCalledOnce());
   expect(fetch.mock.calls[0][0]).toBe("/api/v1/tags/child/files");

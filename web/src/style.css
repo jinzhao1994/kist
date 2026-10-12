@@ -782,3 +782,17 @@ fieldset > label,
     margin-inline-start: auto;
   }
 }
+
+.tag-select-input {
+  text-align: start;
+}
+.tag-path {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tag-path-prefix {
+  color: var(--mantine-color-dimmed);
+}

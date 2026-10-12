@@ -2,19 +2,11 @@ import { UnstyledButton, TextInput, Button } from "@mantine/core";
 import { useId, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createWrite, get, type Tag } from "./api";
-import { Select } from "./Select";
+import { TagSelect } from "./TagSelect";
+import { flattenTags, tagOption } from "./TagPath";
 import { Dialog } from "./Dialog";
 import { formatNumber, useI18n } from "./i18n";
 import { useWrites, WriteFeedback } from "./mutations";
-export function flattenTags(
-  tags: Tag[],
-  depth = 0,
-): (Tag & { depth: number })[] {
-  return tags.flatMap((tag) => [
-    { ...tag, depth },
-    ...flattenTags(tag.children || [], depth + 1),
-  ]);
-}
 export function TagTree({
   tags,
   choose,
@@ -103,18 +95,14 @@ export function TagManager({
       >
         <fieldset disabled={state.busy || state.locked}>
           <label htmlFor={`${id}-tag`}>{t("selectTag")}</label>
-          <Select
+          <TagSelect
             id={`${id}-tag`}
             value={selected}
             onValueChange={select}
             disabled={state.busy || state.locked}
-            searchable
             options={[
               { value: "", label: t("newTag") },
-              ...flat.map((tag) => ({
-                value: tag.id,
-                label: `${"　".repeat(tag.depth)}${tag.name}`,
-              })),
+              ...flat.map(tagOption),
             ]}
           />
           <label htmlFor={`${id}-name`}>{t("name")}</label>
@@ -126,20 +114,14 @@ export function TagManager({
             maxLength={255}
           />
           <label htmlFor={`${id}-parent`}>{t("parentTag")}</label>
-          <Select
+          <TagSelect
             id={`${id}-parent`}
             value={parent}
             onValueChange={setParent}
             disabled={state.busy || state.locked}
-            searchable
             options={[
               { value: "", label: t("rootTag") },
-              ...flat
-                .filter((tag) => !descendants.has(tag.id))
-                .map((tag) => ({
-                  value: tag.id,
-                  label: `${"　".repeat(tag.depth)}${tag.name}`,
-                })),
+              ...flat.filter((tag) => !descendants.has(tag.id)).map(tagOption),
             ]}
           />
         </fieldset>
@@ -234,17 +216,14 @@ export function TagAssignment({
         <label className="sr-only" htmlFor={id}>
           {t("selectTag")}
         </label>
-        <Select
+        <TagSelect
           id={id}
           disabled={state.busy || state.locked}
           value={selected}
           onValueChange={setSelected}
-          searchable
           options={[
             { value: "", label: t("selectTag") },
-            ...flat
-              .filter((tag) => !assigned.includes(tag.id))
-              .map((tag) => ({ value: tag.id, label: tag.name })),
+            ...flat.filter((tag) => !assigned.includes(tag.id)).map(tagOption),
           ]}
         />
         <Button

@@ -514,3 +514,64 @@ for (const mobile of [false, true]) {
     await expect(page.getByRole("dialog")).toHaveCount(0);
   });
 }
+
+for (const scenario of ["light", "dark", "mobile", "options"] as const) {
+  test(`tag-path-${scenario}`, async ({ page }, info) => {
+    const errors = await prepare(page, {
+      mode: scenario === "dark" ? "dark" : "light",
+      mobile: scenario === "mobile",
+    });
+    await page.route("**/api/v1/tags", (route) =>
+      route.fulfill({
+        json: {
+          tags: [
+            {
+              id: "education",
+              name: "上学",
+              parent_id: null,
+              count: 0,
+              children: [
+                {
+                  id: "school",
+                  name: "高中",
+                  parent_id: "education",
+                  count: 0,
+                  children: [
+                    {
+                      id: "reports",
+                      name: "成绩单",
+                      parent_id: "school",
+                      count: 0,
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+    await page.goto("/");
+    await expect(page.locator(".box-card")).toHaveCount(2);
+    await page.getByRole("button", { name: "管理标签", exact: true }).click();
+    await page.getByRole("combobox", { name: "选择标签", exact: true }).click();
+    await page
+      .getByRole("option", { name: "上学 / 高中 / 成绩单", exact: true })
+      .click();
+    await expect(
+      page.getByRole("combobox", { name: "选择标签", exact: true }),
+    ).toHaveText("上学 / 高中 / 成绩单");
+    await expect(
+      page.getByRole("combobox", { name: "父标签", exact: true }),
+    ).toHaveText("上学 / 高中");
+    if (scenario === "options") {
+      await page
+        .getByRole("combobox", { name: "选择标签", exact: true })
+        .click();
+      await expect(
+        page.getByRole("option", { name: "上学 / 高中 / 成绩单", exact: true }),
+      ).toBeVisible();
+    }
+    await capture(page, errors, info.title);
+  });
+}
