@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TagManager, TagTree } from "./Tags";
 import { TagSelect } from "./TagSelect";
@@ -134,4 +134,57 @@ it("keeps tree branches independently collapsed and separates expansion from fil
   expect(choose).toHaveBeenLastCalledWith("b");
   await user.keyboard("{ArrowLeft}");
   expect(screen.queryByText("Reports")).not.toBeInTheDocument();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  sessionStorage.clear();
+});
+
+it("retains the parent for consecutive new tags and resets it on reopening", async () => {
+  const requests: { name: string; parent_id?: string }[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (_path: string, init: RequestInit) => {
+      requests.push(JSON.parse(String(init.body)));
+      return new Response(JSON.stringify({ op_id: requests.length }));
+    }),
+  );
+  function Manager() {
+    const [open, setOpen] = useState(true);
+    return (
+      <>
+        <button onClick={() => setOpen(true)}>Open manager</button>
+        {open && <TagManager tags={tags} close={() => setOpen(false)} />}
+      </>
+    );
+  }
+  wrap(<Manager />);
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("combobox", { name: "Parent tag" }));
+  await user.click(screen.getByRole("option", { name: "Education / School" }));
+  for (const name of ["Math", "Science"]) {
+    const input = screen.getByRole("textbox", { name: "Name" });
+    await user.type(input, name);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(input).toHaveValue(""));
+    expect(input).toHaveFocus();
+    expect(screen.getByRole("dialog")).toBeVisible();
+    expect(
+      screen.getByRole("combobox", { name: "Parent tag" }),
+    ).toHaveTextContent("Education / School");
+  }
+  expect(requests).toEqual([
+    { name: "Math", parent_id: "b" },
+    { name: "Science", parent_id: "b" },
+  ]);
+  await user.click(screen.getByRole("button", { name: "Close" }));
+  await user.click(screen.getByRole("button", { name: "Open manager" }));
+  expect(
+    screen.getByRole("combobox", { name: "Parent tag" }),
+  ).not.toHaveTextContent("Education");
+  await user.type(screen.getByRole("textbox", { name: "Name" }), "Travel");
+  await user.click(screen.getByRole("button", { name: "Save" }));
+  await waitFor(() => expect(requests).toHaveLength(3));
+  expect(requests[2]).toEqual({ name: "Travel" });
 });

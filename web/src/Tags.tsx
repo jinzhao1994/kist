@@ -6,7 +6,7 @@ import {
   useTree,
   type TreeNodeData,
 } from "@mantine/core";
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createWrite, get, type Tag } from "./api";
 import { TagSelect } from "./TagSelect";
@@ -138,12 +138,21 @@ export function TagManager({
   const [name, setName] = useState("");
   const [parent, setParent] = useState("");
   const [confirm, setConfirm] = useState(false);
+  const nameInput = useRef<HTMLInputElement>(null);
+  const [focusName, setFocusName] = useState(false);
   const state = useWrites(() => {
     setSelected("");
     setName("");
-    setParent("");
+    if (selected) setParent("");
+    else setFocusName(true);
     setConfirm(false);
   });
+  useEffect(() => {
+    if (focusName && !state.busy) {
+      nameInput.current?.focus();
+      setFocusName(false);
+    }
+  }, [focusName, state.busy]);
   const current = flat.find((tag) => tag.id === selected);
   const descendants = new Set(
     current ? flattenTags([current]).map((tag) => tag.id) : [],
@@ -198,6 +207,7 @@ export function TagManager({
           />
           <label htmlFor={`${id}-name`}>{t("name")}</label>
           <TextInput
+            ref={nameInput}
             id={`${id}-name`}
             value={name}
             onChange={(e) => setName(e.target.value)}
