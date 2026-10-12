@@ -2,9 +2,12 @@ import { UnstyledButton, Button } from "@mantine/core";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Box } from "./api";
-import { formatLocalDate, useI18n } from "./i18n";
+import { useI18n } from "./i18n";
 import { Settings } from "./Settings";
 import { BoxTrashDialog } from "./BoxTrashDialog";
+import { BoxGrid } from "./BoxGrid";
+import { TagResults } from "./TagResults";
+import { flattenTags } from "./TagPath";
 import { BoxEditor } from "./BoxEditor";
 import { TagManager, TagTree } from "./Tags";
 import { FiltersPanel, emptyFilters, type Filters } from "./Filters";
@@ -14,7 +17,7 @@ import { useNavigation } from "./navigation";
 import { errorMessage } from "./mutations";
 import { HistoryPage } from "./History";
 export function App() {
-  const { t, prefs } = useI18n();
+  const { t } = useI18n();
   const { route, go } = useNavigation();
   const [settings, setSettings] = useState(false);
   const [editor, setEditor] = useState<Box | "new" | null>(null);
@@ -36,6 +39,7 @@ export function App() {
   const client = useQueryClient();
   const selected = boxes.data?.boxes?.find((box) => box.id === route.box);
   const tree = tags.data?.tags || [];
+  const selectedTag = flattenTags(tree).find((tag) => tag.id === route.tag);
   const navigate = (box?: Box, files = false) => {
     setFilters({ ...emptyFilters });
     go({ box: box?.id, files: !!box || files });
@@ -57,13 +61,13 @@ export function App() {
         <p className="sidebar-caption">{t("archive")}</p>
         <nav aria-label={t("archive")}>
           <UnstyledButton
-            className={`nav-link ${route.files && !route.box ? "active" : ""}`}
+            className={`nav-link ${route.files && !route.box && !route.tag ? "active" : ""}`}
             onClick={() => navigate(undefined, true)}
           >
             ▦ <span>{t("allFiles")}</span>
           </UnstyledButton>
           <UnstyledButton
-            className={`nav-link ${!route.files && !route.section ? "active" : ""}`}
+            className={`nav-link ${!route.files && !route.section && !route.tag ? "active" : ""}`}
             onClick={() => navigate()}
           >
             ▤ <span>{t("boxes")}</span>
@@ -86,8 +90,8 @@ export function App() {
             <TagTree
               tags={tree}
               choose={(id) => {
-                setFilters({ ...emptyFilters, tag_all: [id] });
-                go({ files: true, box: route.section ? undefined : route.box });
+                setFilters({ ...emptyFilters });
+                go({ files: false, tag: id });
               }}
             />
           )}
@@ -111,7 +115,9 @@ export function App() {
               <bdi>
                 {route.section
                   ? t(route.section)
-                  : selected?.name || t(route.files ? "allFiles" : "boxes")}
+                  : route.tag
+                    ? selectedTag?.name || t("tags")
+                    : selected?.name || t(route.files ? "allFiles" : "boxes")}
               </bdi>
             </h1>
           </div>
@@ -143,7 +149,8 @@ export function App() {
                   </Button>
                 </>
               ) : (
-                !route.files && (
+                !route.files &&
+                !route.tag && (
                   <Button variant="filled" onClick={() => setEditor("new")}>
                     {t("createBox")}
                   </Button>
@@ -179,6 +186,23 @@ export function App() {
               })
             }
           />
+        ) : route.tag ? (
+          tags.isPending ? (
+            <p role="status">{t("loading")}</p>
+          ) : tags.isError ? (
+            <p role="alert">{errorMessage(tags.error, t)}</p>
+          ) : !selectedTag ? (
+            <p role="alert">{t("notFound")}</p>
+          ) : (
+            <TagResults
+              key={route.tag}
+              tag={route.tag}
+              tags={tree}
+              paused={!!route.file}
+              openBox={navigate}
+              openFile={(file) => go({ ...route, file: file.id })}
+            />
+          )
         ) : route.box && boxes.data && !selected ? (
           <p role="alert">{t("notFound")}</p>
         ) : route.files && (!route.box || selected) ? (
@@ -207,31 +231,7 @@ export function App() {
                 </Button>
               </section>
             )}
-            <div className="box-grid">
-              {boxes.data?.boxes?.map((box) => (
-                <UnstyledButton
-                  className="box-card"
-                  key={box.id}
-                  onClick={() => navigate(box)}
-                >
-                  <span className="box-icon" aria-hidden="true">
-                    ▤
-                  </span>
-                  <h2>
-                    <bdi>{box.name}</bdi>
-                  </h2>
-                  <p>
-                    <bdi>{box.description}</bdi>
-                  </p>
-                  <time>
-                    {box.start_at ? formatLocalDate(box.start_at, prefs) : ""}
-                    {box.end_at
-                      ? ` — ${formatLocalDate(box.end_at, prefs)}`
-                      : ""}
-                  </time>
-                </UnstyledButton>
-              ))}
-            </div>
+            <BoxGrid boxes={boxes.data?.boxes || []} open={navigate} />
           </>
         )}
       </main>

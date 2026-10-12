@@ -2,12 +2,20 @@ import { useEffect, useState } from "react";
 export interface Route {
   files: boolean;
   box?: string;
+  tag?: string;
   file?: string;
   section?: "history" | "trash";
 }
 function read(): Route {
   const url = new URL(window.location.href);
   const match = url.pathname.match(/^\/boxes\/([^/]+)$/);
+  const tagMatch = url.pathname.match(/^\/tags\/([^/]+)$/);
+  let tag: string | undefined;
+  try {
+    tag = tagMatch ? decodeURIComponent(tagMatch[1]) : undefined;
+  } catch {
+    tag = tagMatch?.[1];
+  }
   let box: string | undefined;
   try {
     box = match ? decodeURIComponent(match[1]) : undefined;
@@ -15,6 +23,7 @@ function read(): Route {
     box = match?.[1];
   }
   return {
+    tag,
     files: url.pathname === "/files" || !!match,
     box: box || url.searchParams.get("box") || undefined,
     section:
@@ -38,11 +47,13 @@ export function useNavigation() {
     go: (next: Route) => {
       const path = next.section
         ? `/${next.section}`
-        : next.box
-          ? `/boxes/${encodeURIComponent(next.box)}`
-          : next.files
-            ? "/files"
-            : "/";
+        : next.tag
+          ? `/tags/${encodeURIComponent(next.tag)}`
+          : next.box
+            ? `/boxes/${encodeURIComponent(next.box)}`
+            : next.files
+              ? "/files"
+              : "/";
       const params = new URLSearchParams();
       if (next.file) params.set("file", next.file);
       if (next.section && next.box) params.set("box", next.box);

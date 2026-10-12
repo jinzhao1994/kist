@@ -825,3 +825,7 @@ fieldset > label,
 .tag-path-prefix {
   color: var(--mantine-color-dimmed);
 }
+
+.tag-results-boxes {
+  margin-block-end: 2rem;
+}

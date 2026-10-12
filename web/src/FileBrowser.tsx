@@ -15,8 +15,10 @@ export function FileBrowser({
   tags,
   open,
   paused,
+  emptyHint,
 }: {
   box?: Box;
+  emptyHint?: string;
   paused?: boolean;
   filters: Filters;
   tags: Tag[];
@@ -107,7 +109,7 @@ export function FileBrowser({
                 ▤
               </span>
               <h2>{t("noResults")}</h2>
-              <p>{box ? t("importHint") : t("clearFilters")}</p>
+              <p>{emptyHint || (box ? t("importHint") : t("clearFilters"))}</p>
             </section>
           )}
           <div className="load-more" ref={end}>

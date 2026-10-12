@@ -593,3 +593,58 @@ for (const scenario of ["collapsed", "expanded", "mobile", "dark"] as const) {
     await capture(page, errors, info.title);
   });
 }
+
+for (const scenario of [
+  "mixed",
+  "boxes-only",
+  "empty",
+  "mobile",
+  "dark",
+] as const) {
+  test(`tag-results-${scenario}`, async ({ page }, info) => {
+    const errors = await prepare(page, {
+      mode: scenario === "dark" ? "dark" : "light",
+      mobile: scenario === "mobile",
+    });
+    const matchingBoxes = scenario === "empty" ? [] : [box];
+    const matchingFiles =
+      scenario === "empty" || scenario === "boxes-only" ? [] : files;
+    await page.route("**/api/v1/tags", (route) =>
+      route.fulfill({
+        json: {
+          tags: [
+            {
+              ...tags[0],
+              count: matchingBoxes.length + matchingFiles.length,
+              box_count: matchingBoxes.length,
+              file_count: matchingFiles.length,
+            },
+          ],
+        },
+      }),
+    );
+    await page.route("**/api/v1/boxes?*", (route) =>
+      route.fulfill({ json: { boxes: matchingBoxes } }),
+    );
+    await page.route("**/api/v1/files?*", (route) =>
+      route.fulfill({ json: { files: matchingFiles, cursor: "" } }),
+    );
+    await page.goto("/tags/tag-1");
+    await expect(
+      page.getByRole("heading", { name: "旅行", level: 1 }),
+    ).toBeVisible();
+    const boxes = page.getByRole("region", { name: "归档盒", exact: true });
+    if (matchingBoxes.length)
+      await expect(
+        boxes.getByRole("heading", { name: box.name }),
+      ).toBeVisible();
+    else await expect(boxes.getByText("没有匹配的归档盒")).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: "文件", exact: true }),
+    ).toBeVisible();
+    await expect(page.locator(".file-count")).toContainText(
+      String(matchingFiles.length),
+    );
+    await capture(page, errors, info.title);
+  });
+}

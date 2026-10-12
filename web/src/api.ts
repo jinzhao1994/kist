@@ -62,6 +62,11 @@ export const api = {
     ),
   boxes: (signal?: AbortSignal) =>
     get<components["schemas"]["BoxList"]>("/boxes", signal),
+  boxesByTag: (tag: string, signal?: AbortSignal) =>
+    get<components["schemas"]["BoxList"]>(
+      `/boxes?${new URLSearchParams({ tag })}`,
+      signal,
+    ),
   info: (signal?: AbortSignal) =>
     get<components["schemas"]["LibraryInfo"]>("/info", signal),
   tags: (signal?: AbortSignal) =>

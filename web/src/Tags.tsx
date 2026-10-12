@@ -33,7 +33,7 @@ export function TagTree({
     return nodes(tags);
   }, [tags]);
   const counts = useMemo(
-    () => new Map(flattenTags(tags).map((tag) => [tag.id, tag.count])),
+    () => new Map(flattenTags(tags).map((tag) => [tag.id, tag])),
     [tags],
   );
   return (
@@ -103,8 +103,20 @@ export function TagTree({
             <span className="tag-tree-spacer" aria-hidden="true" />
           )}
           <bdi title={String(node.label)}>{node.label}</bdi>
-          {!!counts.get(node.value) && (
-            <small>{formatNumber(counts.get(node.value)!, prefs)}</small>
+          {!!counts.get(node.value)?.count && (
+            <small
+              title={
+                counts.get(node.value)?.box_count != null &&
+                counts.get(node.value)?.file_count != null
+                  ? t("tagResultCounts", {
+                      boxes: counts.get(node.value)!.box_count!,
+                      files: counts.get(node.value)!.file_count!,
+                    })
+                  : undefined
+              }
+            >
+              {formatNumber(counts.get(node.value)!.count!, prefs)}
+            </small>
           )}
         </div>
       )}
