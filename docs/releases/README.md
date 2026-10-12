@@ -27,7 +27,7 @@ retrying; do not silently overwrite already-published files.
 `Container Release` publishes public GHCR images independently of binary assets.
 It follows a successful tag-triggered `Release` via `workflow_run`; this also works
 when `GITHUB_TOKEN` created the Release. A manually dispatched binary rehearsal
-does not publish images. The source repository remains private. Package visibility is configured once
+does not publish images. Package visibility is configured once
 by its owner; the workflow does not change visibility. Post-publication verification
 uses an empty Docker credential configuration to prove anonymous access.
 
@@ -47,7 +47,9 @@ only the resolved release source; OCI labels record source, version and revision
 2. Run actual media, HTTP access/range, persistence and deep integrity acceptance.
 3. Push each passing image under a unique candidate tag and collect its digest.
 4. Refuse an existing version tag. Combine exactly the two tested digests into the
-   version index; do not publish `latest` or moving minor-version aliases.
+   version index; this workflow does not publish moving aliases. A subsequent
+   Container Latest workflow verifies and promotes the latest stable release to
+   `latest`.
 5. Pull that index anonymously by digest on both native runners and repeat acceptance.
 
 Check **all** jobs before announcing success. The publish job summary includes
