@@ -43,7 +43,7 @@ export function TagResults({
             <p>{t("noMatchingBoxes")}</p>
           ))}
       </section>
-      <section aria-label={t("files")}>
+      <section>
         <h2>{t("files")}</h2>
         <FileBrowser
           filters={{ ...emptyFilters, tag_all: [tag] }}

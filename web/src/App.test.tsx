@@ -177,7 +177,9 @@ it("opens global tag results from a box and preserves the tag URL on back and re
   expect(
     await screen.findByRole("heading", { name: "Travel", level: 1 }),
   ).toBeVisible();
-  expect(await screen.findByRole("region", { name: "Files" })).toBeVisible();
+  expect(
+    await screen.findByRole("heading", { name: "Files", level: 2 }),
+  ).toBeVisible();
   view.unmount();
   history.replaceState(null, "", "/");
 });

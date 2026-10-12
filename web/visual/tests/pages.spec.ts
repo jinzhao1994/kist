@@ -640,7 +640,7 @@ for (const scenario of [
       ).toBeVisible();
     else await expect(boxes.getByText("没有匹配的归档盒")).toBeVisible();
     await expect(
-      page.getByRole("region", { name: "文件", exact: true }),
+      page.getByRole("heading", { name: "文件", level: 2, exact: true }),
     ).toBeVisible();
     await expect(page.locator(".file-count")).toContainText(
       String(matchingFiles.length),
