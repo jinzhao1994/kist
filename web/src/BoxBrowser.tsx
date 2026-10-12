@@ -13,11 +13,13 @@ export function BoxBrowser({
   open,
   paused,
   create,
+  compact = false,
 }: {
   filters: BoxFilters;
   open: (box: Box) => void;
   paused?: boolean;
   create?: () => void;
+  compact?: boolean;
 }) {
   const { t } = useI18n();
   const [text] = useDebouncedValue(filters.name || "", 250);
@@ -84,6 +86,8 @@ export function BoxBrowser({
         <>
           {boxes.length ? (
             <BoxGrid boxes={boxes} open={open} />
+          ) : compact ? (
+            <p>{t("noMatchingBoxes")}</p>
           ) : (
             <section className="empty-state">
               <span className="archive-mark" aria-hidden="true">
@@ -98,13 +102,15 @@ export function BoxBrowser({
               )}
             </section>
           )}
-          <div className="load-more" ref={end} role="status">
-            {query.isFetchingNextPage
-              ? t("loading")
-              : !query.hasNextPage && !query.isError && boxes.length > 0
-                ? t("allBoxesShown", { count: boxes.length })
-                : null}
-          </div>
+          {boxes.length > 0 && (
+            <div className="load-more" ref={end} role="status">
+              {query.isFetchingNextPage
+                ? t("loading")
+                : !query.hasNextPage && !query.isError && boxes.length > 0
+                  ? t("allBoxesShown", { count: boxes.length })
+                  : null}
+            </div>
+          )}
         </>
       )}
     </>

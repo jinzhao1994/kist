@@ -23,6 +23,7 @@ export function TagResults({
       <section className="tag-results-boxes" aria-label={t("boxes")}>
         <h2>{t("boxes")}</h2>
         <BoxBrowser
+          compact
           filters={{ ...emptyBoxFilters, tag_all: [tag] }}
           open={openBox}
           paused={paused}
