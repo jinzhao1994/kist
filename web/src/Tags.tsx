@@ -1,5 +1,12 @@
-import { UnstyledButton, TextInput, Button } from "@mantine/core";
-import { useId, useState } from "react";
+import {
+  UnstyledButton,
+  TextInput,
+  Button,
+  Tree,
+  useTree,
+  type TreeNodeData,
+} from "@mantine/core";
+import { useId, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createWrite, get, type Tag } from "./api";
 import { TagSelect } from "./TagSelect";
@@ -14,25 +21,97 @@ export function TagTree({
   tags: Tag[];
   choose: (id: string) => void;
 }) {
-  const { prefs } = useI18n();
+  const { prefs, t } = useI18n();
+  const tree = useTree();
+  const data = useMemo(() => {
+    const nodes = (items: Tag[]): TreeNodeData[] =>
+      items.map((tag) => ({
+        value: tag.id,
+        label: tag.name,
+        children: nodes(tag.children || []),
+      }));
+    return nodes(tags);
+  }, [tags]);
+  const counts = useMemo(
+    () => new Map(flattenTags(tags).map((tag) => [tag.id, tag.count])),
+    [tags],
+  );
   return (
-    <ul className="tag-tree">
-      {tags.map((tag) => (
-        <li key={tag.id}>
-          <UnstyledButton onClick={() => choose(tag.id)}>
-            <span aria-hidden="true">#</span> <bdi>{tag.name}</bdi>
-            <small>
-              {tag.count == null ? "" : formatNumber(tag.count, prefs)}
-            </small>
-          </UnstyledButton>
-          {tag.children?.length ? (
-            <TagTree tags={tag.children} choose={choose} />
-          ) : null}
-        </li>
-      ))}
-    </ul>
+    <Tree
+      className="tag-tree"
+      aria-label={t("tags")}
+      data={data}
+      tree={tree}
+      levelOffset={16}
+      expandOnClick={false}
+      allowRangeSelection={false}
+      onKeyDownCapture={(event) => {
+        const target = event.target as HTMLElement;
+        if (
+          event.key === "Enter" &&
+          target.getAttribute("role") === "treeitem"
+        ) {
+          event.preventDefault();
+          event.stopPropagation();
+          if (target.dataset.value) choose(target.dataset.value);
+        }
+      }}
+      renderNode={({ node, hasChildren, expanded, elementProps }) => (
+        <div
+          {...elementProps}
+          className={`${elementProps.className} tag-tree-row`}
+          onClick={(event) => {
+            elementProps.onClick(event);
+            choose(node.value);
+          }}
+        >
+          {hasChildren ? (
+            <UnstyledButton
+              className="tag-tree-toggle"
+              tabIndex={-1}
+              aria-label={t(expanded ? "collapseTag" : "expandTag", {
+                name: String(node.label),
+              })}
+              aria-expanded={expanded}
+              onClick={(event) => {
+                event.stopPropagation();
+                tree.toggleExpanded(node.value);
+                event.currentTarget
+                  .closest<HTMLElement>('[role="treeitem"]')
+                  ?.focus();
+              }}
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 16 16"
+                fill="none"
+                aria-hidden="true"
+                className="tag-tree-chevron"
+                data-expanded={expanded}
+              >
+                <path
+                  d="m6 3 5 5-5 5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </UnstyledButton>
+          ) : (
+            <span className="tag-tree-spacer" aria-hidden="true" />
+          )}
+          <bdi title={String(node.label)}>{node.label}</bdi>
+          {!!counts.get(node.value) && (
+            <small>{formatNumber(counts.get(node.value)!, prefs)}</small>
+          )}
+        </div>
+      )}
+    />
   );
 }
+
 export function TagManager({
   tags,
   close,

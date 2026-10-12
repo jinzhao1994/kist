@@ -575,3 +575,21 @@ for (const scenario of ["light", "dark", "mobile", "options"] as const) {
     await capture(page, errors, info.title);
   });
 }
+
+for (const scenario of ["collapsed", "expanded", "mobile", "dark"] as const) {
+  test(`tag-tree-${scenario}`, async ({ page }, info) => {
+    const errors = await prepare(page, {
+      mode: scenario === "dark" ? "dark" : "light",
+      mobile: scenario === "mobile",
+    });
+    await page.goto("/");
+    const tree = page.getByRole("tree", { name: "标签" });
+    await expect(tree.getByText("旅行", { exact: true })).toBeVisible();
+    await expect(tree.getByText("山野", { exact: true })).toHaveCount(0);
+    if (scenario !== "collapsed") {
+      await tree.getByRole("button", { name: "展开旅行" }).click();
+      await expect(tree.getByText("山野", { exact: true })).toBeVisible();
+    }
+    await capture(page, errors, info.title);
+  });
+}

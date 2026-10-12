@@ -299,25 +299,54 @@ summary {
   padding: 0;
   margin: 0;
 }
-.tag-tree .tag-tree {
-  padding-inline-start: 0.8rem;
-}
-.tag-tree button {
+.tag-tree-row {
   display: flex;
-  align-items: baseline;
-  gap: 0.4rem;
-  border: 0;
-  background: transparent;
-  padding: 0.35rem 0.15rem;
-  text-align: start;
-  inline-size: 100%;
+  align-items: center;
+  gap: 0.25rem;
+  min-block-size: 2.25rem;
+  padding-block: 0.2rem;
+  padding-inline-end: 0.35rem;
+  border-radius: var(--mantine-radius-sm);
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+.tag-tree-row:hover {
+  background: var(--mantine-color-default-hover);
+}
+.tag-tree-toggle,
+.tag-tree-spacer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 1.75rem;
+  block-size: 1.75rem;
+}
+.tag-tree-toggle {
+  color: var(--mantine-color-dimmed);
+  border-radius: var(--mantine-radius-sm);
+}
+.tag-tree-toggle:hover {
+  color: var(--mantine-color-text);
+  background: var(--mantine-color-default-hover);
+}
+.tag-tree-chevron:dir(rtl) {
+  transform: rotate(180deg);
+}
+.tag-tree-chevron[data-expanded="true"] {
+  transform: rotate(90deg);
 }
 .tag-tree bdi {
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   min-inline-size: 0;
 }
 .tag-tree small {
   margin-inline-start: auto;
+  padding-inline-start: 0.4rem;
+  flex-shrink: 0;
+  color: var(--mantine-color-dimmed);
+  font-variant-numeric: tabular-nums;
 }
 .text-button {
   border: 0;

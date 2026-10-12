@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, expect, it } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { TagManager } from "./Tags";
+import { TagManager, TagTree } from "./Tags";
 import { TagSelect } from "./TagSelect";
 import { flattenTags, tagOption } from "./TagPath";
 import { I18nProvider, storageKey } from "./i18n";
@@ -97,4 +97,41 @@ it("excludes the selected tag and descendants from parent choices", async () => 
     }),
   ).not.toBeInTheDocument();
   expect(screen.getByRole("option", { name: "Education" })).toBeInTheDocument();
+});
+
+it("keeps tree branches independently collapsed and separates expansion from filtering", async () => {
+  const choose = vi.fn();
+  function RefreshingTree() {
+    const [items, setItems] = useState(tags);
+    return (
+      <>
+        <button onClick={() => setItems(structuredClone(tags))}>Refresh</button>
+        <TagTree tags={items} choose={choose} />
+      </>
+    );
+  }
+  wrap(<RefreshingTree />);
+  const user = userEvent.setup();
+  expect(screen.queryByText("School")).not.toBeInTheDocument();
+  await user.click(screen.getByText("Education"));
+  expect(choose).toHaveBeenLastCalledWith("a");
+  expect(screen.queryByText("School")).not.toBeInTheDocument();
+  choose.mockClear();
+  await user.click(screen.getByRole("button", { name: "Expand Education" }));
+  expect(choose).not.toHaveBeenCalled();
+  expect(screen.getByText("School")).toBeInTheDocument();
+  expect(screen.queryByText("Reports")).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Expand School" }));
+  await user.click(screen.getByRole("button", { name: "Refresh" }));
+  expect(screen.getByText("Reports")).toBeInTheDocument();
+  await user.click(screen.getByText("Reports"));
+  expect(choose).toHaveBeenLastCalledWith("c");
+  await user.click(screen.getByRole("button", { name: "Collapse Education" }));
+  expect(screen.queryByText("School")).not.toBeInTheDocument();
+  const root = screen.getByRole("treeitem");
+  root.focus();
+  await user.keyboard("{ArrowRight}{ArrowRight}{Enter}");
+  expect(choose).toHaveBeenLastCalledWith("b");
+  await user.keyboard("{ArrowLeft}");
+  expect(screen.queryByText("Reports")).not.toBeInTheDocument();
 });

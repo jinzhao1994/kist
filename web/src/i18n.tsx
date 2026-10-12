@@ -9,6 +9,8 @@ import {
 
 export const en = {
   searchTags: "Search tags",
+  expandTag: "Expand {name}",
+  collapseTag: "Collapse {name}",
   folders: "Folders",
   history: "History",
   trash: "Recycle bin",
@@ -376,6 +378,8 @@ export const zh: Record<MessageKey, string> = {
   removeTag: "移除标签",
   selectTag: "选择标签",
   searchTags: "搜索标签",
+  expandTag: "展开{name}",
+  collapseTag: "折叠{name}",
   created: "添加时间",
   modified: "更新时间",
   capturedAt: "拍摄时间",
@@ -454,6 +458,8 @@ export function directionFor(prefs: Preferences): "ltr" | "rtl" {
 }
 interface Parameters {
   trashBoxConfirm: { name: string; count: number };
+  expandTag: { name: string };
+  collapseTag: { name: string };
   operation: { id: number };
   undoneBy: { id: number };
   reverts: { id: number };
