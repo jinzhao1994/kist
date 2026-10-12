@@ -396,15 +396,19 @@ for (const mode of ["light", "dark"] as const) {
     const errors = await prepare(page, { mode });
     await page.goto("/files");
     await grid(page);
-    await page.getByRole("combobox", { name: "排序", exact: true }).click();
+    await page.getByRole("button", { name: "添加条件", exact: true }).click();
+    await page.getByRole("button", { name: "文件类型", exact: true }).click();
+    await page.getByRole("combobox", { name: "文件类型", exact: true }).click();
+    await page.getByRole("option", { name: "图片", exact: true }).click();
     await expect(
-      page.getByRole("option", { name: "文件名", exact: true }),
+      page.getByRole("button", { name: "文件类型: 图片", exact: true }),
     ).toBeVisible();
     await capture(page, errors, info.title);
   });
 }
 
 test("independent-scroll", async ({ page }, info) => {
+  await page.setViewportSize({ width: 1280, height: 400 });
   const errors = await prepare(page, { manyFiles: true });
   await page.goto("/files");
   await expect(page.locator(".file-count")).toContainText("100");

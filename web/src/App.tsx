@@ -96,9 +96,6 @@ export function App() {
             {t("manageTags")}
           </UnstyledButton>
         </details>
-        {route.files && (
-          <FiltersPanel value={filters} onChange={setFilters} tags={tree} />
-        )}
         <div className="sidebar-footer">
           <Button onClick={() => setSettings(true)}>{t("settings")}</Button>
           <small>kist · {info.data?.version || "v0.1"}</small>
@@ -174,14 +171,17 @@ export function App() {
         ) : route.box && boxes.data && !selected ? (
           <p role="alert">{t("notFound")}</p>
         ) : route.files && (!route.box || selected) ? (
-          <FileBrowser
-            key={route.box || "all"}
-            box={selected}
-            paused={!!route.file}
-            filters={filters}
-            tags={tree}
-            open={(file) => go({ ...route, file: file.id })}
-          />
+          <>
+            <FiltersPanel value={filters} onChange={setFilters} tags={tree} />
+            <FileBrowser
+              key={route.box || "all"}
+              box={selected}
+              paused={!!route.file}
+              filters={filters}
+              tags={tree}
+              open={(file) => go({ ...route, file: file.id })}
+            />
+          </>
         ) : (
           <>
             {boxes.data && !boxes.data.boxes?.length && (

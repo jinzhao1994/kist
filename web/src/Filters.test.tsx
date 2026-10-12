@@ -36,25 +36,64 @@ function Harness() {
     </ThemeProvider>
   );
 }
-it("selects and clears kinds, supports keyboard sorting, and keeps tag filters independent", async () => {
+it("adds, edits and removes independent conditions while preserving sorting on clear", async () => {
   const user = userEvent.setup();
   render(<Harness />);
   const state = () => JSON.parse(screen.getByTestId("filters").textContent!);
+  expect(
+    screen.queryByRole("combobox", { name: "File type" }),
+  ).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Add filter" }));
+  await user.click(screen.getByRole("button", { name: "File type" }));
   await user.click(screen.getByRole("combobox", { name: "File type" }));
   await user.click(await screen.findByRole("option", { name: "Image" }));
   expect(state().kind).toEqual(["image"]);
+  await user.click(screen.getByRole("button", { name: "Close" }));
+  await user.click(screen.getByRole("button", { name: "File type: Image" }));
   await user.click(screen.getByRole("combobox", { name: "File type" }));
-  await user.click(await screen.findByRole("option", { name: "All types" }));
+  await user.click(await screen.findByRole("option", { name: "Video" }));
+  expect(state().kind).toEqual(["image", "video"]);
+  await user.click(screen.getByRole("button", { name: "Close" }));
+  await user.click(screen.getByRole("button", { name: "Remove: File type" }));
   expect(state().kind).toEqual([]);
   const sort = screen.getByRole("combobox", { name: "Sort by" });
   sort.focus();
   await user.keyboard("{ArrowDown}{ArrowDown}{Enter}");
-  expect(state().sort).not.toBe("captured");
-  await user.click(screen.getByRole("combobox", { name: "All of these tags" }));
-  await user.click(await screen.findByRole("option", { name: "Travel" }));
-  await user.keyboard("{Escape}");
+  const selectedSort = state().sort;
+  expect(selectedSort).not.toBe("captured");
+  await user.click(screen.getByRole("button", { name: "Ascending" }));
+  for (const [label, tag] of [
+    ["All of these tags", "Travel"],
+    ["None of these tags", "Work"],
+  ]) {
+    await user.click(screen.getByRole("button", { name: "Add filter" }));
+    await user.click(screen.getByRole("button", { name: label }));
+    await user.click(screen.getByRole("combobox", { name: label }));
+    await user.click(await screen.findByRole("option", { name: tag }));
+    await user.click(screen.getByRole("button", { name: "Close" }));
+  }
   expect(state().tag_all).toEqual(["one"]);
-  expect(state().tag_not).toEqual([]);
+  expect(state().tag_not).toEqual(["two"]);
+  await user.click(screen.getByRole("button", { name: "Clear filters" }));
+  expect(state()).toEqual({ ...emptyFilters, sort: selectedSort, asc: true });
+});
+
+it("applies partial-precision dates only on confirmation and clears filename search", async () => {
+  const user = userEvent.setup();
+  render(<Harness />);
+  const state = () => JSON.parse(screen.getByTestId("filters").textContent!);
+  await user.click(screen.getByRole("button", { name: "Add filter" }));
+  await user.click(screen.getByRole("button", { name: "From" }));
+  await user.type(screen.getByRole("textbox", { name: "From" }), "2026-10");
+  expect(state().from).toBe("");
+  await user.click(screen.getByRole("button", { name: "Apply" }));
+  expect(state().from).toBe("2026-10");
+  await user.click(screen.getByRole("button", { name: "From: 2026-10" }));
+  await user.clear(screen.getByRole("textbox", { name: "From" }));
+  await user.type(screen.getByRole("textbox", { name: "From" }), "2025{Enter}");
+  expect(state().from).toBe("2025");
+  await user.type(screen.getByRole("searchbox"), "photo");
+  expect(state().name).toBe("photo");
   await user.click(screen.getByRole("button", { name: "Clear filters" }));
   expect(state()).toEqual(emptyFilters);
 });

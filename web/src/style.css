@@ -326,17 +326,6 @@ summary {
   font-size: 0.8rem;
   text-decoration: underline;
 }
-.filter-fields {
-  grid-template-columns: minmax(0, 1fr);
-  display: grid;
-  gap: 1rem;
-}
-
-.filter-fields .checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
 .field-pair > div {
   min-inline-size: 0;
   flex: 1;
@@ -552,8 +541,7 @@ dd {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.25rem;
   }
-  .sidebar-tags,
-  .filters-panel {
+  .sidebar-tags {
     flex-basis: 100%;
   }
   .sidebar-footer {
@@ -561,9 +549,6 @@ dd {
   }
   .wordmark {
     order: -2;
-  }
-  .filter-fields {
-    grid-template-columns: minmax(0, 1fr);
   }
   .page-header {
     align-items: flex-start;
@@ -722,7 +707,78 @@ fieldset > label,
   min-inline-size: 0;
 }
 
-.sidebar > *,
-.filter-fields > * {
+.sidebar > * {
   min-inline-size: 0;
+}
+
+.filters-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+  margin-block-end: 1.5rem;
+}
+.filter-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 18rem;
+  min-inline-size: 0;
+}
+.filter-search-input {
+  flex: 1;
+  min-inline-size: 0;
+}
+.filter-sort {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+.filter-sort > :first-child {
+  inline-size: 10rem;
+}
+.filter-tokens {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  flex-basis: 100%;
+  min-inline-size: 0;
+}
+.filter-token {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  max-inline-size: 100%;
+  border: 1px solid var(--mantine-primary-color-light-color);
+  border-radius: var(--mantine-radius-md);
+  background: var(--mantine-primary-color-light);
+  padding: 0.25rem 0.5rem;
+  color: var(--mantine-primary-color-light-color);
+}
+.filter-token-label {
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+  min-inline-size: 0;
+}
+.filter-editor {
+  max-inline-size: calc(100vw - 2rem);
+}
+.filter-editor-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-block-end: 0.75rem;
+}
+.filter-options {
+  display: grid;
+  gap: 0.25rem;
+}
+@media (max-width: 680px) {
+  .filter-search {
+    flex-basis: 100%;
+  }
+  .filter-sort {
+    margin-inline-start: auto;
+  }
 }

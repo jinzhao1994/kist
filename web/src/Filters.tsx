@@ -1,5 +1,12 @@
-import { TextInput, Button, Checkbox, MultiSelect } from "@mantine/core";
-import { useId } from "react";
+import {
+  TextInput,
+  Button,
+  MultiSelect,
+  Popover,
+  ActionIcon,
+  UnstyledButton,
+} from "@mantine/core";
+import { useState } from "react";
 import type { FileQuery, Tag } from "./api";
 import { flattenTags } from "./Tags";
 import { useI18n } from "./i18n";
@@ -16,6 +23,15 @@ export const emptyFilters: Filters = {
   tag_any: [],
   tag_not: [],
 };
+type Field = "kind" | "from" | "to" | "tag_all" | "tag_any" | "tag_not";
+const fields = [
+  ["kind", "kind"],
+  ["from", "from"],
+  ["to", "to"],
+  ["tag_all", "tagAll"],
+  ["tag_any", "tagAny"],
+  ["tag_not", "tagNot"],
+] as const;
 export function FiltersPanel({
   value,
   onChange,
@@ -26,34 +42,128 @@ export function FiltersPanel({
   tags: Tag[];
 }) {
   const { t } = useI18n();
-  const id = useId();
+  const [opened, setOpened] = useState(false);
+  const [field, setField] = useState<Field | null>(null);
+  const [date, setDate] = useState("");
   const flat = flattenTags(tags);
   const change = (patch: Partial<Filters>) => onChange({ ...value, ...patch });
+  const edit = (next: Field | null) => {
+    setField(next);
+    setDate(next === "from" || next === "to" ? value[next] || "" : "");
+    setOpened(true);
+  };
+  const active = fields.filter(([key]) => !!value[key]?.length);
+  const label = fields.find(([key]) => key === field)?.[1];
+  const describe = (key: Field) => {
+    const selected = value[key];
+    if (!Array.isArray(selected)) return selected || "";
+    return selected
+      .map((item) =>
+        key === "kind"
+          ? t(item as "image" | "video" | "audio" | "document" | "other")
+          : flat.find((tag) => tag.id === item)?.name || item,
+      )
+      .join(", ");
+  };
   return (
-    <details className="filters-panel" open>
-      <summary>{t("filters")}</summary>
-      <div className="filter-fields">
+    <section className="filters-bar" aria-label={t("filters")}>
+      <div className="filter-search">
         <TextInput
-          id={`${id}-name`}
-          label={t("search")}
+          className="filter-search-input"
+          aria-label={t("search")}
+          placeholder={t("search")}
           type="search"
           value={value.name || ""}
-          onChange={(e) => change({ name: e.target.value })}
+          onChange={(event) => change({ name: event.currentTarget.value })}
         />
+        <Popover
+          opened={opened}
+          onChange={setOpened}
+          position="bottom-start"
+          width={320}
+          trapFocus
+          returnFocus
+        >
+          <Popover.Target>
+            <Button
+              variant="light"
+              onClick={() => (opened ? setOpened(false) : edit(null))}
+              aria-expanded={opened}
+            >
+              {t("addFilter")}
+            </Button>
+          </Popover.Target>
+          <Popover.Dropdown className="filter-editor">
+            <div className="filter-editor-heading">
+              <strong>{label ? t(label) : t("addFilter")}</strong>
+              <ActionIcon
+                variant="subtle"
+                aria-label={t("close")}
+                onClick={() => setOpened(false)}
+              >
+                ×
+              </ActionIcon>
+            </div>
+            {field === null ? (
+              <div className="filter-options">
+                {fields.map(([key, title]) => (
+                  <Button key={key} variant="subtle" onClick={() => edit(key)}>
+                    {t(title)}
+                  </Button>
+                ))}
+              </div>
+            ) : field === "from" || field === "to" ? (
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  change({ [field]: date.trim() });
+                  setOpened(false);
+                }}
+              >
+                <TextInput
+                  label={t(field)}
+                  value={date}
+                  onChange={(event) => setDate(event.currentTarget.value)}
+                  placeholder="2026-10"
+                  description={t("filterDateHint")}
+                  autoFocus
+                />
+                <Button type="submit" mt="sm">
+                  {t("applyFilter")}
+                </Button>
+              </form>
+            ) : (
+              <MultiSelect
+                label={label ? t(label) : undefined}
+                value={value[field] || []}
+                onChange={(values) => change({ [field]: values })}
+                data={
+                  field === "kind"
+                    ? (
+                        [
+                          "image",
+                          "video",
+                          "audio",
+                          "document",
+                          "other",
+                        ] as const
+                      ).map((kind) => ({ value: kind, label: t(kind) }))
+                    : flat.map((tag) => ({
+                        value: tag.id,
+                        label: `${"　".repeat(tag.depth)}${tag.name}`,
+                      }))
+                }
+                searchable
+                clearable
+                comboboxProps={{ withinPortal: false }}
+                nothingFoundMessage={t("noFilterOptions")}
+              />
+            )}
+          </Popover.Dropdown>
+        </Popover>
+      </div>
+      <div className="filter-sort">
         <Select
-          id={`${id}-kind`}
-          label={t("kind")}
-          value={value.kind?.[0] || ""}
-          onValueChange={(kind) => change({ kind: kind ? [kind] : [] })}
-          options={[
-            { value: "", label: t("allTypes") },
-            ...(["image", "video", "audio", "document", "other"] as const).map(
-              (kind) => ({ value: kind, label: t(kind) }),
-            ),
-          ]}
-        />
-        <Select
-          id={`${id}-sort`}
           label={t("sort")}
           value={value.sort || "captured"}
           onValueChange={(sort) => change({ sort: sort as Filters["sort"] })}
@@ -63,56 +173,51 @@ export function FiltersPanel({
             { value: "name", label: t("filename") },
           ]}
         />
-        <Checkbox
-          label={t("ascending")}
-          checked={!!value.asc}
-          onChange={(e) => change({ asc: e.currentTarget.checked })}
-        />
-        <div className="field-pair">
-          <div>
-            <TextInput
-              id={`${id}-from`}
-              label={t("from")}
-              value={value.from || ""}
-              onChange={(e) => change({ from: e.target.value })}
-              placeholder="2026"
-            />
-          </div>
-          <div>
-            <TextInput
-              id={`${id}-to`}
-              label={t("to")}
-              value={value.to || ""}
-              onChange={(e) => change({ to: e.target.value })}
-              placeholder="2026-12"
-            />
-          </div>
-        </div>
-        {(
-          [
-            ["tag_all", "tagAll"],
-            ["tag_any", "tagAny"],
-            ["tag_not", "tagNot"],
-          ] as const
-        ).map(([field, label]) => (
-          <MultiSelect
-            key={field}
-            label={t(label)}
-            id={`${id}-${field}`}
-            value={value[field] || []}
-            onChange={(values) => change({ [field]: values })}
-            data={flat.map((tag) => ({
-              value: tag.id,
-              label: `${"　".repeat(tag.depth)}${tag.name}`,
-            }))}
-            searchable
-            clearable
-          />
-        ))}
-        <Button onClick={() => onChange({ ...emptyFilters })}>
-          {t("clearFilters")}
-        </Button>
+        <ActionIcon
+          size="lg"
+          variant="default"
+          aria-label={t("ascending")}
+          aria-pressed={!!value.asc}
+          title={t(value.asc ? "ascending" : "descending")}
+          onClick={() => change({ asc: !value.asc })}
+        >
+          {value.asc ? "↑" : "↓"}
+        </ActionIcon>
       </div>
-    </details>
+      {(active.length > 0 || value.name) && (
+        <div className="filter-tokens">
+          {active.map(([key, title]) => (
+            <div className="filter-token" key={key}>
+              <UnstyledButton
+                onClick={() => edit(key)}
+                className="filter-token-label"
+              >
+                {t(title)}: {describe(key)}
+              </UnstyledButton>
+              <ActionIcon
+                size="sm"
+                variant="subtle"
+                aria-label={`${t("remove")}: ${t(title)}`}
+                onClick={() =>
+                  change({ [key]: key === "from" || key === "to" ? "" : [] })
+                }
+              >
+                ×
+              </ActionIcon>
+            </div>
+          ))}
+          <Button
+            variant="subtle"
+            size="compact-sm"
+            onClick={() => {
+              onChange({ ...emptyFilters, sort: value.sort, asc: value.asc });
+              setOpened(false);
+            }}
+          >
+            {t("clearFilters")}
+          </Button>
+        </div>
+      )}
+    </section>
   );
 }
