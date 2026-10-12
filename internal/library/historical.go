@@ -31,6 +31,7 @@ type historicalReader interface {
 	MediaInfo(context.Context, domain.FileID) (MediaInfo, error)
 	OpenContent(context.Context, domain.FileID) (domain.File, *os.File, error)
 	TagTree() (*TagTree, map[domain.TagID]int, error)
+	TagTreeCounts(context.Context) (*TagTree, map[domain.TagID]TagCounts, error)
 	TagCondition([]string) (query.TagExpr, error)
 	ExcludeTags([]string) (query.TagExpr, error)
 	Zone() *time.Location

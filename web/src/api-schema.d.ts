@@ -643,9 +643,13 @@ export interface components {
             width: number;
         };
         Tag: {
+            /** Format: int64 */
+            box_count?: number;
             children?: components["schemas"]["Tag"][] | null;
             /** Format: int64 */
             count: number | null;
+            /** Format: int64 */
+            file_count?: number;
             id: string;
             name: string;
             parent_id: string | null;
@@ -668,7 +672,9 @@ export type $defs = Record<string, never>;
 export interface operations {
     "get-api-v1-boxes": {
         parameters: {
-            query?: never;
+            query?: {
+                tag?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;

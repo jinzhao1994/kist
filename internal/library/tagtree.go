@@ -1,6 +1,7 @@
 package library
 
 import (
+	"context"
 	"fmt"
 	"sort"
 
@@ -118,4 +119,23 @@ func sortedTags(m map[domain.TagID]*tagNode) []domain.Tag {
 		return out[i].ID.String() < out[j].ID.String()
 	})
 	return out
+}
+
+// TagCounts is the distinct box and file count within a tag subtree.
+type TagCounts = store.TagCounts
+
+// TagTreeCounts reads structure and counts from the same database snapshot.
+func (l *Library) TagTreeCounts(ctx context.Context) (*TagTree, map[domain.TagID]TagCounts, error) {
+	var tree *TagTree
+	var counts map[domain.TagID]TagCounts
+	err := l.readTx(ctx, func(tx *store.ViewTx) error {
+		var err error
+		tree, err = LoadTagTree(tx.Queryer())
+		if err != nil {
+			return err
+		}
+		counts, err = store.TagSubtreeCounts(tx.Queryer())
+		return err
+	})
+	return tree, counts, err
 }

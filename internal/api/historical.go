@@ -56,8 +56,8 @@ func (s *Server) withHistory(ctx context.Context, target int64, fn func(context.
 	return s.library.ViewAt(ctx, target, func(view *library.HistoricalView) error { return fn(ctx, view) })
 }
 
-func historicalTags(view *library.HistoricalView) ([]wire.Tag, error) {
-	tree, counts, err := view.TagTree()
+func historicalTags(ctx context.Context, view *library.HistoricalView) ([]wire.Tag, error) {
+	tree, counts, err := view.TagTreeCounts(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func (s *Server) historicalRoutes() {
 				return err
 			}
 			out.BoxTags = tagStrings(tags)
-			out.Tags, err = historicalTags(view)
+			out.Tags, err = historicalTags(ctx, view)
 			return err
 		})
 		return response(out, err)
@@ -143,7 +143,7 @@ func (s *Server) historicalRoutes() {
 				return err
 			}
 			out.File.File.ExtractionPending = []string{}
-			out.Tags, err = historicalTags(view)
+			out.Tags, err = historicalTags(ctx, view)
 			return err
 		})
 		return response(out, err)

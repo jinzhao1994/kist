@@ -12,7 +12,9 @@ type ListBoxesOptions struct {
 	// byte order, deliberately (spec 4.8): the same library must list in the
 	// same order on every platform and on either engine.
 	SortByName bool
-	Limit      int
+	// Tag restricts results to boxes carrying this tag or a descendant.
+	Tag   *domain.TagID
+	Limit int
 }
 
 // ListBoxes returns boxes, most recently active first by default —
@@ -23,8 +25,16 @@ func ListBoxes(q Queryer, opt ListBoxesOptions) ([]domain.Box, error) {
 	if opt.SortByName {
 		order = `name, id`
 	}
-	query := `SELECT ` + boxColumns + ` FROM boxes ORDER BY ` + order
+	query := `SELECT ` + boxColumns + ` FROM boxes`
 	args := []any{}
+	if opt.Tag != nil {
+		query = `WITH RECURSIVE sub(id) AS (
+   SELECT id FROM tags WHERE id = ?
+   UNION SELECT t.id FROM tags t JOIN sub ON t.parent_id = sub.id
+  ) ` + query + ` WHERE EXISTS (SELECT 1 FROM box_tags bt JOIN sub ON bt.tag_id = sub.id WHERE bt.box_id = boxes.id)`
+		args = append(args, *opt.Tag)
+	}
+	query += ` ORDER BY ` + order
 	if opt.Limit > 0 {
 		query += ` LIMIT ?`
 		args = append(args, opt.Limit)

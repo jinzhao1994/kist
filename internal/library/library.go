@@ -153,15 +153,12 @@ func (l *Library) Layout() Layout { return l.layout }
 // per call rather than kept on Library — see TagTree's own documentation for
 // why both of those are deliberate.
 func (l *Library) TagTree() (*TagTree, map[domain.TagID]int, error) {
-	tree, err := LoadTagTree(l.db)
-	if err != nil {
-		return nil, nil, err
+	tree, counts, err := l.TagTreeCounts(context.Background())
+	totals := make(map[domain.TagID]int, len(counts))
+	for id, count := range counts {
+		totals[id] = count.Boxes + count.Files
 	}
-	direct, err := store.TagDirectCounts(l.db)
-	if err != nil {
-		return nil, nil, err
-	}
-	return tree, tree.Totals(direct), nil
+	return tree, totals, err
 }
 
 // zone is the library's configured timezone (spec 1.5.2). It interprets a date
@@ -191,7 +188,22 @@ func (l *Library) Box(ctx context.Context, id domain.BoxID) (domain.Box, bool, e
 
 // Boxes lists boxes.
 func (l *Library) Boxes(ctx context.Context, opt ListBoxesOptions) ([]domain.Box, error) {
-	return store.ListBoxes(l.db, opt)
+	var boxes []domain.Box
+	err := l.readTx(ctx, func(tx *store.ViewTx) error {
+		if opt.Tag != nil {
+			_, found, err := store.TagByID(tx.Queryer(), *opt.Tag)
+			if err != nil {
+				return err
+			}
+			if !found {
+				return ErrNoSuchTag
+			}
+		}
+		var err error
+		boxes, err = store.ListBoxes(tx.Queryer(), opt)
+		return err
+	})
+	return boxes, err
 }
 
 // BoxTags returns the tags attached to a box.

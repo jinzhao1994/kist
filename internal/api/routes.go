@@ -81,8 +81,19 @@ func (s *Server) readRoutes() {
 	huma.Get(s.contract, Prefix+"/info", func(ctx context.Context, _ *struct{}) (*output[libraryInfo], error) {
 		return response(libraryInfo{Version: buildinfo.Get().Version, Timezone: s.library.Zone().String(), ProjectionDirty: s.library.ProjectionDirty(), MaxUploadBytes: s.maxUploadBytes, MaxUploadFiles: s.maxUploadFiles}, nil)
 	})
-	huma.Get(s.contract, Prefix+"/boxes", func(ctx context.Context, _ *struct{}) (*output[wire.BoxList], error) {
-		boxes, err := s.library.Boxes(ctx, library.ListBoxesOptions{})
+	huma.Get(s.contract, Prefix+"/boxes", func(ctx context.Context, in *struct {
+		Tag string `query:"tag"`
+	}) (*output[wire.BoxList], error) {
+		opt := library.ListBoxesOptions{}
+		if in.Tag != "" {
+			id, err := parseID(in.Tag)
+			if err != nil {
+				return nil, err
+			}
+			tag := domain.TagID{ID: id}
+			opt.Tag = &tag
+		}
+		boxes, err := s.library.Boxes(ctx, opt)
 		return response(wire.BoxList{Boxes: wire.NewBoxes(boxes)}, err)
 	})
 	huma.Get(s.contract, Prefix+"/boxes/{id}", func(ctx context.Context, in *entityInput) (*output[wire.Box], error) {

@@ -55,7 +55,7 @@ func optionalTagID(raw *string) (*domain.TagID, error) {
 }
 func (s *Server) tagRoutes() {
 	huma.Get(s.contract, Prefix+"/tags", func(ctx context.Context, _ *struct{}) (*output[wire.TagTree], error) {
-		tree, counts, err := s.library.TagTree()
+		tree, counts, err := s.library.TagTreeCounts(ctx)
 		if err != nil {
 			return nil, failure(err)
 		}
@@ -141,12 +141,15 @@ func (s *Server) tagRoutes() {
 	}
 }
 
-func renderTags(tree *library.TagTree, counts map[domain.TagID]int) []wire.Tag {
+func renderTags(tree *library.TagTree, counts map[domain.TagID]library.TagCounts) []wire.Tag {
 	var render func([]domain.Tag) []wire.Tag
 	render = func(tags []domain.Tag) []wire.Tag {
 		out := make([]wire.Tag, 0, len(tags))
 		for _, tag := range tags {
-			item := wire.NewTagCounted(tag, counts[tag.ID])
+			count := counts[tag.ID]
+			item := wire.NewTagCounted(tag, count.Boxes+count.Files)
+			item.BoxCount = &count.Boxes
+			item.FileCount = &count.Files
 			item.Children = render(tree.Children(tag.ID))
 			out = append(out, item)
 		}
