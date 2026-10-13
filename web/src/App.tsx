@@ -1,4 +1,10 @@
-import { UnstyledButton, Button } from "@mantine/core";
+import {
+  UnstyledButton,
+  Button,
+  ActionIcon,
+  Menu,
+  Tooltip,
+} from "@mantine/core";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Box } from "./api";
@@ -148,40 +154,90 @@ export function App() {
               </h1>
             </div>
             <div className="header-actions">
-              <Button onClick={() => client.invalidateQueries()}>
-                {t("refresh")}
-              </Button>
-              {!route.section && selected && (
-                <Button
-                  onClick={() =>
-                    go({ files: false, section: "history", box: selected.id })
-                  }
+              <Tooltip
+                label={t("refresh")}
+                events={{ hover: true, focus: true, touch: false }}
+              >
+                <ActionIcon
+                  size="lg"
+                  variant="subtle"
+                  color="gray"
+                  aria-label={t("refresh")}
+                  onClick={() => client.invalidateQueries()}
                 >
-                  {t("history")}
-                </Button>
-              )}
-              {!route.section &&
-                (selected ? (
-                  <>
-                    <Button onClick={() => setEditor(selected)}>
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M20 7v5h-5M4 17v-5h5" />
+                    <path d="M6.1 7a7 7 0 0 1 11.55-.9L20 12M4 12l2.35 5.9A7 7 0 0 0 17.9 17" />
+                  </svg>
+                </ActionIcon>
+              </Tooltip>
+              {!route.section && selected && (
+                <Menu position="bottom-end" withinPortal>
+                  <Menu.Target>
+                    <Tooltip
+                      label={t("moreActions")}
+                      events={{ hover: true, focus: true, touch: false }}
+                    >
+                      <ActionIcon
+                        size="lg"
+                        variant="subtle"
+                        color="gray"
+                        aria-label={t("moreActions")}
+                      >
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                          aria-hidden="true"
+                        >
+                          <circle cx="5" cy="12" r="1.7" />
+                          <circle cx="12" cy="12" r="1.7" />
+                          <circle cx="19" cy="12" r="1.7" />
+                        </svg>
+                      </ActionIcon>
+                    </Tooltip>
+                  </Menu.Target>
+                  <Menu.Dropdown>
+                    <Menu.Item
+                      onClick={() =>
+                        go({
+                          files: false,
+                          section: "history",
+                          box: selected.id,
+                        })
+                      }
+                    >
+                      {t("history")}
+                    </Menu.Item>
+                    <Menu.Item onClick={() => setEditor(selected)}>
                       {t("editBox")}
-                    </Button>
-                    <Button
+                    </Menu.Item>
+                    <Menu.Divider />
+                    <Menu.Item
                       color="red"
-                      variant="subtle"
                       onClick={() => setTrashing(selected)}
                     >
                       {t("moveBoxToTrash")}
-                    </Button>
-                  </>
-                ) : (
-                  !route.files &&
-                  !route.tag && (
-                    <Button variant="filled" onClick={() => setEditor("new")}>
-                      {t("createBox")}
-                    </Button>
-                  )
-                ))}
+                    </Menu.Item>
+                  </Menu.Dropdown>
+                </Menu>
+              )}
+              {!route.section && !selected && !route.files && !route.tag && (
+                <Button variant="filled" onClick={() => setEditor("new")}>
+                  {t("createBox")}
+                </Button>
+              )}
             </div>
           </header>
           {info.data?.projection_dirty && (

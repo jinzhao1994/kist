@@ -235,6 +235,7 @@ export const en = {
     "This request key was already used for different content. Start a new operation.",
   notFound: "This item no longer exists. Refresh the archive.",
   refresh: "Refresh",
+  moreActions: "More actions",
 } as const;
 export type MessageKey = keyof typeof en;
 export const zh: Record<MessageKey, string> = {
@@ -449,6 +450,7 @@ export const zh: Record<MessageKey, string> = {
   requestConflict: "此请求标识已用于不同内容，请开始新操作。",
   notFound: "此项已不存在，请刷新归档。",
   refresh: "刷新",
+  moreActions: "更多操作",
 };
 
 export interface Preferences {
