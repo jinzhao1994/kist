@@ -207,6 +207,9 @@ export const en = {
   tagNot: "None of these tags",
   newTag: "New tag",
   rename: "Rename",
+  tagActions: "Actions for {name}",
+  addChildTag: "Add child tag",
+  changeParentTag: "Change parent tag",
   move: "Move",
   remove: "Remove",
   parentTag: "Parent tag",
@@ -432,6 +435,9 @@ export const zh: Record<MessageKey, string> = {
   tagNot: "排除这些标签",
   newTag: "新建标签",
   rename: "改名",
+  tagActions: "{name}的操作",
+  addChildTag: "添加子标签",
+  changeParentTag: "更改父标签",
   move: "移动",
   remove: "删除",
   parentTag: "父标签",
@@ -527,6 +533,7 @@ interface Parameters {
   searchText: { value: string };
   tagResultCounts: { boxes: number; files: number };
   trashBoxConfirm: { name: string; count: number };
+  tagActions: { name: string };
   expandTag: { name: string };
   collapseTag: { name: string };
   operation: { id: number };

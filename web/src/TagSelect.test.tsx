@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -187,4 +193,87 @@ it("retains the parent for consecutive new tags and resets it on reopening", asy
   await user.click(screen.getByRole("button", { name: "Save" }));
   await waitFor(() => expect(requests).toHaveLength(3));
   expect(requests[2]).toEqual({ name: "Travel" });
+});
+
+it("renames through the context menu without filtering and cancels with Escape", async () => {
+  const choose = vi.fn();
+  const fetcher = vi.fn(
+    async (_url: RequestInfo | URL, _init?: RequestInit) =>
+      new Response("{}", { status: 200 }),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  wrap(<TagTree tags={tags} choose={choose} />);
+  const user = userEvent.setup();
+  fireEvent.contextMenu(screen.getByText("Education"));
+  await user.click(await screen.findByRole("menuitem", { name: "Rename" }));
+  const input = await screen.findByRole("textbox", { name: "Rename" });
+  await user.clear(input);
+  await user.type(input, "Learning{Enter}");
+  await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+  expect(String(fetcher.mock.calls[0]?.[0])).toContain("/tags/a/name");
+  expect(JSON.parse(fetcher.mock.calls[0]?.[1]?.body as string)).toEqual({
+    name: "Learning",
+  });
+  await waitFor(() =>
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument(),
+  );
+  await user.click(
+    screen.getByRole("button", { name: "Actions for Education" }),
+  );
+  await user.click(screen.getByRole("menuitem", { name: "Rename" }));
+  await user.type(
+    screen.getByRole("textbox", { name: "Rename" }),
+    "discard{Escape}",
+  );
+  expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(choose).not.toHaveBeenCalled();
+});
+it("creates children under the clicked tag and excludes descendants from parent choices", async () => {
+  const fetcher = vi.fn(
+    async (_url: RequestInfo | URL, _init?: RequestInit) =>
+      new Response("{}", { status: 200 }),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  wrap(<TagTree tags={tags} choose={vi.fn()} />);
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Expand Education" }));
+  await user.click(screen.getByRole("button", { name: "Actions for School" }));
+  await user.click(screen.getByRole("menuitem", { name: "Add child tag" }));
+  await user.type(screen.getByRole("textbox", { name: "Name" }), "Notes");
+  await user.click(screen.getByRole("button", { name: "Save" }));
+  await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+  expect(JSON.parse(fetcher.mock.calls[0]?.[1]?.body as string)).toEqual({
+    name: "Notes",
+    parent_id: "b",
+  });
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
+  await user.click(screen.getByRole("button", { name: "Actions for School" }));
+  await user.click(screen.getByRole("menuitem", { name: "Change parent tag" }));
+  await user.click(screen.getByRole("combobox", { name: "Parent tag" }));
+  expect(
+    screen.getAllByRole("option").map((option) => option.textContent),
+  ).toEqual(["No parent", "Education"]);
+});
+it("requires confirmation before deleting through the keyboard context menu", async () => {
+  const fetcher = vi.fn(
+    async (_url: RequestInfo | URL, _init?: RequestInit) =>
+      new Response("{}", { status: 200 }),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const choose = vi.fn();
+  wrap(<TagTree tags={tags} choose={choose} />);
+  const user = userEvent.setup();
+  screen.getByRole("treeitem").focus();
+  await user.keyboard("{Shift>}{F10}{/Shift}");
+  await user.click(screen.getByRole("menuitem", { name: "Remove" }));
+  expect(fetcher).not.toHaveBeenCalled();
+  await user.click(
+    within(screen.getByRole("dialog")).getByRole("button", { name: "Remove" }),
+  );
+  await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+  expect(fetcher.mock.calls[0]?.[1]?.method).toBe("DELETE");
+  expect(choose).not.toHaveBeenCalled();
 });

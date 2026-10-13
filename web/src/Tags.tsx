@@ -1,4 +1,6 @@
 import {
+  ActionIcon,
+  Menu,
   UnstyledButton,
   TextInput,
   Button,
@@ -14,6 +16,7 @@ import { flattenTags, tagOption } from "./TagPath";
 import { Dialog } from "./Dialog";
 import { formatNumber, useI18n } from "./i18n";
 import { useWrites, WriteFeedback } from "./mutations";
+import { TagActionDialog, TagRename, type TagAction } from "./TagActions";
 export function TagTree({
   tags,
   choose,
@@ -23,6 +26,10 @@ export function TagTree({
 }) {
   const { prefs, t } = useI18n();
   const tree = useTree();
+  const [menu, setMenu] = useState<string | null>(null);
+  const [action, setAction] = useState<{ tag: Tag; kind: TagAction } | null>(
+    null,
+  );
   const data = useMemo(() => {
     const nodes = (items: Tag[]): TreeNodeData[] =>
       items.map((tag) => ({
@@ -37,90 +44,182 @@ export function TagTree({
     [tags],
   );
   return (
-    <Tree
-      className="tag-tree"
-      aria-label={t("tags")}
-      data={data}
-      tree={tree}
-      levelOffset={16}
-      expandOnClick={false}
-      allowRangeSelection={false}
-      onKeyDownCapture={(event) => {
-        const target = event.target as HTMLElement;
-        if (
-          event.key === "Enter" &&
-          target.getAttribute("role") === "treeitem"
-        ) {
-          event.preventDefault();
-          event.stopPropagation();
-          if (target.dataset.value) choose(target.dataset.value);
-        }
-      }}
-      renderNode={({ node, hasChildren, expanded, elementProps }) => (
-        <div
-          {...elementProps}
-          className={`${elementProps.className} tag-tree-row`}
-          onClick={(event) => {
-            elementProps.onClick(event);
-            choose(node.value);
-          }}
-        >
-          {hasChildren ? (
-            <UnstyledButton
-              className="tag-tree-toggle"
-              tabIndex={-1}
-              aria-label={t(expanded ? "collapseTag" : "expandTag", {
-                name: String(node.label),
-              })}
-              aria-expanded={expanded}
-              onClick={(event) => {
-                event.stopPropagation();
-                tree.toggleExpanded(node.value);
-                event.currentTarget
-                  .closest<HTMLElement>('[role="treeitem"]')
-                  ?.focus();
-              }}
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 16 16"
-                fill="none"
-                aria-hidden="true"
-                className="tag-tree-chevron"
-                data-expanded={expanded}
+    <>
+      <Tree
+        className="tag-tree"
+        aria-label={t("tags")}
+        data={data}
+        tree={tree}
+        levelOffset={16}
+        expandOnClick={false}
+        allowRangeSelection={false}
+        onKeyDownCapture={(event) => {
+          const target = event.target as HTMLElement;
+          if (
+            target.getAttribute("role") === "treeitem" &&
+            (event.key === "ContextMenu" ||
+              (event.shiftKey && event.key === "F10"))
+          ) {
+            event.preventDefault();
+            event.stopPropagation();
+            setMenu(target.dataset.value || null);
+            return;
+          }
+          if (
+            event.key === "Enter" &&
+            target.getAttribute("role") === "treeitem"
+          ) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (target.dataset.value) choose(target.dataset.value);
+          }
+        }}
+        renderNode={({ node, hasChildren, expanded, elementProps }) => (
+          <div
+            {...elementProps}
+            className={`${elementProps.className} tag-tree-row`}
+            onContextMenu={(event) => {
+              if (action?.kind === "rename" && action.tag.id === node.value)
+                return;
+              event.preventDefault();
+              event.stopPropagation();
+              setMenu(node.value);
+            }}
+            onClick={(event) => {
+              elementProps.onClick(event);
+              choose(node.value);
+            }}
+          >
+            {hasChildren ? (
+              <UnstyledButton
+                className="tag-tree-toggle"
+                tabIndex={-1}
+                aria-label={t(expanded ? "collapseTag" : "expandTag", {
+                  name: String(node.label),
+                })}
+                aria-expanded={expanded}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  tree.toggleExpanded(node.value);
+                  event.currentTarget
+                    .closest<HTMLElement>('[role="treeitem"]')
+                    ?.focus();
+                }}
               >
-                <path
-                  d="m6 3 5 5-5 5"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </UnstyledButton>
-          ) : (
-            <span className="tag-tree-spacer" aria-hidden="true" />
-          )}
-          <bdi title={String(node.label)}>{node.label}</bdi>
-          {!!counts.get(node.value)?.count && (
-            <small
-              title={
-                counts.get(node.value)?.box_count != null &&
-                counts.get(node.value)?.file_count != null
-                  ? t("tagResultCounts", {
-                      boxes: counts.get(node.value)!.box_count!,
-                      files: counts.get(node.value)!.file_count!,
-                    })
-                  : undefined
-              }
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  aria-hidden="true"
+                  className="tag-tree-chevron"
+                  data-expanded={expanded}
+                >
+                  <path
+                    d="m6 3 5 5-5 5"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </UnstyledButton>
+            ) : (
+              <span className="tag-tree-spacer" aria-hidden="true" />
+            )}
+            {action?.kind === "rename" && action.tag.id === node.value ? (
+              <TagRename
+                key={node.value}
+                tag={action.tag}
+                close={() => setAction(null)}
+              />
+            ) : (
+              <bdi title={String(node.label)}>{node.label}</bdi>
+            )}
+            {!!counts.get(node.value)?.count && (
+              <small
+                title={
+                  counts.get(node.value)?.box_count != null &&
+                  counts.get(node.value)?.file_count != null
+                    ? t("tagResultCounts", {
+                        boxes: counts.get(node.value)!.box_count!,
+                        files: counts.get(node.value)!.file_count!,
+                      })
+                    : undefined
+                }
+              >
+                {formatNumber(counts.get(node.value)!.count!, prefs)}
+              </small>
+            )}
+            <Menu
+              returnFocus={false}
+              withinPortal
+              position="bottom-end"
+              opened={menu === node.value}
+              onChange={(open) => setMenu(open ? node.value : null)}
             >
-              {formatNumber(counts.get(node.value)!.count!, prefs)}
-            </small>
-          )}
-        </div>
+              <Menu.Target>
+                <ActionIcon
+                  disabled={action?.kind === "rename"}
+                  className="tag-row-menu"
+                  size="sm"
+                  variant="subtle"
+                  color="gray"
+                  aria-label={t("tagActions", { name: String(node.label) })}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <circle cx="5" cy="12" r="1.5" />
+                    <circle cx="12" cy="12" r="1.5" />
+                    <circle cx="19" cy="12" r="1.5" />
+                  </svg>
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+              >
+                {(
+                  [
+                    "rename",
+                    "addChildTag",
+                    "changeParentTag",
+                    "remove",
+                  ] as const
+                ).map((kind) => (
+                  <Menu.Item
+                    key={kind}
+                    color={kind === "remove" ? "red" : undefined}
+                    onClick={() => {
+                      setMenu(null);
+                      const tag = counts.get(node.value);
+                      if (tag) setAction({ tag, kind });
+                    }}
+                  >
+                    {t(kind)}
+                  </Menu.Item>
+                ))}
+              </Menu.Dropdown>
+            </Menu>
+          </div>
+        )}
+      />
+      {action && action.kind !== "rename" && (
+        <TagActionDialog
+          key={`${action.tag.id}:${action.kind}`}
+          tag={action.tag}
+          action={action.kind}
+          tags={tags}
+          close={() => setAction(null)}
+        />
       )}
-    />
+    </>
   );
 }
 

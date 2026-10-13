@@ -1316,3 +1316,25 @@ fieldset > label,
 .folder-card:hover {
   background: var(--mantine-color-default-hover);
 }
+
+.tag-tree bdi {
+  flex: 1;
+}
+.tag-row-menu {
+  flex-shrink: 0;
+  margin-inline-start: auto;
+}
+.tag-rename {
+  flex: 1;
+  min-inline-size: 0;
+}
+@media (hover: hover) and (pointer: fine) {
+  .tag-row-menu {
+    opacity: 0;
+  }
+  .tag-tree-row:hover .tag-row-menu,
+  .tag-tree-row:focus-within .tag-row-menu,
+  .tag-row-menu[aria-expanded="true"] {
+    opacity: 1;
+  }
+}
