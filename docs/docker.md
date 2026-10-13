@@ -1,6 +1,7 @@
 # Docker and NAS deployment
 
-The GHCR image `ghcr.io/jinzhao1994/kist:v0.1.0` supports `linux/amd64` and
+Public images on Docker Hub (`jinzhao1994/kist`) and GHCR
+(`ghcr.io/jinzhao1994/kist`) support `linux/amd64` and
 `linux/arm64`. Docker chooses the host architecture: amd64 for an x86 NAS,
 arm64 for Docker on Apple Silicon. Both images include FFmpeg, ffprobe, libheif
 and timezone data, and run as UID/GID `10001:10001`.
@@ -14,16 +15,17 @@ Save the repository's `compose.image.yaml` in a persistent deployment directory.
 It is standalone; no source build is needed. Keep this directory and Compose
 project name stable because they determine the default named volume's name.
 
-The image and source repository are public. Pulling requires no GitHub account,
-personal access token or `docker login`. Use
-`ghcr.io/jinzhao1994/kist:v0.1.0` with anonymous access; if the NAS registry UI
-cannot browse GHCR, use its Compose project interface instead.
+Both registries allow anonymous pulls; no publishing token or `docker login` is
+needed. For Synology, prefer Docker Hub for integration with its update UI. The
+Compose file retains its existing GHCR default; set `KIST_IMAGE` in `.env` to
+`jinzhao1994/kist:latest` for current stable releases or `jinzhao1994/kist:v0.1.2`
+for a fixed version. Do not overwrite an existing `.env`; edit only this setting.
 
-For local access, defaults work without an `.env` file. For a trusted LAN, create
+For local access, the listener defaults work without extra settings. For a trusted LAN, create
 `.env` next to the Compose file, substituting your NAS address:
 
 ```dotenv
-KIST_IMAGE=ghcr.io/jinzhao1994/kist:v0.1.0
+KIST_IMAGE=jinzhao1994/kist:latest
 KIST_BIND=192.168.1.10
 KIST_PORT=8473
 KIST_ORIGIN=http://192.168.1.10:8473
@@ -87,7 +89,8 @@ architecture.
 | `latest` | GitHub's latest stable release image passes native acceptance on both architectures | Following stable releases |
 | `edge` | Current main passes push CI and native image acceptance on both architectures | Development previews |
 
-All images are published at `ghcr.io/jinzhao1994/kist`. Channel updates reuse the
+GHCR images are published at `ghcr.io/jinzhao1994/kist`, with Docker Hub copies
+at `jinzhao1994/kist`. Channel updates reuse the
 verified multi-platform index digest. Old queued runs recheck the current source
 before promotion, so backfilling an older release cannot roll back `latest`.
 The **Container Latest** and **Container Edge** workflow summaries record the

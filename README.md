@@ -80,8 +80,8 @@ make dist    # -> dist/, four platform archives + SHA256SUMS (requires Python 3)
 For Synology's web interface, see the [Synology guide (Chinese)](docs/synology.zh-CN.md).
 
 For prebuilt Linux amd64/arm64 images, use `compose.image.yaml`; see the
-[NAS installation and upgrade guide](docs/docker.md). The GHCR image is public;
-no GitHub account or registry login is needed:
+[NAS installation and upgrade guide](docs/docker.md). Docker Hub and GHCR images are public;
+no registry login is needed:
 
 ```sh
 docker compose -f compose.image.yaml pull
@@ -90,7 +90,9 @@ docker compose -f compose.image.yaml up -d
 ```
 
 Only initialize a new library. The image defaults to `ghcr.io/jinzhao1994/kist:v0.1.0`;
-Docker selects the native architecture. Set `KIST_IMAGE` to pin another version or digest.
+Docker selects the native architecture. For current stable releases from Docker Hub,
+set `KIST_IMAGE=jinzhao1994/kist:latest` in `.env`; use `:v0.1.2` to pin a version.
+Synology users should prefer Docker Hub for its image update UI integration.
 
 To build from source instead, use the original Compose file:
 

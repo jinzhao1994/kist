@@ -65,7 +65,7 @@ make dist    # -> dist/，四平台压缩包与 SHA256SUMS（需要 Python 3）
 
 群晖用户请看[网页部署指南](docs/synology.zh-CN.md)：专用用户、共享文件夹直接挂载，全程无需 SSH。
 
-预构建镜像支持 Linux amd64 / arm64，Docker 会自动选择本机架构。使用 `compose.image.yaml`，详见 [NAS 部署与升级说明](docs/docker.md)。GHCR 镜像公开，无需 GitHub 账号、PAT 或 registry 登录：
+预构建镜像支持 Linux amd64 / arm64，Docker 会自动选择本机架构。使用 `compose.image.yaml`，详见 [NAS 部署与升级说明](docs/docker.md)。Docker Hub 和 GHCR 镜像均公开，无需账号、PAT 或 registry 登录：
 
 ```sh
 docker compose -f compose.image.yaml pull
@@ -73,7 +73,7 @@ docker compose -f compose.image.yaml run --rm kist init /library --yes
 docker compose -f compose.image.yaml up -d
 ```
 
-只对新库执行初始化。默认镜像为 `ghcr.io/jinzhao1994/kist:v0.1.0`，可用 `KIST_IMAGE` 固定其他版本或 digest。NAS 局域网访问时，在 `.env` 中设置 `KIST_BIND=NAS的局域网IP` 和 `KIST_ORIGIN=http://NAS的局域网IP:8473`，初始化前可设置 `TZ=Asia/Shanghai`。
+只对新库执行初始化。默认镜像为 `ghcr.io/jinzhao1994/kist:v0.1.0`，在 `.env` 设置 `KIST_IMAGE=jinzhao1994/kist:latest` 可改用 Docker Hub 最新稳定版，固定版本可用 `jinzhao1994/kist:v0.1.2`。群晖优先使用 Docker Hub，以便使用映像更新提示。NAS 局域网访问时，在 `.env` 中设置 `KIST_BIND=NAS的局域网IP` 和 `KIST_ORIGIN=http://NAS的局域网IP:8473`，初始化前可设置 `TZ=Asia/Shanghai`。
 
 如需从源码构建，继续使用原有 Compose 文件：
 

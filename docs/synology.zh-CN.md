@@ -2,8 +2,8 @@
 
 通过 DSM 的 Container Manager、控制面板和 File Station 完成部署，无需启用 SSH。
 适用于支持 Container Manager 的群晖；公开镜像
-`ghcr.io/jinzhao1994/kist:v0.1.0` 支持 amd64/arm64，内置 FFmpeg、ffprobe、libheif，
-无需 GitHub 账号或 registry 登录。
+`jinzhao1994/kist:latest`（Docker Hub，最新稳定版）支持 amd64/arm64，内置 FFmpeg、ffprobe、libheif，
+无需 Docker Hub 或 GitHub 账号，也无需 registry 登录。GHCR 保留为备用来源。
 
 2026-10-11 已在 x86 群晖验证：匿名拉取、专用用户读写、初始化、深度校验、网页建盒、
 容器重启后数据保留。本指南没有把媒体上传和所有 DSM 版本列为本次实机验收结果。
@@ -66,7 +66,7 @@ DSM 用户名不等于容器用户名。不能在 Compose 中直接写 `user: ki
 
 ## 3. 首次初始化
 
-**仅用于新安装，已有资料库跳到迁移章节。** 以下假设路径是 `/volume1/kist`，用户身份
+**仅用于新安装，已有资料库跳到第 5 节，不要重新初始化。** 以下假设路径是 `/volume1/kist`，用户身份
 是 `1028:100`；请将配置中的路径和身份全部替换为自己查到的值。
 
 在「Container Manager → 项目 → 新增」中，名称填 `kist`，路径选 `kist` 共享文件夹，
@@ -75,7 +75,7 @@ DSM 用户名不等于容器用户名。不能在 Compose 中直接写 `user: ki
 ```yaml
 services:
   kist:
-    image: ghcr.io/jinzhao1994/kist:v0.1.0
+    image: jinzhao1994/kist:latest
     user: "1028:100"
     restart: "no"
     network_mode: none
@@ -124,7 +124,7 @@ services:
 ```yaml
 services:
   kist:
-    image: ghcr.io/jinzhao1994/kist:v0.1.0
+    image: jinzhao1994/kist:latest
     init: true
     user: "1028:100"
     restart: unless-stopped
@@ -139,7 +139,7 @@ services:
     command: ["serve", "--library", "/library", "--listen", "0.0.0.0:8473", "--allow-origin", "http://192.168.1.10:8473"]
 ```
 
-保存后执行项目「操作 → 构建」，打开 `http://NAS的局域网IP:8473`。
+保存后执行项目「操作 → 构建」，完成后若项目未运行，再点击「启动」。打开 `http://NAS的局域网IP:8473`。
 以后始终保留运行配置，**不要再换回初始化配置**。
 建议固定 NAS 的 IP；若 DSM 防火墙已启用，配置可信客户端对相应 TCP 端口的访问。
 更改外部端口时，同时调整 `ports` 中间的数字和 `--allow-origin` 的端口。
@@ -162,18 +162,52 @@ services:
 **普通兼容升级不要求每次全量备份。** 定期备份独立安排；只有发行说明要求破坏性迁移，或需要保留旧版本回退点时，才在升级前创建经过验证的备份。备份仍须遵守上面的停写规则。
 
 升级时阅读目标版本说明，停止旧服务及其他写入者，修改运行配置的镜像版本，构建并启动，再检查版本、启动日志和文件访问。不要每次升级都执行全库 `scrub`；将其安排为周期性完整性检查。
-版本标签不覆盖。也可选择 `latest`（通过验收的最新正式版）或 `edge`（通过 CI 与镜像验收的 main 开发版）；日常 NAS 部署建议固定版本。切换标签后仍须手动拉取镜像并重建容器，运行中的容器不会自行升级。不要通过删共享文件夹或重新建库升级。
+版本标签不覆盖。也可选择 `latest`（通过验收的最新正式版）或 `edge`（通过 CI 与镜像验收的 main 开发版）；本指南使用 `latest` 跟进稳定版；需要固定版本时可改为 `jinzhao1994/kist:v0.1.2`。切换标签后仍须手动拉取镜像并重建容器，运行中的容器不会自行升级。不要通过删共享文件夹或重新建库升级。
 降级不保证兼容；需要回退时，用旧镜像配合升级前备份在独立目录恢复。v0.1.2 可以直接打开 v0.1.0/v0.1.1 库，无需迁移或额外全量备份；但使用整盒删除/恢复后会产生旧版不认识的新日志 action，不能只替换旧镜像降级。
 
 迁移已有资料库时，停止旧服务和所有写入者，保留原库备份，将**整个资料库的内容**
 复制到共享根目录，检查专用用户的有效权限后直接使用运行配置，跳过初始化。
 已有文件的权限不一定自动符合新用户；不要对不明目录递归修改权限。
 
+### 从 GHCR 切换到 Docker Hub（已有资料库）
+
+这只是更换镜像来源，不是重新部署资料库，也不需要重新初始化。
+
+1. 进入「Container Manager → 项目」，选中现有 `kist`，停止项目及其他库写入者。
+2. 打开项目详情的「YAML 配置」，仅将服务的镜像改为：
+
+   ```yaml
+   image: jinzhao1994/kist:latest
+   ```
+
+3. 保留现有项目名称、`user`、`volumes`、`ports`、`command`、时区等全部配置。尤其保留
+   `/volume1/kist:/library`，不要变成新建的命名卷，也不要套上 `library` 子目录。
+4. 保存并执行「操作 → 构建」，等待拉取完成。构建成功但未运行时，再点击「启动」。
+   若 YAML 编辑器未生效，通过 File Station 修改项目实际配置文件后重新构建。
+5. 检查容器日志、网页底部版本、已有归档盒与文件、缩略图和原文件下载。
+   在容器详情确认使用 `jinzhao1994/kist:latest`，不能只凭标签名称 `latest` 判断来源。
+
+正式镜像见 [Docker Hub](https://hub.docker.com/r/jinzhao1994/kist/tags)。
+`latest` 与相应版本标签在发布验收成功后指向同一份双架构 index，和 GHCR 保持相同 digest。
+切换来源不会自行迁移或复制资料库。此次从 v0.1.0/v0.1.1 升到 v0.1.2 不要求额外全量备份，
+回退限制见上文。
+
+### 后续更新
+
+Docker Hub `latest` 若在「映像」页显示更新，选中 kist 后使用「操作 → 更新」或标签旁的更新入口。
+完成后检查实际运行版本；若仍为旧版，构建并启动现有项目以使用新镜像，单纯重启旧容器不会切换镜像。
+更新提示不一定立即出现。没有入口时，可以把项目 YAML 改为已发布的新版本标签，再构建、启动；
+固定版本不会自动跟进后续正式版。
+
+群晖对非 Docker Hub 仓库可能不显示更新入口，不能据此判断 GHCR 没有新版本。
+不要删除项目或共享文件夹来强制更新，不使用开发版 `edge` 代替稳定版。
+
 ## 常见问题
 
 | 现象 | 检查 |
 |---|---|
 | 从 URL 添加映像提示仓库错误 | 本次实测通过「项目」成功匿名拉取 GHCR；不要因此要求用户填写 PAT。 |
+| GHCR 没有更新入口 | 按第 5 节切换到 Docker Hub，或使用明确的新版本标签；无需新增登录 token。 |
 | `permission denied` | 检查 DSM 用户数字身份、共享 ACL、容器 `user` 和挂载路径；`rw` 不等于获得文件系统授权。 |
 | 初始化目录已存在 | 检查是否已建库或上次只完成部分步骤，不能删除后盲目重试。 |
 | 网页无法连接 | 检查运行状态、启动日志、NAS IP、端口占用和防火墙。 |
@@ -182,9 +216,3 @@ services:
 
 官方参考：[容器设置](https://kb.synology.com/index.php/th-th/DSM/help/ContainerManager/docker_container?version=7)、
 [挂载目录权限](https://kb.synology.com/tr-tr/DSM/tutorial/Docker_container_cant_access_the_folder_or_file)。
-
-### 镜像来源与更新提示
-
-GHCR 与 Docker Hub 使用相同镜像内容；Docker Hub 的发布与验收状态见 Actions 的 **Container Docker Hub**。首次发布成功后，可将运行配置中的 `image` 改为 `jinzhao1994/kist:latest`（或固定版本），其他挂载、UID/GID、端口和 Origin 保持不变。
-
-群晖对非 Docker Hub 仓库可能不显示更新入口，不能据此判断 GHCR 的 `latest` 没更新。若界面没有更新入口，编辑项目 YAML 为明确的新版本标签，保存、构建并启动即可；无需删除项目、资料库或重新初始化。Docker Hub 的 `latest` 可使用映像页提供的更新提示，更新后检查运行版本，必要时构建并启动项目。
