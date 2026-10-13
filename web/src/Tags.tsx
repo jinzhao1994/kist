@@ -62,7 +62,7 @@ export function TagTree({
           ) {
             event.preventDefault();
             event.stopPropagation();
-            setMenu(target.dataset.value || null);
+            if (!action) setMenu(target.dataset.value || null);
             return;
           }
           if (
@@ -79,8 +79,7 @@ export function TagTree({
             {...elementProps}
             className={`${elementProps.className} tag-tree-row`}
             onContextMenu={(event) => {
-              if (action?.kind === "rename" && action.tag.id === node.value)
-                return;
+              if (action?.kind === "rename") return;
               event.preventDefault();
               event.stopPropagation();
               setMenu(node.value);
