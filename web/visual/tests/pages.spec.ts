@@ -200,9 +200,15 @@ async function prepare(page: Page, options: Options = {}) {
           { key: "media:width", type: "int", value: "800", source: "media" },
         ],
       };
-    else if (/^\/files\/file-[1-4]\/derived\/[a-z0-9_]+\/content$/.test(path))
+    else if (
+      /^\/files\/(?:file-[1-4]|visible-[0-9]+)\/derived\/[a-z0-9_]+\/content$/.test(
+        path,
+      )
+    )
       return route.fulfill({ contentType: "image/svg+xml", body: landscape });
-    else if (/^\/files\/file-[1-4]\/derived\/[a-z0-9_]+$/.test(path)) {
+    else if (
+      /^\/files\/(?:file-[1-4]|visible-[0-9]+)\/derived\/[a-z0-9_]+$/.test(path)
+    ) {
       const state = options.state || "ready";
       body = {
         state,
