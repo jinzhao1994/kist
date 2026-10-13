@@ -46,6 +46,34 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   localStorage.clear();
+  history.replaceState(null, "", "/");
+});
+it("keeps committed searches in the list URL and restores empty history entries", async () => {
+  history.replaceState(null, "", "/files");
+  const view = mount();
+  const user = userEvent.setup();
+  await user.type(
+    screen.getByRole("combobox", { name: "Search or add a condition…" }),
+    "travel{Enter}{Escape}",
+  );
+  const filteredURL = location.href;
+  expect(new URL(filteredURL).searchParams.get("filter")).toContain("travel");
+  await user.click(screen.getByRole("button", { name: "Boxes" }));
+  history.back();
+  await waitFor(() => expect(location.href).toBe(filteredURL));
+  expect(
+    await screen.findByRole("button", {
+      name: "Filename: travel",
+    }),
+  ).toBeVisible();
+  history.pushState(null, "", "/files");
+  window.dispatchEvent(new PopStateEvent("popstate"));
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("button", { name: "Filename: travel" }),
+    ).not.toBeInTheDocument(),
+  );
+  view.unmount();
 });
 it("renders an empty archive and persists independent language, locale and RTL choices", async () => {
   mount();

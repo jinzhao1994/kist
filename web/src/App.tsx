@@ -422,7 +422,10 @@ export function App() {
                 }
                 key={`filters:${route.box || "all"}`}
                 value={filters}
-                onChange={setFilters}
+                onChange={(next) => {
+                  setFilters(next);
+                  go({ ...route, filters: next }, true);
+                }}
                 tags={tree}
                 boxes={route.box ? undefined : boxes.data?.boxes || []}
                 boxesLoading={boxes.isPending}
@@ -474,7 +477,10 @@ export function App() {
                 }
                 entity="boxes"
                 value={boxFilters}
-                onChange={setBoxFilters}
+                onChange={(next) => {
+                  setBoxFilters(next);
+                  go({ ...route, boxFilters: next }, true);
+                }}
                 tags={tree}
               />
               <BoxBrowser
