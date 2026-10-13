@@ -536,7 +536,13 @@ for (const mobile of [false, true]) {
   });
 }
 
-for (const scenario of ["light", "dark", "mobile", "options"] as const) {
+for (const scenario of [
+  "light",
+  "dark",
+  "mobile",
+  "options",
+  "parent-options",
+] as const) {
   test(`tag-path-${scenario}`, async ({ page }, info) => {
     const errors = await prepare(page, {
       mode: scenario === "dark" ? "dark" : "light",
@@ -592,6 +598,27 @@ for (const scenario of ["light", "dark", "mobile", "options"] as const) {
       await expect(
         page.getByRole("option", { name: "上学 / 高中 / 成绩单", exact: true }),
       ).toBeVisible();
+    }
+    if (scenario === "parent-options") {
+      await page.setViewportSize({ width: 900, height: 520 });
+      await page.getByRole("combobox", { name: "父标签", exact: true }).click();
+      const search = page.getByRole("textbox", {
+        name: "搜索标签",
+        exact: true,
+      });
+      await expect(search).toBeFocused();
+      await expect(
+        page.getByRole("option", { name: "无父标签", exact: true }),
+      ).toBeInViewport({ ratio: 1 });
+      await capture(page, errors, info.title);
+      await search.fill("高中");
+      await page.keyboard.press("ArrowDown");
+      await page.keyboard.press("Enter");
+      await expect(
+        page.getByRole("combobox", { name: "父标签", exact: true }),
+      ).toHaveText("上学 / 高中");
+      await expect(page.getByRole("dialog")).toBeVisible();
+      return;
     }
     await capture(page, errors, info.title);
   });

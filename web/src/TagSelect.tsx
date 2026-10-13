@@ -36,7 +36,8 @@ export function TagSelect({
   return (
     <Combobox
       store={store}
-      withinPortal={false}
+      withinPortal
+      returnFocus
       onOptionSubmit={(next) => {
         onValueChange(next);
         store.closeDropdown();
@@ -65,6 +66,12 @@ export function TagSelect({
           onChange={(event) => {
             setSearch(event.currentTarget.value);
             store.updateSelectedOptionIndex();
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Tab") {
+              store.closeDropdown();
+              store.focusTarget();
+            }
           }}
           placeholder={t("searchTags")}
           aria-label={t("searchTags")}
