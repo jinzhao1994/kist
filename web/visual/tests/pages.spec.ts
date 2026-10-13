@@ -414,8 +414,10 @@ for (const mode of ["light", "dark"] as const) {
     const errors = await prepare(page, { mode });
     await page.goto("/files");
     await grid(page);
-    await page.getByRole("button", { name: "添加条件", exact: true }).click();
-    await page.getByRole("button", { name: "文件类型", exact: true }).click();
+    await page
+      .getByRole("combobox", { name: "搜索或添加条件…" })
+      .fill("文件类型");
+    await page.getByRole("option", { name: "文件类型", exact: true }).click();
     await page.getByRole("combobox", { name: "文件类型", exact: true }).click();
     await page.getByRole("option", { name: "图片", exact: true }).click();
     await expect(
@@ -523,7 +525,10 @@ for (const mobile of [false, true]) {
     const errors = await prepare(page, { mobile });
     await page.goto("/boxes/box-1");
     await expect(page.locator(".file-count")).toContainText("4");
-    await page.getByRole("button", { name: "移入回收站", exact: true }).click();
+    await page.getByRole("button", { name: "更多操作", exact: true }).click();
+    await page
+      .getByRole("menuitem", { name: "移入回收站", exact: true })
+      .click();
     await expect(page.getByRole("dialog")).toContainText("全部 4 个文件");
     await capture(page, errors, info.title);
     await page.getByRole("button", { name: "取消", exact: true }).click();
@@ -683,17 +688,18 @@ for (const mobile of [false, true]) {
     });
     await page.goto("/");
     await page
-      .getByRole("searchbox", { name: "搜索归档盒名称和描述" })
+      .getByRole("combobox", { name: "搜索或添加条件…" })
       .fill("年度报告");
+    await page.keyboard.press("Enter");
     await expect(page.getByRole("heading", { name: "工作档案" })).toBeVisible();
     await expect(page.locator(".load-more")).toHaveText(
       "已全部显示 1 个归档盒",
     );
-    await page.getByRole("button", { name: "添加条件" }).click();
+    await page.getByRole("combobox", { name: "搜索或添加条件…" }).click();
     await expect(
-      page.getByRole("button", { name: "文件类型", exact: true }),
+      page.getByRole("option", { name: "文件类型", exact: true }),
     ).toHaveCount(0);
-    await page.getByRole("button", { name: "关闭", exact: true }).click();
+    await page.keyboard.press("Escape");
     await capture(page, errors, info.title);
   });
 }
@@ -739,7 +745,10 @@ test("box-automatic-pagination-and-search-reset", async ({ page }, info) => {
   await expect(page.locator(".load-more")).toHaveText(
     "已全部显示 101 个归档盒",
   );
-  await page.getByRole("searchbox").fill("new search");
+  await page
+    .getByRole("combobox", { name: "搜索或添加条件…" })
+    .fill("new search");
+  await page.keyboard.press("Enter");
   await expect(page.locator(".box-card")).toHaveCount(1);
   await expect(
     page.getByRole("heading", { name: "Search result" }),
@@ -789,7 +798,9 @@ test("gallery-navigation-and-return", async ({ page }, info) => {
   const errors = await prepare(page);
   await page.goto("/files");
   await grid(page);
-  await page.getByRole("searchbox").fill("旅行");
+  await page.getByRole("combobox", { name: "搜索或添加条件…" }).fill("旅行");
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: /山间清晨.jpg/ }).click();
   const gallery = page.getByRole("region", { name: "画廊", exact: true });
   await expect(gallery).toBeVisible();
@@ -815,7 +826,9 @@ test("gallery-navigation-and-return", async ({ page }, info) => {
   await capture(page, errors, info.title);
   await page.goBack();
   await expect(gallery).toHaveCount(0);
-  await expect(page.getByRole("searchbox")).toHaveValue("旅行");
+  await expect(
+    page.getByRole("button", { name: "文件名: 旅行", exact: true }),
+  ).toBeVisible();
   await page.goForward();
   await expect(
     gallery.getByRole("heading", { name: "旅行记录.pdf", exact: true }),

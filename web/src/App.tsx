@@ -53,7 +53,7 @@ export function App() {
   const boxes = useQuery({
     queryKey: ["boxes"],
     queryFn: ({ signal }) => api.boxes(signal),
-    enabled: !!route.section,
+    enabled: !!route.section || (route.files && !route.box),
   });
   const info = useQuery({
     queryKey: ["info"],
@@ -302,7 +302,16 @@ export function App() {
             </div>
           ) : route.files && (!route.box || selected) ? (
             <>
-              <FiltersPanel value={filters} onChange={setFilters} tags={tree} />
+              <FiltersPanel
+                key={`filters:${route.box || "all"}`}
+                value={filters}
+                onChange={setFilters}
+                tags={tree}
+                boxes={route.box ? undefined : boxes.data?.boxes || []}
+                boxesLoading={boxes.isPending}
+                boxesError={boxes.isError}
+                retryBoxes={() => void boxes.refetch()}
+              />
               <FileBrowser
                 key={route.box || "all"}
                 box={selected}

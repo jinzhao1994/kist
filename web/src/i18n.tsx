@@ -163,6 +163,10 @@ export const en = {
   ascending: "Ascending",
   descending: "Descending",
   addFilter: "Add filter",
+  searchConditions: "Search or add a condition…",
+  chooseFilter: "Choose a condition",
+  filterValue: "Type to choose a value…",
+  searchText: "Search names for “{value}”",
   applyFilter: "Apply",
   filterDateHint: "Capture date: YYYY, YYYY-MM or YYYY-MM-DD",
   noFilterOptions: "No matching options",
@@ -378,6 +382,10 @@ export const zh: Record<MessageKey, string> = {
   ascending: "升序",
   descending: "降序",
   addFilter: "添加条件",
+  searchConditions: "搜索或添加条件…",
+  chooseFilter: "选择条件",
+  filterValue: "输入以选择条件值…",
+  searchText: "搜索名称“{value}”",
   applyFilter: "应用",
   filterDateHint: "拍摄日期：年、年-月或年-月-日",
   noFilterOptions: "没有匹配的选项",
@@ -500,6 +508,7 @@ export function directionFor(prefs: Preferences): "ltr" | "rtl" {
   return "ltr";
 }
 interface Parameters {
+  searchText: { value: string };
   tagResultCounts: { boxes: number; files: number };
   trashBoxConfirm: { name: string; count: number };
   expandTag: { name: string };

@@ -16,7 +16,7 @@ function readFilters(raw: string | null): Filters | undefined {
     const out: Filters = {};
     for (const key of ["name", "from", "to"] as const)
       if (typeof input[key] === "string") out[key] = input[key];
-    for (const key of ["kind", "tag_all", "tag_any", "tag_not"] as const)
+    for (const key of ["box", "kind", "tag_all", "tag_any", "tag_not"] as const)
       if (
         Array.isArray(input[key]) &&
         input[key].every((v: unknown) => typeof v === "string")

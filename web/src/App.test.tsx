@@ -187,3 +187,60 @@ it("opens global tag results from a box and preserves the tag URL on back and re
   view.unmount();
   history.replaceState(null, "", "/");
 });
+
+it("replaces the box search bar when switching to all files and applies a box condition", async () => {
+  const current = {
+    id: "current",
+    name: "Current box",
+    description: "",
+    start_at: "",
+    end_at: "",
+    created_at: "",
+    updated_at: "",
+  };
+  const requests: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string) => {
+      requests.push(path);
+      const pathname = new URL(path, "http://localhost").pathname;
+      const data =
+        pathname === "/api/v1/boxes/current"
+          ? current
+          : pathname === "/api/v1/boxes"
+            ? { boxes: [current] }
+            : pathname.endsWith("/tags")
+              ? { tags: [] }
+              : pathname.endsWith("/files")
+                ? { files: [], cursor: "" }
+                : {
+                    version: "test",
+                    timezone: "UTC",
+                    max_upload_bytes: 1000000,
+                    max_upload_files: 100,
+                  };
+      return new Response(JSON.stringify(data));
+    }),
+  );
+  history.replaceState(null, "", "/boxes/current");
+  const view = mount();
+  const user = userEvent.setup();
+  await screen.findByRole("heading", { name: "Current box", level: 1 });
+  await user.click(screen.getByRole("button", { name: /All files/ }));
+  expect(screen.getAllByRole("region", { name: "Filters" })).toHaveLength(1);
+  await user.type(
+    screen.getByRole("combobox", { name: "Search or add a condition…" }),
+    "Boxes",
+  );
+  await user.click(screen.getByRole("option", { name: "Boxes" }));
+  await user.click(await screen.findByRole("option", { name: "Current box" }));
+  await waitFor(() =>
+    expect(
+      requests.some(
+        (path) => path.includes("/files?") && path.includes("box=current"),
+      ),
+    ).toBe(true),
+  );
+  view.unmount();
+  history.replaceState(null, "", "/");
+});

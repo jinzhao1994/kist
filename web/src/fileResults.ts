@@ -10,7 +10,7 @@ export function useFileResults(box: string | undefined, filters: Filters) {
       api.files(
         {
           ...filters,
-          box: box ? [box] : undefined,
+          box: box ? [box] : filters.box?.length ? filters.box : undefined,
           limit: 100,
           cursor: pageParam,
         },
