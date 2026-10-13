@@ -340,6 +340,7 @@ for (const state of [
     await expect(
       page.getByRole("region", { name: "画廊", exact: true }),
     ).toBeVisible();
+    await page.getByRole("button", { name: "文件详情", exact: true }).click();
     await expect(
       page
         .getByRole("region", { name: "画廊", exact: true })
@@ -797,6 +798,9 @@ test("gallery-navigation-and-return", async ({ page }, info) => {
   await expect(
     gallery.getByRole("heading", { name: "山间清晨.jpg", exact: true }),
   ).toBeVisible();
+  await expect(gallery.locator("aside")).toHaveCount(0);
+  await gallery.getByRole("button", { name: "文件详情", exact: true }).click();
+  await expect(gallery.locator("aside")).toBeVisible();
   await gallery.getByRole("button", { name: "文件详情", exact: true }).click();
   await expect(gallery.locator("aside")).toHaveCount(0);
   await gallery.getByRole("button", { name: "下一个文件" }).click();
@@ -925,3 +929,46 @@ test("gallery-restores-scroll", async ({ page }, info) => {
   expect(await main.evaluate((e) => e.scrollTop)).toBe(scroll);
   await capture(page, errors, info.title);
 });
+
+for (const reduced of [false, true]) {
+  test(`gallery-motion-${reduced ? "reduced" : "enabled"}`, async ({
+    page,
+  }, info) => {
+    const errors = await prepare(page);
+    await page.emulateMedia({
+      reducedMotion: reduced ? "reduce" : "no-preference",
+    });
+    await page.addInitScript(() => {
+      const animate = Element.prototype.animate;
+      (window as unknown as { flights: number }).flights = 0;
+      Element.prototype.animate = function (...args) {
+        if (this.classList.contains("gallery-flight"))
+          (window as unknown as { flights: number }).flights++;
+        return animate.apply(this, args);
+      };
+    });
+    await page.goto("/files");
+    await grid(page);
+    await page.getByRole("button", { name: /山间清晨.jpg/ }).click();
+    const gallery = page.getByRole("region", { name: "画廊", exact: true });
+    await expect(gallery).toBeVisible();
+    await expect(gallery.locator("aside")).toHaveCount(0);
+    await expect(page.locator(".gallery-flight")).toHaveCount(0);
+    expect(
+      await page.evaluate(
+        () => (window as unknown as { flights: number }).flights,
+      ),
+    ).toBe(reduced ? 0 : 1);
+    await gallery.getByRole("button", { name: "返回列表" }).click();
+    await expect(gallery).toHaveCount(0);
+    await expect(page.locator(".gallery-flight")).toHaveCount(0);
+    expect(
+      await page.evaluate(
+        () => (window as unknown as { flights: number }).flights,
+      ),
+    ).toBe(reduced ? 0 : 2);
+    await page.getByRole("button", { name: /山间清晨.jpg/ }).click();
+    await expect(gallery).toBeVisible();
+    await capture(page, errors, info.title);
+  });
+}

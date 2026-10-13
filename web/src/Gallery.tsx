@@ -8,6 +8,7 @@ import { useFileResults, resultFiles } from "./fileResults";
 import { FileDetail } from "./FileDetail";
 import { Media } from "./Media";
 import { useI18n } from "./i18n";
+import { useGalleryMotion } from "./galleryMotion";
 import { errorMessage } from "./mutations";
 
 export function Gallery({
@@ -32,12 +33,11 @@ export function Gallery({
     () => document.activeElement as HTMLElement | null,
   );
   const focusTrap = useFocusTrap();
+  const motion = useGalleryMotion(id, close);
   const alive = useRef(true);
   const currentID = useRef(id);
   currentID.current = id;
-  const [details, setDetails] = useState(
-    () => !window.matchMedia("(max-width: 680px)").matches,
-  );
+  const [details, setDetails] = useState(false);
   const [advancing, setAdvancing] = useState(false);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const results = useFileResults(box, filters);
@@ -101,7 +101,10 @@ export function Gallery({
     <section
       className={`gallery ${details ? "gallery-with-details" : ""}`}
       aria-label={t("gallery")}
-      ref={focusTrap}
+      ref={(node) => {
+        motion.root.current = node;
+        focusTrap(node);
+      }}
       onKeyDown={(event) => {
         if (
           event.defaultPrevented ||
@@ -112,7 +115,7 @@ export function Gallery({
           return;
         if (event.key === "Escape") {
           event.preventDefault();
-          close();
+          void motion.dismiss();
           return;
         }
         if (
@@ -132,7 +135,7 @@ export function Gallery({
       }}
     >
       <header className="gallery-header">
-        <Button data-autofocus onClick={close}>
+        <Button data-autofocus onClick={() => void motion.dismiss()}>
           {t("backToResults")}
         </Button>
         <h1>
@@ -157,6 +160,7 @@ export function Gallery({
         <div className="gallery-stage">
           <div
             className="gallery-media"
+            ref={motion.media}
             onTouchStart={(event) => {
               if (
                 event.touches.length !== 1 ||
@@ -195,7 +199,11 @@ export function Gallery({
                 <Button onClick={() => query.refetch()}>{t("retry")}</Button>
               </div>
             )}
-            {data && <Media key={id} file={data.file} detail />}
+            {data && (
+              <div key={id} className="gallery-frame">
+                <Media file={data.file} detail />
+              </div>
+            )}
           </div>
           <nav
             className="gallery-navigation"
