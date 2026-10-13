@@ -977,3 +977,43 @@ for (const reduced of [false, true]) {
     await capture(page, errors, info.title);
   });
 }
+
+test("visible-thumbnails-beyond-eight", async ({ page }, info) => {
+  const errors = await prepare(page);
+  const images = Array.from({ length: 100 }, (_, index) => ({
+    ...files[0],
+    id: `visible-${index}`,
+    name: `image-${index}.jpg`,
+  }));
+  await page.route("**/api/v1/files?**", (route) =>
+    route.fulfill({ json: { files: images } }),
+  );
+  await page.goto("/files");
+  await page.getByText("小图标", { exact: true }).click();
+  const main = page.locator("main");
+  for (const top of [0, 650, 0]) {
+    await main.evaluate((element, value) => {
+      element.scrollTop = value;
+    }, top);
+    await expect
+      .poll(() =>
+        page.locator(".file-card").evaluateAll((cards) => {
+          const main = document.querySelector("main")!.getBoundingClientRect();
+          const visible = cards.filter((card) => {
+            const rect = card.getBoundingClientRect();
+            return rect.bottom > main.top && rect.top < main.bottom;
+          });
+          return (
+            visible.length > 8 &&
+            visible.every((card) => {
+              const image = card.querySelector("img");
+              return image?.complete && image.naturalWidth > 0;
+            })
+          );
+        }),
+      )
+      .toBe(true);
+    expect(await page.locator(".file-card").count()).toBeLessThan(60);
+  }
+  await capture(page, errors, info.title);
+});

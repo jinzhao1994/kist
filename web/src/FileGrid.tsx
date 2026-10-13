@@ -9,7 +9,6 @@ import {
   type DisplayMode,
 } from "./DisplayMode";
 import { formatBytes, formatInstant, useI18n } from "./i18n";
-export const MAX_ACTIVE_IMAGES = 8;
 export function activeImages(
   files: ArchiveFile[],
   first: number,
@@ -19,7 +18,6 @@ export function activeImages(
     files
       .slice(first, last)
       .filter(hasDerivedMedia)
-      .slice(0, MAX_ACTIVE_IMAGES)
       .map((file) => file.id),
   );
 }

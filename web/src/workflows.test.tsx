@@ -13,7 +13,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { BoxEditor } from "./BoxEditor";
 import { TagManager, TagAssignment } from "./Tags";
-import { activeImages, MAX_ACTIVE_IMAGES } from "./FileGrid";
+import { activeImages } from "./FileGrid";
 import { useExtraction } from "./Extraction";
 import { Upload } from "./Upload";
 import { I18nProvider, storageKey } from "./i18n";
@@ -154,7 +154,7 @@ it("bounds derived media to visible images including HEIC", () => {
     file(String(i), i % 2 ? "image/jpeg" : "image/heic"),
   );
   const active = activeImages(files, 100, 200);
-  expect(active.size).toBe(MAX_ACTIVE_IMAGES);
+  expect(active.size).toBe(100);
   for (const id of active) {
     expect(Number(id)).toBeGreaterThanOrEqual(100);
     expect(Number(id)).toBeLessThan(200);

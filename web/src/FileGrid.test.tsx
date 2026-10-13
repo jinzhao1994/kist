@@ -112,7 +112,7 @@ it("virtualizes a thousand files and preserves thumbnail nodes while details are
     </ThemeProvider>,
     { wrapper: mediaWrapper },
   );
-  await waitFor(() => expect(screen.getAllByRole("img")).toHaveLength(8));
+  await waitFor(() => expect(screen.getAllByRole("img")).toHaveLength(12));
   const thumbnails = screen.getAllByRole("img");
   expect(screen.getAllByRole("button").length).toBeLessThan(25);
   const user = userEvent.setup();
