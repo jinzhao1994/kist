@@ -137,26 +137,68 @@ export function App() {
               </UnstyledButton>
             ))}
           </nav>
-          <details className="sidebar-tags" open>
-            <summary>{t("tags")}</summary>
-            {tags.isError ? (
-              <Button onClick={() => tags.refetch()}>{t("retry")}</Button>
-            ) : (
-              <TagTree
-                tags={tree}
-                choose={(id) => {
-                  setFilters({ ...emptyFilters });
-                  go({ files: false, tag: id });
-                }}
-              />
-            )}
-            <UnstyledButton
-              className="text-button"
-              onClick={() => setManage(true)}
+          <div className="sidebar-tag-section">
+            <details className="sidebar-tags" open>
+              <summary>
+                <svg
+                  className="sidebar-tags-chevron"
+                  width="12"
+                  height="12"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="m6 3 5 5-5 5"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                {t("tags")}
+              </summary>
+              {tags.isError ? (
+                <Button onClick={() => tags.refetch()}>{t("retry")}</Button>
+              ) : (
+                <TagTree
+                  tags={tree}
+                  choose={(id) => {
+                    setFilters({ ...emptyFilters });
+                    go({ files: false, tag: id });
+                  }}
+                />
+              )}
+            </details>
+            <Tooltip
+              label={t("manageTags")}
+              events={{ hover: true, focus: true, touch: false }}
             >
-              {t("manageTags")}
-            </UnstyledButton>
-          </details>
+              <ActionIcon
+                className="manage-tags-button"
+                variant="subtle"
+                color="gray"
+                size="sm"
+                aria-label={t("manageTags")}
+                onClick={() => setManage(true)}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                >
+                  <path d="M4 7h6m4 0h6M4 17h10m4 0h2" />
+                  <circle cx="12" cy="7" r="2" />
+                  <circle cx="16" cy="17" r="2" />
+                </svg>
+              </ActionIcon>
+            </Tooltip>
+          </div>
           <div className="sidebar-footer">
             <Button onClick={() => setSettings(true)}>{t("settings")}</Button>
             <small>kist · {info.data?.version || "v0.1"}</small>

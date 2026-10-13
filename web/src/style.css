@@ -329,6 +329,41 @@ summary {
   color: var(--mantine-color-text);
   background: var(--mantine-color-default-hover);
 }
+.sidebar-tag-section {
+  position: relative;
+  min-inline-size: 0;
+}
+.manage-tags-button {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-start: 0.35rem;
+}
+.sidebar-tags > summary {
+  padding-inline-end: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  list-style: none;
+}
+.sidebar-tags > summary::-webkit-details-marker {
+  display: none;
+}
+.sidebar-tags-chevron {
+  flex-shrink: 0;
+  color: var(--mantine-color-dimmed);
+  transition: transform 150ms ease;
+}
+.sidebar-tags-chevron:dir(rtl) {
+  transform: rotate(180deg);
+}
+.sidebar-tags[open] > summary .sidebar-tags-chevron {
+  transform: rotate(90deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-tags-chevron {
+    transition: none;
+  }
+}
 .tag-tree-chevron:dir(rtl) {
   transform: rotate(180deg);
 }
@@ -570,7 +605,7 @@ dd {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.25rem;
   }
-  .sidebar-tags {
+  .sidebar-tag-section {
     flex-basis: 100%;
   }
   .sidebar-footer {
