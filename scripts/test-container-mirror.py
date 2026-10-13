@@ -46,12 +46,18 @@ class MirrorTests(unittest.TestCase):
             copy.assert_called_once_with(f"docker.io/owner/kist@{DIGEST}", "docker.io/owner/kist:latest")
 
     def test_registry_errors_do_not_mean_missing(self):
-        for error in ("unauthorized", "429 Too Many Requests", "connection refused"):
+        for error in ("unauthorized", "429 Too Many Requests", "connection refused", "proxy not found", "ERROR: other/image:tag: not found"):
             with patch.object(mirror.subprocess, "run", return_value=subprocess.CompletedProcess([], 1, "", error)):
                 with self.assertRaises(RuntimeError):
                     mirror.existing_digest("docker.io/owner/kist:v0.1.2")
         with patch.object(mirror.subprocess, "run", return_value=subprocess.CompletedProcess([], 1, "", "manifest unknown")):
             self.assertIsNone(mirror.existing_digest("docker.io/owner/kist:v0.1.2"))
+
+    def test_buildx_missing_tag_response(self):
+        reference = "docker.io/owner/kist:v0.1.2"
+        with patch.object(mirror.subprocess, "run", return_value=subprocess.CompletedProcess(
+                [], 1, "", f"ERROR: {reference}: not found\n")):
+            self.assertIsNone(mirror.existing_digest(reference))
 
     def test_latest_requires_promoted_stable(self):
         with patch.object(mirror.channel, "source", return_value={"image": "ghcr.io/owner/kist", "version": "v0.1.2"}), patch.object(mirror.channel, "digest_for", side_effect=[OTHER, DIGEST]):

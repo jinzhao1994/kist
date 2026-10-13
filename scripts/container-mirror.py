@@ -46,7 +46,8 @@ def existing_digest(reference):
         channel.validate_digest(digest)
         return digest
     # Missing credentials, rate limits and network errors must fail closed.
-    if re.search(r"manifest unknown|no such manifest", result.stderr, re.I):
+    if (re.search(r"manifest unknown|no such manifest", result.stderr, re.I)
+            or result.stderr.strip() == f"ERROR: {reference}: not found"):
         return None
     raise RuntimeError(f"Cannot inspect destination: {result.stderr}")
 
