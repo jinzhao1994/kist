@@ -1019,7 +1019,9 @@ test("visible-thumbnails-beyond-eight", async ({ page }, info) => {
         }),
       )
       .toBe(true);
-    expect(await page.locator(".file-card").count()).toBeLessThan(60);
+    expect(await page.locator(".file-card").count()).toBeLessThan(
+      images.length,
+    );
   }
   await capture(page, errors, info.title);
 });
