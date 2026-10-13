@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
 import { Button } from "@mantine/core";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { api, type Box, type Tag, type ArchiveFile } from "./api";
 import type { Filters } from "./Filters";
+import { useFileResults, resultFiles } from "./fileResults";
 import { FileGrid } from "./FileGrid";
 import { BoxTags } from "./Tags";
 import { Upload } from "./Upload";
@@ -30,21 +31,7 @@ export function FileBrowser({
     queryKey: ["info"],
     queryFn: ({ signal }) => api.info(signal),
   });
-  const query = useInfiniteQuery({
-    queryKey: ["files", box?.id, filters],
-    initialPageParam: "",
-    queryFn: ({ pageParam, signal }) =>
-      api.files(
-        {
-          ...filters,
-          box: box ? [box.id] : undefined,
-          limit: 100,
-          cursor: pageParam,
-        },
-        signal,
-      ),
-    getNextPageParam: (page) => page.cursor || undefined,
-  });
+  const query = useFileResults(box?.id, filters);
   const end = useRef<HTMLDivElement>(null);
   const { hasNextPage, isFetching, isError, fetchNextPage, dataUpdatedAt } =
     query;
@@ -60,13 +47,7 @@ export function FileBrowser({
     observer.observe(element);
     return () => observer.disconnect();
   }, [hasNextPage, isFetching, isError, paused, fetchNextPage, dataUpdatedAt]);
-  const files = Array.from(
-    new Map(
-      (query.data?.pages.flatMap((page) => page.files || []) || []).map(
-        (file) => [file.id, file],
-      ),
-    ).values(),
-  );
+  const files = resultFiles(query.data?.pages);
   return (
     <>
       {box && (

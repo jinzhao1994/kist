@@ -1,10 +1,34 @@
+import type { Filters } from "./Filters";
 import { useEffect, useState } from "react";
 export interface Route {
   files: boolean;
+  filters?: Filters;
   box?: string;
   tag?: string;
   file?: string;
   section?: "history" | "trash";
+}
+function readFilters(raw: string | null): Filters | undefined {
+  if (!raw) return;
+  try {
+    const input = JSON.parse(raw);
+    if (!input || typeof input !== "object" || Array.isArray(input)) return;
+    const out: Filters = {};
+    for (const key of ["name", "from", "to"] as const)
+      if (typeof input[key] === "string") out[key] = input[key];
+    for (const key of ["kind", "tag_all", "tag_any", "tag_not"] as const)
+      if (
+        Array.isArray(input[key]) &&
+        input[key].every((v: unknown) => typeof v === "string")
+      )
+        out[key] = input[key];
+    if (["captured", "imported", "name"].includes(input.sort))
+      out.sort = input.sort;
+    if (typeof input.asc === "boolean") out.asc = input.asc;
+    return out;
+  } catch {
+    return;
+  }
 }
 function read(): Route {
   const url = new URL(window.location.href);
@@ -23,6 +47,7 @@ function read(): Route {
     box = match?.[1];
   }
   return {
+    filters: readFilters(url.searchParams.get("filter")),
     tag,
     files: url.pathname === "/files" || !!match,
     box: box || url.searchParams.get("box") || undefined,
@@ -44,7 +69,7 @@ export function useNavigation() {
   }, []);
   return {
     route,
-    go: (next: Route) => {
+    go: (next: Route, replace = false) => {
       const path = next.section
         ? `/${next.section}`
         : next.tag
@@ -57,7 +82,18 @@ export function useNavigation() {
       const params = new URLSearchParams();
       if (next.file) params.set("file", next.file);
       if (next.section && next.box) params.set("box", next.box);
-      history.pushState(null, "", path + (params.size ? `?${params}` : ""));
+      if (next.filters) params.set("filter", JSON.stringify(next.filters));
+      const opening = !!next.file && !route.file && !next.section;
+      const state = replace
+        ? history.state
+        : opening
+          ? { kistGallery: true }
+          : null;
+      history[replace ? "replaceState" : "pushState"](
+        state,
+        "",
+        path + (params.size ? `?${params}` : ""),
+      );
       setRoute(next);
     },
   };

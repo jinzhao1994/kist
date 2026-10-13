@@ -335,9 +335,13 @@ for (const state of [
   test(`detail-${state}`, async ({ page }, info) => {
     const errors = await prepare(page, { state });
     await page.goto("/files?file=file-1");
-    await expect(page.getByRole("dialog")).toBeVisible();
     await expect(
-      page.getByRole("dialog").getByText("旅途/山间清晨.jpg", { exact: true }),
+      page.getByRole("region", { name: "画廊", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page
+        .getByRole("region", { name: "画廊", exact: true })
+        .getByText("旅途/山间清晨.jpg", { exact: true }),
     ).toBeVisible();
     if (state === "ready")
       await expect
@@ -353,7 +357,9 @@ for (const state of [
         .toBe(true);
     else
       await expect(
-        page.getByRole("dialog").locator(".media-placeholder [role=status]"),
+        page
+          .getByRole("region", { name: "画廊", exact: true })
+          .locator(".media-placeholder [role=status]"),
       ).toBeVisible();
     await capture(page, errors, info.title);
   });
@@ -770,3 +776,148 @@ for (const kind of ["boxes", "files"] as const) {
     await capture(page, errors, info.title);
   });
 }
+
+test("gallery-navigation-and-return", async ({ page }, info) => {
+  const errors = await prepare(page);
+  await page.goto("/files");
+  await grid(page);
+  await page.getByRole("searchbox").fill("旅行");
+  await page.getByRole("button", { name: /山间清晨.jpg/ }).click();
+  const gallery = page.getByRole("region", { name: "画廊", exact: true });
+  await expect(gallery).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(new URL(page.url()).searchParams.get("filter")).toContain("旅行");
+  await page.keyboard.press("ArrowRight");
+  await expect(
+    gallery.getByRole("heading", { name: "海边日落.jpg", exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("ArrowLeft");
+  await expect(
+    gallery.getByRole("heading", { name: "山间清晨.jpg", exact: true }),
+  ).toBeVisible();
+  await gallery.getByRole("button", { name: "文件详情", exact: true }).click();
+  await expect(gallery.locator("aside")).toHaveCount(0);
+  await gallery.getByRole("button", { name: "下一个文件" }).click();
+  await gallery.getByRole("button", { name: "下一个文件" }).click();
+  await expect(
+    gallery.getByRole("heading", { name: "旅行记录.pdf", exact: true }),
+  ).toBeVisible();
+  await expect(gallery.getByRole("link", { name: "下载原文件" })).toBeVisible();
+  await capture(page, errors, info.title);
+  await page.goBack();
+  await expect(gallery).toHaveCount(0);
+  await expect(page.getByRole("searchbox")).toHaveValue("旅行");
+  await page.goForward();
+  await expect(
+    gallery.getByRole("heading", { name: "旅行记录.pdf", exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(gallery).toHaveCount(0);
+});
+
+test("gallery-pagination", async ({ page }, info) => {
+  const errors = await prepare(page);
+  let release: () => void = () => {};
+  const ready = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let next = 0;
+  await page.route("**/api/v1/files?**", async (route) => {
+    if (!new URL(route.request().url()).searchParams.get("cursor"))
+      return route.fulfill({
+        json: { files: files.slice(0, 2), cursor: "next" },
+      });
+    next++;
+    await ready;
+    return route.fulfill({ json: { files: [files[2]] } });
+  });
+  await page.goto("/files?file=file-2");
+  const gallery = page.getByRole("region", { name: "画廊", exact: true });
+  await expect(gallery.locator(".gallery-loading")).toHaveText("正在加载…");
+  await gallery.getByRole("button", { name: "下一个文件" }).click();
+  release();
+  await expect(
+    gallery.getByRole("heading", { name: "旅行记录.pdf", exact: true }),
+  ).toBeVisible();
+  await expect(
+    gallery.getByRole("button", { name: "下一个文件" }),
+  ).toBeDisabled();
+  await expect(gallery.locator("nav [role=status]")).toHaveText("3 / 3");
+  expect(next).toBe(1);
+  await capture(page, errors, info.title);
+});
+
+test("gallery-mobile-swipe", async ({ page }, info) => {
+  const errors = await prepare(page, { mobile: true, mode: "dark" });
+  await page.goto("/files?file=file-1");
+  const gallery = page.getByRole("region", { name: "画廊", exact: true });
+  await expect(
+    gallery.getByRole("heading", { name: "山间清晨.jpg", exact: true }),
+  ).toBeVisible();
+  await expect(gallery.locator("aside")).toHaveCount(0);
+  await gallery.locator(".gallery-media").evaluate((element) => {
+    const touch = (x: number) =>
+      new Touch({ identifier: 1, target: element, clientX: x, clientY: 250 });
+    element.dispatchEvent(
+      new TouchEvent("touchstart", { bubbles: true, touches: [touch(300)] }),
+    );
+    element.dispatchEvent(
+      new TouchEvent("touchend", {
+        bubbles: true,
+        touches: [],
+        changedTouches: [touch(80)],
+      }),
+    );
+  });
+  await expect(
+    gallery.getByRole("heading", { name: "海边日落.jpg", exact: true }),
+  ).toBeVisible();
+  await expect
+    .poll(() =>
+      gallery
+        .locator(".detail-image")
+        .evaluateAll(
+          (images) =>
+            images.length === 1 &&
+            (images[0] as HTMLImageElement).complete &&
+            (images[0] as HTMLImageElement).naturalWidth > 0,
+        ),
+    )
+    .toBe(true);
+  expect(await gallery.evaluate((e) => e.getBoundingClientRect().height)).toBe(
+    844,
+  );
+  await capture(page, errors, info.title);
+});
+
+test("gallery-restores-scroll", async ({ page }, info) => {
+  const errors = await prepare(page, { manyFiles: true });
+  await page.route("**/api/v1/files/scroll-*", (route) => {
+    const id = new URL(route.request().url()).pathname.split("/").at(-1)!;
+    return route.fulfill({
+      json: {
+        file: { ...files[2], id, name: `${id}.pdf` },
+        tags: [],
+        metadata: [],
+      },
+    });
+  });
+  await page.goto("/files");
+  const main = page.locator("main");
+  await expect(page.locator(".file-count")).toContainText("100");
+  await main.evaluate((e) => {
+    e.scrollTop = 800;
+  });
+  const scroll = await main.evaluate((e) => e.scrollTop);
+  await page
+    .locator(".file-card")
+    .filter({ hasText: "document-12.pdf" })
+    .click();
+  const gallery = page.getByRole("region", { name: "画廊", exact: true });
+  await expect(gallery).toBeVisible();
+  await gallery.getByRole("button", { name: "下一个文件" }).click();
+  await gallery.getByRole("button", { name: "返回列表" }).click();
+  await expect(gallery).toHaveCount(0);
+  expect(await main.evaluate((e) => e.scrollTop)).toBe(scroll);
+  await capture(page, errors, info.title);
+});

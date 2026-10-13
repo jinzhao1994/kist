@@ -1,5 +1,5 @@
 import { Button } from "@mantine/core";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   contentURL,
@@ -46,6 +46,15 @@ export function Media({
   detail?: boolean;
 }) {
   const { t } = useI18n();
+  const player = useRef<HTMLMediaElement | null>(null);
+  const playerRef = useCallback((node: HTMLMediaElement | null) => {
+    if (!node && player.current) {
+      player.current.pause();
+      player.current.removeAttribute("src");
+      player.current.load();
+    }
+    player.current = node;
+  }, []);
   const client = useQueryClient();
   const recipe = detail
     ? file.kind === "video"
@@ -89,6 +98,7 @@ export function Media({
     };
     return detail && file.kind === "video" ? (
       <video
+        ref={playerRef}
         className="detail-image"
         src={src}
         controls
@@ -109,6 +119,7 @@ export function Media({
   if (detail && !failed && audioTypes.has(file.media_type || ""))
     return (
       <audio
+        ref={playerRef}
         src={contentURL(file)}
         controls
         preload="metadata"

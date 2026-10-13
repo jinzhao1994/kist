@@ -128,7 +128,13 @@ it("does not request inactive media and uses MP4 for video details", async () =>
   const inactive = mount({ active: false });
   expect(fetch).not.toHaveBeenCalled();
   inactive.unmount();
-  mount({
+  const pause = vi
+    .spyOn(HTMLMediaElement.prototype, "pause")
+    .mockImplementation(() => {});
+  const load = vi
+    .spyOn(HTMLMediaElement.prototype, "load")
+    .mockImplementation(() => {});
+  const view = mount({
     file: {
       ...file,
       kind: "video",
@@ -142,6 +148,12 @@ it("does not request inactive media and uses MP4 for video details", async () =>
     "src",
     expect.stringContaining("/derived/preview_1080p_v1/content"),
   );
+  view.unmount();
+  expect(pause).toHaveBeenCalledOnce();
+  expect(load).toHaveBeenCalledOnce();
+  expect(video).not.toHaveAttribute("src");
+  pause.mockRestore();
+  load.mockRestore();
 });
 
 it("retries status failures and keeps a failed browser preview as a placeholder", async () => {

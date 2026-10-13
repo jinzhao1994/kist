@@ -1022,3 +1022,126 @@ fieldset > label,
     display: none;
   }
 }
+
+.gallery {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: var(--canvas);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+}
+.gallery-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.gallery-header h1 {
+  flex: 1;
+  min-inline-size: 0;
+  font-size: 1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 0;
+}
+.gallery-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.gallery-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.gallery-stage {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--media);
+}
+.gallery-media {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: 1rem;
+  touch-action: pan-y pinch-zoom;
+}
+.gallery-media .detail-image,
+.gallery-media video {
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.gallery-media audio {
+  width: min(100%, 600px);
+}
+.gallery-media .media-placeholder {
+  width: 100%;
+}
+.gallery-navigation {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.75rem;
+}
+.gallery-details {
+  width: min(380px, 40vw);
+  overflow: auto;
+  padding: 1.25rem;
+  border-inline-start: 1px solid var(--border);
+  background: var(--surface);
+}
+.gallery-details dd {
+  margin-inline-start: 0;
+  overflow-wrap: anywhere;
+}
+.gallery-details .metadata-list > div {
+  display: block;
+}
+.gallery-details .inline-form {
+  flex-wrap: wrap;
+}
+.gallery-load-error {
+  padding: 0.5rem 1rem;
+}
+@media (max-width: 680px) {
+  .gallery-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.5rem;
+  }
+  .gallery-header h1 {
+    order: 3;
+    flex-basis: 100%;
+  }
+  .gallery-actions {
+    margin-inline-start: auto;
+  }
+  .gallery-details {
+    width: min(88vw, 380px);
+    position: absolute;
+    inset-inline-end: 0;
+    inset-block: 100px 0;
+    box-shadow: 0 0 24px #0003;
+  }
+  .gallery-media {
+    padding: 0.25rem;
+  }
+  .gallery-navigation {
+    gap: 0.5rem;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+}
