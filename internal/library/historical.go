@@ -18,6 +18,7 @@ import (
 // historicalReader deliberately excludes every command and maintenance method.
 // Its concrete implementation is private to this package.
 type historicalReader interface {
+	SavedSearches(context.Context) ([]domain.SavedSearch, error)
 	Box(context.Context, domain.BoxID) (domain.Box, bool, error)
 	Boxes(context.Context, ListBoxesOptions) ([]domain.Box, error)
 	BoxTags(context.Context, domain.BoxID) ([]domain.TagID, error)

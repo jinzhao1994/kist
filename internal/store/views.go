@@ -273,7 +273,7 @@ func ClearViews(tx *sql.Tx) error {
 		"file_metadata", "file_extractions",
 		// boxes before folders: a box points at its root folder, so the
 		// dependency runs the opposite way from files → folders.
-		"files", "boxes", "folders", "tags",
+		"files", "boxes", "folders", "tags", "saved_searches",
 	} {
 		if _, err := tx.Exec(`DELETE FROM ` + table); err != nil {
 			return fmt.Errorf("clear %s: %w", table, err)

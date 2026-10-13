@@ -84,6 +84,7 @@ func New(l *library.Library, opt Options) (*Server, error) {
 	s.historicalRoutes()
 	s.fileRoutes()
 	s.tagRoutes()
+	s.savedSearchRoutes()
 	s.media = l.Media()
 	s.contentRoutes()
 	s.mediaRoutes()

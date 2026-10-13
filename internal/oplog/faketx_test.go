@@ -12,6 +12,7 @@ import (
 // functions of (tx, payload), so testing them against maps rather than SQLite
 // is not a shortcut — it is the shape the design promises.
 type fakeTx struct {
+	searches map[domain.SavedSearchID]domain.SavedSearch
 	ts       time.Time
 	boxes    map[domain.BoxID]domain.Box
 	folders  map[domain.FolderID]domain.Folder
@@ -350,4 +351,30 @@ func (*fakeTx) DeleteBoxContents(domain.BoxContents) error {
 }
 func (*fakeTx) RestoreBoxContents(domain.BoxContents) error {
 	return fmt.Errorf("box archive is not implemented by fakeTx")
+}
+
+func (f *fakeTx) GetSavedSearch(id domain.SavedSearchID) (domain.SavedSearch, bool, error) {
+	s, ok := f.searches[id]
+	return s, ok, nil
+}
+func (f *fakeTx) InsertSavedSearch(s domain.SavedSearch) error {
+	if f.searches == nil {
+		f.searches = map[domain.SavedSearchID]domain.SavedSearch{}
+	}
+	if _, ok := f.searches[s.ID]; ok {
+		return fmt.Errorf("duplicate search")
+	}
+	f.searches[s.ID] = s
+	return nil
+}
+func (f *fakeTx) UpdateSavedSearch(s domain.SavedSearch) error    { f.searches[s.ID] = s; return nil }
+func (f *fakeTx) DeleteSavedSearch(id domain.SavedSearchID) error { delete(f.searches, id); return nil }
+
+func (f *fakeTx) SavedSearchByName(name string) (domain.SavedSearch, bool, error) {
+	for _, s := range f.searches {
+		if domain.Fold(s.Name) == domain.Fold(name) {
+			return s, true, nil
+		}
+	}
+	return domain.SavedSearch{}, false, nil
 }

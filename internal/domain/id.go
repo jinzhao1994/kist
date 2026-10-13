@@ -66,10 +66,11 @@ func (id *ID) UnmarshalText(b []byte) error {
 // where a BoxID belongs. Embedding rather than defining (`type BoxID ID`)
 // promotes every method above, including the pointer-receiver Scan.
 type (
-	BoxID    struct{ ID }
-	FolderID struct{ ID }
-	FileID   struct{ ID }
-	TagID    struct{ ID }
+	BoxID         struct{ ID }
+	FolderID      struct{ ID }
+	FileID        struct{ ID }
+	TagID         struct{ ID }
+	SavedSearchID struct{ ID }
 	// GroupID marks the ops one command wrote. It names nothing that has a
 	// row of its own — a group with no attributes is not an entity — so the
 	// only place it appears is ops.group_id (spec 2.6).
@@ -80,3 +81,5 @@ func NewBoxID() BoxID       { return BoxID{NewID()} }
 func NewFolderID() FolderID { return FolderID{NewID()} }
 func NewFileID() FileID     { return FileID{NewID()} }
 func NewTagID() TagID       { return TagID{NewID()} }
+
+func NewSavedSearchID() SavedSearchID { return SavedSearchID{NewID()} }

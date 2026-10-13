@@ -351,6 +351,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/saved-searches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 saved searches */
+        get: operations["get-api-v1-saved-searches"];
+        put?: never;
+        /** Post API v1 saved searches */
+        post: operations["post-api-v1-saved-searches"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/saved-searches/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put API v1 saved searches by ID */
+        put: operations["put-api-v1-saved-searches-by-id"];
+        post?: never;
+        /** Delete API v1 saved searches by ID */
+        delete: operations["delete-api-v1-saved-searches-by-id"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tags": {
         parameters: {
             query?: never;
@@ -669,6 +705,38 @@ export interface components {
             height: number;
             /** Format: int64 */
             width: number;
+        };
+        SavedSearchBody: {
+            definition: components["schemas"]["SearchDefinition"];
+            name: string;
+        };
+        SavedSearchList: {
+            searches: components["schemas"]["SavedSearchView"][] | null;
+        };
+        SavedSearchView: {
+            definition: components["schemas"]["SearchDefinition"];
+            id: string;
+            name: string;
+        };
+        SearchDefinition: {
+            box_id?: string;
+            entity: string;
+            filters: components["schemas"]["SearchFilters"];
+            folder_id?: string;
+            /** Format: int64 */
+            version: number;
+        };
+        SearchFilters: {
+            asc: boolean;
+            box?: string[] | null;
+            from?: string;
+            kind?: string[] | null;
+            name?: string;
+            sort: string;
+            tag_all?: string[] | null;
+            tag_any?: string[] | null;
+            tag_not?: string[] | null;
+            to?: string;
         };
         Tag: {
             /** Format: int64 */
@@ -1655,6 +1723,140 @@ export interface operations {
             header?: never;
             path: {
                 key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-saved-searches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedSearchList"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-saved-searches": {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavedSearchBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "put-api-v1-saved-searches-by-id": {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavedSearchBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "delete-api-v1-saved-searches-by-id": {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
             };
             cookie?: never;
         };

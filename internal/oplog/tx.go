@@ -23,6 +23,11 @@ import (
 // (spec 1.5.1 ②). Putting them here would invite a handler to do it, and then
 // a new op type could forget to.
 type Tx interface {
+	SavedSearchByName(string) (domain.SavedSearch, bool, error)
+	InsertSavedSearch(domain.SavedSearch) error
+	UpdateSavedSearch(domain.SavedSearch) error
+	DeleteSavedSearch(domain.SavedSearchID) error
+	GetSavedSearch(domain.SavedSearchID) (domain.SavedSearch, bool, error)
 	// TS is the timestamp of the op being applied — ops.ts, not the wall
 	// clock. Every created_at and updated_at written during Apply comes from
 	// here, so a rebuild reproduces the same values (spec 2.3.1).

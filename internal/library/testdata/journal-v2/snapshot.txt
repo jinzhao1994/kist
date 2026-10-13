@@ -5,6 +5,7 @@
 == boxes ==
 == folders ==
 == files ==
+== saved_searches ==
 == tags ==
 01A0FAF57F5C7A8F9B8A34B97125B685		archive	archive
 == box_tags ==

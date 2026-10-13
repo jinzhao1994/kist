@@ -93,14 +93,15 @@ const (
 	CodeWriteCommitted  Code = "write_committed"
 	CodeWriteUnknown    Code = "write_outcome_unknown"
 
-	CodeBoxNotFound      Code = "box_not_found"
-	CodeTagNotFound      Code = "tag_not_found"
-	CodeFileNotFound     Code = "file_not_found"
-	CodeMetadataNotFound Code = "metadata_not_found"
-	CodeFolderNotFound   Code = "folder_not_found"
-	CodeOpNotFound       Code = "op_not_found"
-	CodeUnknownAction    Code = "unknown_action"
-	CodeNotALibrary      Code = "not_a_library"
+	CodeSavedSearchNotFound Code = "saved_search_not_found"
+	CodeBoxNotFound         Code = "box_not_found"
+	CodeTagNotFound         Code = "tag_not_found"
+	CodeFileNotFound        Code = "file_not_found"
+	CodeMetadataNotFound    Code = "metadata_not_found"
+	CodeFolderNotFound      Code = "folder_not_found"
+	CodeOpNotFound          Code = "op_not_found"
+	CodeUnknownAction       Code = "unknown_action"
+	CodeNotALibrary         Code = "not_a_library"
 
 	CodeNameEmpty      Code = "name_empty"
 	CodeNameEdgeSpace  Code = "name_edge_space"
@@ -149,6 +150,7 @@ var table = []struct {
 	{oplog.ErrNotUndoable, CodeNotUndoable},
 	{library.ErrUndoBlocked, CodeUndoBlocked},
 	{library.ErrAlreadyReverted, CodeAlreadyReverted},
+	{library.ErrNoSuchSavedSearch, CodeSavedSearchNotFound},
 	{library.ErrNoSuchBox, CodeBoxNotFound},
 	{library.ErrNoSuchTag, CodeTagNotFound},
 	{library.ErrNoSuchFile, CodeFileNotFound},
@@ -188,21 +190,22 @@ var table = []struct {
 // classes maps a code to its class. A code missing from here is internal,
 // which is checked by the same test that checks completeness.
 var classes = map[Code]Class{
-	CodeMediaNotReady:    ClassConflict,
-	CodeInvalidRequest:   ClassInvalid,
-	CodeRequestConflict:  ClassConflict,
-	CodeRequestScope:     ClassInternal,
-	CodeNotUndoable:      ClassConflict,
-	CodeWriteCommitted:   ClassConflict,
-	CodeWriteUnknown:     ClassConflict,
-	CodeBoxNotFound:      ClassNotFound,
-	CodeTagNotFound:      ClassNotFound,
-	CodeFileNotFound:     ClassNotFound,
-	CodeMetadataNotFound: ClassNotFound,
-	CodeFolderNotFound:   ClassNotFound,
-	CodeOpNotFound:       ClassNotFound,
-	CodeUnknownAction:    ClassNotFound,
-	CodeNotALibrary:      ClassNotFound,
+	CodeMediaNotReady:       ClassConflict,
+	CodeInvalidRequest:      ClassInvalid,
+	CodeRequestConflict:     ClassConflict,
+	CodeRequestScope:        ClassInternal,
+	CodeNotUndoable:         ClassConflict,
+	CodeWriteCommitted:      ClassConflict,
+	CodeWriteUnknown:        ClassConflict,
+	CodeSavedSearchNotFound: ClassNotFound,
+	CodeBoxNotFound:         ClassNotFound,
+	CodeTagNotFound:         ClassNotFound,
+	CodeFileNotFound:        ClassNotFound,
+	CodeMetadataNotFound:    ClassNotFound,
+	CodeFolderNotFound:      ClassNotFound,
+	CodeOpNotFound:          ClassNotFound,
+	CodeUnknownAction:       ClassNotFound,
+	CodeNotALibrary:         ClassNotFound,
 
 	CodeNameEmpty:      ClassInvalid,
 	CodeNameEdgeSpace:  ClassInvalid,

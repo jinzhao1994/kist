@@ -16,6 +16,9 @@ package oplog
 type Action string
 
 const (
+	ActionCreateSavedSearch  Action = "create_saved_search"
+	ActionUpdateSavedSearch  Action = "update_saved_search"
+	ActionDeleteSavedSearch  Action = "delete_saved_search"
 	ActionRequestReceipt     Action = "request_receipt"
 	ActionCreateBox          Action = "create_box"
 	ActionDeleteBox          Action = "delete_box"
