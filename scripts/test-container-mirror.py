@@ -12,7 +12,7 @@ mirror = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mirror)
 DIGEST = "sha256:" + "a" * 64
 OTHER = "sha256:" + "b" * 64
-META = {"tag": "latest", "version": "v0.1.2", "revision": "c" * 40, "digest": DIGEST}
+META = {"tag": "latest", "version": "v0.1.2", "revision": "c" * 40, "digest": DIGEST, "image": "ghcr.io/owner/kist"}
 
 
 class MirrorTests(unittest.TestCase):
@@ -28,16 +28,38 @@ class MirrorTests(unittest.TestCase):
             copy.assert_not_called()
 
     def test_existing_version_cannot_be_replaced(self):
-        metadata = {**META, "tag": "v0.1.2"}
-        with patch.object(mirror, "resolve", return_value=metadata), patch.object(mirror, "existing_digest", return_value=OTHER), patch.object(mirror, "copy_index") as copy:
+        with patch.object(mirror, "existing_digest", return_value=OTHER), patch.object(mirror, "copy_index") as copy:
             with self.assertRaises(ValueError):
-                mirror.promote(metadata, "owner/kist", "owner/kist")
+                mirror.publish(META, "owner/kist")
             copy.assert_not_called()
 
     def test_identical_version_is_retryable(self):
-        metadata = {**META, "tag": "v0.1.2"}
-        with patch.object(mirror, "resolve", return_value=metadata), patch.object(mirror, "existing_digest", return_value=DIGEST), patch.object(mirror, "copy_index") as copy:
-            mirror.promote(metadata, "owner/kist", "owner/kist")
+        with patch.object(mirror, "existing_digest", return_value=DIGEST), patch.object(mirror, "copy_index") as copy, patch.object(mirror.channel, "digest_for", return_value=DIGEST):
+            mirror.publish(META, "owner/kist")
+            copy.assert_not_called()
+
+    def test_latest_publishes_version_before_acceptance(self):
+        with patch.object(mirror, "existing_digest", return_value=None), patch.object(mirror, "copy_index") as copy, patch.object(mirror.channel, "digest_for", return_value=DIGEST):
+            mirror.publish(META, "owner/kist")
+            copy.assert_called_once_with(f"ghcr.io/owner/kist@{DIGEST}", "docker.io/owner/kist:v0.1.2")
+
+    def test_edge_does_not_create_temporary_tags(self):
+        metadata = {**META, "tag": "edge", "version": "edge-" + "c" * 40}
+        with patch.object(mirror, "existing_digest", return_value=OTHER), patch.object(mirror, "copy_index") as copy, patch.object(mirror.channel, "digest_for", return_value=DIGEST):
+            mirror.publish(metadata, "owner/kist")
+            copy.assert_called_once_with(f"ghcr.io/owner/kist@{DIGEST}", "docker.io/owner/kist:edge")
+
+    def test_version_and_edge_acceptance_do_not_write_again(self):
+        for tag in ("v0.1.2", "edge"):
+            metadata = {**META, "tag": tag}
+            with patch.object(mirror, "resolve", return_value=metadata), patch.object(mirror, "copy_index") as copy, patch.object(mirror.channel, "digest_for", return_value=DIGEST):
+                mirror.promote(metadata, "owner/kist", "owner/kist")
+                copy.assert_not_called()
+
+    def test_changed_version_cannot_promote_latest(self):
+        with patch.object(mirror, "resolve", return_value=META), patch.object(mirror, "copy_index") as copy, patch.object(mirror.channel, "digest_for", return_value=OTHER):
+            with self.assertRaises(ValueError):
+                mirror.promote(META, "owner/kist", "owner/kist")
             copy.assert_not_called()
 
     def test_promotion_uses_accepted_digest(self):
@@ -66,8 +88,8 @@ class MirrorTests(unittest.TestCase):
 
     def test_copy_preserves_all_platforms_and_digests(self):
         with patch.object(mirror.subprocess, "run") as run:
-            mirror.copy_index(f"ghcr.io/owner/kist@{DIGEST}", "docker.io/owner/kist:candidate-1")
-            run.assert_called_once_with(["skopeo", "copy", "--all", "--preserve-digests", f"docker://ghcr.io/owner/kist@{DIGEST}", "docker://docker.io/owner/kist:candidate-1"], check=True)
+            mirror.copy_index(f"ghcr.io/owner/kist@{DIGEST}", "docker.io/owner/kist:v0.1.2")
+            run.assert_called_once_with(["skopeo", "copy", "--all", "--preserve-digests", f"docker://ghcr.io/owner/kist@{DIGEST}", "docker://docker.io/owner/kist:v0.1.2"], check=True)
 
 
 if __name__ == "__main__":

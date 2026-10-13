@@ -52,23 +52,37 @@ def existing_digest(reference):
     raise RuntimeError(f"Cannot inspect destination: {result.stderr}")
 
 
+def publish(metadata, target):
+    validate_target(target)
+    # Stable copies use their real version tag. Only latest waits for Hub-side
+    # acceptance; edge is already accepted on GHCR and is checked again here.
+    tag = "edge" if metadata["tag"] == "edge" else metadata["version"]
+    destination = f"docker.io/{target}:{tag}"
+    existing = existing_digest(destination)
+    if existing != metadata["digest"]:
+        if tag != "edge" and existing is not None:
+            raise ValueError("Refusing to replace an existing version tag with different content")
+        copy_index(f'{metadata["image"]}@{metadata["digest"]}', destination)
+    if channel.digest_for(destination) != metadata["digest"]:
+        raise ValueError("Copied index changed digest")
+
+
 def promote(metadata, repository, target):
     validate_target(target)
     current = resolve(metadata["tag"], repository)
     if any(current[key] != metadata[key] for key in ("version", "revision", "digest")):
-        print("Source moved during acceptance; destination unchanged")
+        print("Source moved during acceptance; no channel update")
         return
+    published_tag = "edge" if metadata["tag"] == "edge" else metadata["version"]
+    published = f"docker.io/{target}:{published_tag}"
+    if channel.digest_for(published) != metadata["digest"]:
+        raise ValueError("Published tag changed during acceptance")
     destination = f'docker.io/{target}:{metadata["tag"]}'
-    existing = existing_digest(destination)
-    if existing == metadata["digest"]:
-        print(f"Already synchronized: {destination}")
-        return
-    if metadata["tag"] not in ("latest", "edge") and existing is not None:
-        raise ValueError("Refusing to replace an existing version tag with different content")
-    copy_index(f'docker.io/{target}@{metadata["digest"]}', destination)
-    if channel.digest_for(destination) != metadata["digest"]:
-        raise ValueError("Destination digest differs from the accepted source")
-    summary = f'Published `{destination}` at `{metadata["digest"]}` (source `{metadata["revision"]}`).\n'
+    if metadata["tag"] == "latest":
+        copy_index(f'docker.io/{target}@{metadata["digest"]}', destination)
+        if channel.digest_for(destination) != metadata["digest"]:
+            raise ValueError("Destination digest differs from the accepted source")
+    summary = f'Verified `{destination}` at `{metadata["digest"]}` (source `{metadata["revision"]}`).\n'
     print(summary)
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as report:
@@ -91,10 +105,7 @@ def main():
         promote(metadata, args.repository, args.target)
         return
     metadata = resolve(args.tag, args.repository)
-    candidate = f'docker.io/{args.target}:candidate-{os.environ["GITHUB_RUN_ID"]}-{os.environ["GITHUB_RUN_ATTEMPT"]}'
-    copy_index(f'{metadata["image"]}@{metadata["digest"]}', candidate)
-    if channel.digest_for(candidate) != metadata["digest"]:
-        raise ValueError("Copied index changed digest")
+    publish(metadata, args.target)
     args.metadata.write_text(json.dumps(metadata))
     # Skopeo progress goes to stdout; only these fields belong in job outputs.
     with open(os.environ["GITHUB_OUTPUT"], "a") as outputs:

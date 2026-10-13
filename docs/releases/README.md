@@ -70,8 +70,11 @@ image pulls, NAS configuration and upgrade steps.
 `Container Docker Hub` follows successful Container Release, Container Latest and
 Container Edge runs. It copies the GHCR index and both architectures with Skopeo
 `--all --preserve-digests`; it never rebuilds the release. Native amd64/arm64 jobs
-pull the candidate anonymously from Docker Hub and repeat media/persistence
-acceptance before publishing the user-facing tag. Existing version tags with
+pull the version index anonymously from Docker Hub and repeat media/persistence
+acceptance before updating `latest`. Versions are visible during acceptance;
+`latest` remains unchanged if acceptance fails. `edge` is copied directly after
+GHCR acceptance, then checked again on Hub; a Hub-side failure leaves it visible
+and marks the workflow failed. Existing version tags with
 different content are rejected; moving channels are rechecked before promotion.
 GHCR remains usable when Hub publication fails. Inspect both workflows.
 
@@ -88,8 +91,11 @@ gh workflow run container-dockerhub.yml --ref main -f tag=latest
 ```
 
 Use `tag=edge` for the development channel. Confirm both native acceptance jobs
-and promotion passed before advertising the Docker Hub tag. Candidate tags are
-implementation details; deploy version tags or channels.
+and final confirmation passed before advertising the Docker Hub tag. No temporary
+Docker Hub tags are created. Old Hub `candidate-*` tags may be removed manually
+after checking the released tags; do not delete shared manifests by digest or
+apply that cleanup to GHCR package versions, which may back platform indices.
+Read & Write credentials remain sufficient; automatic deletion is not required.
 
 Release notes must distinguish forward upgrade compatibility, destructive
 migrations (if any), and downgrade limits. Do not require a fresh full-library
