@@ -23,10 +23,15 @@ type createSavedSearchInput struct {
 	Key  string `header:"Idempotency-Key" required:"true"`
 	Body savedSearchBody
 }
+type updateSavedSearchBody struct {
+	Name       string                  `json:"name" minLength:"1" maxLength:"255"`
+	Definition domain.SearchDefinition `json:"definition"`
+	Before     savedSearchBody         `json:"before"`
+}
 type updateSavedSearchInput struct {
 	ID   string `path:"id"`
 	Key  string `header:"Idempotency-Key" required:"true"`
-	Body savedSearchBody
+	Body updateSavedSearchBody
 }
 
 func (s *Server) savedSearchRoutes() {
@@ -53,7 +58,7 @@ func (s *Server) savedSearchRoutes() {
 			return nil, err
 		}
 		return s.mutate(ctx, in.Key, "PUT", Prefix+"/saved-searches/"+id.String(), in.Body, func(ctx context.Context) error {
-			return s.library.UpdateSavedSearch(ctx, domain.SavedSearchID{ID: id}, in.Body.Name, in.Body.Definition)
+			return s.library.UpdateSavedSearch(ctx, domain.SavedSearch{ID: domain.SavedSearchID{ID: id}, Name: in.Body.Before.Name, Definition: in.Body.Before.Definition}, in.Body.Name, in.Body.Definition)
 		})
 	})
 	huma.Delete(s.contract, Prefix+"/saved-searches/{id}", func(ctx context.Context, in *deleteTagInput) (*output[library.RequestResult], error) {

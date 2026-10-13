@@ -30,6 +30,11 @@ import { useNavigation } from "./navigation";
 import { errorMessage } from "./mutations";
 import { HistoryPage } from "./History";
 import { NavigationIcon } from "./NavigationIcon";
+import {
+  SavedSearches,
+  SaveSearchButton,
+  searchDefinition,
+} from "./SavedSearches";
 export function App() {
   const { t, prefs } = useI18n();
   const { route, go } = useNavigation();
@@ -42,11 +47,15 @@ export function App() {
     ...route.filters,
   });
   useEffect(() => {
-    if (route.filters) setFilters({ ...emptyFilters, ...route.filters });
+    setFilters({ ...emptyFilters, ...route.filters });
   }, [route.filters]);
   const [boxFilters, setBoxFilters] = useState<BoxFilters>({
     ...emptyBoxFilters,
+    ...route.boxFilters,
   });
+  useEffect(() => {
+    setBoxFilters({ ...emptyBoxFilters, ...route.boxFilters });
+  }, [route.boxFilters]);
   const box = useQuery({
     queryKey: ["boxes", "detail", route.box],
     queryFn: ({ signal }) => api.box(route.box!, signal),
@@ -70,6 +79,15 @@ export function App() {
     filters.tag_not?.length
   );
   const queryFolder = route.box && !searching ? currentFolder : undefined;
+  const currentSearch =
+    !route.section && !route.tag
+      ? searchDefinition(
+          route.files ? "files" : "boxes",
+          route.files ? filters : boxFilters,
+          route.files ? route.box : undefined,
+          route.box && !searching ? currentFolder : undefined,
+        )
+      : undefined;
   const chooseFolder = (folder: string) => {
     setFilters({ ...emptyFilters });
     go({ box: route.box, files: true, folder });
@@ -137,6 +155,14 @@ export function App() {
               </UnstyledButton>
             ))}
           </nav>
+          <SavedSearches
+            current={currentSearch}
+            open={(next) => {
+              if (next.files) setFilters({ ...emptyFilters, ...next.filters });
+              else setBoxFilters({ ...emptyBoxFilters, ...next.boxFilters });
+              go(next);
+            }}
+          />
           <div className="sidebar-tag-section">
             <details className="sidebar-tags" open>
               <summary>
@@ -389,6 +415,11 @@ export function App() {
           ) : route.files && (!route.box || selected) ? (
             <>
               <FiltersPanel
+                saveSearch={
+                  currentSearch && (
+                    <SaveSearchButton definition={currentSearch} />
+                  )
+                }
                 key={`filters:${route.box || "all"}`}
                 value={filters}
                 onChange={setFilters}
@@ -436,6 +467,11 @@ export function App() {
           ) : (
             <>
               <FiltersPanel
+                saveSearch={
+                  currentSearch && (
+                    <SaveSearchButton definition={currentSearch} />
+                  )
+                }
                 entity="boxes"
                 value={boxFilters}
                 onChange={setBoxFilters}

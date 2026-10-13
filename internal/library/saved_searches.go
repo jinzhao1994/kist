@@ -30,13 +30,21 @@ func (l *Library) CreateSavedSearch(ctx context.Context, name string, definition
 	_, err = l.write(ctx, oplog.ActionCreateSavedSearch, raw, oplog.OriginUser, writeOptions{})
 	return s, err
 }
-func (l *Library) UpdateSavedSearch(ctx context.Context, id domain.SavedSearchID, name string, definition domain.SearchDefinition) error {
-	before, ok, err := store.SavedSearchByID(l.db, id)
+func (l *Library) UpdateSavedSearch(ctx context.Context, expected domain.SavedSearch, name string, definition domain.SearchDefinition) error {
+	id := expected.ID
+	before, err := domain.NewSavedSearch(id, expected.Name, expected.Definition)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidRequest, err)
+	}
+	current, ok, err := store.SavedSearchByID(l.db, id)
 	if err != nil {
 		return err
 	}
 	if !ok {
 		return ErrNoSuchSavedSearch
+	}
+	if !reflect.DeepEqual(current, before) {
+		return oplog.ErrStaleBefore
 	}
 	after, err := domain.NewSavedSearch(id, name, definition)
 	if err != nil {

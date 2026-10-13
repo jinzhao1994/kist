@@ -67,6 +67,18 @@ export const en = {
   trashBoxChanged:
     "The box may have changed. Close this dialog and try again to review its current contents.",
   action_update_box: "Edit box",
+  savedSearches: "Saved searches",
+  saveSearch: "Save this search",
+  editSavedSearch: "Edit saved search",
+  replaceSavedSearch: "Use current search conditions",
+  replaceSearchHint:
+    "Saving replaces the saved scope, conditions and sorting with the current search.",
+  removeSavedSearch: "Remove saved search",
+  removeSavedSearchHint:
+    "Remove this saved search? Files and boxes are unchanged. You can undo this in history.",
+  savedSearchLiveHint: "Results update as your library changes",
+  savedSearchMissing:
+    "This search references a missing tag, box or folder, or an unsupported definition. Its conditions have been preserved. Restore the missing item or replace the saved conditions.",
   action_create_saved_search: "Save search",
   action_update_saved_search: "Update saved search",
   action_delete_saved_search: "Remove saved search",
@@ -307,6 +319,17 @@ export const zh: Record<MessageKey, string> = {
     "将“{name}”及其中全部 {count, number} 个文件移入回收站？目录、标签和元数据可一并恢复，原始文件会保留。",
   trashBoxChanged: "归档盒可能已发生变化，请关闭窗口并重试，重新确认当前内容。",
   action_update_box: "修改归档箱",
+  savedSearches: "收藏搜索",
+  saveSearch: "收藏当前搜索",
+  editSavedSearch: "编辑收藏搜索",
+  replaceSavedSearch: "更新为当前搜索条件",
+  replaceSearchHint: "保存后，将用当前搜索的范围、条件和排序替换原收藏。",
+  removeSavedSearch: "取消收藏搜索",
+  removeSavedSearchHint:
+    "确认取消此收藏？文件和归档盒不受影响，可在操作历史中撤销。",
+  savedSearchLiveHint: "结果随资料库内容实时更新",
+  savedSearchMissing:
+    "此搜索引用的标签、归档盒或目录已不存在，或条件版本不受支持。原条件已保留，请恢复引用对象或更新收藏条件。",
   action_create_saved_search: "收藏搜索",
   action_update_saved_search: "更新收藏搜索",
   action_delete_saved_search: "取消收藏搜索",

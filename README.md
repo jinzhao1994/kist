@@ -334,3 +334,16 @@ Third-party license texts are included in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_N
 and shipped with release archives and container images. After dependency updates,
 run `npm --prefix web ci` and `python3 scripts/third-party-notices.py`; `make check`
 verifies the generated notices.
+
+### Saved searches
+
+Use the star beside the search bar to name and save the current file or box search,
+including its scope, filters, and sorting. Open it from **Saved searches** in the
+sidebar to run it against the current library. The row menu can rename it, replace
+its conditions with the current search, or remove it.
+
+Saved searches belong to the library and are shared across browsers and devices.
+Their operations are included in history, backups, rebuilds, and strict undo.
+Missing referenced tags, boxes, or folders produce a warning; conditions are
+preserved rather than silently removed. Older binaries cannot replay the new
+saved-search operations once they have been written.

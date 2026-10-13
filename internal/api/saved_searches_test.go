@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"encoding/json"
 	"testing"
 )
 
@@ -22,9 +23,18 @@ func TestSavedSearchRequests(t *testing.T) {
 		t.Fatalf("list: %d %s", listed.Code, listed.Body)
 	}
 	path := Prefix + "/saved-searches/" + items[0].ID.String()
-	renamed := call(s, "PUT", path, "rename-search", string(bytes.ReplaceAll([]byte(body), []byte("Pictures"), []byte("Photos"))))
+	var original savedSearchBody
+	if err := json.Unmarshal([]byte(body), &original); err != nil {
+		t.Fatal(err)
+	}
+	updateBody, _ := json.Marshal(updateSavedSearchBody{Name: "Photos", Definition: original.Definition, Before: original})
+	renamed := call(s, "PUT", path, "rename-search", string(updateBody))
 	if renamed.Code != 200 {
 		t.Fatalf("update: %d %s", renamed.Code, renamed.Body)
+	}
+	stale := call(s, "PUT", path, "stale-search", string(updateBody))
+	if stale.Code != 409 {
+		t.Fatalf("stale update: %d %s", stale.Code, stale.Body)
 	}
 	removed := call(s, "DELETE", path, "remove-search", "")
 	if removed.Code != 200 {

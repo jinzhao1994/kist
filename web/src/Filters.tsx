@@ -7,7 +7,7 @@ import {
   UnstyledButton,
   useCombobox,
 } from "@mantine/core";
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import type { FileQuery, BoxQuery, Box, Tag } from "./api";
 import { flattenTags, tagOption, TagPath } from "./TagPath";
 import { useI18n } from "./i18n";
@@ -63,6 +63,7 @@ export function FiltersPanel<T extends FilterValues>({
   boxesLoading = false,
   boxesError = false,
   retryBoxes,
+  saveSearch,
 }: {
   value: T;
   onChange: (value: T) => void;
@@ -72,6 +73,7 @@ export function FiltersPanel<T extends FilterValues>({
   boxesLoading?: boolean;
   boxesError?: boolean;
   retryBoxes?: () => void;
+  saveSearch?: ReactNode;
 }) {
   const { t } = useI18n();
   const [field, setField] = useState<Field | null>(null);
@@ -362,6 +364,7 @@ export function FiltersPanel<T extends FilterValues>({
           </Combobox.Dropdown>
         </Combobox>
       </div>
+      {saveSearch}
       <div className="filter-sort">
         <Select
           label={t("sort")}

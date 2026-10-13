@@ -87,7 +87,8 @@ async function prepare(page: Page, options: Options = {}) {
       return route.abort();
     }
     let body: unknown;
-    if (path === "/boxes" || path === "/boxes/search")
+    if (path === "/saved-searches") body = { searches: [] };
+    else if (path === "/boxes" || path === "/boxes/search")
       body = {
         boxes: options.empty
           ? []
@@ -1128,5 +1129,46 @@ for (const mobile of [false, true]) {
     await expect(
       page.getByRole("button", { name: "照片", exact: true }),
     ).toBeVisible();
+  });
+}
+
+for (const scenario of ["sidebar", "dialog", "mobile"] as const) {
+  test(`saved-search-${scenario}`, async ({ page }, info) => {
+    const errors = await prepare(page, { mobile: scenario === "mobile" });
+    await page.route("**/api/v1/saved-searches", (route) =>
+      route.fulfill({
+        json: {
+          searches: [
+            {
+              id: "saved-1",
+              name: "旅行照片",
+              definition: {
+                version: 1,
+                entity: "files",
+                filters: {
+                  sort: "captured",
+                  asc: false,
+                  kind: ["image"],
+                  tag_all: ["tag-1"],
+                },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    await page.goto("/files");
+    await expect(
+      page.getByRole("button", { name: "旅行照片", exact: true }),
+    ).toBeVisible();
+    if (scenario === "dialog") {
+      await page
+        .getByRole("button", { name: "收藏当前搜索", exact: true })
+        .click();
+      await page
+        .getByRole("textbox", { name: "名称", exact: true })
+        .fill("待整理的照片");
+    }
+    await capture(page, errors, info.title);
   });
 }

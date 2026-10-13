@@ -20,7 +20,7 @@ func TestSavedSearchLifecycleReplayAndDrift(t *testing.T) {
 		t.Fatal(err)
 	}
 	created, _, _ := l.ops.Last()
-	if err := l.UpdateSavedSearch(ctx, s.ID, "Agreements", definition); err != nil {
+	if err := l.UpdateSavedSearch(ctx, s, "Agreements", definition); err != nil {
 		t.Fatal(err)
 	}
 	updated, _, _ := l.ops.Last()

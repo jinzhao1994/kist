@@ -757,6 +757,11 @@ export interface components {
             tags: components["schemas"]["Tag"][] | null;
         };
         UndoInputBody: Record<string, never>;
+        UpdateSavedSearchBody: {
+            before: components["schemas"]["SavedSearchBody"];
+            definition: components["schemas"]["SearchDefinition"];
+            name: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -1825,7 +1830,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SavedSearchBody"];
+                "application/json": components["schemas"]["UpdateSavedSearchBody"];
             };
         };
         responses: {
