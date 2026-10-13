@@ -340,7 +340,6 @@ for (const state of [
     await expect(
       page.getByRole("region", { name: "画廊", exact: true }),
     ).toBeVisible();
-    await page.getByRole("button", { name: "文件详情", exact: true }).click();
     await expect(
       page
         .getByRole("region", { name: "画廊", exact: true })
@@ -798,8 +797,6 @@ test("gallery-navigation-and-return", async ({ page }, info) => {
   await expect(
     gallery.getByRole("heading", { name: "山间清晨.jpg", exact: true }),
   ).toBeVisible();
-  await expect(gallery.locator("aside")).toHaveCount(0);
-  await gallery.getByRole("button", { name: "文件详情", exact: true }).click();
   await expect(gallery.locator("aside")).toBeVisible();
   await gallery.getByRole("button", { name: "文件详情", exact: true }).click();
   await expect(gallery.locator("aside")).toHaveCount(0);
@@ -949,10 +946,13 @@ for (const reduced of [false, true]) {
     });
     await page.goto("/files");
     await grid(page);
+    const thumbnail = await page.locator(".file-image").first().elementHandle();
+    expect(thumbnail).not.toBeNull();
     await page.getByRole("button", { name: /山间清晨.jpg/ }).click();
     const gallery = page.getByRole("region", { name: "画廊", exact: true });
     await expect(gallery).toBeVisible();
-    await expect(gallery.locator("aside")).toHaveCount(0);
+    expect(await thumbnail!.evaluate((node) => node.isConnected)).toBe(true);
+    await expect(gallery.locator("aside")).toBeVisible();
     await expect(page.locator(".gallery-flight")).toHaveCount(0);
     expect(
       await page.evaluate(
@@ -961,6 +961,11 @@ for (const reduced of [false, true]) {
     ).toBe(reduced ? 0 : 1);
     await gallery.getByRole("button", { name: "返回列表" }).click();
     await expect(gallery).toHaveCount(0);
+    expect(
+      await thumbnail!.evaluate(
+        (node) => node.isConnected && (node as HTMLImageElement).complete,
+      ),
+    ).toBe(true);
     await expect(page.locator(".gallery-flight")).toHaveCount(0);
     expect(
       await page.evaluate(

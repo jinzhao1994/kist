@@ -19,7 +19,7 @@ function thumbnail(id: string) {
   };
 }
 
-// The snapshot precedes React's commit: opening the gallery pauses grid images.
+// Capture the thumbnail geometry before the gallery takes focus.
 export function useGalleryMotion(id: string, close: () => void) {
   const [source] = useState(() => thumbnail(id));
   const root = useRef<HTMLElement>(null);

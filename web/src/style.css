@@ -1179,3 +1179,49 @@ fieldset > label,
     animation: none;
   }
 }
+
+.gallery-logo {
+  flex-shrink: 0;
+  font-size: 1.6rem;
+}
+.gallery-stage {
+  position: relative;
+}
+.gallery-details-toggle {
+  position: absolute;
+  z-index: 2;
+  inset-inline-end: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  border-radius: 8px 0 0 8px;
+  background: var(--surface);
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+.gallery-details-toggle:hover,
+.gallery:has(.gallery-details:hover) .gallery-details-toggle,
+.gallery-details-toggle:focus-visible {
+  opacity: 1;
+}
+[dir="rtl"] .gallery-details-toggle svg {
+  transform: rotate(180deg);
+}
+@media (hover: none), (max-width: 680px) {
+  .gallery-details-toggle {
+    opacity: 1;
+  }
+  .gallery-with-details .gallery-details-toggle {
+    inset-inline-end: min(88vw, 380px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gallery-details-toggle {
+    transition: none;
+  }
+}

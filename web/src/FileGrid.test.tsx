@@ -102,7 +102,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   localStorage.clear();
 });
-it("virtualizes a thousand files and unloads every grid image while details are open", async () => {
+it("virtualizes a thousand files and preserves thumbnail nodes while details are open", async () => {
   const open = vi.fn();
   const view = render(
     <ThemeProvider env="test">
@@ -113,6 +113,7 @@ it("virtualizes a thousand files and unloads every grid image while details are 
     { wrapper: mediaWrapper },
   );
   await waitFor(() => expect(screen.getAllByRole("img")).toHaveLength(8));
+  const thumbnails = screen.getAllByRole("img");
   expect(screen.getAllByRole("button").length).toBeLessThan(25);
   const user = userEvent.setup();
   await user.click(screen.getAllByRole("button")[0]);
@@ -124,7 +125,7 @@ it("virtualizes a thousand files and unloads every grid image while details are 
       </I18nProvider>
     </ThemeProvider>,
   );
-  expect(screen.queryAllByRole("img")).toHaveLength(0);
+  expect(screen.getAllByRole("img")).toEqual(thumbnails);
   view.rerender(
     <ThemeProvider env="test">
       <I18nProvider>
@@ -132,7 +133,7 @@ it("virtualizes a thousand files and unloads every grid image while details are 
       </I18nProvider>
     </ThemeProvider>,
   );
-  await waitFor(() => expect(screen.getAllByRole("img")).toHaveLength(8));
+  await waitFor(() => expect(screen.getAllByRole("img")).toEqual(thumbnails));
 });
 it("moves keyboard focus by row and respects RTL horizontal navigation", async () => {
   localStorage.setItem(

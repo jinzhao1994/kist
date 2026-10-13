@@ -40,10 +40,12 @@ export function Media({
   file,
   active = true,
   detail = false,
+  paused = false,
 }: {
   file: ArchiveFile;
   active?: boolean;
   detail?: boolean;
+  paused?: boolean;
 }) {
   const { t } = useI18n();
   const player = useRef<HTMLMediaElement | null>(null);
@@ -67,7 +69,7 @@ export function Media({
   const [failedGeneration, setFailedGeneration] = useState("");
   const query = useQuery({
     queryKey: key,
-    enabled,
+    enabled: enabled && !paused,
     queryFn: async ({ signal }) => {
       const state = await get<MediaJob>(path, signal);
       return state.state === "missing"
@@ -76,7 +78,7 @@ export function Media({
     },
     // Read fresh state after another process cancels, retries, or removes output.
     refetchInterval: (query) => {
-      if (!enabled || query.state.error) return false;
+      if (paused || !enabled || query.state.error) return false;
       return ["queued", "running", "blocked"].includes(
         query.state.data?.state || "",
       )

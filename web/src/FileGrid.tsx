@@ -252,7 +252,8 @@ export function FileGrid({
                         <Media
                           key={file.id}
                           file={file}
-                          active={!paused && active.has(file.id)}
+                          active={active.has(file.id)}
+                          paused={paused}
                         />
                       </div>
                       <bdi className="file-name">{file.name}</bdi>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@mantine/core";
+import { Button, UnstyledButton } from "@mantine/core";
 import { useFocusTrap } from "@mantine/hooks";
 import { useQuery } from "@tanstack/react-query";
 import { api, contentURL, type Tag } from "./api";
@@ -37,7 +37,9 @@ export function Gallery({
   const alive = useRef(true);
   const currentID = useRef(id);
   currentID.current = id;
-  const [details, setDetails] = useState(false);
+  const [details, setDetails] = useState(
+    () => !window.matchMedia("(max-width: 680px)").matches,
+  );
   const [advancing, setAdvancing] = useState(false);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const results = useFileResults(box, filters);
@@ -135,6 +137,14 @@ export function Gallery({
       }}
     >
       <header className="gallery-header">
+        <UnstyledButton
+          className="wordmark gallery-logo"
+          aria-label="kist"
+          onClick={() => void motion.dismiss()}
+        >
+          kist
+          <span className="brand-dot" />
+        </UnstyledButton>
         <Button data-autofocus onClick={() => void motion.dismiss()}>
           {t("backToResults")}
         </Button>
@@ -151,13 +161,29 @@ export function Gallery({
               {t("download")}
             </a>
           )}
-          <Button aria-expanded={details} onClick={() => setDetails(!details)}>
-            {t("details")}
-          </Button>
         </div>
       </header>
       <div className="gallery-body">
         <div className="gallery-stage">
+          <UnstyledButton
+            className="gallery-details-toggle"
+            aria-label={t("details")}
+            aria-expanded={details}
+            aria-controls="gallery-details"
+            onClick={() => setDetails(!details)}
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              aria-hidden="true"
+            >
+              <path d={details ? "m9 5 7 7-7 7" : "m15 5-7 7 7 7"} />
+            </svg>
+          </UnstyledButton>
           <div
             className="gallery-media"
             ref={motion.media}
@@ -245,7 +271,11 @@ export function Gallery({
           )}
         </div>
         {details && (
-          <aside className="gallery-details" aria-label={t("details")}>
+          <aside
+            id="gallery-details"
+            className="gallery-details"
+            aria-label={t("details")}
+          >
             {data && (
               <FileDetail key={id} data={data} tags={tags} history={history} />
             )}
