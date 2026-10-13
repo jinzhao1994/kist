@@ -90,12 +90,17 @@ small {
 }
 .sidebar-footer {
   margin-block-start: auto;
-  display: grid;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
   gap: 0.85rem;
 }
 .sidebar-footer button {
-  text-align: start;
-  background: transparent;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  flex-shrink: 0;
 }
 main {
   min-width: 0;
@@ -210,11 +215,8 @@ main {
     border-inline-end: 0;
     border-block-end: 1px solid var(--border);
   }
-  .sidebar-footer small {
-    display: none;
-  }
   .sidebar-footer {
-    margin-inline-start: auto;
+    flex-basis: 100%;
     margin-block-start: 0;
   }
   .wordmark {
@@ -600,9 +602,6 @@ dd {
   }
   .sidebar-tag-section {
     flex-basis: 100%;
-  }
-  .sidebar-footer {
-    order: -1;
   }
   .wordmark {
     order: -2;

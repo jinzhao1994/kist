@@ -226,8 +226,10 @@ export function App() {
             </Tooltip>
           </div>
           <div className="sidebar-footer">
-            <Button onClick={() => setSettings(true)}>{t("settings")}</Button>
             <small>kist · {info.data?.version || "v0.1"}</small>
+            <UnstyledButton onClick={() => setSettings(true)}>
+              {t("settings")}
+            </UnstyledButton>
           </div>
         </aside>
         <main>
