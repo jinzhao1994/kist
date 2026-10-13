@@ -230,7 +230,9 @@ async function prepare(page: Page, options: Options = {}) {
 async function capture(page: Page, errors: string[], name: string) {
   await page.evaluate(() => document.fonts.ready);
   await expect(page.getByRole("alert")).toHaveCount(0);
-  await expect(page).toHaveScreenshot(`${name}.png`, { fullPage: true });
+  await expect(page).toHaveScreenshot(`${name}.png`, {
+    fullPage: (await page.locator(".gallery").count()) === 0,
+  });
   expect(errors).toEqual([]);
 }
 async function grid(page: Page, expectedImages = 3) {
@@ -887,6 +889,8 @@ test("gallery-mobile-swipe", async ({ page }, info) => {
   expect(await gallery.evaluate((e) => e.getBoundingClientRect().height)).toBe(
     844,
   );
+  await page.mouse.wheel(0, 1000);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
   await capture(page, errors, info.title);
 });
 
