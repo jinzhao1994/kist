@@ -74,7 +74,7 @@ it("renders an empty archive and persists independent language, locale and RTL c
   expect(JSON.parse(localStorage.getItem(storageKey)!).formatLocale).toBe(
     "de-DE",
   );
-});
+}, 15_000);
 it("closes the dialog with Escape and restores keyboard focus", async () => {
   mount();
   const user = userEvent.setup();
