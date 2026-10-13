@@ -182,7 +182,7 @@ export function App() {
                     strokeLinejoin="round"
                   />
                 </svg>
-                {t("tags")}
+                {t("allTags")}
               </summary>
               {tags.isError ? (
                 <Button onClick={() => tags.refetch()}>{t("retry")}</Button>
