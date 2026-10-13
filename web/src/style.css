@@ -76,12 +76,6 @@ small {
   border-radius: 100%;
   background: var(--brand);
 }
-.sidebar-caption,
-.eyebrow {
-  color: var(--muted);
-  font-size: 0.75rem;
-  letter-spacing: 0.07em;
-}
 .nav-link {
   display: flex;
   align-items: center;
@@ -216,7 +210,6 @@ main {
     border-inline-end: 0;
     border-block-end: 1px solid var(--border);
   }
-  .sidebar-caption,
   .sidebar-footer small {
     display: none;
   }
@@ -1337,4 +1330,8 @@ fieldset > label,
   .tag-row-menu[aria-expanded="true"] {
     opacity: 1;
   }
+}
+
+.navigation-icon {
+  flex: 0 0 18px;
 }

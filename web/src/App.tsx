@@ -29,6 +29,7 @@ import { Gallery } from "./Gallery";
 import { useNavigation } from "./navigation";
 import { errorMessage } from "./mutations";
 import { HistoryPage } from "./History";
+import { NavigationIcon } from "./NavigationIcon";
 export function App() {
   const { t, prefs } = useI18n();
   const { route, go } = useNavigation();
@@ -113,19 +114,18 @@ export function App() {
             kist
             <span className="brand-dot" />
           </a>
-          <p className="sidebar-caption">{t("archive")}</p>
           <nav aria-label={t("archive")}>
             <UnstyledButton
               className={`nav-link ${route.files && !route.box && !route.tag ? "active" : ""}`}
               onClick={() => navigate(undefined, true)}
             >
-              ▦ <span>{t("allFiles")}</span>
+              <NavigationIcon kind="files" /> <span>{t("allFiles")}</span>
             </UnstyledButton>
             <UnstyledButton
               className={`nav-link ${!route.files && !route.section && !route.tag ? "active" : ""}`}
               onClick={() => navigate()}
             >
-              ▤ <span>{t("boxes")}</span>
+              <NavigationIcon kind="boxes" /> <span>{t("boxes")}</span>
             </UnstyledButton>
             {(["trash", "history"] as const).map((section) => (
               <UnstyledButton
@@ -133,7 +133,7 @@ export function App() {
                 className={`nav-link ${route.section === section ? "active" : ""}`}
                 onClick={() => go({ files: false, section })}
               >
-                {section === "history" ? "◷" : "⌫"} <span>{t(section)}</span>
+                <NavigationIcon kind={section} /> <span>{t(section)}</span>
               </UnstyledButton>
             ))}
           </nav>
@@ -207,7 +207,6 @@ export function App() {
         <main>
           <header className="page-header">
             <div>
-              <span className="eyebrow">{t("archive")}</span>
               <div className="box-title-line">
                 <h1>
                   <bdi>
