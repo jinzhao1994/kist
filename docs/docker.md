@@ -59,16 +59,21 @@ create a missing library or change ownership recursively.
 ## Upgrade and pinning
 
 Read the target version's release notes and [backup/upgrade procedure](operations.md)
-first. Stop all writers and back up the whole library before upgrading; retain
-the backup until verification is complete. Do not run initialization again.
+first. Routine compatible upgrades do not require a fresh full-library backup.
+Keep scheduled backups independently; create a recovery point before destructive
+migrations or when older-version rollback is needed. Stop all writers for the
+upgrade. Do not run initialization again.
 
 Set `KIST_IMAGE` to the target `vX.Y.Z`, then run from the same deployment directory:
 
 ```sh
 docker compose -f compose.image.yaml pull
 docker compose -f compose.image.yaml up -d
-docker compose -f compose.image.yaml exec kist kist --library /library verify --deep
 ```
+
+Check the running version, startup logs, and access to existing files. Run
+`verify --deep` if release notes require it or integrity warnings appear. Full
+blob `scrub` is a scheduled maintenance check, not a routine upgrade step.
 
 Release tags are never overwritten by the publication workflow. To also pin the
 registry content, copy the multi-platform index digest from the successful
@@ -103,3 +108,16 @@ name across upgrades and never use `down -v` as an upgrade step.
 The original `compose.yaml` still builds `kist:local`; use `docker compose build`
 and the README's initialization commands. It accepts the same runtime settings.
 CI compares both Compose configurations to prevent accidental divergence.
+
+## Docker Hub
+
+The **Container Docker Hub** workflow mirrors versions, `latest` and `edge` to
+`docker.io/jinzhao1994/kist` without rebuilding; successful copies have the same
+index digest as GHCR. Check that workflow completed for the desired tag before
+switching `KIST_IMAGE` to `jinzhao1994/kist:latest` or a fixed version. Keep the
+volume, UID/GID, ports and origins unchanged. Public pulls need no publishing token.
+
+Synology may not show update notifications for GHCR images. Docker Hub offers
+better integration with its image update UI. A missing update button does not
+prove that GHCR is current; changing the project YAML to a new explicit version
+is also supported. See the [Synology guide](synology.zh-CN.md).

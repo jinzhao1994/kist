@@ -1,0 +1,151 @@
+name: Container Docker Hub
+
+on:
+  workflow_run:
+    workflows: [Container Release, Container Latest, Container Edge]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing GHCR tag to mirror (vMAJOR.MINOR.PATCH, latest, edge)
+        required: true
+        default: latest
+
+permissions:
+  contents: read
+  actions: read
+
+# Serialize moving channels and recheck before promotion. Keep each release
+# backfill independent so a queued channel update cannot cancel a version copy.
+concurrency:
+  group: container-dockerhub-${{ inputs.tag || (github.event.workflow_run.name == 'Container Latest' && 'latest') || (github.event.workflow_run.name == 'Container Edge' && 'edge') || github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+env:
+  DOCKERHUB_IMAGE: jinzhao1994/kist
+
+jobs:
+  copy:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      tag: ${{ steps.copy.outputs.tag }}
+      version: ${{ steps.copy.outputs.version }}
+      revision: ${{ steps.copy.outputs.revision }}
+      digest: ${{ steps.copy.outputs.digest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check publishing credentials
+        env:
+          HUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          HUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          test -n "$HUB_USERNAME" && test -n "$HUB_TOKEN" || {
+            echo 'Configure DOCKERHUB_USERNAME and DOCKERHUB_TOKEN in Actions secrets.' >&2
+            exit 1
+          }
+      - name: Install registry copy tool
+        run: sudo apt-get update && sudo apt-get install -y skopeo
+      - name: Copy the immutable index and all platforms
+        id: copy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          HUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          REQUESTED_TAG: ${{ inputs.tag }}
+          UPSTREAM_WORKFLOW: ${{ github.event.workflow_run.name }}
+          UPSTREAM_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          tag="$REQUESTED_TAG"
+          case "$UPSTREAM_WORKFLOW" in
+            'Container Latest') tag=latest ;;
+            'Container Edge') tag=edge ;;
+            'Container Release')
+              # Dry runs have no successful publish job. Manual backfills run
+              # on main, so read the accepted index's version label below.
+              published=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$UPSTREAM_ID/jobs" --paginate --jq '.jobs[] | select(.name == "publish") | .conclusion')
+              if [ "$published" != success ]; then
+                echo 'No published release to mirror.'
+                exit 0
+              fi
+              gh run download "$UPSTREAM_ID" --repo "$GITHUB_REPOSITORY" -n container-release-manifest -D upstream
+              digest=$(python3 -c 'import json; print(next(m["digest"] for m in json.load(open("upstream/index.json"))["manifests"] if m["platform"]["architecture"] == "amd64"))')
+              # Read provenance from the immutable source, not a moving tag.
+              tag=$(skopeo inspect --override-os linux --override-arch amd64 "docker://ghcr.io/${GITHUB_REPOSITORY,,}@$digest" | python3 -c 'import json,sys; print(json.load(sys.stdin)["Labels"]["org.opencontainers.image.version"])')
+              ;;
+          esac
+          printf '%s' "$HUB_TOKEN" | skopeo login docker.io -u "$HUB_USERNAME" --password-stdin
+          python3 scripts/container-mirror.py prepare "$GITHUB_REPOSITORY" "$DOCKERHUB_IMAGE" "$tag"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: steps.copy.outputs.digest != ''
+        with:
+          name: dockerhub-candidate
+          path: mirror.json
+          if-no-files-found: error
+          retention-days: 30
+
+  verify:
+    needs: copy
+    if: needs.copy.outputs.digest != ''
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Verify anonymous Docker Hub pulls on the native platform
+        env:
+          DIGEST: ${{ needs.copy.outputs.digest }}
+          VERSION: ${{ needs.copy.outputs.version }}
+          REVISION: ${{ needs.copy.outputs.revision }}
+          EXPECTED_PLATFORM: linux/${{ matrix.arch }}
+        run: |
+          export DOCKER_CONFIG="$RUNNER_TEMP/kist-docker-anonymous"
+          mkdir -p "$DOCKER_CONFIG"
+          image="docker.io/$DOCKERHUB_IMAGE@$DIGEST"
+          docker pull --platform "$EXPECTED_PLATFORM" "$image"
+          python3 scripts/container-release.py check-image "$image" "$VERSION" "$REVISION"
+          sh scripts/docker-smoke.sh "$image" "$EXPECTED_PLATFORM" "$VERSION"
+
+  promote:
+    needs: [copy, verify]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: dockerhub-candidate
+      - name: Install registry copy tool
+        run: sudo apt-get update && sudo apt-get install -y skopeo
+      - name: Promote the verified index
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          HUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          TAG: ${{ needs.copy.outputs.tag }}
+        run: |
+          printf '%s' "$HUB_TOKEN" | skopeo login docker.io -u "$HUB_USERNAME" --password-stdin
+          python3 scripts/container-mirror.py promote "$GITHUB_REPOSITORY" "$DOCKERHUB_IMAGE" "$TAG"

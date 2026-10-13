@@ -64,3 +64,35 @@ image correction gets a new release version rather than silently replacing an
 existing deployment. Binary Releases can succeed while image publication fails:
 check both workflows separately. See [Docker deployment](../docker.md) for anonymous
 image pulls, NAS configuration and upgrade steps.
+
+## Docker Hub mirror
+
+`Container Docker Hub` follows successful Container Release, Container Latest and
+Container Edge runs. It copies the GHCR index and both architectures with Skopeo
+`--all --preserve-digests`; it never rebuilds the release. Native amd64/arm64 jobs
+pull the candidate anonymously from Docker Hub and repeat media/persistence
+acceptance before publishing the user-facing tag. Existing version tags with
+different content are rejected; moving channels are rechecked before promotion.
+GHCR remains usable when Hub publication fails. Inspect both workflows.
+
+One-time setup: create the public Docker Hub repository `jinzhao1994/kist`, then
+configure Actions secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` (a Docker Hub
+access token with Read & Write permissions, not Delete). Never commit credentials.
+Missing credentials fail explicitly; the workflow does not change visibility.
+
+Backfill an existing release or retry a channel after fixing credentials:
+
+```sh
+gh workflow run container-dockerhub.yml --ref main -f tag=v0.1.2
+gh workflow run container-dockerhub.yml --ref main -f tag=latest
+```
+
+Use `tag=edge` for the development channel. Confirm both native acceptance jobs
+and promotion passed before advertising the Docker Hub tag. Candidate tags are
+implementation details; deploy version tags or channels.
+
+Release notes must distinguish forward upgrade compatibility, destructive
+migrations (if any), and downgrade limits. Do not require a fresh full-library
+backup or full blob scrub for routine compatible upgrades. Require a recovery
+point for destructive migration or when older-version rollback is needed;
+scheduled backups remain independent of application updates.

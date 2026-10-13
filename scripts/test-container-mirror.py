@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+"""Guard mirror immutability, stale channels and registry failures."""
+
+import importlib.util
+from pathlib import Path
+import subprocess
+import unittest
+from unittest.mock import patch
+
+spec = importlib.util.spec_from_file_location("mirror", Path(__file__).with_name("container-mirror.py"))
+mirror = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mirror)
+DIGEST = "sha256:" + "a" * 64
+OTHER = "sha256:" + "b" * 64
+META = {"tag": "latest", "version": "v0.1.2", "revision": "c" * 40, "digest": DIGEST}
+
+
+class MirrorTests(unittest.TestCase):
+    def test_target_rejects_other_registries_and_injection(self):
+        mirror.validate_target("jinzhao1994/kist")
+        for value in ("ghcr.io/user/kist", "user/kist:latest", "user/kist\nother=x", "--evil"):
+            with self.assertRaises(ValueError):
+                mirror.validate_target(value)
+
+    def test_stale_channel_does_not_publish(self):
+        with patch.object(mirror, "resolve", return_value={**META, "digest": OTHER}), patch.object(mirror, "copy_index") as copy:
+            mirror.promote(META, "owner/kist", "owner/kist")
+            copy.assert_not_called()
+
+    def test_existing_version_cannot_be_replaced(self):
+        metadata = {**META, "tag": "v0.1.2"}
+        with patch.object(mirror, "resolve", return_value=metadata), patch.object(mirror, "existing_digest", return_value=OTHER), patch.object(mirror, "copy_index") as copy:
+            with self.assertRaises(ValueError):
+                mirror.promote(metadata, "owner/kist", "owner/kist")
+            copy.assert_not_called()
+
+    def test_identical_version_is_retryable(self):
+        metadata = {**META, "tag": "v0.1.2"}
+        with patch.object(mirror, "resolve", return_value=metadata), patch.object(mirror, "existing_digest", return_value=DIGEST), patch.object(mirror, "copy_index") as copy:
+            mirror.promote(metadata, "owner/kist", "owner/kist")
+            copy.assert_not_called()
+
+    def test_promotion_uses_accepted_digest(self):
+        with patch.object(mirror, "resolve", return_value=META), patch.object(mirror, "existing_digest", return_value=OTHER), patch.object(mirror, "copy_index") as copy, patch.object(mirror.channel, "digest_for", return_value=DIGEST):
+            mirror.promote(META, "owner/kist", "owner/kist")
+            copy.assert_called_once_with(f"docker.io/owner/kist@{DIGEST}", "docker.io/owner/kist:latest")
+
+    def test_registry_errors_do_not_mean_missing(self):
+        for error in ("unauthorized", "429 Too Many Requests", "connection refused"):
+            with patch.object(mirror.subprocess, "run", return_value=subprocess.CompletedProcess([], 1, "", error)):
+                with self.assertRaises(RuntimeError):
+                    mirror.existing_digest("docker.io/owner/kist:v0.1.2")
+        with patch.object(mirror.subprocess, "run", return_value=subprocess.CompletedProcess([], 1, "", "manifest unknown")):
+            self.assertIsNone(mirror.existing_digest("docker.io/owner/kist:v0.1.2"))
+
+    def test_latest_requires_promoted_stable(self):
+        with patch.object(mirror.channel, "source", return_value={"image": "ghcr.io/owner/kist", "version": "v0.1.2"}), patch.object(mirror.channel, "digest_for", side_effect=[OTHER, DIGEST]):
+            with self.assertRaises(ValueError):
+                mirror.resolve("latest", "owner/kist")
+
+    def test_copy_preserves_all_platforms_and_digests(self):
+        with patch.object(mirror.subprocess, "run") as run:
+            mirror.copy_index(f"ghcr.io/owner/kist@{DIGEST}", "docker.io/owner/kist:candidate-1")
+            run.assert_called_once_with(["skopeo", "copy", "--all", "--preserve-digests", f"docker://ghcr.io/owner/kist@{DIGEST}", "docker://docker.io/owner/kist:candidate-1"], check=True)
+
+
+if __name__ == "__main__":
+    unittest.main()

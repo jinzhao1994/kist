@@ -79,12 +79,17 @@ UID/GID `10001:10001`). Never initialize over a backup or existing library.
 ## Upgrade or roll back
 
 1. Read the target version's release notes and compatibility requirements.
-2. Stop all writers and make a verified backup using the steps above.
+2. Stop all writers. Routine compatible upgrades do not require a new full-library
+   backup. Keep a regular backup schedule independent of upgrades. Create a
+   verified recovery point first if the release requires a destructive migration
+   or you need to roll back to a version that cannot read newly written actions.
 3. Retain the previous executable or container image; replace the executable
    with the verified new one. For a source-built Docker deployment, check out
    the desired version and run `docker compose build` while the service is stopped.
-4. Run `kist version`, `verify --deep`, and `scrub` against the library using
-   the new version, then start `serve` (or `docker compose up -d`).
+4. Start `serve` (or recreate the container with `docker compose up -d`) and
+   check the version and startup logs. Run `verify --deep` when the release notes
+   require it or an integrity warning appears. Full-content `scrub` belongs to
+   scheduled integrity checks, not every application upgrade.
 5. Verify that boxes, a sample original download and history are accessible.
 
 There is no general downgrade guarantee. To roll back safely, stop all writers,
