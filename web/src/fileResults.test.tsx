@@ -21,9 +21,10 @@ it("sends selected boxes with tag and name filters and keeps box pages scoped", 
     tag_all: ["travel"],
   };
   const { rerender } = renderHook(
-    ({ box }: { box?: string }) => useFileResults(box, filters),
+    ({ box, folder }: { box?: string; folder?: string }) =>
+      useFileResults(box, filters, folder),
     {
-      initialProps: {} as { box?: string },
+      initialProps: {} as { box?: string; folder?: string },
       wrapper: ({ children }: { children: ReactNode }) => (
         <QueryClientProvider client={client}>{children}</QueryClientProvider>
       ),
@@ -39,10 +40,10 @@ it("sends selected boxes with tag and name filters and keeps box pages scoped", 
       expect.any(AbortSignal),
     ),
   );
-  rerender({ box: "fixed" });
+  rerender({ box: "fixed", folder: "child" });
   await waitFor(() =>
     expect(files).toHaveBeenLastCalledWith(
-      expect.objectContaining({ box: ["fixed"] }),
+      expect.objectContaining({ box: ["fixed"], folder: "child" }),
       expect.any(AbortSignal),
     ),
   );

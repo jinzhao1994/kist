@@ -251,7 +251,7 @@ func touchAfter(
 	if err != nil {
 		return err
 	}
-	return vtx.TouchFolders(union(chainBefore, chainAfter))
+	return vtx.TouchFolders(union(union(chainBefore, chainAfter), targets.FolderAncestors))
 }
 
 // union merges two id lists without duplicates.

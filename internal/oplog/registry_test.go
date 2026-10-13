@@ -274,7 +274,7 @@ func TestEveryActionDeclaresWhetherItChangesContent(t *testing.T) {
 		ActionRequestReceipt:    false,
 		ActionDeleteBoxContents: true, ActionRestoreBoxContents: true,
 		ActionCreateBox: true, ActionDeleteBox: true, ActionUpdateBox: true,
-		ActionImportFiles: true, ActionDeleteFiles: true,
+		ActionImportFiles: true, ActionDeleteFiles: true, ActionCreateFolder: true, ActionDeleteFolder: true,
 
 		ActionCreateTag: false, ActionDeleteTag: false,
 		ActionRenameTag: false, ActionMoveTag: false,

@@ -1,4 +1,5 @@
 import type { components, operations } from "./api-schema";
+export type Folder = components["schemas"]["Folder"];
 export type Box = components["schemas"]["Box"];
 export type ArchiveFile = components["schemas"]["File"];
 export type FileDetail = components["schemas"]["FileDetail"];
@@ -40,6 +41,11 @@ export async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
   return result<T>(await fetch(`/api/v1${path}`, { signal }));
 }
 export const api = {
+  folders: (box: string, signal?: AbortSignal) =>
+    get<components["schemas"]["FolderList"]>(
+      `/boxes/${encodeURIComponent(box)}/folders`,
+      signal,
+    ),
   boxDeletionPreview: (id: string, signal?: AbortSignal) =>
     get<components["schemas"]["BoxDeletionPreview"]>(
       `/boxes/${encodeURIComponent(id)}/deletion-preview`,
@@ -180,7 +186,11 @@ export function createWrite(
 export function contentURL(file: ArchiveFile, download = false) {
   return `/api/v1/files/${encodeURIComponent(file.id)}/content${download ? "?download=true" : ""}`;
 }
-export function createUpload(box: string, files: readonly File[]) {
+export function createUpload(
+  box: string,
+  files: readonly File[],
+  folder?: string,
+) {
   const key = requestKey();
   const batch = files.map((file) => ({
     file,
@@ -194,7 +204,10 @@ export function createUpload(box: string, files: readonly File[]) {
       new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         active = xhr;
-        xhr.open("POST", `/api/v1/boxes/${encodeURIComponent(box)}/uploads`);
+        xhr.open(
+          "POST",
+          `/api/v1/boxes/${encodeURIComponent(box)}/uploads${folder ? `?folder=${encodeURIComponent(folder)}` : ""}`,
+        );
         xhr.setRequestHeader("Idempotency-Key", key);
         xhr.upload.onprogress = (event) => {
           if (event.lengthComputable) progress(event.loaded / event.total);

@@ -134,6 +134,32 @@ func (s *Server) mutate(ctx context.Context, key, method, target string, body an
 	return response(result, err)
 }
 func (s *Server) writeRoutes() {
+	huma.Post(s.contract, Prefix+"/boxes/{id}/folders", func(ctx context.Context, in *struct {
+		ID   string `path:"id"`
+		Key  string `header:"Idempotency-Key" required:"true"`
+		Body struct {
+			Name   string `json:"name" minLength:"1"`
+			Parent string `json:"parent,omitempty"`
+		}
+	}) (*output[library.RequestResult], error) {
+		id, err := parseID(in.ID)
+		if err != nil {
+			return nil, err
+		}
+		var parent domain.FolderID
+		if in.Body.Parent != "" {
+			parsed, err := parseID(in.Body.Parent)
+			if err != nil {
+				return nil, err
+			}
+			parent = domain.FolderID{ID: parsed}
+		}
+		return s.mutate(ctx, in.Key, "POST", Prefix+"/boxes/"+id.String()+"/folders", in.Body, func(ctx context.Context) error {
+			_, err := s.library.CreateFolder(ctx, domain.BoxID{ID: id}, parent, in.Body.Name)
+			return err
+		})
+	})
+
 	huma.Delete(s.contract, Prefix+"/boxes/{id}", func(ctx context.Context, in *struct {
 		ID   string `path:"id"`
 		Key  string `header:"Idempotency-Key" required:"true"`

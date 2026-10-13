@@ -110,6 +110,18 @@ it("opens global tag results from a box and preserves the tag URL on back and re
             ? [matching]
             : [current, matching],
         };
+      else if (url.pathname.endsWith("/folders"))
+        data = {
+          folders: [
+            {
+              id: "root",
+              parent_id: null,
+              name: "",
+              created_at: time,
+              updated_at: time,
+            },
+          ],
+        };
       else if (url.pathname === "/api/v1/boxes/current") data = current;
       else if (url.pathname === "/api/v1/boxes/matching") data = matching;
       else if (
@@ -204,8 +216,19 @@ it("replaces the box search bar when switching to all files and applies a box co
     vi.fn(async (path: string) => {
       requests.push(path);
       const pathname = new URL(path, "http://localhost").pathname;
-      const data =
-        pathname === "/api/v1/boxes/current"
+      const data = pathname.endsWith("/folders")
+        ? {
+            folders: [
+              {
+                id: "root",
+                parent_id: null,
+                name: "",
+                created_at: "",
+                updated_at: "",
+              },
+            ],
+          }
+        : pathname === "/api/v1/boxes/current"
           ? current
           : pathname === "/api/v1/boxes"
             ? { boxes: [current] }

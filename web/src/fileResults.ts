@@ -2,14 +2,19 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { api, type ArchiveFile } from "./api";
 import type { Filters } from "./Filters";
 
-export function useFileResults(box: string | undefined, filters: Filters) {
+export function useFileResults(
+  box: string | undefined,
+  filters: Filters,
+  folder?: string,
+) {
   return useInfiniteQuery({
-    queryKey: ["files", box, filters],
+    queryKey: ["files", box, filters, ...(folder ? [folder] : [])],
     initialPageParam: "",
     queryFn: ({ pageParam, signal }) =>
       api.files(
         {
           ...filters,
+          ...(folder ? { folder } : {}),
           box: box ? [box] : filters.box?.length ? filters.box : undefined,
           limit: 100,
           cursor: pageParam,

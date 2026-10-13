@@ -8,7 +8,8 @@ import {
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Box } from "./api";
-import { useI18n } from "./i18n";
+import { FolderBreadcrumbs, folderChain } from "./Folders";
+import { formatLocalDate, useI18n } from "./i18n";
 import { Settings } from "./Settings";
 import { BoxTrashDialog } from "./BoxTrashDialog";
 import { BoxBrowser } from "./BoxBrowser";
@@ -29,7 +30,7 @@ import { useNavigation } from "./navigation";
 import { errorMessage } from "./mutations";
 import { HistoryPage } from "./History";
 export function App() {
-  const { t } = useI18n();
+  const { t, prefs } = useI18n();
   const { route, go } = useNavigation();
   const [settings, setSettings] = useState(false);
   const [editor, setEditor] = useState<Box | "new" | null>(null);
@@ -50,6 +51,28 @@ export function App() {
     queryFn: ({ signal }) => api.box(route.box!, signal),
     enabled: !!route.box,
   });
+  const folders = useQuery({
+    queryKey: ["folders", route.box],
+    queryFn: ({ signal }) => api.folders(route.box!, signal),
+    enabled: !!route.box && route.files && !route.section,
+  });
+  const folderList = folders.data?.folders || [];
+  const currentFolder =
+    route.folder || folderList.find((folder) => !folder.parent_id)?.id;
+  const searching = !!(
+    filters.name ||
+    filters.from ||
+    filters.to ||
+    filters.kind?.length ||
+    filters.tag_all?.length ||
+    filters.tag_any?.length ||
+    filters.tag_not?.length
+  );
+  const queryFolder = route.box && !searching ? currentFolder : undefined;
+  const chooseFolder = (folder: string) => {
+    setFilters({ ...emptyFilters });
+    go({ box: route.box, files: true, folder });
+  };
   const boxes = useQuery({
     queryKey: ["boxes"],
     queryFn: ({ signal }) => api.boxes(signal),
@@ -143,15 +166,37 @@ export function App() {
           <header className="page-header">
             <div>
               <span className="eyebrow">{t("archive")}</span>
-              <h1>
-                <bdi>
-                  {route.section
-                    ? t(route.section)
-                    : route.tag
-                      ? selectedTag?.name || t("tags")
-                      : selected?.name || t(route.files ? "allFiles" : "boxes")}
-                </bdi>
-              </h1>
+              <div className="box-title-line">
+                <h1>
+                  <bdi>
+                    {route.section
+                      ? t(route.section)
+                      : route.tag
+                        ? selectedTag?.name || t("tags")
+                        : selected?.name ||
+                          t(route.files ? "allFiles" : "boxes")}
+                  </bdi>
+                </h1>
+                {selected &&
+                  !route.section &&
+                  (selected.start_at || selected.end_at) && (
+                    <span className="box-title-date">
+                      {selected.start_at
+                        ? formatLocalDate(selected.start_at, prefs)
+                        : ""}
+                      {selected.end_at
+                        ? ` — ${formatLocalDate(selected.end_at, prefs)}`
+                        : ""}
+                    </span>
+                  )}
+              </div>
+              {route.box && route.files && currentFolder && (
+                <FolderBreadcrumbs
+                  folders={folderList}
+                  current={currentFolder}
+                  choose={chooseFolder}
+                />
+              )}
             </div>
             <div className="header-actions">
               <Tooltip
@@ -312,14 +357,40 @@ export function App() {
                 boxesError={boxes.isError}
                 retryBoxes={() => void boxes.refetch()}
               />
-              <FileBrowser
-                key={route.box || "all"}
-                box={selected}
-                paused={!!route.file}
-                filters={filters}
-                tags={tree}
-                open={(file) => go({ ...route, file: file.id, filters })}
-              />
+              {route.box && folders.isPending ? (
+                <p role="status">{t("loading")}</p>
+              ) : route.box && folders.isError ? (
+                <div role="alert">
+                  <p>{errorMessage(folders.error, t)}</p>
+                  <Button onClick={() => folders.refetch()}>
+                    {t("retry")}
+                  </Button>
+                </div>
+              ) : route.box &&
+                (!currentFolder ||
+                  !folderChain(folderList, currentFolder).length) ? (
+                <p role="alert">{t("notFound")}</p>
+              ) : (
+                <FileBrowser
+                  key={route.box || "all"}
+                  box={selected}
+                  folder={queryFolder}
+                  uploadFolder={currentFolder}
+                  folders={
+                    searching
+                      ? []
+                      : folderList.filter(
+                          (folder) => folder.parent_id === currentFolder,
+                        )
+                  }
+                  chooseFolder={chooseFolder}
+                  searching={searching && !!route.box}
+                  paused={!!route.file}
+                  filters={filters}
+                  tags={tree}
+                  open={(file) => go({ ...route, file: file.id, filters })}
+                />
+              )}
             </>
           ) : (
             <>
@@ -362,6 +433,7 @@ export function App() {
       {route.file && !route.section && (
         <Gallery
           box={route.box}
+          folder={queryFolder}
           filters={
             route.tag ? { ...emptyFilters, tag_all: [route.tag] } : filters
           }

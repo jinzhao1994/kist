@@ -81,7 +81,8 @@ export interface paths {
         /** Get API v1 boxes by ID folders */
         get: operations["get-api-v1-boxes-by-id-folders"];
         put?: never;
-        post?: never;
+        /** Post API v1 boxes by ID folders */
+        post: operations["post-api-v1-boxes-by-id-folders"];
         delete?: never;
         options?: never;
         head?: never;
@@ -643,6 +644,10 @@ export interface components {
         MoveTagInputBody: {
             parent_id: string | null;
         };
+        "Post-api-v1-boxes-by-id-foldersRequest": {
+            name: string;
+            parent?: string;
+        };
         Ref: {
             id: string;
             name: string;
@@ -953,6 +958,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FolderList"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-boxes-by-id-folders": {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-boxes-by-id-foldersRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestResult"];
                 };
             };
             /** @description Error */

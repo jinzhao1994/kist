@@ -7,18 +7,20 @@ import { formatBytes, formatNumber, useI18n } from "./i18n";
 import { errorMessage } from "./mutations";
 export function Upload({
   box,
+  folder,
   maxFiles,
   maxBytes,
   onComplete,
 }: {
   box: string;
+  folder?: string;
   maxFiles: number;
   maxBytes: number;
   onComplete: () => Promise<void>;
 }) {
   const { t, prefs } = useI18n();
   const client = useQueryClient();
-  const storage = `kist.pending-upload.v1:${box}`;
+  const storage = `kist.pending-upload.v1:${box}${folder ? `:${folder}` : ""}`;
   const [pendingKey, setPendingKey] = useState(() => {
     try {
       return sessionStorage.getItem(storage) || "";
@@ -89,7 +91,7 @@ export function Upload({
         return;
       }
       if (!files.length) return;
-      operation.current = createUpload(box, files);
+      operation.current = createUpload(box, files, folder);
       remember(operation.current.key);
       void run();
     },
@@ -118,7 +120,7 @@ export function Upload({
       <input {...drop.getInputProps({ "aria-label": t("chooseFiles") })} />
       <div>
         <strong>{t(phase === "saved" ? "uploadComplete" : "upload")}</strong>
-        <p>{t("importHint")}</p>
+        <p>{t(folder ? "uploadToFolder" : "importHint")}</p>
         <small>
           {t("uploadLimit", {
             count: formatNumber(maxFiles, prefs),

@@ -56,6 +56,7 @@ it("recovers unresolved JSON writes after remount and retires successful keys", 
 });
 it("retains upload bytes, manifest and key after a cancelled connection", async () => {
   const sent: FormData[] = [];
+  const urls: string[] = [];
   const headers: string[] = [];
   const instances: XHR[] = [];
   class XHR {
@@ -74,7 +75,9 @@ it("retains upload bytes, manifest and key after a cancelled connection", async 
     constructor() {
       instances.push(this);
     }
-    open() {}
+    open(_method: string, url: string) {
+      urls.push(url);
+    }
     setRequestHeader(_name: string, key: string) {
       headers.push(key);
     }
@@ -88,9 +91,11 @@ it("retains upload bytes, manifest and key after a cancelled connection", async 
   }
   vi.stubGlobal("XMLHttpRequest", XHR);
   const { createUpload } = await import("./api");
-  const upload = createUpload("box", [
-    new File(["original"], "旅行.txt", { lastModified: 1234 }),
-  ]);
+  const upload = createUpload(
+    "box",
+    [new File(["original"], "旅行.txt", { lastModified: 1234 })],
+    "child",
+  );
   const progress = vi.fn();
   const first = upload.run(progress);
   const rejected = expect(first).rejects.toMatchObject({ name: "AbortError" });
@@ -106,6 +111,10 @@ it("retains upload bytes, manifest and key after a cancelled connection", async 
   instances[1].onload?.();
   await expect(retry).resolves.toEqual({ op_id: 12 });
   expect(headers).toEqual([upload.key, upload.key]);
+  expect(urls).toEqual([
+    "/api/v1/boxes/box/uploads?folder=child",
+    "/api/v1/boxes/box/uploads?folder=child",
+  ]);
   expect(sent[0].get("manifest")).toBe(sent[1].get("manifest"));
   expect(JSON.parse(String(sent[1].get("manifest"))).files).toEqual([
     { path: "旅行.txt", last_modified: 1234 },

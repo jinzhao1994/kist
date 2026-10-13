@@ -4,6 +4,7 @@ export interface Route {
   files: boolean;
   filters?: Filters;
   box?: string;
+  folder?: string;
   tag?: string;
   file?: string;
   section?: "history" | "trash";
@@ -47,6 +48,7 @@ function read(): Route {
     box = match?.[1];
   }
   return {
+    folder: match ? url.searchParams.get("folder") || undefined : undefined,
     filters: readFilters(url.searchParams.get("filter")),
     tag,
     files: url.pathname === "/files" || !!match,
@@ -80,6 +82,8 @@ export function useNavigation() {
               ? "/files"
               : "/";
       const params = new URLSearchParams();
+      if (next.box && next.folder && !next.section)
+        params.set("folder", next.folder);
       if (next.file) params.set("file", next.file);
       if (next.section && next.box) params.set("box", next.box);
       if (next.filters) params.set("filter", JSON.stringify(next.filters));

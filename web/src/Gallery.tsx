@@ -14,6 +14,7 @@ import { errorMessage } from "./mutations";
 export function Gallery({
   id,
   box,
+  folder,
   filters,
   tags,
   change,
@@ -22,6 +23,7 @@ export function Gallery({
 }: {
   id: string;
   box?: string;
+  folder?: string;
   filters: Filters;
   tags: Tag[];
   change: (id: string) => void;
@@ -42,7 +44,7 @@ export function Gallery({
   );
   const [advancing, setAdvancing] = useState(false);
   const touch = useRef<{ x: number; y: number } | null>(null);
-  const results = useFileResults(box, filters);
+  const results = useFileResults(box, filters, folder);
   const files = resultFiles(results.data?.pages);
   const index = files.findIndex((file) => file.id === id);
   const query = useQuery({

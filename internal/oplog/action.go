@@ -31,6 +31,9 @@ const (
 	ActionTagBoxes   Action = "tag_boxes"
 	ActionUntagBoxes Action = "untag_boxes"
 
+	ActionCreateFolder Action = "create_folder"
+	ActionDeleteFolder Action = "delete_folder"
+
 	ActionImportFiles Action = "import_files"
 	ActionDeleteFiles Action = "delete_files"
 
@@ -65,7 +68,7 @@ func AllActions() []Action {
 func (a Action) ChangesContent() bool {
 	switch a {
 	case ActionCreateBox, ActionDeleteBox, ActionUpdateBox, ActionDeleteBoxContents, ActionRestoreBoxContents,
-		ActionImportFiles, ActionDeleteFiles:
+		ActionImportFiles, ActionDeleteFiles, ActionCreateFolder, ActionDeleteFolder:
 		return true
 	}
 	return false

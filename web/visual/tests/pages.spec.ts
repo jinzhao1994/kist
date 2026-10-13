@@ -103,6 +103,18 @@ async function prepare(page: Page, options: Options = {}) {
               },
             ],
       };
+    else if (path === "/boxes/box-1/folders")
+      body = {
+        folders: [
+          {
+            id: "folder-1",
+            parent_id: null,
+            name: "",
+            created_at: time,
+            updated_at: time,
+          },
+        ],
+      };
     else if (path === "/boxes/box-1") body = box;
     else if (path === "/ops") {
       const deleted = {
@@ -1065,3 +1077,56 @@ test("visible-thumbnails-beyond-eight", async ({ page }, info) => {
   }
   await capture(page, errors, info.title);
 });
+
+for (const mobile of [false, true]) {
+  test(`folder-navigation-${mobile ? "mobile" : "desktop"}`, async ({
+    page,
+  }, info) => {
+    const errors = await prepare(page, { mobile });
+    const directories = [
+      {
+        id: "root",
+        parent_id: null,
+        name: "",
+        created_at: time,
+        updated_at: time,
+      },
+      {
+        id: "photos",
+        parent_id: "root",
+        name: "照片",
+        created_at: time,
+        updated_at: time,
+      },
+      {
+        id: "day1",
+        parent_id: "photos",
+        name: "第一天",
+        created_at: time,
+        updated_at: time,
+      },
+    ];
+    await page.route("**/api/v1/boxes/box-1/folders", (route) =>
+      route.fulfill({ json: { folders: directories } }),
+    );
+    await page.route("**/api/v1/files?**", (route) =>
+      route.fulfill({ json: { files: [] } }),
+    );
+    await page.goto("/boxes/box-1");
+    await page.getByRole("button", { name: "照片", exact: true }).click();
+    await expect(page).toHaveURL(/folder=photos/);
+    await expect(
+      page.getByRole("button", { name: "第一天", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByLabel("目录路径")).toContainText("照片");
+    await capture(page, errors, info.title);
+    await page.reload();
+    await expect(
+      page.getByRole("button", { name: "第一天", exact: true }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "根目录", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: "照片", exact: true }),
+    ).toBeVisible();
+  });
+}
