@@ -38,9 +38,11 @@ export function Upload({
     }
   }
   const operation = useRef<ReturnType<typeof createUpload> | null>(null);
-  const [phase, setPhase] = useState<"idle" | "uploading" | "failed" | "saved">(
-    pendingKey ? "failed" : "idle",
-  );
+  const [phase, setPhase] = useState<
+    "idle" | "hashing" | "uploading" | "processing" | "failed" | "saved"
+  >(pendingKey ? "failed" : "idle");
+  const busy =
+    phase === "hashing" || phase === "uploading" || phase === "processing";
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
   useEffect(() => () => operation.current?.cancel(), []);
@@ -57,22 +59,25 @@ export function Upload({
   }
   async function run() {
     if (!operation.current) return;
-    setPhase("uploading");
+    setPhase("hashing");
     setError("");
     setProgress(0);
     try {
-      await operation.current.run(setProgress);
+      await operation.current.run(setProgress, setPhase);
       await finish();
     } catch (error) {
       setPhase("failed");
       setError(
         error instanceof APIError && error.status === 413
           ? t("uploadTooLarge")
-          : error instanceof APIError
-            ? errorMessage(error, t)
-            : error instanceof DOMException && error.name === "AbortError"
-              ? t("uploadCancelled")
-              : t("uploadFailed"),
+          : error instanceof APIError &&
+              error.body.code === "upload_integrity_mismatch"
+            ? t("uploadIntegrityMismatch")
+            : error instanceof APIError
+              ? errorMessage(error, t)
+              : error instanceof DOMException && error.name === "AbortError"
+                ? t("uploadCancelled")
+                : t("uploadFailed"),
       );
     }
   }
@@ -80,7 +85,7 @@ export function Upload({
     noClick: true,
     noKeyboard: true,
     multiple: true,
-    disabled: phase === "uploading" || phase === "failed",
+    disabled: busy || phase === "failed",
     onDrop: (files, rejected) => {
       if (
         rejected.length ||
@@ -129,13 +134,27 @@ export function Upload({
         </small>
       </div>
       <div className="upload-actions">
-        {phase === "uploading" ? (
+        {busy ? (
           <>
-            <progress value={progress} max={1} aria-label={t("uploading")} />
+            <progress
+              value={phase === "processing" ? undefined : progress}
+              max={1}
+              aria-label={t(
+                phase === "hashing"
+                  ? "uploadHashing"
+                  : phase === "processing"
+                    ? "uploadProcessing"
+                    : "uploading",
+              )}
+            />
             <span role="status">
-              {t("uploadProgress", {
-                percent: formatNumber(Math.round(progress * 100), prefs),
-              })}
+              {phase === "processing"
+                ? t("uploadProcessing")
+                : phase === "hashing"
+                  ? `${t("uploadHashing")} ${formatNumber(Math.round(progress * 100), prefs)}%`
+                  : t("uploadProgress", {
+                      percent: formatNumber(Math.round(progress * 100), prefs),
+                    })}
             </span>
             <Button onClick={() => operation.current?.cancel()}>
               {t("cancel")}

@@ -1,3 +1,11 @@
+vi.mock("./upload-integrity", () => ({
+  calculateIntegrity: vi.fn(async (files: File[]) =>
+    files.map((file) => ({
+      sha256: "0".repeat(64),
+      size: file.size,
+    })),
+  ),
+}));
 import { afterEach, expect, it, vi } from "vitest";
 import { APIError, createWrite } from "./api";
 afterEach(() => vi.unstubAllGlobals());
@@ -99,6 +107,7 @@ it("retains upload bytes, manifest and key after a cancelled connection", async 
   const progress = vi.fn();
   const first = upload.run(progress);
   const rejected = expect(first).rejects.toMatchObject({ name: "AbortError" });
+  await vi.waitFor(() => expect(instances).toHaveLength(1));
   instances[0].upload.onprogress?.({
     lengthComputable: true,
     loaded: 1,
@@ -108,6 +117,7 @@ it("retains upload bytes, manifest and key after a cancelled connection", async 
   await rejected;
   expect(progress).toHaveBeenCalledWith(0.5);
   const retry = upload.run(progress);
+  await vi.waitFor(() => expect(instances).toHaveLength(2));
   instances[1].onload?.();
   await expect(retry).resolves.toEqual({ op_id: 12 });
   expect(headers).toEqual([upload.key, upload.key]);
@@ -117,7 +127,7 @@ it("retains upload bytes, manifest and key after a cancelled connection", async 
   ]);
   expect(sent[0].get("manifest")).toBe(sent[1].get("manifest"));
   expect(JSON.parse(String(sent[1].get("manifest"))).files).toEqual([
-    { path: "旅行.txt", last_modified: 1234 },
+    { path: "旅行.txt", last_modified: 1234, sha256: "0".repeat(64), size: 8 },
   ]);
   expect((sent[1].get("files") as File).size).toBe(8);
 });

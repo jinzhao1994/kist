@@ -1,3 +1,11 @@
+vi.mock("./upload-integrity", () => ({
+  calculateIntegrity: vi.fn(async (files: File[]) =>
+    files.map((file) => ({
+      sha256: "0".repeat(64),
+      size: file.size,
+    })),
+  ),
+}));
 import { ThemeProvider } from "./theme";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import {

@@ -117,7 +117,7 @@ export interface paths {
         put?: never;
         /**
          * Upload a complete batch with a JSON manifest followed by file parts
-         * @description The first multipart field is manifest: {files:[{path,last_modified}]}, with modification times in Unix milliseconds. Remaining fields are files, with filenames matching manifest paths. Retries bind paths, timestamps and content hashes, not multipart boundaries.
+         * @description The first multipart field is manifest: {files:[{path,last_modified,size,sha256}]}, with modification times in Unix milliseconds, byte lengths and lowercase SHA-256 digests calculated from original client files. All fields are required; outdated clients must refresh. Remaining fields are files, with filenames matching manifest paths. Retries bind paths, timestamps and content hashes, not multipart boundaries.
          */
         post: operations["upload-files"];
         delete?: never;

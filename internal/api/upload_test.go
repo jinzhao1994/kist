@@ -3,6 +3,8 @@ package api
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"github.com/jinzhao1994/kist/internal/library"
 	"mime/multipart"
@@ -20,6 +22,20 @@ type uploadFixture struct{ path, data string }
 
 func multipartUpload(t *testing.T, manifest []uploadFile, files []uploadFixture) ([]byte, string) {
 	t.Helper()
+	manifest = append([]uploadFile(nil), manifest...)
+	for i := range manifest {
+		if manifest[i].SHA256 != "" {
+			continue
+		}
+		for _, file := range files {
+			if file.path == manifest[i].Path {
+				digest := sha256.Sum256([]byte(file.data))
+				manifest[i].SHA256 = hex.EncodeToString(digest[:])
+				manifest[i].Size = int64(len(file.data))
+				break
+			}
+		}
+	}
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
 	field, err := writer.CreateFormField("manifest")
@@ -259,5 +275,71 @@ func TestStreamingOpenAPIContract(t *testing.T) {
 	binary := download["responses"].(map[string]any)["200"].(map[string]any)["content"].(map[string]any)["application/octet-stream"].(map[string]any)["schema"].(map[string]any)
 	if binary["format"] != "binary" {
 		t.Fatal(binary)
+	}
+}
+
+func TestUploadIntegrityRejectsBatch(t *testing.T) {
+	for _, tc := range []struct {
+		name, data string
+		size       int64
+	}{
+		{"same length changed", "modified", 8},
+		{"wrong size", "original", 9},
+		{"truncated content", "orig", 8},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, l := testServer(t)
+			s.uploadTempDir = t.TempDir()
+			box, err := l.CreateBox(t.Context(), "integrity", "", domain.LocalDate{}, domain.LocalDate{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			digest := sha256.Sum256([]byte("original"))
+			manifest := []uploadFile{{Path: "good.txt"}, {Path: "bad.txt", SHA256: hex.EncodeToString(digest[:]), Size: tc.size}}
+			body, media := multipartUpload(t, manifest, []uploadFixture{{"good.txt", "valid"}, {"bad.txt", tc.data}})
+			response := upload(t, s, box.ID.String(), "integrity-batch-01", body, media)
+			if response.Code != 400 || !strings.Contains(response.Body.String(), "upload_integrity_mismatch") {
+				t.Fatalf("%d %s", response.Code, response.Body)
+			}
+			n, err := l.OpCount(t.Context())
+			if err != nil || n != 1 {
+				t.Fatalf("ops=%d %v", n, err)
+			}
+			if page := decodeBody[wire.FileList](t, s, "/files"); len(page.Files) != 0 {
+				t.Fatal("mismatching batch archived")
+			}
+			entries, err := os.ReadDir(s.uploadTempDir)
+			if err != nil || len(entries) != 0 {
+				t.Fatalf("temporary files: %v %v", entries, err)
+			}
+		})
+	}
+}
+
+func TestUploadRejectsLegacyManifest(t *testing.T) {
+	s, l := testServer(t)
+	box, err := l.CreateBox(t.Context(), "legacy", "", domain.LocalDate{}, domain.LocalDate{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	field, err := writer.CreateFormField("manifest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := field.Write([]byte(`{"files":[{"path":"old.txt","last_modified":0}]}`)); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	response := upload(t, s, box.ID.String(), "legacy-upload-01", body.Bytes(), writer.FormDataContentType())
+	if response.Code != 400 || !strings.Contains(response.Body.String(), "refresh") {
+		t.Fatalf("%d %s", response.Code, response.Body)
+	}
+	n, err := l.OpCount(t.Context())
+	if err != nil || n != 1 {
+		t.Fatalf("ops=%d %v", n, err)
 	}
 }

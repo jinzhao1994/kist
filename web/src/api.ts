@@ -1,3 +1,4 @@
+import { calculateIntegrity, type FileIntegrity } from "./upload-integrity";
 import type { components, operations } from "./api-schema";
 export type Folder = components["schemas"]["Folder"];
 export type Box = components["schemas"]["Box"];
@@ -197,53 +198,80 @@ export function createUpload(
     path: file.webkitRelativePath || file.name,
   }));
   let active: XMLHttpRequest | undefined;
+  let controller: AbortController | undefined;
+  let integrity: FileIntegrity[] | undefined;
   return Object.freeze({
     key,
-    cancel: () => active?.abort(),
-    run: (progress: (fraction: number) => void): Promise<Receipt> =>
-      new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        active = xhr;
-        xhr.open(
-          "POST",
-          `/api/v1/boxes/${encodeURIComponent(box)}/uploads${folder ? `?folder=${encodeURIComponent(folder)}` : ""}`,
-        );
-        xhr.setRequestHeader("Idempotency-Key", key);
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) progress(event.loaded / event.total);
-        };
-        xhr.onerror = () => reject(new Error("Upload connection failed"));
-        xhr.onabort = () =>
-          reject(new DOMException("Upload cancelled", "AbortError"));
-        xhr.onload = () => {
-          try {
-            const body = JSON.parse(xhr.responseText);
-            if (
-              (xhr.status >= 200 && xhr.status < 300) ||
-              (body.code === "write_committed" && body.op_id > 0)
-            )
-              resolve({ op_id: body.op_id });
-            else reject(new APIError(xhr.status, body));
-          } catch (error) {
-            reject(error);
-          }
-        };
-        xhr.onloadend = () => {
-          if (active === xhr) active = undefined;
-        };
-        const form = new FormData();
-        form.append(
-          "manifest",
-          JSON.stringify({
-            files: batch.map(({ file, path }) => ({
-              path,
-              last_modified: file.lastModified,
-            })),
-          }),
-        );
-        for (const { file, path } of batch) form.append("files", file, path);
-        xhr.send(form);
-      }),
+    cancel: () => {
+      controller?.abort(new DOMException("Upload cancelled", "AbortError"));
+      active?.abort();
+    },
+    run: async (
+      progress: (fraction: number) => void,
+      phase: (value: "hashing" | "uploading" | "processing") => void = () => {},
+    ): Promise<Receipt> => {
+      if (controller) throw new Error("Upload is already running");
+      const attempt = new AbortController();
+      controller = attempt;
+      try {
+        phase("hashing");
+        progress(0);
+        integrity ??= await calculateIntegrity(files, progress, attempt.signal);
+        attempt.signal.throwIfAborted();
+        phase("uploading");
+        progress(0);
+        return await new Promise<Receipt>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          active = xhr;
+          xhr.open(
+            "POST",
+            `/api/v1/boxes/${encodeURIComponent(box)}/uploads${folder ? `?folder=${encodeURIComponent(folder)}` : ""}`,
+          );
+          xhr.setRequestHeader("Idempotency-Key", key);
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) progress(event.loaded / event.total);
+          };
+          xhr.upload.onload = () => {
+            phase("processing");
+          };
+          xhr.onerror = () => reject(new Error("Upload connection failed"));
+          xhr.onabort = () =>
+            reject(new DOMException("Upload cancelled", "AbortError"));
+          xhr.onload = () => {
+            try {
+              const body = JSON.parse(xhr.responseText);
+              if (
+                (xhr.status >= 200 && xhr.status < 300) ||
+                (body.code === "write_committed" && body.op_id > 0)
+              )
+                resolve({ op_id: body.op_id });
+              else reject(new APIError(xhr.status, body));
+            } catch (error) {
+              reject(error);
+            }
+          };
+          xhr.onloadend = () => {
+            if (active === xhr) active = undefined;
+          };
+          const form = new FormData();
+          form.append(
+            "manifest",
+            JSON.stringify({
+              files: batch.map(({ file, path }, index) => ({
+                path,
+                last_modified: file.lastModified,
+                ...integrity![index],
+              })),
+            }),
+          );
+          for (const { file, path } of batch) form.append("files", file, path);
+          xhr.send(form);
+        });
+      } finally {
+        active = undefined;
+        controller = undefined;
+      }
+    },
   });
 }
 

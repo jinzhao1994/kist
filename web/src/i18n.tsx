@@ -251,6 +251,10 @@ export const en = {
     "Upload interrupted. Retry with the same files to safely recover the result.",
   uploadComplete: "Files saved",
   uploading: "Uploading…",
+  uploadHashing: "Calculating file checksums…",
+  uploadProcessing: "Server is verifying and processing files…",
+  uploadIntegrityMismatch:
+    "File verification failed. Nothing in this batch was archived. Select the original files again and retry.",
   checkResult: "Check result",
   requestPending: "No committed result yet. You can retry this request.",
   projectionDirty:
@@ -497,6 +501,10 @@ export const zh: Record<MessageKey, string> = {
   uploadFailed: "上传中断。使用相同文件重试，可安全恢复提交结果。",
   uploadComplete: "文件已保存",
   uploading: "正在上传…",
+  uploadHashing: "正在计算文件校验值…",
+  uploadProcessing: "服务端正在校验并处理文件…",
+  uploadIntegrityMismatch:
+    "文件校验不一致，本批次未归档。请重新选择原文件后重试。",
   checkResult: "核对结果",
   requestPending: "尚无已提交结果，可以重试此请求。",
   projectionDirty:

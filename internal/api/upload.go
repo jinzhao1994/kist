@@ -36,7 +36,8 @@ type uploadInput struct {
 type uploadFile struct {
 	Path         string `json:"path"`
 	LastModified int64  `json:"last_modified"`
-	SHA256       string `json:"sha256,omitempty"`
+	SHA256       string `json:"sha256"`
+	Size         int64  `json:"size"`
 	local        string
 }
 type uploadManifest struct {
@@ -48,7 +49,7 @@ func (s *Server) uploadRoutes() {
 		OperationID: "upload-files", Method: "POST", Path: Prefix + "/boxes/{id}/uploads",
 		Summary:     "Upload a complete batch with a JSON manifest followed by file parts",
 		Responses:   map[string]*huma.Response{"200": {Description: "Committed request receipt", Content: map[string]*huma.MediaType{"application/json": {Schema: s.contract.OpenAPI().Components.Schemas.Schema(reflect.TypeFor[library.RequestResult](), true, "RequestResult")}}}},
-		Description: "The first multipart field is manifest: {files:[{path,last_modified}]}, with modification times in Unix milliseconds. Remaining fields are files, with filenames matching manifest paths. Retries bind paths, timestamps and content hashes, not multipart boundaries.",
+		Description: "The first multipart field is manifest: {files:[{path,last_modified,size,sha256}]}, with modification times in Unix milliseconds, byte lengths and lowercase SHA-256 digests calculated from original client files. All fields are required; outdated clients must refresh. Remaining fields are files, with filenames matching manifest paths. Retries bind paths, timestamps and content hashes, not multipart boundaries.",
 		RequestBody: &huma.RequestBody{Required: true, Content: map[string]*huma.MediaType{"multipart/form-data": {Schema: &huma.Schema{Type: "string", Format: "binary", Description: "Streaming multipart body: manifest JSON followed by files. See operation description."}}}},
 	}, func(ctx context.Context, in *uploadInput) (*huma.StreamResponse, error) {
 		id, err := parseID(in.ID)
@@ -103,6 +104,8 @@ func (s *Server) receiveUpload(r *http.Request, key string, opt library.ImportOp
 		Files []struct {
 			Path         string `json:"path"`
 			LastModified *int64 `json:"last_modified"`
+			Size         *int64 `json:"size"`
+			SHA256       string `json:"sha256"`
 		} `json:"files"`
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
@@ -121,7 +124,14 @@ func (s *Server) receiveUpload(r *http.Request, key string, opt library.ImportOp
 		if file.LastModified == nil {
 			return zero, invalid("Every upload file needs last_modified in Unix milliseconds")
 		}
-		manifest.Files = append(manifest.Files, uploadFile{Path: file.Path, LastModified: *file.LastModified})
+		digest, err := hex.DecodeString(file.SHA256)
+		if file.Size == nil || file.SHA256 == "" {
+			return zero, invalid("Upload integrity information is required; refresh the page and select the files again")
+		}
+		if err != nil || len(digest) != sha256.Size || hex.EncodeToString(digest) != file.SHA256 || *file.Size < 0 {
+			return zero, invalid("Invalid upload SHA-256 or byte length")
+		}
+		manifest.Files = append(manifest.Files, uploadFile{Path: file.Path, LastModified: *file.LastModified, Size: *file.Size, SHA256: file.SHA256})
 	}
 	byPath := map[string]int{}
 	folded := map[string]bool{}
@@ -175,7 +185,7 @@ func (s *Server) receiveUpload(r *http.Request, key string, opt library.ImportOp
 			return zero, err
 		}
 		hash := sha256.New()
-		_, copyErr := io.Copy(io.MultiWriter(handle, hash), part)
+		size, copyErr := io.Copy(io.MultiWriter(handle, hash), part)
 		closeErr := handle.Close()
 		if copyErr != nil {
 			return zero, uploadReadError(copyErr)
@@ -191,7 +201,9 @@ func (s *Server) receiveUpload(r *http.Request, key string, opt library.ImportOp
 			return zero, err
 		}
 		manifest.Files[index].local = local
-		manifest.Files[index].SHA256 = hex.EncodeToString(hash.Sum(nil))
+		if expected := manifest.Files[index]; size != expected.Size || hex.EncodeToString(hash.Sum(nil)) != expected.SHA256 {
+			return zero, failure(library.ErrImportIntegrity)
+		}
 	}
 	if _, err := io.Copy(io.Discard, r.Body); err != nil {
 		return zero, uploadReadError(err)
@@ -205,7 +217,7 @@ func (s *Server) receiveUpload(r *http.Request, key string, opt library.ImportOp
 	sort.Slice(manifest.Files, func(i, j int) bool { return manifest.Files[i].Path < manifest.Files[j].Path })
 	sources := make([]library.ImportSource, 0, len(manifest.Files))
 	for _, f := range manifest.Files {
-		sources = append(sources, library.ImportSource{Path: f.local, RelativePath: f.Path})
+		sources = append(sources, library.ImportSource{Path: f.local, RelativePath: f.Path, Expected: &library.ImportIntegrity{SHA256: f.SHA256, Size: f.Size}})
 	}
 	prepared, prepareErr := s.library.PrepareFiles(r.Context(), sources, opt)
 	if prepareErr == nil {
