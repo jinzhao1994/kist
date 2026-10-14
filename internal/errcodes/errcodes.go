@@ -126,6 +126,8 @@ const (
 	CodeUnsupportedLnk Code = "unsupported_link_mode"
 
 	CodeContentMismatch Code = "content_mismatch"
+	CodeImportIntegrity Code = "upload_integrity_mismatch"
+	CodeBlobIntegrity   Code = "blob_integrity_mismatch"
 	CodeInvariantBroken Code = "invariant_violated"
 	CodeStaleBefore     Code = "stale_before"
 
@@ -184,6 +186,8 @@ var table = []struct {
 	{query.ErrCursorSortMismatch, CodeBadCursor},
 
 	{blob.ErrContentMismatch, CodeContentMismatch},
+	{blob.ErrIntegrityMismatch, CodeBlobIntegrity},
+	{library.ErrImportIntegrity, CodeImportIntegrity},
 	{blob.ErrUnsupportedLink, CodeUnsupportedLnk},
 }
 
@@ -231,6 +235,8 @@ var classes = map[Code]Class{
 	CodeUnsupportedLnk: ClassUnavailable,
 
 	CodeContentMismatch: ClassDamaged,
+	CodeImportIntegrity: ClassInvalid,
+	CodeBlobIntegrity:   ClassInvalid,
 	CodeInvariantBroken: ClassDamaged,
 	CodeLogCorrupt:      ClassDamaged,
 	CodeLogMissing:      ClassDamaged,

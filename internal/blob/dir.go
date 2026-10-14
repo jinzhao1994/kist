@@ -102,6 +102,29 @@ func (d *Dir) LocalPath(k Key) (string, bool) {
 // is what makes a crash leave an orphan rather than a dangling reference
 // (spec 3.7).
 func (d *Dir) Put(ctx context.Context, r io.Reader) (PutResult, error) {
+	return d.put(ctx, r, nil)
+}
+
+// ExpectedContent describes independently known original content.
+type ExpectedContent struct {
+	SHA256 string
+	Size   int64
+}
+
+// ErrIntegrityMismatch means received content differs from its declared original.
+var ErrIntegrityMismatch = errors.New("content checksum or size mismatch")
+
+// PutVerified rejects mismatching content before placing or repairing a blob.
+// The caller must obtain expected from the original source, not this reader.
+func (d *Dir) PutVerified(ctx context.Context, r io.Reader, expected ExpectedContent) (PutResult, error) {
+	decoded, err := hex.DecodeString(expected.SHA256)
+	if err != nil || len(decoded) != sha256.Size || hex.EncodeToString(decoded) != expected.SHA256 || expected.Size < 0 {
+		return PutResult{}, fmt.Errorf("%w: invalid expected digest or size", ErrIntegrityMismatch)
+	}
+	return d.put(ctx, r, &expected)
+}
+
+func (d *Dir) put(ctx context.Context, r io.Reader, expected *ExpectedContent) (PutResult, error) {
 	tmp, err := os.CreateTemp(filepath.Join(d.root, "tmp"), "put-*")
 	if err != nil {
 		return PutResult{}, fmt.Errorf("create temp blob: %w", err)
@@ -116,9 +139,13 @@ func (d *Dir) Put(ctx context.Context, r io.Reader) (PutResult, error) {
 	}()
 
 	h := sha256.New()
-	size, err := io.Copy(io.MultiWriter(tmp, h), r)
+	size, err := io.Copy(io.MultiWriter(tmp, h), readerContext{ctx: ctx, r: r})
 	if err != nil {
 		return PutResult{}, fmt.Errorf("stage blob: %w", err)
+	}
+	digest := hex.EncodeToString(h.Sum(nil))
+	if expected != nil && (size != expected.Size || digest != expected.SHA256) {
+		return PutResult{}, ErrIntegrityMismatch
 	}
 	if err := tmp.Sync(); err != nil {
 		return PutResult{}, fmt.Errorf("fsync staged blob: %w", err)
@@ -127,7 +154,7 @@ func (d *Dir) Put(ctx context.Context, r io.Reader) (PutResult, error) {
 		return PutResult{}, fmt.Errorf("close staged blob: %w", err)
 	}
 
-	res, err := d.place(ctx, tmpPath, hex.EncodeToString(h.Sum(nil)), size)
+	res, err := d.place(ctx, tmpPath, digest, size)
 	if err != nil {
 		return PutResult{}, err
 	}

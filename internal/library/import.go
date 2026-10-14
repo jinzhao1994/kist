@@ -49,10 +49,11 @@ func (s FileStatus) String() string {
 // a batch report "4998 in, 1 skipped, 1 unreadable" instead of a single yes or
 // no (spec 3.7.1 ③).
 type FileResult struct {
-	Source string // where it came from on disk
-	Rel    string // where it went inside the box, slash-separated
-	Name   string // the name it ended up with, after any numbering
-	Status FileStatus
+	blobKey blob.Key
+	Source  string // where it came from on disk
+	Rel     string // where it went inside the box, slash-separated
+	Name    string // the name it ended up with, after any numbering
+	Status  FileStatus
 	// Outcome is what blob storage did. Deduped means the content was already
 	// there; Collided and Repaired are events worth showing a person rather
 	// than folding into "imported" (spec 3.3).
@@ -105,7 +106,8 @@ type ImportOptions struct {
 
 // scanned is one candidate found on disk, before anything has been decided.
 type scanned struct {
-	abs string
+	expected *ImportIntegrity
+	abs      string
 	// rel is the path relative to the import root, slash-separated so the
 	// folder chain comes out the same on every platform.
 	rel string
@@ -236,9 +238,20 @@ func (l *Library) PrepareImport(ctx context.Context, src string, opt ImportOptio
 	return l.prepareCandidates(ctx, candidates, opt)
 }
 
+// ImportIntegrity is the independently calculated original file identity.
+type ImportIntegrity struct {
+	SHA256 string
+	Size   int64
+}
+
+// ErrImportIntegrity indicates an upload differs from its original content.
+var ErrImportIntegrity = errors.New("import content checksum or size mismatch")
+
 // ImportSource separates a local staging path from its archive-relative name.
 // Callers own the staging files and must keep them unchanged until preparation ends.
 type ImportSource struct {
+	// Expected, when present, requires verified, all-or-nothing preparation.
+	Expected     *ImportIntegrity
 	Path         string
 	RelativePath string
 }
@@ -272,7 +285,12 @@ func (l *Library) PrepareFiles(ctx context.Context, sources []ImportSource, opt 
 		if !info.Mode().IsRegular() {
 			return nil, fmt.Errorf("import source is not a regular file")
 		}
-		candidates = append(candidates, scanned{abs: source.Path, rel: source.RelativePath})
+		var expected *ImportIntegrity
+		if source.Expected != nil {
+			value := *source.Expected
+			expected = &value
+		}
+		candidates = append(candidates, scanned{abs: source.Path, rel: source.RelativePath, expected: expected})
 	}
 	return l.prepareCandidates(ctx, candidates, opt)
 }
@@ -309,6 +327,11 @@ func (l *Library) prepareCandidates(ctx context.Context, candidates []scanned, o
 		return nil, err
 	}
 
+	strict := false
+	for _, c := range candidates {
+		strict = strict || c.expected != nil
+	}
+	verified := make(map[blob.Key]ImportIntegrity)
 	res := &ImportResult{}
 	payload := oplog.ImportFilesPayload{BoxID: box.ID}
 
@@ -319,6 +342,12 @@ func (l *Library) prepareCandidates(ctx context.Context, candidates []scanned, o
 			break
 		}
 		r := l.importOne(ctx, c, tree, taken, &payload)
+		if strict && r.Err != nil {
+			return nil, r.Err
+		}
+		if c.expected != nil {
+			verified[r.blobKey] = *c.expected
+		}
 		// The file in flight when the signal arrived is not a failure — the
 		// user pressed Ctrl-C. Reporting it as one puts a frightening
 		// "failed: context canceled" line in front of somebody who did exactly
@@ -335,6 +364,20 @@ func (l *Library) prepareCandidates(ctx context.Context, candidates []scanned, o
 		}
 	}
 
+	if strict {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		for key, expected := range verified {
+			digest, size, err := l.blobs.Rehash(ctx, key)
+			if err != nil {
+				return nil, err
+			}
+			if digest != expected.SHA256 || size != expected.Size {
+				return nil, ErrImportIntegrity
+			}
+		}
+	}
 	prepared := &PreparedImport{library: l, result: *res}
 	if opt.RootOp != nil {
 		id := *opt.RootOp
@@ -398,12 +441,21 @@ func (l *Library) importOne(
 		mtime = info.ModTime().UnixNano()
 	}
 
-	put, err := l.blobs.Put(ctx, f)
+	var put blob.PutResult
+	if c.expected != nil {
+		put, err = l.blobs.PutVerified(ctx, f, blob.ExpectedContent{SHA256: c.expected.SHA256, Size: c.expected.Size})
+		if errors.Is(err, blob.ErrIntegrityMismatch) {
+			err = ErrImportIntegrity
+		}
+	} else {
+		put, err = l.blobs.Put(ctx, f)
+	}
 	if err != nil {
 		r.Err = err
 		return r
 	}
 	r.Outcome = put.Outcome
+	r.blobKey = put.Key
 
 	name, skip := resolveName(taken, folder, r.Name, string(put.Key))
 	if skip {
