@@ -1229,12 +1229,20 @@ for (const mobile of [false, true]) {
       page.locator("button").filter({ hasText: "重新选择原文件" }),
     ).toBeVisible();
     if (mobile) {
-      // The recovery panel pushes thumbnails below the lazy-load viewport.
-      // Visit each card before capturing the full page, then return to upload.
-      await expect(page.locator(".file-card")).toHaveCount(4);
-      for (const card of await page.locator(".file-card").all()) {
-        await card.scrollIntoViewIfNeeded();
-      }
+      // Off-screen virtual cards do not exist yet. Scroll the stable container
+      // into view first, using the same settled position as the mobile grid case.
+      await page.evaluate(() => document.fonts.ready);
+      await expect
+        .poll(() =>
+          page.locator(".file-scroll").evaluate((element) => {
+            window.scrollTo(
+              0,
+              element.getBoundingClientRect().top + window.scrollY,
+            );
+            return Math.abs(element.getBoundingClientRect().top);
+          }),
+        )
+        .toBeLessThan(1);
     }
     await grid(page);
     if (mobile) {
