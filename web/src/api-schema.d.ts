@@ -488,6 +488,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/upload-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 upload sessions */
+        post: operations["post-api-v1-upload-sessions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/upload-sessions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 upload sessions by ID */
+        get: operations["get-api-v1-upload-sessions-by-id"];
+        put?: never;
+        post?: never;
+        /** Delete API v1 upload sessions by ID */
+        delete: operations["delete-api-v1-upload-sessions-by-id"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/upload-sessions/{id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 upload sessions by ID complete */
+        post: operations["post-api-v1-upload-sessions-by-id-complete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/upload-sessions/{id}/files/{index}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Append a verified sequential block, or retry an identical confirmed block */
+        put: operations["upload-session-chunk"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/upload-sessions/{id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 upload sessions by ID resume */
+        post: operations["post-api-v1-upload-sessions-by-id-resume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -591,6 +677,8 @@ export interface components {
             op_id?: number;
             /** Format: int64 */
             reverted_by?: number;
+            /** Format: int64 */
+            upload_offset?: number;
         };
         HistoricalBox: {
             box: components["schemas"]["Box"];
@@ -654,7 +742,11 @@ export interface components {
             /** Format: int64 */
             max_upload_files: number;
             projection_dirty: boolean;
+            /** Format: int64 */
+            resumable_upload_version?: number;
             timezone: string;
+            /** Format: int64 */
+            upload_chunk_bytes?: number;
             version: string;
         };
         MediaJob: {
@@ -738,6 +830,19 @@ export interface components {
             tag_not?: string[] | null;
             to?: string;
         };
+        SessionCommandBody: Record<string, never>;
+        SessionCreateBody: {
+            box: string;
+            files: components["schemas"]["UploadFile"][] | null;
+            folder: string;
+            /** Format: int64 */
+            version: number;
+        };
+        SessionStatus: {
+            /** Format: int64 */
+            op_id?: number;
+            session?: components["schemas"]["UploadState"];
+        };
         Tag: {
             /** Format: int64 */
             box_count?: number;
@@ -761,6 +866,32 @@ export interface components {
             before: components["schemas"]["SavedSearchBody"];
             definition: components["schemas"]["SearchDefinition"];
             name: string;
+        };
+        UploadFile: {
+            /** Format: int64 */
+            last_modified: number;
+            path: string;
+            sha256: string;
+            /** Format: int64 */
+            size: number;
+        };
+        UploadManifest: {
+            box: string;
+            files: components["schemas"]["UploadFile"][] | null;
+            folder: string;
+            target: string;
+        };
+        UploadState: {
+            canceled?: boolean;
+            /** Format: date-time */
+            expires: string;
+            id: string;
+            manifest: components["schemas"]["UploadManifest"];
+            offsets: number[] | null;
+            /** Format: int64 */
+            op_id?: number;
+            /** Format: int64 */
+            version: number;
         };
     };
     responses: never;
@@ -2193,6 +2324,214 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RequestResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-upload-sessions": {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionCreateBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-upload-sessions-by-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "delete-api-v1-upload-sessions-by-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-upload-sessions-by-id-complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionCommandBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "upload-session-chunk": {
+        parameters: {
+            query: {
+                offset: number;
+            };
+            header: {
+                "Upload-SHA256": string;
+                "Upload-Length": number;
+            };
+            path: {
+                id: string;
+                index: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+            };
+        };
+        responses: {
+            /** @description Durable progress or archive receipt */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-upload-sessions-by-id-resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionCommandBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionStatus"];
                 };
             };
             /** @description Error */

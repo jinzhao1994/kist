@@ -48,6 +48,9 @@ func newServeCmd() *cobra.Command {
 		mediaDone := make(chan struct{})
 		go func() { handler.RunMedia(mediaCtx); close(mediaDone) }()
 		defer func() { cancelMedia(); <-mediaDone }()
+		uploadDone := make(chan struct{})
+		go func() { handler.RunUploads(mediaCtx); close(uploadDone) }()
+		defer func() { cancelMedia(); <-uploadDone }()
 		fmt.Fprintf(cmd.ErrOrStderr(), "Serving kist on %s\n", listener.Addr())
 		if len(origins) > 0 {
 			fmt.Fprintln(cmd.ErrOrStderr(), "No authentication: allow access only from trusted networks or an authenticated proxy.")
@@ -56,7 +59,7 @@ func newServeCmd() *cobra.Command {
 	}}
 	cmd.Flags().StringVar(&address, "listen", "127.0.0.1:8473", "listen address; non-loopback requires --allow-origin")
 	cmd.Flags().StringSliceVar(&origins, "allow-origin", nil, "trusted origin including scheme and port; repeat for multiple origins")
-	cmd.Flags().Int64Var(&maxUploadBytes, "max-upload-bytes", api.DefaultMaxUploadBytes, "maximum total multipart upload bytes")
+	cmd.Flags().Int64Var(&maxUploadBytes, "max-upload-bytes", api.DefaultMaxUploadBytes, "maximum upload batch bytes (including framing for multipart)")
 	cmd.Flags().IntVar(&maxUploadFiles, "max-upload-files", api.DefaultMaxUploadFiles, "maximum files per upload batch")
 	return cmd
 }

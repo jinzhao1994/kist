@@ -9,11 +9,14 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/jinzhao1994/kist/internal/library"
+	staging "github.com/jinzhao1994/kist/internal/upload"
 )
 
 const Prefix = "/api/v1"
@@ -41,6 +44,10 @@ type Server struct {
 	maxUploadFiles int
 	uploadTempDir  string
 	historySlots   chan struct{}
+	uploads        *staging.Store
+	uploadSlots    chan struct{}
+	// uploadFault is immutable while serving and used only by fault-injection tests.
+	uploadFault func(string) error
 }
 
 func New(l *library.Library, opt Options) (*Server, error) {
@@ -73,6 +80,22 @@ func New(l *library.Library, opt Options) (*Server, error) {
 		s.origins[origin] = true
 	}
 	cfg := huma.DefaultConfig("kist API", "1.0.0")
+	cfg.Components.Schemas = huma.NewMapRegistry("#/components/schemas/", func(t reflect.Type, hint string) string {
+		name := huma.DefaultSchemaNamer(t, hint)
+		for t.Kind() == reflect.Pointer {
+			t = t.Elem()
+		}
+		if t.PkgPath() == reflect.TypeFor[staging.File]().PkgPath() {
+			return "Upload" + name
+		}
+		return name
+	})
+	var err error
+	s.uploads, err = staging.New(filepath.Join(l.Layout().Root, "uploads"), opt.MaxUploadBytes, opt.MaxUploadFiles)
+	if err != nil {
+		return nil, err
+	}
+	s.uploadSlots = make(chan struct{}, staging.MaxSessions)
 	cfg.OpenAPIPath = Prefix + "/openapi"
 	cfg.DocsPath = "" // An embedded UI will link to the offline JSON contract.
 	cfg.SchemasPath = ""
@@ -89,6 +112,7 @@ func New(l *library.Library, opt Options) (*Server, error) {
 	s.contentRoutes()
 	s.mediaRoutes()
 	s.uploadRoutes()
+	s.uploadSessionRoutes()
 	s.extractionRoutes()
 	s.writeRoutes()
 	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -136,12 +160,18 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Method == http.MethodOptions {
 		w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Idempotency-Key")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Idempotency-Key, Upload-SHA256, Upload-Length")
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 	if r.Method == "POST" || r.Method == "PUT" || r.Method == "PATCH" || (r.Method == "DELETE" && r.ContentLength != 0) {
 		media, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		chunk := r.Method == "PUT" && strings.HasPrefix(r.URL.Path, Prefix+"/upload-sessions/") && strings.Contains(r.URL.Path, "/files/")
+		if chunk && err == nil && media == "application/octet-stream" {
+			r.Body = http.MaxBytesReader(w, r.Body, staging.ChunkBytes)
+			s.mux.ServeHTTP(w, r)
+			return
+		}
 		upload := r.Method == "POST" && strings.HasPrefix(r.URL.Path, Prefix+"/boxes/") && strings.HasSuffix(r.URL.Path, "/uploads")
 		if upload && err == nil && media == "multipart/form-data" {
 			r.Body = http.MaxBytesReader(w, r.Body, s.maxUploadBytes)

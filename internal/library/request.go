@@ -101,6 +101,19 @@ func (l *Library) ExecuteRequest(ctx context.Context, req Request, fn func(conte
 // RequestStatus recovers pending log entries before looking up a receipt. It
 // never reruns a command and is safe after a response or connection was lost.
 func (l *Library) RequestStatus(ctx context.Context, key string) (RequestResult, bool, error) {
+	return l.requestStatus(ctx, key, "")
+}
+
+// CheckRequest also checks the immutable business input. It is useful before
+// preparing a large upload and never creates a receipt for absent requests.
+func (l *Library) CheckRequest(ctx context.Context, req Request) (RequestResult, bool, error) {
+	if !req.Valid() {
+		return RequestResult{}, false, ErrInvalidRequest
+	}
+	return l.requestStatus(ctx, req.ID, strings.ToLower(req.Digest))
+}
+
+func (l *Library) requestStatus(ctx context.Context, key, expected string) (RequestResult, bool, error) {
 	release, err := l.lock.Acquire(ctx)
 	if err != nil {
 		return RequestResult{}, false, err
@@ -109,6 +122,9 @@ func (l *Library) RequestStatus(ctx context.Context, key string) (RequestResult,
 	if err := l.catchUpLocked(ctx); err != nil {
 		return RequestResult{}, false, err
 	}
-	_, opID, found, err := store.RequestOp(l.db, key)
+	digest, opID, found, err := store.RequestOp(l.db, key)
+	if err == nil && found && expected != "" && digest != expected {
+		return RequestResult{}, false, ErrRequestConflict
+	}
 	return RequestResult{OpID: opID}, found, err
 }

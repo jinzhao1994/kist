@@ -30,6 +30,7 @@ import (
 	"github.com/jinzhao1994/kist/internal/lockfile"
 	"github.com/jinzhao1994/kist/internal/oplog"
 	"github.com/jinzhao1994/kist/internal/query"
+	"github.com/jinzhao1994/kist/internal/upload"
 )
 
 // Code is a stable name for one kind of failure. These never change.
@@ -84,14 +85,28 @@ func (c Class) String() string {
 // test walks the source of every package listed there and fails if a sentinel
 // has no code.
 const (
-	CodeMediaNotReady   Code = "media_not_ready"
-	CodeInvalidRequest  Code = "invalid_request"
-	CodeRequestConflict Code = "request_conflict"
-	CodeRequestScope    Code = "request_scope"
-	CodeNotUndoable     Code = "not_undoable"
-	CodeInternal        Code = "internal"
-	CodeWriteCommitted  Code = "write_committed"
-	CodeWriteUnknown    Code = "write_outcome_unknown"
+	CodeUploadTargetChanged   Code = "upload_target_changed"
+	CodeStorageFull           Code = "storage_full"
+	CodeUploadSessionMissing  Code = "upload_session_missing"
+	CodeUploadSessionExpired  Code = "upload_session_expired"
+	CodeUploadSessionCanceled Code = "upload_session_canceled"
+	CodeUploadSessionConflict Code = "upload_session_conflict"
+	CodeUploadSessionCorrupt  Code = "upload_session_corrupt"
+	CodeUploadSessionVersion  Code = "upload_session_version"
+	CodeUploadQuota           Code = "upload_quota"
+	CodeUploadOffset          Code = "upload_offset"
+	CodeUploadChunkIntegrity  Code = "upload_chunk_integrity"
+	CodeUploadIncomplete      Code = "upload_incomplete"
+	CodeUploadCompleted       Code = "upload_completed"
+	CodeUploadInvalid         Code = "upload_invalid"
+	CodeMediaNotReady         Code = "media_not_ready"
+	CodeInvalidRequest        Code = "invalid_request"
+	CodeRequestConflict       Code = "request_conflict"
+	CodeRequestScope          Code = "request_scope"
+	CodeNotUndoable           Code = "not_undoable"
+	CodeInternal              Code = "internal"
+	CodeWriteCommitted        Code = "write_committed"
+	CodeWriteUnknown          Code = "write_outcome_unknown"
 
 	CodeSavedSearchNotFound Code = "saved_search_not_found"
 	CodeBoxNotFound         Code = "box_not_found"
@@ -188,28 +203,43 @@ var table = []struct {
 	{blob.ErrContentMismatch, CodeContentMismatch},
 	{blob.ErrIntegrityMismatch, CodeBlobIntegrity},
 	{library.ErrImportIntegrity, CodeImportIntegrity},
+	{library.ErrUploadTargetChanged, CodeUploadTargetChanged},
 	{blob.ErrUnsupportedLink, CodeUnsupportedLnk},
 }
 
 // classes maps a code to its class. A code missing from here is internal,
 // which is checked by the same test that checks completeness.
 var classes = map[Code]Class{
-	CodeMediaNotReady:       ClassConflict,
-	CodeInvalidRequest:      ClassInvalid,
-	CodeRequestConflict:     ClassConflict,
-	CodeRequestScope:        ClassInternal,
-	CodeNotUndoable:         ClassConflict,
-	CodeWriteCommitted:      ClassConflict,
-	CodeWriteUnknown:        ClassConflict,
-	CodeSavedSearchNotFound: ClassNotFound,
-	CodeBoxNotFound:         ClassNotFound,
-	CodeTagNotFound:         ClassNotFound,
-	CodeFileNotFound:        ClassNotFound,
-	CodeMetadataNotFound:    ClassNotFound,
-	CodeFolderNotFound:      ClassNotFound,
-	CodeOpNotFound:          ClassNotFound,
-	CodeUnknownAction:       ClassNotFound,
-	CodeNotALibrary:         ClassNotFound,
+	CodeStorageFull:           ClassUnavailable,
+	CodeUploadTargetChanged:   ClassConflict,
+	CodeUploadSessionMissing:  ClassNotFound,
+	CodeUploadSessionExpired:  ClassConflict,
+	CodeUploadSessionCanceled: ClassConflict,
+	CodeUploadSessionConflict: ClassConflict,
+	CodeUploadSessionCorrupt:  ClassConflict,
+	CodeUploadSessionVersion:  ClassConflict,
+	CodeUploadQuota:           ClassConflict,
+	CodeUploadOffset:          ClassConflict,
+	CodeUploadChunkIntegrity:  ClassInvalid,
+	CodeUploadIncomplete:      ClassConflict,
+	CodeUploadCompleted:       ClassConflict,
+	CodeUploadInvalid:         ClassInvalid,
+	CodeMediaNotReady:         ClassConflict,
+	CodeInvalidRequest:        ClassInvalid,
+	CodeRequestConflict:       ClassConflict,
+	CodeRequestScope:          ClassInternal,
+	CodeNotUndoable:           ClassConflict,
+	CodeWriteCommitted:        ClassConflict,
+	CodeWriteUnknown:          ClassConflict,
+	CodeSavedSearchNotFound:   ClassNotFound,
+	CodeBoxNotFound:           ClassNotFound,
+	CodeTagNotFound:           ClassNotFound,
+	CodeFileNotFound:          ClassNotFound,
+	CodeMetadataNotFound:      ClassNotFound,
+	CodeFolderNotFound:        ClassNotFound,
+	CodeOpNotFound:            ClassNotFound,
+	CodeUnknownAction:         ClassNotFound,
+	CodeNotALibrary:           ClassNotFound,
 
 	CodeNameEmpty:      ClassInvalid,
 	CodeNameEdgeSpace:  ClassInvalid,
@@ -268,6 +298,40 @@ func Of(err error) Code {
 	var busy *lockfile.BusyError
 	if errors.As(err, &busy) {
 		return CodeLibraryBusy
+	}
+	if isStorageFull(err) {
+		return CodeStorageFull
+	}
+	var session *upload.Problem
+	if errors.As(err, &session) {
+		switch session.Kind {
+		case "not_found":
+			return CodeUploadSessionMissing
+		case "expired":
+			return CodeUploadSessionExpired
+		case "canceled":
+			return CodeUploadSessionCanceled
+		case "conflict":
+			return CodeUploadSessionConflict
+		case "corrupt":
+			return CodeUploadSessionCorrupt
+		case "unsupported_version":
+			return CodeUploadSessionVersion
+		case "quota":
+			return CodeUploadQuota
+		case "offset":
+			return CodeUploadOffset
+		case "chunk_integrity":
+			return CodeUploadChunkIntegrity
+		case "file_integrity":
+			return CodeImportIntegrity
+		case "incomplete":
+			return CodeUploadIncomplete
+		case "completed":
+			return CodeUploadCompleted
+		case "invalid_manifest", "invalid_id", "invalid_chunk":
+			return CodeUploadInvalid
+		}
 	}
 	for _, e := range table {
 		if errors.Is(err, e.err) {

@@ -26,3 +26,15 @@
 - 本机 `go test -race ./internal/upload ./internal/arch` 与 Windows 测试交叉编译通过。完整交付检查记录于 `/tmp/kist-resumable-core-check.log`。
 
 待后续阶段验证：HTTP 接收中断、library 目标复核与最终提交故障点、持久回执优先、浏览器刷新重选和服务重启，以及最终归档内容独立核对。
+
+暂存内核提交 `68fffca` 的 CI（38502702278）与 Visual（38502702237）均通过，包括 Windows、macOS、ARM Linux 和 amd64/arm64 容器。Secret scan 通过。
+
+## HTTP 与归档边界阶段
+
+新增会话创建/查询/续租/分块/完成/取消接口及能力发现；原普通 multipart 路径保持。错误码区分可靠偏移、块摘要、会话版本/过期/损坏、配额和磁盘空间不足。OpenAPI 生成前端契约；浏览器尚未启用这些接口。
+
+`library.UploadTarget` 在同一读取事务中签名 box 自身字段及目录祖先链，在 ExecuteRequest 持写锁时重新核对；新增 `CheckRequest` 只核对回执与输入，不产生 op。完整文件复核后继续调用已有 PrepareFiles/PutVerified/最终 blob 复核，再整批提交。回执优先于暂存状态与目标是否仍存在。
+
+接口集成测试覆盖分块接收中断、错误长度/摘要和偏移、Host/Origin/跨站/媒体类型保护、服务重开后仅传后缀、下载原内容一致、重建与撤销后重试不复活、不同输入复用 key 拒绝、整文件损坏及未完成批次不归档、完成响应故障与并发重试只提交一次、取消不能撤销成功归档、过期会话可清理。在准备结束到提交之间注入 box 重命名/删除，均拒绝；无关目录新增不阻止提交。目录归属/删除与目标签名、零副作用回执查询另有 library 测试。
+
+本机相关 race 测试通过；完整检查记录于 `/tmp/kist-resumable-api-check.log`。剩余浏览器状态恢复、真实浏览器断网/刷新/重选/后端重启及最终用户文档属于后续阶段，不以接口测试代替。

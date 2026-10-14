@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/jinzhao1994/kist/internal/library"
 	"github.com/jinzhao1994/kist/internal/lockfile"
+	"github.com/jinzhao1994/kist/internal/upload"
 	"github.com/jinzhao1994/kist/internal/wire"
 )
 
@@ -41,6 +42,13 @@ func Render(err error) wire.Error {
 	var busy *lockfile.BusyError
 	if errors.As(err, &busy) {
 		out.Holder = busy.Holder
+	}
+	var session *upload.Problem
+	if errors.As(err, &session) && session.Kind == "offset" {
+		out.UploadOffset = &session.Offset
+	}
+	if out.Code == string(CodeStorageFull) {
+		out.Message = "Not enough free disk space; free space and resume the upload."
 	}
 	return out
 }

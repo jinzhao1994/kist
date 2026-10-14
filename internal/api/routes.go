@@ -10,6 +10,7 @@ import (
 	"github.com/jinzhao1994/kist/internal/buildinfo"
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/library"
+	staging "github.com/jinzhao1994/kist/internal/upload"
 	"github.com/jinzhao1994/kist/internal/wire"
 )
 
@@ -61,11 +62,13 @@ func (b boxBody) fields() (library.BoxFields, error) {
 }
 
 type libraryInfo struct {
-	Version         string `json:"version"`
-	Timezone        string `json:"timezone"`
-	ProjectionDirty bool   `json:"projection_dirty"`
-	MaxUploadBytes  int64  `json:"max_upload_bytes"`
-	MaxUploadFiles  int    `json:"max_upload_files"`
+	Version                string `json:"version"`
+	Timezone               string `json:"timezone"`
+	ProjectionDirty        bool   `json:"projection_dirty"`
+	MaxUploadBytes         int64  `json:"max_upload_bytes"`
+	MaxUploadFiles         int    `json:"max_upload_files"`
+	ResumableUploadVersion int    `json:"resumable_upload_version,omitempty"`
+	UploadChunkBytes       int    `json:"upload_chunk_bytes,omitempty"`
 }
 
 func (s *Server) readRoutes() {
@@ -80,7 +83,7 @@ func (s *Server) readRoutes() {
 	})
 
 	huma.Get(s.contract, Prefix+"/info", func(ctx context.Context, _ *struct{}) (*output[libraryInfo], error) {
-		return response(libraryInfo{Version: buildinfo.Get().Version, Timezone: s.library.Zone().String(), ProjectionDirty: s.library.ProjectionDirty(), MaxUploadBytes: s.maxUploadBytes, MaxUploadFiles: s.maxUploadFiles}, nil)
+		return response(libraryInfo{Version: buildinfo.Get().Version, Timezone: s.library.Zone().String(), ProjectionDirty: s.library.ProjectionDirty(), MaxUploadBytes: s.maxUploadBytes, MaxUploadFiles: s.maxUploadFiles, ResumableUploadVersion: staging.Version, UploadChunkBytes: staging.ChunkBytes}, nil)
 	})
 	huma.Get(s.contract, Prefix+"/boxes", func(ctx context.Context, in *struct {
 		Tag string `query:"tag"`

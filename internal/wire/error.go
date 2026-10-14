@@ -19,6 +19,8 @@ type Error struct {
 
 	// OpID identifies a durably committed write whose response failed.
 	OpID int64 `json:"op_id,omitempty"`
+	// UploadOffset is the reliable position after a chunk offset conflict.
+	UploadOffset *int64 `json:"upload_offset,omitempty"`
 
 	// BlockingOp is the op standing in the way of an undo (undo_blocked).
 	BlockingOp int64 `json:"blocking_op,omitempty"`

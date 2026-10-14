@@ -9,11 +9,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/library"
 	"github.com/jinzhao1994/kist/internal/lockfile"
+	"github.com/jinzhao1994/kist/internal/upload"
 )
 
 // covered are the packages whose sentinels must all have codes. A package not
@@ -187,5 +189,34 @@ func TestClassOf(t *testing.T) {
 		if got := ClassOf(c.err); got != c.want {
 			t.Errorf("%v: ClassOf = %v, want %v", c.err, got, c.want)
 		}
+	}
+}
+
+func TestUploadProblemsAndDiskSpaceHaveStableCodes(t *testing.T) {
+	for _, tc := range []struct {
+		kind string
+		code Code
+	}{
+		{"not_found", CodeUploadSessionMissing}, {"expired", CodeUploadSessionExpired}, {"canceled", CodeUploadSessionCanceled},
+		{"conflict", CodeUploadSessionConflict}, {"corrupt", CodeUploadSessionCorrupt}, {"unsupported_version", CodeUploadSessionVersion},
+		{"quota", CodeUploadQuota}, {"offset", CodeUploadOffset}, {"chunk_integrity", CodeUploadChunkIntegrity},
+		{"file_integrity", CodeImportIntegrity}, {"incomplete", CodeUploadIncomplete}, {"completed", CodeUploadCompleted},
+		{"invalid_manifest", CodeUploadInvalid}, {"invalid_id", CodeUploadInvalid}, {"invalid_chunk", CodeUploadInvalid},
+	} {
+		err := fmt.Errorf("wrapped: %w", &upload.Problem{Kind: tc.kind})
+		if got := Of(err); got != tc.code {
+			t.Errorf("%s: %s", tc.kind, got)
+		}
+		if ClassOf(err) == ClassInternal {
+			t.Errorf("%s lacks a class", tc.kind)
+		}
+	}
+	out := Render(&upload.Problem{Kind: "offset", Offset: 0})
+	if out.UploadOffset == nil || *out.UploadOffset != 0 {
+		t.Fatal(out)
+	}
+	full := fmt.Errorf("write: %w", syscall.ENOSPC)
+	if Of(full) != CodeStorageFull || ClassOf(full) != ClassUnavailable {
+		t.Fatal(Render(full))
 	}
 }
