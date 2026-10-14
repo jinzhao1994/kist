@@ -92,7 +92,7 @@ export function FileBrowser({
       )}
       {query.data && (
         <>
-          <span className="sr-only" role="status">
+          <span className="file-count sr-only" role="status">
             {t("loadedFiles", { count: files.length })}
           </span>
           <ExtractionStatus files={files} state={extraction} />
