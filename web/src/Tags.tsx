@@ -1,6 +1,7 @@
 import {
   ActionIcon,
   Menu,
+  Portal,
   UnstyledButton,
   TextInput,
   Button,
@@ -26,7 +27,9 @@ export function TagTree({
 }) {
   const { prefs, t } = useI18n();
   const tree = useTree();
-  const [menu, setMenu] = useState<string | null>(null);
+  const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(
+    null,
+  );
   const [action, setAction] = useState<{ tag: Tag; kind: TagAction } | null>(
     null,
   );
@@ -62,7 +65,14 @@ export function TagTree({
           ) {
             event.preventDefault();
             event.stopPropagation();
-            if (!action) setMenu(target.dataset.value || null);
+            if (!action && target.dataset.value) {
+              const rect = target.getBoundingClientRect();
+              setMenu({
+                id: target.dataset.value,
+                x: rect.left,
+                y: rect.bottom,
+              });
+            }
             return;
           }
           if (
@@ -78,11 +88,16 @@ export function TagTree({
           <div
             {...elementProps}
             className={`${elementProps.className} tag-tree-row`}
+            data-active={
+              menu?.id === node.value ||
+              action?.tag.id === node.value ||
+              undefined
+            }
             onContextMenu={(event) => {
               if (action?.kind === "rename") return;
               event.preventDefault();
               event.stopPropagation();
-              setMenu(node.value);
+              setMenu({ id: node.value, x: event.clientX, y: event.clientY });
             }}
             onClick={(event) => {
               elementProps.onClick(event);
@@ -150,65 +165,88 @@ export function TagTree({
                 {formatNumber(counts.get(node.value)!.count!, prefs)}
               </small>
             )}
-            <Menu
-              returnFocus={false}
-              withinPortal
-              position="bottom-end"
-              opened={menu === node.value}
-              onChange={(open) => setMenu(open ? node.value : null)}
+            <ActionIcon
+              disabled={action?.kind === "rename"}
+              className="tag-row-menu"
+              size="sm"
+              variant="subtle"
+              color="gray"
+              aria-label={t("tagActions", { name: String(node.label) })}
+              aria-haspopup="menu"
+              aria-expanded={menu?.id === node.value}
+              onClick={(event) => {
+                event.stopPropagation();
+                const rect = event.currentTarget.getBoundingClientRect();
+                setMenu(
+                  menu?.id === node.value
+                    ? null
+                    : { id: node.value, x: rect.left, y: rect.bottom },
+                );
+              }}
             >
-              <Menu.Target>
-                <ActionIcon
-                  disabled={action?.kind === "rename"}
-                  className="tag-row-menu"
-                  size="sm"
-                  variant="subtle"
-                  color="gray"
-                  aria-label={t("tagActions", { name: String(node.label) })}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <circle cx="5" cy="12" r="1.5" />
-                    <circle cx="12" cy="12" r="1.5" />
-                    <circle cx="19" cy="12" r="1.5" />
-                  </svg>
-                </ActionIcon>
-              </Menu.Target>
-              <Menu.Dropdown
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
               >
-                {(
-                  [
-                    "rename",
-                    "addChildTag",
-                    "changeParentTag",
-                    "remove",
-                  ] as const
-                ).map((kind) => (
-                  <Menu.Item
-                    key={kind}
-                    color={kind === "remove" ? "red" : undefined}
-                    onClick={() => {
-                      setMenu(null);
-                      const tag = counts.get(node.value);
-                      if (tag) setAction({ tag, kind });
-                    }}
-                  >
-                    {t(kind)}
-                  </Menu.Item>
-                ))}
-              </Menu.Dropdown>
-            </Menu>
+                <circle cx="5" cy="12" r="1.5" />
+                <circle cx="12" cy="12" r="1.5" />
+                <circle cx="19" cy="12" r="1.5" />
+              </svg>
+            </ActionIcon>
           </div>
         )}
       />
+      <Menu
+        returnFocus={false}
+        withinPortal
+        position="bottom-start"
+        floatingStrategy="fixed"
+        offset={0}
+        opened={menu !== null}
+        onChange={(open) => {
+          if (!open) setMenu(null);
+        }}
+        styles={{ item: { fontSize: "var(--mantine-font-size-xs)" } }}
+      >
+        <Portal>
+          <Menu.Target>
+            <span
+              aria-hidden="true"
+              style={{
+                position: "fixed",
+                left: menu?.x ?? 0,
+                top: menu?.y ?? 0,
+                width: 1,
+                height: 1,
+                pointerEvents: "none",
+              }}
+            />
+          </Menu.Target>
+        </Portal>
+        <Menu.Dropdown
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          {(
+            ["rename", "addChildTag", "changeParentTag", "remove"] as const
+          ).map((kind) => (
+            <Menu.Item
+              key={kind}
+              color={kind === "remove" ? "red" : undefined}
+              onClick={() => {
+                setMenu(null);
+                const tag = menu && counts.get(menu.id);
+                if (tag) setAction({ tag, kind });
+              }}
+            >
+              {t(kind)}
+            </Menu.Item>
+          ))}
+        </Menu.Dropdown>
+      </Menu>
       {action && action.kind !== "rename" && (
         <TagActionDialog
           key={`${action.tag.id}:${action.kind}`}

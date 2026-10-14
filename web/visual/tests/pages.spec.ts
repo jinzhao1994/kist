@@ -1328,3 +1328,41 @@ for (const [mode, mobile] of [
     await capture(page, errors, info.title);
   });
 }
+
+test("tag-context-menu-pointer", async ({ page }, info) => {
+  const errors = await prepare(page);
+  await page.goto("/files");
+  await grid(page);
+  const row = page.locator(".tag-tree-row").filter({ hasText: "旅行" });
+  const bounds = (await row.boundingBox())!;
+  const point = { x: bounds.x + 65, y: bounds.y + 15 };
+  await page.mouse.click(point.x, point.y, { button: "right" });
+  const menu = page.getByRole("menu");
+  await expect(
+    page.getByRole("menuitem", { name: "重命名", exact: true }),
+  ).toBeVisible();
+  await expect(row).toHaveAttribute("data-active", "true");
+  expect(
+    await row.evaluate((element) => getComputedStyle(element).backgroundColor),
+  ).not.toBe(
+    await page
+      .locator("aside")
+      .evaluate((element) => getComputedStyle(element).backgroundColor),
+  );
+  await expect
+    .poll(async () => {
+      const rect = (await menu.boundingBox())!;
+      return Math.abs(rect.x - point.x) < 3 && Math.abs(rect.y - point.y) < 3;
+    })
+    .toBe(true);
+  await expect(
+    page.getByRole("menuitem", { name: "重命名", exact: true }),
+  ).toHaveCSS("font-size", "12px");
+  await capture(page, errors, info.title);
+  await page.keyboard.press("Escape");
+  await expect(menu).not.toBeVisible();
+  await expect(row).not.toHaveAttribute("data-active");
+  await page.getByRole("button", { name: "旅行的操作", exact: true }).click();
+  await expect(menu).toBeVisible();
+  await expect(row).toHaveAttribute("data-active", "true");
+});

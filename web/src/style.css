@@ -308,6 +308,9 @@ summary {
 .tag-tree-row:hover {
   background: var(--mantine-color-default-hover);
 }
+.tag-tree-row[data-active] {
+  background: var(--mantine-primary-color-light);
+}
 .tag-tree-toggle,
 .tag-tree-spacer {
   display: inline-flex;

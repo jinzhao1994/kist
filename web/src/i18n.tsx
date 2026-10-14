@@ -499,7 +499,7 @@ export const zh: Record<MessageKey, string> = {
   tagAny: "包含任一标签",
   tagNot: "排除这些标签",
   newTag: "新建标签",
-  rename: "改名",
+  rename: "重命名",
   tagActions: "{name}的操作",
   addChildTag: "添加子标签",
   changeParentTag: "更改父标签",
