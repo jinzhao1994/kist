@@ -297,30 +297,31 @@ it("replaces the box search bar when switching to all files and applies a box co
 });
 
 it("sorts boxes from list headings and keeps the search when switching views", async () => {
+  const requests: string[] = [];
   vi.stubGlobal(
     "fetch",
-    vi.fn(
-      async (path: string) =>
-        new Response(
-          JSON.stringify(
-            path.includes("/boxes/search?")
-              ? {
-                  boxes: [
-                    {
-                      id: "box-layout",
-                      name: "Archive",
-                      description: "A short description",
-                      start_at: "2025",
-                      end_at: "2026",
-                      created_at: "2026-01-01T00:00:00Z",
-                      updated_at: "2026-01-01T00:00:00Z",
-                    },
-                  ],
-                }
-              : { version: "test", timezone: "UTC", projection_dirty: false },
-          ),
+    vi.fn(async (path: string) => {
+      requests.push(path);
+      return new Response(
+        JSON.stringify(
+          path.includes("/boxes/search?")
+            ? {
+                boxes: [
+                  {
+                    id: "box-layout",
+                    name: "Archive",
+                    description: "A short description",
+                    start_at: "2025",
+                    end_at: "2026",
+                    created_at: "2026-01-01T00:00:00Z",
+                    updated_at: "2026-01-01T00:00:00Z",
+                  },
+                ],
+              }
+            : { version: "test", timezone: "UTC", projection_dirty: false },
         ),
-    ),
+      );
+    }),
   );
   mount();
   const user = userEvent.setup();
@@ -329,6 +330,12 @@ it("sorts boxes from list headings and keeps the search when switching views", a
     screen.getByRole("combobox", { name: "Search or add a condition…" }),
     "Archive{Enter}{Escape}",
   );
+  // Wait for the debounced search to replace the initial query before using
+  // its headings: a refetch can otherwise detach the button mid-click.
+  await waitFor(() =>
+    expect(requests.some((path) => path.includes("text=Archive"))).toBe(true),
+  );
+  await screen.findByRole("heading", { name: "Archive" });
   await user.click(screen.getByRole("button", { name: "Display mode" }));
   await user.click(screen.getByRole("menuitem", { name: "List" }));
   expect(
