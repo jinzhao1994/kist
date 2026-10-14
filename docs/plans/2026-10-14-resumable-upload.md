@@ -67,3 +67,23 @@ HTTP 阶段提交 `3c64cfc` 的 CI（38504251835）和 Visual（38504251892）�
 完成后连续两次 POST 同会话 complete 均返回原 `op_id=30`。浏览器提交 `3e5a9d9` 的完整 CI 38506209711 已全部通过（Windows、macOS、ARM Linux、amd64/arm64 容器及主检查）。修正视觉选择器后再次 `make check` 通过（`/tmp/kist-resumable-qa-check.log`，退出码 0）。
 
 Visual 38506708183 的桌面新增用例已成功捕获，手机用例停在缩略图等待：上传恢复面板使文件卡片位于懒加载视口之外。测试改为先逐个滚动访问卡片，再返回上传面板，保留生产懒加载策略。审阅桌面截图还发现多个上传操作按钮紧贴，补上 flex 换行和间距，兼顾窄屏。此时尚未接受任何新基准。
+
+## 按目标逐项核对
+
+| 要求 | 已检查的实现与验证证据 |
+| --- | --- |
+| 1 持久会话、目标与清单、可靠位置 | upload 的版本化 State/Manifest、Create/With；API 创建、查询与续租；TestResumeOnlyMissingBytes 与 TestManifestIsolationAndIdempotency |
+| 2 网络、刷新、重启、原文件内容身份 | resumable-upload 控制器重新选择后 Worker 全文件校验；真实 Chrome 32 MiB 刷新与 96 MiB 重启恢复；同名同大小同时间错误内容被拒绝 |
+| 3 块与整文件校验 | Append 验证块 SHA-256；Verify 核对完整大小与 SHA-256；PrepareFiles 和最终 blob 复核；坏块只重传对应块的控制器测试与最终损坏 API 测试 |
+| 4 确认与崩溃一致性 | 数据 fsync 后才持久化进度；TestProcessDeathAtDurabilityBoundaries 四个子进程退出点、重复块/偏移/独立 Store 并发、缺失确认数据及未确认尾部测试 |
+| 5 暂存边界与幂等归档 | staging 不写 op 的 API 断言、架构依赖守卫、library.ExecuteRequest 唯一最终写入口；回执在清理、rebuild、撤销后仍有效；完成响应丢失和并发完成只导入一次 |
+| 6 目标失效 | UploadTarget 目标结构签名与最终库锁内复核；提交边界重命名/删除、无关目录修改区分测试；目录删除/归属测试 |
+| 7 暂停、继续、取消、进度与边界说明 | ResumableUpload 控件、控制器暂停/取消和 UI 重挂载测试；真实 Chrome 暂停/继续与错误提示；README 明确手机后台不保证 |
+| 8 配额、清理和访问约束 | 8 会话、2 倍声明容量、7 天空闲过期、每小时 sweep；忙会话跳过、创建额度并发、取消/过期测试；路径/符号链接隔离和 Host/Origin/跨站拒绝测试 |
+| 9 兼容与升级 | /info 能力发现；保留已校验 LegacyUpload 和旧未决回执；普通 multipart 回归与旧 manifest 拒绝测试；中英文 README 升级说明 |
+
+所有实现阶段均通过本机 `make check`，最近记录 `/tmp/kist-resumable-virtual-check.log` 退出码 0；代码提交 `26135ff` 的完整 CI 38507797002 与 Secret scan 38507796921 通过。真实样本、独立摘要和 verify --deep 结果见上节。
+
+正式 Visual 38507796876 全部 77 项捕获成功，比较报告有 7 项预期差异：新增桌面/手机恢复面板两张，box-files、box-trash-confirm-desktop/mobile、folder-navigation-desktop/mobile 因上传按钮区间距增加发生小幅位移。逐一查看新增图和五组前后图后接受；工作流 38508250204 成功，基准引用提交 `7662541` 指向 `26135ff`。PNG 仍只保存在 Actions artifacts，未提交进 Git。手机测试最终使用稳定 `.file-scroll` 容器滚动，解决虚拟卡片尚不存在的问题，未关闭生产懒加载或虚拟化。
+
+基准更新及本记录提交后的 CI/Visual 仍需跟进最新运行结果，不把接受基准等同于复验通过。本机开发服务保留；未发版本、未操作 NAS、未创建 PR。
