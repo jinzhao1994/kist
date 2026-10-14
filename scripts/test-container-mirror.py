@@ -43,18 +43,17 @@ class MirrorTests(unittest.TestCase):
             mirror.publish(META, "owner/kist")
             copy.assert_called_once_with(f"ghcr.io/owner/kist@{DIGEST}", "docker.io/owner/kist:v0.1.2")
 
-    def test_edge_does_not_create_temporary_tags(self):
-        metadata = {**META, "tag": "edge", "version": "edge-" + "c" * 40}
-        with patch.object(mirror, "existing_digest", return_value=OTHER), patch.object(mirror, "copy_index") as copy, patch.object(mirror.channel, "digest_for", return_value=DIGEST):
-            mirror.publish(metadata, "owner/kist")
-            copy.assert_called_once_with(f"ghcr.io/owner/kist@{DIGEST}", "docker.io/owner/kist:edge")
+    def test_edge_is_rejected_before_registry_access(self):
+        with patch.object(mirror.channel, "digest_for") as inspect:
+            with self.assertRaises(ValueError):
+                mirror.resolve("edge", "owner/kist")
+            inspect.assert_not_called()
 
-    def test_version_and_edge_acceptance_do_not_write_again(self):
-        for tag in ("v0.1.2", "edge"):
-            metadata = {**META, "tag": tag}
-            with patch.object(mirror, "resolve", return_value=metadata), patch.object(mirror, "copy_index") as copy, patch.object(mirror.channel, "digest_for", return_value=DIGEST):
-                mirror.promote(metadata, "owner/kist", "owner/kist")
-                copy.assert_not_called()
+    def test_version_acceptance_does_not_write_again(self):
+        metadata = {**META, "tag": "v0.1.2"}
+        with patch.object(mirror, "resolve", return_value=metadata), patch.object(mirror, "copy_index") as copy, patch.object(mirror.channel, "digest_for", return_value=DIGEST):
+            mirror.promote(metadata, "owner/kist", "owner/kist")
+            copy.assert_not_called()
 
     def test_changed_version_cannot_promote_latest(self):
         with patch.object(mirror, "resolve", return_value=META), patch.object(mirror, "copy_index") as copy, patch.object(mirror.channel, "digest_for", return_value=OTHER):

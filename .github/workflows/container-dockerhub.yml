@@ -2,12 +2,12 @@ name: Container Docker Hub
 
 on:
   workflow_run:
-    workflows: [Container Release, Container Latest, Container Edge]
+    workflows: [Container Release, Container Latest]
     types: [completed]
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing GHCR tag to mirror (vMAJOR.MINOR.PATCH, latest, edge)
+        description: Existing GHCR tag to mirror (vMAJOR.MINOR.PATCH, latest)
         required: true
         default: latest
 
@@ -18,7 +18,7 @@ permissions:
 # Serialize moving channels and recheck before promotion. Keep each release
 # backfill independent so a queued channel update cannot cancel a version copy.
 concurrency:
-  group: container-dockerhub-${{ inputs.tag || (github.event.workflow_run.name == 'Container Latest' && 'latest') || (github.event.workflow_run.name == 'Container Edge' && 'edge') || github.event.workflow_run.id }}
+  group: container-dockerhub-${{ inputs.tag || (github.event.workflow_run.name == 'Container Latest' && 'latest') || github.event.workflow_run.id }}
   cancel-in-progress: false
 
 env:
@@ -55,7 +55,7 @@ jobs:
           }
       - name: Install registry copy tool
         run: sudo apt-get update && sudo apt-get install -y skopeo
-      - name: Publish the version or edge index without temporary tags
+      - name: Publish the version index without temporary tags
         id: copy
         env:
           GH_TOKEN: ${{ github.token }}
@@ -68,7 +68,6 @@ jobs:
           tag="$REQUESTED_TAG"
           case "$UPSTREAM_WORKFLOW" in
             'Container Latest') tag=latest ;;
-            'Container Edge') tag=edge ;;
             'Container Release')
               # Dry runs have no successful publish job. Manual backfills run
               # on main, so read the accepted index's version label below.

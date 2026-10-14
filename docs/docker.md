@@ -87,20 +87,19 @@ architecture.
 | --- | --- | --- |
 | `vX.Y.Z` | Once, for that stable release | Reproducible NAS deployments |
 | `latest` | GitHub's latest stable release image passes native acceptance on both architectures | Following stable releases |
-| `edge` | Current main passes push CI and native image acceptance on both architectures | Development previews |
 
 GHCR images are published at `ghcr.io/jinzhao1994/kist`, with Docker Hub copies
 at `jinzhao1994/kist`. Channel updates reuse the
 verified multi-platform index digest. Old queued runs recheck the current source
 before promotion, so backfilling an older release cannot roll back `latest`.
-The **Container Latest** and **Container Edge** workflow summaries record the
-source revision and digest. Both workflows also support manual dispatch on main
-for initial publication or recovery; manual edge runs still require successful
-push CI for the current main commit.
+The **Container Latest** workflow summary records the source revision and digest.
+It also supports manual dispatch on main for initial publication or recovery.
+Daily pushes to main run checks without publishing development images. The old
+`edge` tag is no longer updated; use a stable release or build locally.
 
-To opt in, set `KIST_IMAGE=ghcr.io/jinzhao1994/kist:latest` (or `:edge`) and use the
-same pull/recreate commands above. Running containers do not update themselves;
-there is no automatic upgrade service. Edge may contain unreleased changes.
+To opt in, set `KIST_IMAGE=ghcr.io/jinzhao1994/kist:latest` and use the same
+pull/recreate commands above. Running containers do not update themselves;
+there is no automatic upgrade service.
 
 Downgrades are not guaranteed; restore the matching backup if a newer version
 has introduced incompatible data or operations. Keep the same volume and project
@@ -114,7 +113,7 @@ CI compares both Compose configurations to prevent accidental divergence.
 
 ## Docker Hub
 
-The **Container Docker Hub** workflow mirrors versions, `latest` and `edge` to
+The **Container Docker Hub** workflow mirrors versions and `latest` to
 `docker.io/jinzhao1994/kist` without rebuilding; successful copies have the same
 index digest as GHCR. Check that workflow completed for the desired tag before
 switching `KIST_IMAGE` to `jinzhao1994/kist:latest` or a fixed version. Keep the
