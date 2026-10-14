@@ -1228,7 +1228,20 @@ for (const mobile of [false, true]) {
     await expect(
       page.locator("button").filter({ hasText: "重新选择原文件" }),
     ).toBeVisible();
+    if (mobile) {
+      // The recovery panel pushes thumbnails below the lazy-load viewport.
+      // Visit each card before capturing the full page, then return to upload.
+      await expect(page.locator(".file-card")).toHaveCount(4);
+      for (const card of await page.locator(".file-card").all()) {
+        await card.scrollIntoViewIfNeeded();
+      }
+    }
     await grid(page);
+    if (mobile) {
+      await page
+        .getByRole("region", { name: "添加文件", exact: true })
+        .scrollIntoViewIfNeeded();
+    }
     await capture(page, errors, info.title);
   });
 }
