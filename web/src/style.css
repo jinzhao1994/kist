@@ -1416,7 +1416,7 @@ fieldset > label,
 .box-grid.view-list .box-summary {
   display: flex;
   align-items: baseline;
-  gap: 0.8rem;
+  gap: 1.2rem;
   overflow: hidden;
 }
 .box-grid.view-list .box-summary h2 {
