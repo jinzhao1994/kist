@@ -340,9 +340,14 @@ it("sorts boxes from list headings and keeps the search when switching views", a
       '"sort":"activity"',
     ),
   );
-  const first = location.href;
-  await user.click(screen.getByRole("button", { name: /^Activity date:/ }));
-  await waitFor(() => expect(location.href).not.toBe(first));
+  const descending = await screen.findByRole("button", {
+    name: "Activity date: Descending",
+  });
+  await user.click(descending);
+  await screen.findByRole("button", { name: "Activity date: Ascending" });
+  expect(
+    JSON.parse(new URL(location.href).searchParams.get("box_filter")!).asc,
+  ).toBe(true);
   expect(new URL(location.href).searchParams.get("box_filter")).toContain(
     "Archive",
   );
