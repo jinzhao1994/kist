@@ -39,6 +39,10 @@ import {
 export function App() {
   const { t, prefs } = useI18n();
   const { route, go } = useNavigation();
+  const [actionsHost, setActionsHost] = useState<HTMLSpanElement | null>(null);
+  const [infoHost, setInfoHost] = useState<HTMLDivElement | null>(null);
+  const [fileToolbarHost, setFileToolbarHost] =
+    useState<HTMLSpanElement | null>(null);
   const [boxMode, setBoxMode] = useDisplayMode("boxes");
   const [settings, setSettings] = useState(false);
   const [editor, setEditor] = useState<Box | "new" | null>(null);
@@ -238,7 +242,9 @@ export function App() {
           className={
             !route.section && !selected && !route.files && !route.tag
               ? "boxes-page"
-              : undefined
+              : route.files
+                ? "files-page"
+                : undefined
           }
         >
           <header className="page-header">
@@ -267,15 +273,21 @@ export function App() {
                     </span>
                   )}
               </div>
-              {route.box && route.files && currentFolder && (
-                <FolderBreadcrumbs
-                  folders={folderList}
-                  current={currentFolder}
-                  choose={chooseFolder}
-                />
-              )}
+              {route.box &&
+                route.files &&
+                currentFolder &&
+                folderChain(folderList, currentFolder).length > 1 && (
+                  <FolderBreadcrumbs
+                    rootLabel={selected?.name}
+                    folders={folderList}
+                    current={currentFolder}
+                    choose={chooseFolder}
+                  />
+                )}
+              {route.files && <div ref={setInfoHost} />}
             </div>
             <div className="header-actions">
+              {route.files && selected && <span ref={setActionsHost} />}
               <Tooltip
                 label={t("refresh")}
                 events={{ hover: true, focus: true, touch: false }}
@@ -429,6 +441,7 @@ export function App() {
           ) : route.files && (!route.box || selected) ? (
             <>
               <FiltersPanel
+                toolbar={<span ref={setFileToolbarHost} />}
                 saveSearch={
                   currentSearch && (
                     <SaveSearchButton definition={currentSearch} />
@@ -461,6 +474,9 @@ export function App() {
                 <p role="alert">{t("notFound")}</p>
               ) : (
                 <FileBrowser
+                  toolbarHost={fileToolbarHost}
+                  actionsHost={actionsHost}
+                  infoHost={infoHost}
                   key={route.box || "all"}
                   box={selected}
                   folder={queryFolder}

@@ -12,7 +12,6 @@ import { useRef, useState, type ReactNode } from "react";
 import type { FileQuery, BoxQuery, Box, Tag } from "./api";
 import { flattenTags, tagOption, TagPath } from "./TagPath";
 import { useI18n } from "./i18n";
-import { Select } from "./Select";
 export type Filters = Omit<FileQuery, "folder" | "cursor" | "limit">;
 export const emptyFilters: Filters = {
   name: "",
@@ -370,7 +369,7 @@ export function FiltersPanel<T extends FilterValues>({
         </Combobox>
       </div>
       {saveSearch}
-      {!hideSort && entity === "boxes" && (
+      {!hideSort && (
         <Menu position="bottom-end">
           <Menu.Target>
             <ActionIcon
@@ -394,11 +393,27 @@ export function FiltersPanel<T extends FilterValues>({
           </Menu.Target>
           <Menu.Dropdown>
             {(
-              [
-                ["activity", "activityDate"],
-                ["name", "name"],
-                ["updated", "updated"],
-              ] as const
+              (entity === "boxes"
+                ? [
+                    ["activity", "activityDate"],
+                    ["name", "name"],
+                    ["updated", "updated"],
+                  ]
+                : [
+                    ["captured", "captured"],
+                    ["imported", "imported"],
+                    ["name", "filename"],
+                  ]) as [
+                T["sort"],
+                (
+                  | "activityDate"
+                  | "name"
+                  | "updated"
+                  | "captured"
+                  | "imported"
+                  | "filename"
+                ),
+              ][]
             ).map(([sort, label]) => (
               <Menu.Item
                 key={sort}
@@ -417,30 +432,6 @@ export function FiltersPanel<T extends FilterValues>({
             </Menu.Item>
           </Menu.Dropdown>
         </Menu>
-      )}
-      {!hideSort && entity !== "boxes" && (
-        <div className="filter-sort">
-          <Select
-            label={t("sort")}
-            value={value.sort || "captured"}
-            onValueChange={(sort) => change({ sort: sort as T["sort"] })}
-            options={[
-              { value: "captured", label: t("captured") },
-              { value: "imported", label: t("imported") },
-              { value: "name", label: t("filename") },
-            ]}
-          />
-          <ActionIcon
-            size="lg"
-            variant="default"
-            aria-label={t("ascending")}
-            aria-pressed={!!value.asc}
-            title={t(value.asc ? "ascending" : "descending")}
-            onClick={() => change({ asc: !value.asc })}
-          >
-            {value.asc ? "↑" : "↓"}
-          </ActionIcon>
-        </div>
       )}
       {toolbar}
     </section>

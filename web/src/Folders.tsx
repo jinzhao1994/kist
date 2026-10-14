@@ -25,10 +25,12 @@ export function folderChain(folders: Folder[], id: string): Folder[] {
   return [];
 }
 export function FolderBreadcrumbs({
+  rootLabel,
   folders,
   current,
   choose,
 }: {
+  rootLabel?: string;
   folders: Folder[];
   current: string;
   choose: (id: string) => void;
@@ -39,7 +41,7 @@ export function FolderBreadcrumbs({
       {folderChain(folders, current).map((folder) =>
         folder.id === current ? (
           <span key={folder.id} aria-current="page">
-            <bdi>{folder.name || t("boxRoot")}</bdi>
+            <bdi>{folder.name || rootLabel || t("boxRoot")}</bdi>
           </span>
         ) : (
           <Anchor
@@ -47,7 +49,7 @@ export function FolderBreadcrumbs({
             key={folder.id}
             onClick={() => choose(folder.id)}
           >
-            <bdi>{folder.name || t("boxRoot")}</bdi>
+            <bdi>{folder.name || rootLabel || t("boxRoot")}</bdi>
           </Anchor>
         ),
       )}

@@ -373,11 +373,15 @@ export function TagManager({
   );
 }
 export function TagAssignment({
+  compact = false,
+  editing = true,
   target,
   kind,
   tags,
   assigned,
 }: {
+  compact?: boolean;
+  editing?: boolean;
   target: string;
   kind: "files" | "boxes";
   tags: Tag[];
@@ -389,8 +393,8 @@ export function TagAssignment({
   const [selected, setSelected] = useState("");
   const state = useWrites(() => setSelected(""));
   return (
-    <section className="tag-assignment">
-      <h3>{t("tags")}</h3>
+    <section className={`tag-assignment ${compact ? "compact-tags" : ""}`}>
+      {!compact && <h3>{t("tags")}</h3>}
       <ul className="tag-chips">
         {assigned.map((tagID) => (
           <li key={tagID}>
@@ -411,38 +415,52 @@ export function TagAssignment({
           </li>
         ))}
       </ul>
-      <div className="inline-form">
-        <label className="sr-only" htmlFor={id}>
-          {t("selectTag")}
-        </label>
-        <TagSelect
-          id={id}
-          disabled={state.busy || state.locked}
-          value={selected}
-          onValueChange={setSelected}
-          options={[
-            { value: "", label: t("selectTag") },
-            ...flat.filter((tag) => !assigned.includes(tag.id)).map(tagOption),
-          ]}
-        />
-        <Button
-          disabled={!selected || state.busy || state.locked}
-          onClick={() =>
-            state.run([
-              createWrite("PUT", `/tags/${selected}/${kind}`, {
-                ids: [target],
-              }),
-            ])
-          }
-        >
-          {t("addTag")}
-        </Button>
-      </div>
+      {editing && (
+        <div className="inline-form">
+          <label className="sr-only" htmlFor={id}>
+            {t("selectTag")}
+          </label>
+          <TagSelect
+            id={id}
+            disabled={state.busy || state.locked}
+            value={selected}
+            onValueChange={setSelected}
+            options={[
+              { value: "", label: t("selectTag") },
+              ...flat
+                .filter((tag) => !assigned.includes(tag.id))
+                .map(tagOption),
+            ]}
+          />
+          <Button
+            disabled={!selected || state.busy || state.locked}
+            onClick={() =>
+              state.run([
+                createWrite("PUT", `/tags/${selected}/${kind}`, {
+                  ids: [target],
+                }),
+              ])
+            }
+          >
+            {t("addTag")}
+          </Button>
+        </div>
+      )}
       <WriteFeedback state={state} />
     </section>
   );
 }
-export function BoxTags({ box, tags }: { box: string; tags: Tag[] }) {
+export function BoxTags({
+  box,
+  tags,
+  compact = false,
+  editing = true,
+}: {
+  box: string;
+  tags: Tag[];
+  compact?: boolean;
+  editing?: boolean;
+}) {
   const query = useQuery({
     queryKey: ["box-tags", box],
     queryFn: ({ signal }) =>
@@ -452,6 +470,8 @@ export function BoxTags({ box, tags }: { box: string; tags: Tag[] }) {
   if (query.isError) return <p role="alert">{t("error")}</p>;
   return query.data ? (
     <TagAssignment
+      compact={compact}
+      editing={editing}
       target={box}
       kind="boxes"
       tags={tags}

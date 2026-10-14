@@ -1,5 +1,13 @@
+import type { UploadHandle } from "./Upload";
 import { Button } from "@mantine/core";
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useImperativeHandle,
+  type Ref,
+  type ReactNode,
+} from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDropzone } from "react-dropzone";
 import { APIError } from "./api";
@@ -13,6 +21,9 @@ import {
 } from "./resumable-upload";
 
 export function ResumableUpload({
+  pickerRef,
+  children,
+  compact,
   box,
   folder,
   chunkBytes,
@@ -20,6 +31,9 @@ export function ResumableUpload({
   maxBytes,
   onComplete,
 }: {
+  pickerRef?: Ref<UploadHandle>;
+  children?: ReactNode;
+  compact?: boolean;
   box: string;
   folder: string;
   chunkBytes: number;
@@ -222,6 +236,9 @@ export function ResumableUpload({
       start();
     },
   });
+  useImperativeHandle(pickerRef, () => ({ open: drop.open }), [drop.open]);
+  const showPanel =
+    !compact || busy || !!activePending || !!error || !!setup.error;
   const label =
     phase === "hashing"
       ? t("uploadHashing")
@@ -233,7 +250,7 @@ export function ResumableUpload({
   return (
     <section
       {...drop.getRootProps({
-        className: `dropzone ${drop.isDragActive ? "drag-active" : ""}`,
+        className: `${compact ? "file-dropzone" : "dropzone"} ${drop.isDragActive ? "drag-active" : ""}`,
         role: "region",
         "aria-label": t("upload"),
         "aria-disabled": undefined,
@@ -244,82 +261,92 @@ export function ResumableUpload({
           "aria-label": activePending ? t("uploadReselect") : t("chooseFiles"),
         })}
       />
-      <div>
-        <strong>{t(phase === "saved" ? "uploadComplete" : "upload")}</strong>
-        <p>{t("uploadToFolder")}</p>
-        <small>
-          {t("uploadLimit", {
-            count: formatNumber(maxFiles, prefs),
-            size: formatBytes(maxBytes, prefs),
-          })}
-        </small>
-      </div>
-      <div className="upload-actions">
-        {busy ? (
-          <>
-            <progress
-              value={
-                phase === "processing" || phase === "checking"
-                  ? undefined
-                  : progress
-              }
-              max={1}
-              aria-label={label}
-            />
-            <span role="status">
-              {label}
-              {phase === "uploading" || phase === "hashing"
-                ? ` ${formatNumber(Math.round(progress * 100), prefs)}%`
-                : ""}
-            </span>
+      <div hidden={!showPanel} className={compact ? "upload-panel" : undefined}>
+        <div>
+          <strong>{t(phase === "saved" ? "uploadComplete" : "upload")}</strong>
+          <p>{t("uploadToFolder")}</p>
+          <small>
+            {t("uploadLimit", {
+              count: formatNumber(maxFiles, prefs),
+              size: formatBytes(maxBytes, prefs),
+            })}
+          </small>
+        </div>
+        <div className="upload-actions">
+          {busy ? (
+            <>
+              <progress
+                value={
+                  phase === "processing" || phase === "checking"
+                    ? undefined
+                    : progress
+                }
+                max={1}
+                aria-label={label}
+              />
+              <span role="status">
+                {label}
+                {phase === "uploading" || phase === "hashing"
+                  ? ` ${formatNumber(Math.round(progress * 100), prefs)}%`
+                  : ""}
+              </span>
+              <Button
+                disabled={phase === "checking"}
+                onClick={() => operation?.pause()}
+              >
+                {t("uploadPause")}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="filled"
+                disabled={!operation}
+                onClick={drop.open}
+              >
+                {activePending ? t("uploadReselect") : t("chooseFiles")}
+              </Button>
+              {activePending && (
+                <>
+                  {operation?.hasFiles() && (
+                    <Button onClick={start}>{t("uploadResume")}</Button>
+                  )}
+                  {activePending.files && (
+                    <Button onClick={() => void check()}>
+                      {t("checkResult")}
+                    </Button>
+                  )}
+                </>
+              )}
+            </>
+          )}
+          {activePending && (
             <Button
               disabled={phase === "checking"}
-              onClick={() => operation?.pause()}
+              onClick={() => void cancel()}
             >
-              {t("uploadPause")}
+              {t("cancel")}
             </Button>
-          </>
-        ) : (
-          <>
-            <Button variant="filled" disabled={!operation} onClick={drop.open}>
-              {activePending ? t("uploadReselect") : t("chooseFiles")}
-            </Button>
-            {activePending && (
-              <>
-                {operation?.hasFiles() && (
-                  <Button onClick={start}>{t("uploadResume")}</Button>
-                )}
-                {activePending.files && (
-                  <Button onClick={() => void check()}>
-                    {t("checkResult")}
-                  </Button>
-                )}
-              </>
-            )}
-          </>
+          )}
+        </div>
+        {activePending && !busy && (
+          <p role="status">
+            {t("uploadPaused", {
+              percent: formatNumber(Math.round(progress * 100), prefs),
+            })}
+          </p>
         )}
-        {activePending && (
-          <Button disabled={phase === "checking"} onClick={() => void cancel()}>
-            {t("cancel")}
-          </Button>
+        {activePending && !busy && !operation?.hasFiles() && (
+          <p>{t("uploadReselectHint")}</p>
+        )}
+        {activePending && <small>{t("uploadBackgroundHint")}</small>}
+        {!!(error || setup.error) && (
+          <p role="alert" className="upload-error">
+            {error || message(setup.error)}
+          </p>
         )}
       </div>
-      {activePending && !busy && (
-        <p role="status">
-          {t("uploadPaused", {
-            percent: formatNumber(Math.round(progress * 100), prefs),
-          })}
-        </p>
-      )}
-      {activePending && !busy && !operation?.hasFiles() && (
-        <p>{t("uploadReselectHint")}</p>
-      )}
-      {activePending && <small>{t("uploadBackgroundHint")}</small>}
-      {!!(error || setup.error) && (
-        <p role="alert" className="upload-error">
-          {error || message(setup.error)}
-        </p>
-      )}
+      {children}
     </section>
   );
 }

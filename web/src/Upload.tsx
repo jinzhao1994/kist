@@ -1,12 +1,23 @@
 import { Button } from "@mantine/core";
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useImperativeHandle,
+  type Ref,
+  type ReactNode,
+} from "react";
 import { useDropzone } from "react-dropzone";
 import { useQueryClient } from "@tanstack/react-query";
 import { api, APIError, createUpload } from "./api";
 import { formatBytes, formatNumber, useI18n } from "./i18n";
 import { errorMessage } from "./mutations";
 import { ResumableUpload } from "./ResumableUpload";
+export type UploadHandle = { open: () => void };
 type UploadProps = {
+  pickerRef?: Ref<UploadHandle>;
+  children?: ReactNode;
+  compact?: boolean;
   box: string;
   folder?: string;
   maxFiles: number;
@@ -40,6 +51,9 @@ export function Upload(props: UploadProps) {
   return <LegacyUpload {...props} />;
 }
 function LegacyUpload({
+  pickerRef,
+  children,
+  compact,
   box,
   folder,
   maxFiles,
@@ -129,6 +143,9 @@ function LegacyUpload({
       void run();
     },
   });
+  useImperativeHandle(pickerRef, () => ({ open: drop.open }), [drop.open]);
+  const showPanel =
+    !compact || busy || !!pendingKey || !!error || phase === "failed";
   async function check() {
     if (!pendingKey) return;
     try {
@@ -145,7 +162,7 @@ function LegacyUpload({
   return (
     <section
       {...drop.getRootProps({
-        className: `dropzone ${drop.isDragActive ? "drag-active" : ""}`,
+        className: `${compact ? "file-dropzone" : "dropzone"} ${drop.isDragActive ? "drag-active" : ""}`,
         role: "region",
         "aria-label": t("upload"),
         // Disable file intake without disabling cancel/retry controls inside.
@@ -153,79 +170,87 @@ function LegacyUpload({
       })}
     >
       <input {...drop.getInputProps({ "aria-label": t("chooseFiles") })} />
-      <div>
-        <strong>{t(phase === "saved" ? "uploadComplete" : "upload")}</strong>
-        <p>{t(folder ? "uploadToFolder" : "importHint")}</p>
-        <small>
-          {t("uploadLimit", {
-            count: formatNumber(maxFiles, prefs),
-            size: formatBytes(maxBytes, prefs),
-          })}
-        </small>
-      </div>
-      <div className="upload-actions">
-        {busy ? (
-          <>
-            <progress
-              value={phase === "processing" ? undefined : progress}
-              max={1}
-              aria-label={t(
-                phase === "hashing"
-                  ? "uploadHashing"
-                  : phase === "processing"
-                    ? "uploadProcessing"
-                    : "uploading",
-              )}
-            />
-            <span role="status">
-              {phase === "processing"
-                ? t("uploadProcessing")
-                : phase === "hashing"
-                  ? `${t("uploadHashing")} ${formatNumber(Math.round(progress * 100), prefs)}%`
-                  : t("uploadProgress", {
-                      percent: formatNumber(Math.round(progress * 100), prefs),
-                    })}
-            </span>
-            <Button onClick={() => operation.current?.cancel()}>
-              {t("cancel")}
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button
-              variant="filled"
-              disabled={phase === "failed"}
-              onClick={drop.open}
-            >
-              {t("chooseFiles")}
-            </Button>
-            {phase === "failed" && (
-              <>
-                {operation.current && (
-                  <Button onClick={run}>{t("retry")}</Button>
+      <div hidden={!showPanel} className={compact ? "upload-panel" : undefined}>
+        <div>
+          <strong>{t(phase === "saved" ? "uploadComplete" : "upload")}</strong>
+          <p>{t(folder ? "uploadToFolder" : "importHint")}</p>
+          <small>
+            {t("uploadLimit", {
+              count: formatNumber(maxFiles, prefs),
+              size: formatBytes(maxBytes, prefs),
+            })}
+          </small>
+        </div>
+        <div className="upload-actions">
+          {busy ? (
+            <>
+              <progress
+                value={phase === "processing" ? undefined : progress}
+                max={1}
+                aria-label={t(
+                  phase === "hashing"
+                    ? "uploadHashing"
+                    : phase === "processing"
+                      ? "uploadProcessing"
+                      : "uploading",
                 )}
-                <Button onClick={check}>{t("checkResult")}</Button>
-                <Button
-                  onClick={() => {
-                    remember("");
-                    operation.current = null;
-                    setPhase("idle");
-                    setError("");
-                  }}
-                >
-                  {t("newOperation")}
-                </Button>
-              </>
-            )}
-          </>
+              />
+              <span role="status">
+                {phase === "processing"
+                  ? t("uploadProcessing")
+                  : phase === "hashing"
+                    ? `${t("uploadHashing")} ${formatNumber(Math.round(progress * 100), prefs)}%`
+                    : t("uploadProgress", {
+                        percent: formatNumber(
+                          Math.round(progress * 100),
+                          prefs,
+                        ),
+                      })}
+              </span>
+              <Button onClick={() => operation.current?.cancel()}>
+                {t("cancel")}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="filled"
+                disabled={phase === "failed"}
+                onClick={drop.open}
+              >
+                {t("chooseFiles")}
+              </Button>
+              {phase === "failed" && (
+                <>
+                  {operation.current && (
+                    <Button onClick={run}>{t("retry")}</Button>
+                  )}
+                  <Button onClick={check}>{t("checkResult")}</Button>
+                  <Button
+                    onClick={() => {
+                      remember("");
+                      operation.current = null;
+                      setPhase("idle");
+                      setError("");
+                    }}
+                  >
+                    {t("newOperation")}
+                  </Button>
+                </>
+              )}
+            </>
+          )}
+        </div>
+        {phase === "failed" && !error && (
+          <p role="status">{t("uploadFailed")}</p>
+        )}
+        {error && (
+          <p role="alert" className="upload-error">
+            {error}
+          </p>
         )}
       </div>
-      {phase === "failed" && !error && <p role="status">{t("uploadFailed")}</p>}
-      {error && (
-        <p role="alert" className="upload-error">
-          {error}
-        </p>
-      )}
+      {children}
     </section>
   );
 }

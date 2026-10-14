@@ -74,7 +74,8 @@ it("builds typed conditions and edits them without losing other filters or sorti
   expect(state().kind).toEqual(["image", "video"]);
   await user.click(screen.getByRole("button", { name: "Remove: File type" }));
   expect(state().kind).toEqual([]);
-  await user.click(screen.getByRole("button", { name: "Ascending" }));
+  await user.click(screen.getByRole("button", { name: "Sort by" }));
+  await user.click(screen.getByRole("menuitem", { name: /Descending/ }));
   await user.click(screen.getByRole("button", { name: "Clear filters" }));
   expect(state()).toEqual({ ...emptyFilters, asc: true });
 });

@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { UnstyledButton } from "@mantine/core";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useVirtualizer, useWindowVirtualizer } from "@tanstack/react-virtual";
@@ -25,9 +26,11 @@ export function FileGrid({
   files,
   open,
   paused = false,
+  toolbarHost,
 }: {
   files: ArchiveFile[];
   paused?: boolean;
+  toolbarHost?: HTMLElement | null;
   open: (file: ArchiveFile) => void;
 }) {
   const { t, prefs } = useI18n();
@@ -161,26 +164,30 @@ export function FileGrid({
       ),
     );
   }
+  const displayControl = (
+    <DisplayModeControl
+      dropdown={!!toolbarHost}
+      mode={mode}
+      change={(next) => {
+        anchor.current = {
+          index: first,
+          offset: Math.max(0, top - (visible[0]?.start || scrollMargin)),
+        };
+        setColumns(
+          columnCount(
+            scroll.current?.getBoundingClientRect().width ||
+              scroll.current?.offsetWidth ||
+              0,
+            next,
+          ),
+        );
+        setMode(next);
+      }}
+    />
+  );
   return (
     <>
-      <DisplayModeControl
-        mode={mode}
-        change={(next) => {
-          anchor.current = {
-            index: first,
-            offset: Math.max(0, top - (visible[0]?.start || scrollMargin)),
-          };
-          setColumns(
-            columnCount(
-              scroll.current?.getBoundingClientRect().width ||
-                scroll.current?.offsetWidth ||
-                0,
-              next,
-            ),
-          );
-          setMode(next);
-        }}
-      />
+      {toolbarHost ? createPortal(displayControl, toolbarHost) : displayControl}
       {mode === "list" && (
         <div className="file-list-heading" aria-hidden="true">
           <span>{t("filename")}</span>

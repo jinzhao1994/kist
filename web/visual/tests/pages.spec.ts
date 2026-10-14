@@ -810,10 +810,7 @@ for (const kind of ["boxes", "files"] as const) {
     test(`display-${kind}-${mode}`, async ({ page }, info) => {
       const errors = await prepare(page);
       await page.goto(kind === "boxes" ? "/" : "/files");
-      if (kind === "boxes")
-        await page
-          .getByRole("button", { name: "显示方式", exact: true })
-          .click();
+      await page.getByRole("button", { name: "显示方式", exact: true }).click();
       await page.getByText(label, { exact: true }).click();
       const root = page.locator(
         kind === "boxes" ? ".box-grid" : ".file-scroll",
@@ -829,8 +826,7 @@ for (const kind of ["boxes", "files"] as const) {
   test(`display-${kind}-list-mobile`, async ({ page }, info) => {
     const errors = await prepare(page, { mobile: true });
     await page.goto(kind === "boxes" ? "/" : "/files");
-    if (kind === "boxes")
-      await page.getByRole("button", { name: "显示方式", exact: true }).click();
+    await page.getByRole("button", { name: "显示方式", exact: true }).click();
     await page.getByText("列表", { exact: true }).click();
     await expect(
       page.locator(kind === "boxes" ? ".box-grid" : ".file-scroll"),
@@ -1133,7 +1129,7 @@ for (const mobile of [false, true]) {
     await expect(
       page.getByRole("button", { name: "第一天", exact: true }),
     ).toBeVisible();
-    await page.getByRole("button", { name: "根目录", exact: true }).click();
+    await page.getByRole("button", { name: "山海拾光", exact: true }).click();
     await expect(
       page.getByRole("button", { name: "照片", exact: true }),
     ).toBeVisible();
@@ -1259,3 +1255,20 @@ for (const mobile of [false, true]) {
     await capture(page, errors, info.title);
   });
 }
+
+test("box-file-actions-compact", async ({ page }, info) => {
+  const errors = await prepare(page);
+  await page.goto("/boxes/box-1");
+  await grid(page);
+  await expect(page.locator(".upload-panel")).toBeHidden();
+  await expect(page.getByText(box.description!, { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "添加内容", exact: true }).click();
+  await expect(
+    page.getByRole("menuitem", { name: "新建目录", exact: true }),
+  ).toBeVisible();
+  await capture(page, errors, info.title);
+  await page.getByRole("menuitem", { name: "添加标签", exact: true }).click();
+  await expect(
+    page.getByRole("dialog", { name: "添加标签", exact: true }),
+  ).toBeVisible();
+});

@@ -529,3 +529,34 @@ it("shows resumable recovery after remount and requires original files before mi
     localStorage.getItem("kist.resumable-upload.v1:box:folder"),
   ).toBeNull();
 });
+
+for (const resumable of [false, true]) {
+  it(`keeps the compact ${resumable ? "resumable" : "legacy"} drop target active and reveals intake errors`, async () => {
+    render(
+      <Upload
+        compact
+        box="compact"
+        folder="folder"
+        maxFiles={1}
+        maxBytes={4}
+        resumableVersion={resumable ? 1 : undefined}
+        chunkBytes={resumable ? 4 : undefined}
+        onComplete={async () => {}}
+      >
+        <p>File list content</p>
+      </Upload>,
+      { wrapper },
+    );
+    expect(screen.getByText("File list content")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Choose files" })).toBeNull();
+    await act(async () => {
+      fireEvent.drop(
+        screen.getByRole("region", { name: "Add files" }),
+        droppedFiles([new File(["12345"], "large.txt")]),
+      );
+    });
+    expect(screen.getByRole("alert")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Choose files" })).toBeVisible();
+    expect(screen.getByText("File list content")).toBeVisible();
+  });
+}
