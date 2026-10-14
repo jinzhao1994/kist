@@ -175,7 +175,7 @@ export function FileBrowser({
   const details = box && (
     <>
       {box.description && (
-        <p className="box-summary">
+        <p className="file-page-description">
           <bdi>{box.description}</bdi>
         </p>
       )}

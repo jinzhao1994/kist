@@ -1528,10 +1528,13 @@ fieldset > label,
 .files-page .filters-bar {
   margin-block-end: 0.75rem;
 }
-.box-summary {
+.file-page-description {
   color: var(--muted);
   font-size: 0.875rem;
   margin-block: 0.45rem 0;
+}
+.compact-tags {
+  margin-block: 0;
 }
 .compact-tags .tag-chips {
   margin-block: 0.5rem 0;
