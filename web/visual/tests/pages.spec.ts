@@ -1052,7 +1052,8 @@ test("visible-thumbnails-beyond-eight", async ({ page }, info) => {
     route.fulfill({ json: { files: images } }),
   );
   await page.goto("/files");
-  await page.getByText("小图标", { exact: true }).click();
+  await page.getByRole("button", { name: "显示方式", exact: true }).click();
+  await page.getByRole("menuitem", { name: "小图标", exact: true }).click();
   const main = page.locator("main");
   for (const top of [0, 650, 0]) {
     await main.evaluate((element, value) => {
