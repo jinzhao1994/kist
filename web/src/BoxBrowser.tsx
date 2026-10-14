@@ -14,12 +14,14 @@ export function BoxBrowser({
   paused,
   create,
   compact = false,
+  onSort,
 }: {
   filters: BoxFilters;
   open: (box: Box) => void;
   paused?: boolean;
   create?: () => void;
   compact?: boolean;
+  onSort?: (sort: NonNullable<BoxFilters["sort"]>) => void;
 }) {
   const { t } = useI18n();
   const [text] = useDebouncedValue(filters.name || "", 250);
@@ -85,7 +87,12 @@ export function BoxBrowser({
       {query.data && (
         <>
           {boxes.length ? (
-            <BoxGrid boxes={boxes} open={open} />
+            <BoxGrid
+              boxes={boxes}
+              open={open}
+              filters={filters}
+              onSort={onSort}
+            />
           ) : compact ? (
             <p>{t("noMatchingBoxes")}</p>
           ) : (

@@ -1,4 +1,4 @@
-import { SegmentedControl } from "@mantine/core";
+import { ActionIcon, Menu, SegmentedControl } from "@mantine/core";
 import { useEffect, useState } from "react";
 import { useI18n } from "./i18n";
 
@@ -49,11 +49,58 @@ export function useDisplayMode(kind: "boxes" | "files") {
 export function DisplayModeControl({
   mode,
   change,
+  dropdown = false,
 }: {
   mode: DisplayMode;
   change: (mode: DisplayMode) => void;
+  dropdown?: boolean;
 }) {
   const { t } = useI18n();
+  if (dropdown)
+    return (
+      <Menu position="bottom-end">
+        <Menu.Target>
+          <ActionIcon
+            size="lg"
+            variant="default"
+            aria-label={t("displayMode")}
+            title={t("displayMode")}
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              aria-hidden="true"
+            >
+              {mode === "list" ? (
+                <path d="M4 6h16M4 12h16M4 18h16" />
+              ) : (
+                <>
+                  <rect x="4" y="4" width="16" height="16" rx="1" />
+                  <path d="M12 4v16M4 12h16" />
+                </>
+              )}
+            </svg>
+          </ActionIcon>
+        </Menu.Target>
+        <Menu.Dropdown>
+          {displayModes.map((value) => (
+            <Menu.Item
+              key={value}
+
+              data-checked={mode === value}
+              rightSection={mode === value ? "✓" : null}
+              onClick={() => change(value)}
+            >
+              {t(value === "list" ? "listView" : `${value}Icons`)}
+            </Menu.Item>
+          ))}
+        </Menu.Dropdown>
+      </Menu>
+    );
   return (
     <div className="display-mode">
       <SegmentedControl

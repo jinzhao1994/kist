@@ -295,3 +295,61 @@ it("replaces the box search bar when switching to all files and applies a box co
   view.unmount();
   history.replaceState(null, "", "/");
 });
+
+it("sorts boxes from list headings and keeps the search when switching views", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      async (path: string) =>
+        new Response(
+          JSON.stringify(
+            path.includes("/boxes/search?")
+              ? {
+                  boxes: [
+                    {
+                      id: "box-layout",
+                      name: "Archive",
+                      description: "A short description",
+                      start_at: "2025",
+                      end_at: "2026",
+                      created_at: "2026-01-01T00:00:00Z",
+                      updated_at: "2026-01-01T00:00:00Z",
+                    },
+                  ],
+                }
+              : { version: "test", timezone: "UTC", projection_dirty: false },
+          ),
+        ),
+    ),
+  );
+  mount();
+  const user = userEvent.setup();
+  await screen.findByRole("heading", { name: "Archive" });
+  await user.type(
+    screen.getByRole("combobox", { name: "Search or add a condition…" }),
+    "Archive{Enter}{Escape}",
+  );
+  await user.click(screen.getByRole("button", { name: "Display mode" }));
+  await user.click(screen.getByRole("menuitem", { name: "List" }));
+  expect(
+    screen.queryByRole("button", { name: "Sort by" }),
+  ).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: /^Activity date:/ }));
+  await waitFor(() =>
+    expect(new URL(location.href).searchParams.get("box_filter")).toContain(
+      '"sort":"activity"',
+    ),
+  );
+  const first = location.href;
+  await user.click(screen.getByRole("button", { name: /^Activity date:/ }));
+  await waitFor(() => expect(location.href).not.toBe(first));
+  expect(new URL(location.href).searchParams.get("box_filter")).toContain(
+    "Archive",
+  );
+  await user.click(screen.getByRole("button", { name: "Display mode" }));
+  await user.click(screen.getByRole("menuitem", { name: "Small icons" }));
+  expect(screen.getByRole("button", { name: "Sort by" })).toBeVisible();
+  expect(new URL(location.href).searchParams.get("box_filter")).toContain(
+    '"sort":"activity"',
+  );
+});

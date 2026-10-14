@@ -2,6 +2,7 @@ import {
   ActionIcon,
   Button,
   CheckIcon,
+  Menu,
   Combobox,
   PillsInput,
   UnstyledButton,
@@ -64,6 +65,8 @@ export function FiltersPanel<T extends FilterValues>({
   boxesError = false,
   retryBoxes,
   saveSearch,
+  toolbar,
+  hideSort = false,
 }: {
   value: T;
   onChange: (value: T) => void;
@@ -74,6 +77,8 @@ export function FiltersPanel<T extends FilterValues>({
   boxesError?: boolean;
   retryBoxes?: () => void;
   saveSearch?: ReactNode;
+  toolbar?: ReactNode;
+  hideSort?: boolean;
 }) {
   const { t } = useI18n();
   const [field, setField] = useState<Field | null>(null);
@@ -365,36 +370,79 @@ export function FiltersPanel<T extends FilterValues>({
         </Combobox>
       </div>
       {saveSearch}
-      <div className="filter-sort">
-        <Select
-          label={t("sort")}
-          value={value.sort || "captured"}
-          onValueChange={(sort) => change({ sort: sort as T["sort"] })}
-          options={
-            entity === "boxes"
-              ? [
-                  { value: "updated", label: t("updated") },
-                  { value: "activity", label: t("activityDate") },
-                  { value: "name", label: t("name") },
-                ]
-              : [
-                  { value: "captured", label: t("captured") },
-                  { value: "imported", label: t("imported") },
-                  { value: "name", label: t("filename") },
-                ]
-          }
-        />
-        <ActionIcon
-          size="lg"
-          variant="default"
-          aria-label={t("ascending")}
-          aria-pressed={!!value.asc}
-          title={t(value.asc ? "ascending" : "descending")}
-          onClick={() => change({ asc: !value.asc })}
-        >
-          {value.asc ? "↑" : "↓"}
-        </ActionIcon>
-      </div>
+      {!hideSort && entity === "boxes" && (
+        <Menu position="bottom-end">
+          <Menu.Target>
+            <ActionIcon
+              size="lg"
+              variant="default"
+              aria-label={t("sort")}
+              title={t("sort")}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                aria-hidden="true"
+              >
+                <path d="M4 6h12M4 12h8M4 18h4M18 9v11m-3-3 3 3 3-3" />
+              </svg>
+            </ActionIcon>
+          </Menu.Target>
+          <Menu.Dropdown>
+            {(
+              [
+                ["activity", "activityDate"],
+                ["name", "name"],
+                ["updated", "updated"],
+              ] as const
+            ).map(([sort, label]) => (
+              <Menu.Item
+                key={sort}
+
+                data-checked={value.sort === sort}
+                rightSection={value.sort === sort ? "✓" : null}
+                onClick={() => change({ sort })}
+              >
+                {t(label)}
+              </Menu.Item>
+            ))}
+            <Menu.Divider />
+            <Menu.Item onClick={() => change({ asc: !value.asc })}>
+              {t(value.asc ? "ascending" : "descending")}{" "}
+              {value.asc ? "↑" : "↓"}
+            </Menu.Item>
+          </Menu.Dropdown>
+        </Menu>
+      )}
+      {!hideSort && entity !== "boxes" && (
+        <div className="filter-sort">
+          <Select
+            label={t("sort")}
+            value={value.sort || "captured"}
+            onValueChange={(sort) => change({ sort: sort as T["sort"] })}
+            options={[
+              { value: "captured", label: t("captured") },
+              { value: "imported", label: t("imported") },
+              { value: "name", label: t("filename") },
+            ]}
+          />
+          <ActionIcon
+            size="lg"
+            variant="default"
+            aria-label={t("ascending")}
+            aria-pressed={!!value.asc}
+            title={t(value.asc ? "ascending" : "descending")}
+            onClick={() => change({ asc: !value.asc })}
+          >
+            {value.asc ? "↑" : "↓"}
+          </ActionIcon>
+        </div>
+      )}
+      {toolbar}
     </section>
   );
 }

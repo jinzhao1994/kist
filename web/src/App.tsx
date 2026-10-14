@@ -12,6 +12,7 @@ import { FolderBreadcrumbs, folderChain } from "./Folders";
 import { formatLocalDate, useI18n } from "./i18n";
 import { Settings } from "./Settings";
 import { BoxTrashDialog } from "./BoxTrashDialog";
+import { DisplayModeControl, useDisplayMode } from "./DisplayMode";
 import { BoxBrowser } from "./BoxBrowser";
 import { TagResults } from "./TagResults";
 import { flattenTags } from "./TagPath";
@@ -38,6 +39,7 @@ import {
 export function App() {
   const { t, prefs } = useI18n();
   const { route, go } = useNavigation();
+  const [boxMode, setBoxMode] = useDisplayMode("boxes");
   const [settings, setSettings] = useState(false);
   const [editor, setEditor] = useState<Box | "new" | null>(null);
   const [trashing, setTrashing] = useState<Box | null>(null);
@@ -232,7 +234,13 @@ export function App() {
             </UnstyledButton>
           </div>
         </aside>
-        <main>
+        <main
+          className={
+            !route.section && !selected && !route.files && !route.tag
+              ? "boxes-page"
+              : undefined
+          }
+        >
           <header className="page-header">
             <div>
               <div className="box-title-line">
@@ -348,7 +356,11 @@ export function App() {
                 </Menu>
               )}
               {!route.section && !selected && !route.files && !route.tag && (
-                <Button variant="filled" onClick={() => setEditor("new")}>
+                <Button
+                  variant="default"
+                  leftSection={<span aria-hidden="true">+</span>}
+                  onClick={() => setEditor("new")}
+                >
                   {t("createBox")}
                 </Button>
               )}
@@ -478,6 +490,14 @@ export function App() {
                   )
                 }
                 entity="boxes"
+                hideSort={boxMode === "list"}
+                toolbar={
+                  <DisplayModeControl
+                    mode={boxMode}
+                    change={setBoxMode}
+                    dropdown
+                  />
+                }
                 value={boxFilters}
                 onChange={(next) => {
                   setBoxFilters(next);
@@ -487,6 +507,18 @@ export function App() {
               />
               <BoxBrowser
                 filters={boxFilters}
+                onSort={(sort) => {
+                  const next = {
+                    ...boxFilters,
+                    sort,
+                    asc:
+                      boxFilters.sort === sort
+                        ? !boxFilters.asc
+                        : sort === "name",
+                  };
+                  setBoxFilters(next);
+                  go({ ...route, boxFilters: next }, true);
+                }}
                 open={navigate}
                 paused={!!route.file}
                 create={() => setEditor("new")}
