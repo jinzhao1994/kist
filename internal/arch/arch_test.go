@@ -258,3 +258,11 @@ func TestDeriveIsIndependent(t *testing.T) {
 		t.Fatalf("derive must not import repository packages: %v", got)
 	}
 }
+
+func TestUploadStagingCannotReachArchive(t *testing.T) {
+	for _, imp := range imports(t, "internal/upload") {
+		if imp != "internal/domain" && imp != "internal/lockfile" {
+			t.Errorf("upload staging must not reach archive state: %s", imp)
+		}
+	}
+}
