@@ -69,6 +69,7 @@ it("retains upload bytes, manifest and key after a cancelled connection", async 
   const instances: XHR[] = [];
   class XHR {
     upload: {
+      onload?: () => void;
       onprogress?: (event: {
         lengthComputable: boolean;
         loaded: number;
@@ -116,8 +117,21 @@ it("retains upload bytes, manifest and key after a cancelled connection", async 
   upload.cancel();
   await rejected;
   expect(progress).toHaveBeenCalledWith(0.5);
-  const retry = upload.run(progress);
+  const phases = vi.fn();
+  let completed = false;
+  const retry = upload.run(progress, phases);
+  void retry.then(() => {
+    completed = true;
+  });
   await vi.waitFor(() => expect(instances).toHaveLength(2));
+  instances[1].upload.onload?.();
+  await Promise.resolve();
+  expect(phases.mock.calls.map(([phase]) => phase)).toEqual([
+    "hashing",
+    "uploading",
+    "processing",
+  ]);
+  expect(completed).toBe(false);
   instances[1].onload?.();
   await expect(retry).resolves.toEqual({ op_id: 12 });
   expect(headers).toEqual([upload.key, upload.key]);
@@ -130,4 +144,18 @@ it("retains upload bytes, manifest and key after a cancelled connection", async 
     { path: "旅行.txt", last_modified: 1234, sha256: "0".repeat(64), size: 8 },
   ]);
   expect((sent[1].get("files") as File).size).toBe(8);
+});
+
+it("never starts upload when original-file hashing fails", async () => {
+  const { calculateIntegrity } = await import("./upload-integrity");
+  vi.mocked(calculateIntegrity).mockRejectedValueOnce(
+    new Error("Unreadable original"),
+  );
+  const xhr = vi.fn();
+  vi.stubGlobal("XMLHttpRequest", xhr);
+  const { createUpload } = await import("./api");
+  await expect(
+    createUpload("box", [new File(["x"], "x.txt")]).run(() => {}),
+  ).rejects.toThrow("Unreadable original");
+  expect(xhr).not.toHaveBeenCalled();
 });
