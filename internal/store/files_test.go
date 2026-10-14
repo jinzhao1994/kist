@@ -112,7 +112,7 @@ func TestListFilesSortsCapturedFirstThenNewest(t *testing.T) {
 // allSortSpecs is every ordering the contract offers.
 func allSortSpecs() []query.SortSpec {
 	var out []query.SortSpec
-	for _, k := range []query.SortKey{query.SortCaptured, query.SortImported, query.SortName} {
+	for _, k := range []query.SortKey{query.SortCaptured, query.SortImported, query.SortName, query.SortUpdated} {
 		out = append(out, query.SortSpec{Key: k}, query.SortSpec{Key: k, Asc: true})
 	}
 	return out
@@ -396,30 +396,37 @@ func TestListFilesRejectsABadCursor(t *testing.T) {
 // back to "USE TEMP B-TREE FOR ORDER BY", which is a full sort of the table
 // and the end of keyset paging.
 func TestFileOrderUsesTheIndex(t *testing.T) {
-	db := migrated(t)
-	rows, err := db.Query(`EXPLAIN QUERY PLAN SELECT id FROM files` + fileOrder)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer rows.Close()
+	for _, spec := range []struct{ order, index string }{
+		{fileOrder, "files_captured"},
+		{orderBy(query.SortSpec{Key: query.SortUpdated}), "files_updated"},
+	} {
+		t.Run(spec.index, func(t *testing.T) {
+			db := migrated(t)
+			rows, err := db.Query(`EXPLAIN QUERY PLAN SELECT id FROM files` + spec.order)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer rows.Close()
 
-	var plan strings.Builder
-	for rows.Next() {
-		var a, b, c int
-		var detail string
-		if err := rows.Scan(&a, &b, &c, &detail); err != nil {
-			t.Fatal(err)
-		}
-		plan.WriteString(detail + "\n")
-	}
-	if err := rows.Err(); err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(plan.String(), "TEMP B-TREE") {
-		t.Errorf("the file sort no longer uses files_captured:\n%s", plan.String())
-	}
-	if !strings.Contains(plan.String(), "files_captured") {
-		t.Errorf("expected files_captured in the plan, got:\n%s", plan.String())
+			var plan strings.Builder
+			for rows.Next() {
+				var a, b, c int
+				var detail string
+				if err := rows.Scan(&a, &b, &c, &detail); err != nil {
+					t.Fatal(err)
+				}
+				plan.WriteString(detail + "\n")
+			}
+			if err := rows.Err(); err != nil {
+				t.Fatal(err)
+			}
+			if strings.Contains(plan.String(), "TEMP B-TREE") {
+				t.Errorf("the file sort no longer uses files_captured:\n%s", plan.String())
+			}
+			if !strings.Contains(plan.String(), spec.index) {
+				t.Errorf("expected files_captured in the plan, got:\n%s", plan.String())
+			}
+		})
 	}
 }
 
@@ -538,5 +545,39 @@ func TestTimeRangeEndUsesLocalCalendarAcrossDST(t *testing.T) {
 				t.Fatalf("local day returned %v", fileNames(got))
 			}
 		})
+	}
+}
+
+func TestUpdatedSortUsesModificationTimeAndStablePaging(t *testing.T) {
+	db := migrated(t)
+	_, root := seedBoxWithRoot(t, db)
+	for _, row := range []struct {
+		name    string
+		updated int64
+	}{{"new.txt", 30}, {"old.txt", 10}, {"middle.txt", 20}} {
+		id := putFile(t, db, root, row.name, "2020")
+		if _, err := db.Exec(`UPDATE files SET updated_at = ? WHERE id = ?`, row.updated, id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, asc := range []bool{false, true} {
+		want := []string{"new.txt", "middle.txt", "old.txt"}
+		if asc {
+			slices.Reverse(want)
+		}
+		cursor := ""
+		for _, name := range want {
+			page, next, err := ListFiles(db, query.Query{Sort: query.SortSpec{Key: query.SortUpdated, Asc: asc}, Limit: 1, Cursor: cursor}, time.UTC)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(page) != 1 || page[0].Name != name {
+				t.Fatalf("asc=%v: got %v, want %s", asc, fileNames(page), name)
+			}
+			cursor = next
+		}
+		if cursor != "" {
+			t.Fatal("unexpected extra page")
+		}
 	}
 }

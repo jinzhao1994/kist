@@ -15,7 +15,7 @@ import { useI18n } from "./i18n";
 export type Filters = Omit<FileQuery, "folder" | "cursor" | "limit">;
 export const emptyFilters: Filters = {
   name: "",
-  sort: "captured",
+  sort: "updated",
   asc: false,
   from: "",
   to: "",
@@ -400,6 +400,7 @@ export function FiltersPanel<T extends FilterValues>({
                     ["updated", "updated"],
                   ]
                 : [
+                    ["updated", "updated"],
                     ["captured", "captured"],
                     ["imported", "imported"],
                     ["name", "filename"],

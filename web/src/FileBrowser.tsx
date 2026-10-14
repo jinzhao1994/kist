@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, type Box, type Tag, type Folder, type ArchiveFile } from "./api";
 import type { Filters } from "./Filters";
 import { useFileResults, resultFiles } from "./fileResults";
-import { FolderCards, FolderEditor } from "./Folders";
+import { FolderEditor } from "./Folders";
 import { FileGrid } from "./FileGrid";
 import { BoxTags } from "./Tags";
 import { Upload, type UploadHandle } from "./Upload";
@@ -24,6 +24,7 @@ export function FileBrowser({
   chooseFolder,
   searching,
   filters,
+  onSort,
   tags,
   open,
   paused,
@@ -41,6 +42,7 @@ export function FileBrowser({
   emptyHint?: string;
   paused?: boolean;
   filters: Filters;
+  onSort?: (sort: NonNullable<Filters["sort"]>) => void;
   tags: Tag[];
   open: (file: ArchiveFile) => void;
 }) {
@@ -80,9 +82,6 @@ export function FileBrowser({
           close={() => setCreating(false)}
         />
       )}
-      {!!folders.length && chooseFolder && (
-        <FolderCards folders={folders} choose={chooseFolder} />
-      )}
       {query.isPending && <p role="status">{t("loading")}</p>}
       {query.isError && !query.isFetchNextPageError && (
         <div role="alert">
@@ -96,9 +95,13 @@ export function FileBrowser({
             {t("loadedFiles", { count: files.length })}
           </span>
           <ExtractionStatus files={files} state={extraction} />
-          {files.length ? (
+          {files.length || folders.length ? (
             <FileGrid
               files={files}
+              folders={folders}
+              chooseFolder={chooseFolder}
+              filters={filters}
+              onSort={onSort}
               open={open}
               paused={paused}
               toolbarHost={toolbarHost}

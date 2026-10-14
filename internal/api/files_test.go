@@ -213,3 +213,15 @@ func TestTagCycleAndRejectedMutation(t *testing.T) {
 		t.Fatalf("missing file: %d %s", w.Code, w.Body)
 	}
 }
+
+func TestFileUpdatedSortQuery(t *testing.T) {
+	s, _ := testServer(t)
+	response := call(s, "GET", Prefix+"/files?sort=updated&asc=true", "", "")
+	if response.Code != 200 {
+		t.Fatalf("updated sort rejected: %d %s", response.Code, response.Body)
+	}
+	q, err := s.fileQuery(&fileQueryInput{Sort: "updated", Asc: true})
+	if err != nil || q.Sort.Key.String() != "updated" || !q.Sort.Asc {
+		t.Fatalf("query: %+v %v", q, err)
+	}
+}

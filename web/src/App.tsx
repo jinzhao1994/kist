@@ -474,6 +474,16 @@ export function App() {
                 <p role="alert">{t("notFound")}</p>
               ) : (
                 <FileBrowser
+                  onSort={(sort) => {
+                    const next = {
+                      ...filters,
+                      sort,
+                      asc:
+                        filters.sort === sort ? !filters.asc : sort === "name",
+                    };
+                    setFilters(next);
+                    go({ ...route, filters: next }, true);
+                  }}
                   toolbarHost={fileToolbarHost}
                   actionsHost={actionsHost}
                   infoHost={infoHost}

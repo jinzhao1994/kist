@@ -36,7 +36,7 @@ files tagged with any person.
 
 --not-tag excludes.
 
-  --sort   captured (default), imported, or name
+  --sort   captured (default), imported, name, or updated
   --asc    oldest or A-Z first, instead of newest or Z-A
 
 Time filtering takes --since and --until. Give the dates as precisely as you
@@ -123,7 +123,7 @@ were last written.`,
 	cmd.Flags().StringArrayVar(&tags, "tag", nil, "require this tag (repeatable; includes its descendants)")
 	cmd.Flags().StringArrayVar(&notTags, "not-tag", nil, "exclude this tag (repeatable)")
 	cmd.Flags().StringVar(&box, "box", "", "only files in this box")
-	cmd.Flags().StringVar(&sort, "sort", "captured", "order by captured, imported or name")
+	cmd.Flags().StringVar(&sort, "sort", "captured", "order by captured, imported, name or updated")
 	cmd.Flags().BoolVar(&asc, "asc", false, "oldest or A-Z first")
 	cmd.Flags().StringVar(&since, "since", "", "only files captured on or after this date (2019, 2019-08, 2019-08-12)")
 	cmd.Flags().StringVar(&until, "until", "", "only files captured on or before this date")
@@ -159,11 +159,12 @@ func parseSort(name string, asc bool) (query.SortSpec, error) {
 	keys := map[string]query.SortKey{
 		"captured": query.SortCaptured,
 		"imported": query.SortImported,
+		"updated":  query.SortUpdated,
 		"name":     query.SortName,
 	}
 	key, ok := keys[name]
 	if !ok {
-		return query.SortSpec{}, fmt.Errorf("unknown --sort %q; use captured, imported or name", name)
+		return query.SortSpec{}, fmt.Errorf("unknown --sort %q; use captured, imported, name or updated", name)
 	}
 	return query.SortSpec{Key: key, Asc: asc}, nil
 }

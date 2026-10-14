@@ -15,6 +15,7 @@ func TestParseSort(t *testing.T) {
 	cases := map[string]query.SortKey{
 		"captured": query.SortCaptured,
 		"imported": query.SortImported,
+		"updated":  query.SortUpdated,
 		"name":     query.SortName,
 	}
 	for name, want := range cases {
@@ -39,7 +40,7 @@ func TestParseSortRejectsUnknownWithAUsefulMessage(t *testing.T) {
 	if err == nil {
 		t.Fatal("an unknown sort was accepted")
 	}
-	for _, want := range []string{"captured", "imported", "name"} {
+	for _, want := range []string{"captured", "imported", "name", "updated"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the message does not offer %q: %v", want, err)
 		}

@@ -33,7 +33,7 @@ export function searchDefinition(
     ...(box && folder && { folder_id: folder }),
     filters: {
       name: filters.name || "",
-      sort: filters.sort || (entity === "files" ? "captured" : "updated"),
+      sort: filters.sort || "updated",
       asc: !!filters.asc,
       from: filters.from || "",
       to: filters.to || "",

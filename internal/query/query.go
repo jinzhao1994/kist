@@ -40,6 +40,9 @@ const (
 	// together, in byte order (spec 4.8).
 	SortName
 
+	// SortUpdated orders by the archive record modification time.
+	SortUpdated
+
 	numSortKeys
 )
 
@@ -51,6 +54,8 @@ func (k SortKey) String() string {
 		return "imported"
 	case SortName:
 		return "name"
+	case SortUpdated:
+		return "updated"
 	}
 	return fmt.Sprintf("SortKey(%d)", int(k))
 }

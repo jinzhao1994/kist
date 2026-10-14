@@ -959,6 +959,7 @@ fieldset > label,
 }
 .file-list-heading {
   display: grid;
+  font-weight: 600;
   grid-template-columns: minmax(160px, 2fr) minmax(100px, 1fr) 90px minmax(
       140px,
       1fr
@@ -968,18 +969,21 @@ fieldset > label,
 }
 .file-scroll.view-list .file-card {
   display: grid;
-  grid-template-columns: 48px minmax(100px, 2fr) minmax(100px, 1fr) 90px minmax(
+  grid-template-columns: 24px minmax(100px, 2fr) minmax(100px, 1fr) 90px minmax(
       140px,
       1fr
     );
   gap: 0.75rem;
   align-items: center;
-  block-size: 64px;
+  block-size: 50px;
   padding: 0.5rem;
-  border-radius: 4px;
+  border: 0;
+  border-block-end: 1px solid var(--mantine-color-default-border);
+  border-radius: 0;
 }
 .file-scroll.view-list .file-preview {
-  block-size: 48px;
+  block-size: 24px;
+  background: transparent;
 }
 .file-scroll.view-list .file-name {
   margin: 0;
@@ -1022,7 +1026,7 @@ fieldset > label,
     display: none;
   }
   .file-scroll.view-list .file-card {
-    grid-template-columns: 48px minmax(0, 1fr) 70px;
+    grid-template-columns: 24px minmax(0, 1fr) 70px;
   }
   .file-list-kind,
   .file-list-date {
@@ -1030,7 +1034,7 @@ fieldset > label,
   }
 }
 .file-list-heading {
-  grid-template-columns: 48px minmax(100px, 2fr) minmax(100px, 1fr) 90px minmax(
+  grid-template-columns: 24px minmax(100px, 2fr) minmax(100px, 1fr) 90px minmax(
       140px,
       1fr
     );
@@ -1049,7 +1053,7 @@ fieldset > label,
   }
   .file-list-heading,
   .file-scroll.view-list .file-card {
-    grid-template-columns: 48px minmax(80px, 1fr) 70px 140px;
+    grid-template-columns: 24px minmax(80px, 1fr) 70px 140px;
   }
   .file-list-heading > span:nth-child(2),
   .file-list-kind {
@@ -1579,4 +1583,33 @@ fieldset > label,
 }
 .file-empty-state .archive-mark {
   font-size: 2rem;
+}
+
+.browser-item-icon {
+  display: block;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.file-preview:has(> .browser-item-icon) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.file-scroll:not(.view-list) .browser-item-icon {
+  width: 48px;
+  height: 48px;
+}
+.file-scroll.view-list .file-card:hover,
+.file-scroll.view-list .file-card:focus-visible {
+  background: var(--mantine-color-default-hover);
+}
+.file-list-heading button {
+  font: inherit;
+  color: inherit;
+}
+.file-list-heading button:disabled {
+  opacity: 1;
+}
+.file-list-heading button:hover:enabled {
+  color: var(--text);
 }

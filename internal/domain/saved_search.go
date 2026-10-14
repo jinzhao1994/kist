@@ -53,7 +53,7 @@ func (d SearchDefinition) Normalize() (SearchDefinition, error) {
 	if d.BoxID != "" && len(d.Filters.Boxes) > 0 {
 		return d, fmt.Errorf("ambiguous box scope")
 	}
-	allowed := []string{"captured", "imported", "name"}
+	allowed := []string{"captured", "imported", "name", "updated"}
 	if d.Entity == "boxes" {
 		allowed = []string{"updated", "activity", "name"}
 	}

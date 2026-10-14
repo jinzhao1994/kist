@@ -1294,7 +1294,7 @@ export interface operations {
                 name?: string;
                 from?: string;
                 to?: string;
-                sort?: "captured" | "imported" | "name";
+                sort?: "captured" | "imported" | "name" | "updated";
                 asc?: boolean;
                 cursor?: string;
                 limit?: number;

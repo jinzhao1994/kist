@@ -816,10 +816,10 @@ for (const kind of ["boxes", "files"] as const) {
         kind === "boxes" ? ".box-grid" : ".file-scroll",
       );
       await expect(root).toHaveClass(new RegExp(`view-${mode}`));
-      if (kind === "files") await grid(page);
+      if (kind === "files") await grid(page, mode === "list" ? 0 : 3);
       await page.reload();
       await expect(root).toHaveClass(new RegExp(`view-${mode}`));
-      if (kind === "files") await grid(page);
+      if (kind === "files") await grid(page, mode === "list" ? 0 : 3);
       await capture(page, errors, info.title);
     });
   }
@@ -1273,3 +1273,58 @@ test("box-file-actions-compact", async ({ page }, info) => {
     page.getByRole("dialog", { name: "添加标签", exact: true }),
   ).toBeVisible();
 });
+
+for (const [mode, mobile] of [
+  ["list", false],
+  ["medium", false],
+  ["list", true],
+] as const) {
+  test(`unified-directory-${mode}-${mobile ? "mobile" : "desktop"}`, async ({
+    page,
+  }, info) => {
+    const errors = await prepare(page, { mobile });
+    await page.addInitScript(
+      (value) => localStorage.setItem("kist.display.files.v1", value),
+      mode,
+    );
+    await page.route("**/api/v1/boxes/box-1/folders", (route) =>
+      route.fulfill({
+        json: {
+          folders: [
+            {
+              id: "folder-1",
+              box_id: "box-1",
+              parent_id: null,
+              name: "",
+              created_at: time,
+              updated_at: time,
+            },
+            {
+              id: "child",
+              box_id: "box-1",
+              parent_id: "folder-1",
+              name: "旅行文档",
+              created_at: time,
+              updated_at: time,
+            },
+          ],
+        },
+      }),
+    );
+    await page.goto("/boxes/box-1");
+    await grid(page, mode === "list" ? 0 : 3);
+    const entries = page.locator(".file-card");
+    await expect(entries.first()).toHaveAccessibleName("旅行文档");
+    await expect(entries).toHaveCount(5);
+    await expect(page.locator(".folder-grid")).toHaveCount(0);
+    if (mode === "list" && !mobile) {
+      await expect(
+        page.getByRole("button", { name: "修改时间: 降序", exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.locator(".file-list-kind").filter({ hasText: "PDF" }),
+      ).toHaveCount(1);
+    }
+    await capture(page, errors, info.title);
+  });
+}

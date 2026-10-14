@@ -8,7 +8,7 @@ import (
 
 func TestSavedSearchRequests(t *testing.T) {
 	s, l := testServer(t)
-	body := `{"name":"Pictures","definition":{"version":1,"entity":"files","filters":{"sort":"captured","asc":false,"kind":["image"]}}}`
+	body := `{"name":"Pictures","definition":{"version":1,"entity":"files","filters":{"sort":"updated","asc":false,"kind":["image"]}}}`
 	first := call(s, "POST", Prefix+"/saved-searches", "save-search", body)
 	retry := call(s, "POST", Prefix+"/saved-searches", "save-search", body)
 	if first.Code != 200 || retry.Code != 200 || !bytes.Equal(first.Body.Bytes(), retry.Body.Bytes()) {

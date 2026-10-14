@@ -2,7 +2,9 @@ import { createPortal } from "react-dom";
 import { UnstyledButton } from "@mantine/core";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useVirtualizer, useWindowVirtualizer } from "@tanstack/react-virtual";
-import type { ArchiveFile } from "./api";
+import { FileIcon, fileType } from "./FileIcon";
+import type { Filters } from "./Filters";
+import type { ArchiveFile, Folder } from "./api";
 import { Media, hasDerivedMedia } from "./Media";
 import {
   DisplayModeControl,
@@ -24,20 +26,78 @@ export function activeImages(
 }
 export function FileGrid({
   files,
+  folders = [],
+  chooseFolder,
+  filters,
+  onSort,
   open,
   paused = false,
   toolbarHost,
 }: {
   files: ArchiveFile[];
+  folders?: Folder[];
+  chooseFolder?: (id: string) => void;
+  filters?: Filters;
+  onSort?: (sort: NonNullable<Filters["sort"]>) => void;
   paused?: boolean;
   toolbarHost?: HTMLElement | null;
   open: (file: ArchiveFile) => void;
 }) {
   const { t, prefs } = useI18n();
   const [mode, setMode] = useDisplayMode("files");
+  const sortedFolders = [...folders].sort((a, b) => {
+    const byName =
+      a.name.localeCompare(b.name, prefs.formatLocale, {
+        sensitivity: "base",
+        numeric: true,
+      }) || a.id.localeCompare(b.id);
+    if (filters?.sort === "updated")
+      return (
+        ((a.updated_at || "").localeCompare(b.updated_at || "") || byName) *
+        (filters.asc ? 1 : -1)
+      );
+    return byName * (filters?.sort === "name" && !filters.asc ? -1 : 1);
+  });
+  const items: {
+    id: string;
+    name: string;
+    file?: ArchiveFile;
+    folder?: Folder;
+  }[] = [
+    ...sortedFolders.map((folder) => ({
+      id: folder.id,
+      name: folder.name,
+      folder,
+    })),
+    ...files.map((file) => ({ id: file.id, name: file.name, file })),
+  ];
+  const dateSort =
+    filters?.sort === "captured" || filters?.sort === "imported"
+      ? filters.sort
+      : "updated";
+  const dateLabel =
+    dateSort === "captured"
+      ? t("captured")
+      : dateSort === "imported"
+        ? t("created")
+        : t("updated");
+  function heading(label: string, sort: NonNullable<Filters["sort"]>) {
+    return (
+      <UnstyledButton
+        onClick={() => onSort?.(sort)}
+        disabled={!onSort}
+        aria-label={`${label}${filters?.sort === sort ? `: ${t(filters.asc ? "ascending" : "descending")}` : ""}`}
+      >
+        {label}
+        {filters?.sort === sort && (
+          <span aria-hidden="true"> {filters.asc ? "↑" : "↓"}</span>
+        )}
+      </UnstyledButton>
+    );
+  }
   const rowSize =
     mode === "list"
-      ? 72
+      ? 50
       : mode === "large"
         ? 328
         : mode === "small"
@@ -118,7 +178,7 @@ export function FileGrid({
     return () => observer.disconnect();
   }, [mode]);
   const options = {
-    count: Math.ceil(files.length / columns),
+    count: Math.ceil(items.length / columns),
     estimateSize: () => rowSize,
     overscan: 1,
     scrollMargin,
@@ -153,14 +213,18 @@ export function FileGrid({
   const first = (visible[0]?.index || 0) * columns;
   const last = ((visible.at(-1)?.index ?? 0) + 1) * columns;
   const active = visible.length
-    ? activeImages(files, first, last)
+    ? activeImages(
+        files,
+        Math.max(0, first - folders.length),
+        Math.max(0, last - folders.length),
+      )
     : new Set<string>();
   function move(index: number, delta: number) {
-    const target = Math.max(0, Math.min(files.length - 1, index + delta));
+    const target = Math.max(0, Math.min(items.length - 1, index + delta));
     virtual.scrollToIndex(Math.floor(target / columns), { align: "auto" });
     requestAnimationFrame(() =>
       requestAnimationFrame(() =>
-        buttons.current.get(files[target].id)?.focus(),
+        buttons.current.get(items[target].id)?.focus(),
       ),
     );
   }
@@ -189,11 +253,11 @@ export function FileGrid({
     <>
       {toolbarHost ? createPortal(displayControl, toolbarHost) : displayControl}
       {mode === "list" && (
-        <div className="file-list-heading" aria-hidden="true">
-          <span>{t("filename")}</span>
+        <div className="file-list-heading">
+          <span>{heading(t("filename"), "name")}</span>
           <span>{t("kind")}</span>
           <span>{t("fileSize")}</span>
-          <span>{t("capturedAt")}</span>
+          <span>{heading(dateLabel, dateSort)}</span>
         </div>
       )}
       <div
@@ -217,20 +281,33 @@ export function FileGrid({
                 gridTemplateColumns: `repeat(${columns},minmax(0,1fr))`,
               }}
             >
-              {files
+              {items
                 .slice(row.index * columns, (row.index + 1) * columns)
-                .map((file, offset) => {
+                .map((item, offset) => {
+                  const { file, folder } = item;
+                  const timestamp = file
+                    ? dateSort === "captured"
+                      ? file.captured_at
+                      : dateSort === "imported"
+                        ? file.created_at
+                        : file.updated_at
+                    : dateSort === "updated"
+                      ? folder?.updated_at
+                      : undefined;
                   const index = row.index * columns + offset;
                   return (
                     <UnstyledButton
-                      className="file-card"
-                      key={file.id}
-                      data-item-id={file.id}
+                      className={`file-card ${folder ? "directory-card" : ""}`}
+                      aria-label={folder ? folder.name : undefined}
+                      key={item.id}
+                      data-item-id={item.id}
                       ref={(node) => {
-                        if (node) buttons.current.set(file.id, node);
-                        else buttons.current.delete(file.id);
+                        if (node) buttons.current.set(item.id, node);
+                        else buttons.current.delete(item.id);
                       }}
-                      onClick={() => open(file)}
+                      onClick={() =>
+                        file ? open(file) : chooseFolder?.(item.id)
+                      }
                       onKeyDown={(event) => {
                         const rtl = document.documentElement.dir === "rtl";
                         const delta =
@@ -254,33 +331,39 @@ export function FileGrid({
                       }}
                     >
                       <div className="file-preview">
-                        <Media
-                          key={file.id}
-                          file={file}
-                          active={active.has(file.id)}
-                          paused={paused}
-                        />
+                        {mode !== "list" && file && hasDerivedMedia(file) ? (
+                          <Media
+                            key={file.id}
+                            file={file}
+                            active={active.has(file.id)}
+                            paused={paused}
+                          />
+                        ) : (
+                          <FileIcon folder={!!folder} />
+                        )}
                       </div>
-                      <bdi className="file-name">{file.name}</bdi>
+                      <bdi className="file-name">{item.name}</bdi>
                       {mode === "list" && (
                         <>
                           <span className="file-list-kind">
-                            {file.media_type || t("unknown")}
+                            {folder
+                              ? t("folderType")
+                              : fileType(file!) || t("unknown")}
                           </span>
                           <span className="file-list-size">
-                            {file.size == null
+                            {file?.size == null
                               ? "—"
                               : formatBytes(file.size, prefs)}
                           </span>
                           <time className="file-list-date">
-                            {file.captured_at
-                              ? formatInstant(file.captured_at, prefs)
-                              : "—"}
+                            {timestamp ? formatInstant(timestamp, prefs) : "—"}
                           </time>
                         </>
                       )}
                       <small>
-                        <bdi>{file.path || file.name}</bdi>
+                        <bdi>
+                          {file ? file.path || file.name : t("folderType")}
+                        </bdi>
                       </small>
                     </UnstyledButton>
                   );

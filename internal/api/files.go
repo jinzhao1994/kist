@@ -22,7 +22,7 @@ type fileQueryInput struct {
 	Name   string   `query:"name"`
 	From   string   `query:"from"`
 	To     string   `query:"to"`
-	Sort   string   `query:"sort" enum:"captured,imported,name" default:"captured"`
+	Sort   string   `query:"sort" enum:"captured,imported,name,updated" default:"captured"`
 	Asc    bool     `query:"asc"`
 	Cursor string   `query:"cursor"`
 	Limit  int      `query:"limit" minimum:"0" maximum:"1000"`
@@ -42,6 +42,8 @@ type tagList struct {
 func (s *Server) fileQuery(in *fileQueryInput) (query.Query, error) {
 	q := query.Query{Kinds: in.Kinds, Text: in.Name, Cursor: in.Cursor, Limit: in.Limit, Sort: query.SortSpec{Asc: in.Asc}}
 	switch in.Sort {
+	case "updated":
+		q.Sort.Key = query.SortUpdated
 	case "name":
 		q.Sort.Key = query.SortName
 	case "imported":

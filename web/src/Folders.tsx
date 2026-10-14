@@ -1,10 +1,4 @@
-import {
-  Anchor,
-  Breadcrumbs,
-  Button,
-  TextInput,
-  UnstyledButton,
-} from "@mantine/core";
+import { Anchor, Breadcrumbs, Button, TextInput } from "@mantine/core";
 import { useState } from "react";
 import { createWrite, type Folder } from "./api";
 import { Dialog } from "./Dialog";
@@ -54,38 +48,6 @@ export function FolderBreadcrumbs({
         ),
       )}
     </Breadcrumbs>
-  );
-}
-export function FolderCards({
-  folders,
-  choose,
-}: {
-  folders: Folder[];
-  choose: (id: string) => void;
-}) {
-  return (
-    <div className="folder-grid">
-      {folders.map((folder) => (
-        <UnstyledButton
-          className="folder-card"
-          key={folder.id}
-          onClick={() => choose(folder.id)}
-        >
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            aria-hidden="true"
-          >
-            <path d="M3 7V5a1 1 0 0 1 1-1h5l2 3h9a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7Z" />
-          </svg>
-          <bdi>{folder.name}</bdi>
-        </UnstyledButton>
-      ))}
-    </div>
   );
 }
 export function FolderEditor({

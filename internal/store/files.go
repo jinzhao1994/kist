@@ -32,6 +32,8 @@ func orderBy(s query.SortSpec) string {
 		dir = " ASC"
 	}
 	switch s.Key {
+	case query.SortUpdated:
+		return ` ORDER BY updated_at` + dir + `, id` + dir
 	case query.SortImported:
 		// The id is the key, so there is nothing left to break ties between.
 		return ` ORDER BY id` + dir
@@ -61,6 +63,8 @@ func cursorPredicate(s query.SortSpec, key string, id domain.FileID) (string, []
 	}
 
 	switch s.Key {
+	case query.SortUpdated:
+		return ` AND (updated_at` + cmp + ` OR (updated_at = ? AND id` + cmp + `))`, []any{key, key, id}
 	case query.SortImported:
 		return ` AND id` + cmp, []any{id}
 

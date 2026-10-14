@@ -284,3 +284,60 @@ it("keeps loaded files on pagination failure and retries only on request", async
   });
   expect(await screen.findByText("All 2 files shown")).toBeVisible();
 });
+
+it("browses folders and files together with compact types and modification dates", async () => {
+  localStorage.setItem("kist.display.files.v1", "list");
+  const open = vi.fn(),
+    chooseFolder = vi.fn(),
+    onSort = vi.fn();
+  render(
+    <ThemeProvider env="test">
+      <I18nProvider>
+        <FileGrid
+          files={[
+            {
+              ...files[0],
+              name: "report.txt",
+              kind: "document",
+              media_type: "text/plain; charset=utf-8",
+              captured_at: "2000-01-01T00:00:00Z",
+              size: 41,
+            },
+          ]}
+          folders={[
+            {
+              id: "subfolder",
+              parent_id: "root",
+              name: "Documents",
+              created_at: files[0].created_at,
+              updated_at: files[0].updated_at,
+            },
+          ]}
+          open={open}
+          chooseFolder={chooseFolder}
+          filters={emptyFilters}
+          onSort={onSort}
+        />
+      </I18nProvider>
+    </ThemeProvider>,
+  );
+  const directory = await screen.findByRole("button", { name: /Documents/ });
+  const document = await screen.findByRole("button", { name: /report.txt/ });
+  expect(
+    directory.compareDocumentPosition(document) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(document).toHaveTextContent("TXT");
+  expect(document).not.toHaveTextContent("text/plain");
+  expect(document).not.toHaveTextContent("2000");
+  expect(document).toHaveTextContent("2026");
+  expect(document.querySelector(".media-placeholder, img")).toBeNull();
+  const user = userEvent.setup();
+  await user.click(directory);
+  expect(chooseFolder).toHaveBeenCalledWith("subfolder");
+  expect(open).not.toHaveBeenCalled();
+  await user.click(document);
+  expect(open).toHaveBeenCalledOnce();
+  await user.click(screen.getByRole("button", { name: "Filename" }));
+  expect(onSort).toHaveBeenCalledWith("name");
+});

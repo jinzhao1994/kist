@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/jinzhao1994/kist/internal/domain"
@@ -23,11 +24,12 @@ func (s SortSpec) ID() string {
 // Value is the sort key of one file under this ordering — the value a cursor
 // carries and a predicate compares against.
 //
-// It is a string for every key, including the ones that are not naturally
-// one. A cursor is opaque bytes and the comparison is byte order anyway
-// (spec 4.8), so one representation buys one predicate shape instead of three.
+// Cursor fields are strings. Updated timestamps use decimal nanoseconds;
+// SQLite compares them using the integer affinity of the updated_at column.
 func (s SortSpec) Value(f domain.File) string {
 	switch s.Key {
+	case SortUpdated:
+		return strconv.FormatInt(f.UpdatedAt.UnixNano(), 10)
 	case SortImported:
 		return f.ID.String()
 	case SortName:
