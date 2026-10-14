@@ -405,3 +405,39 @@ it("rejects oversized dropped batches before sending and accepts a corrected bat
   expect(send).toHaveBeenCalledOnce();
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 });
+
+it("keeps cancellation accessible while file intake is disabled", async () => {
+  class XHR {
+    upload = {};
+    onabort?: () => void;
+    open() {}
+    setRequestHeader() {}
+    send() {}
+    abort() {
+      this.onabort?.();
+    }
+  }
+  vi.stubGlobal("XMLHttpRequest", XHR);
+  render(
+    <Upload
+      box="cancel-accessible"
+      maxFiles={10}
+      maxBytes={10000}
+      onComplete={async () => {}}
+    />,
+    { wrapper },
+  );
+  await userEvent
+    .setup()
+    .upload(
+      screen.getByLabelText("Choose files"),
+      new File(["hello"], "cancel.txt"),
+    );
+  const cancel = await screen.findByRole("button", {
+    name: "Cancel",
+  });
+  expect(cancel.closest('[aria-disabled="true"]')).toBeNull();
+  expect(cancel).toBeEnabled();
+  await userEvent.setup().click(cancel);
+  expect(await screen.findByRole("alert")).toHaveTextContent(/cancelled/i);
+});

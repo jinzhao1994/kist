@@ -199,7 +199,14 @@ download link.
 
 Uploads default to at most 1,000 files and a 32 GiB multipart body per batch.
 Use `--max-upload-files` and `--max-upload-bytes` to adjust those limits. A batch
-must arrive completely before it can commit. If the response is lost, use
+must arrive completely before it can commit. The browser first computes SHA-256
+and byte length in a worker using 4 MiB chunks. The server independently checks
+the received bytes, verifies the staged input during import, and reads back the
+final blob before committing. A mismatch rejects the entire batch. Keep enough
+temporary disk space for the received files and blob staging. Older open pages
+must be refreshed after upgrading; uploads without original-file checksums are
+rejected. This is not resumable upload: retrying a failed transfer sends the whole
+batch again. If the response is lost, use
 **Try again** or **Check result**; refreshing the same tab retains the request
 key for checking its receipt. Re-selecting files after explicitly starting a
 new operation creates a new request. Metadata extraction runs separately;

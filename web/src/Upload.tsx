@@ -120,6 +120,8 @@ export function Upload({
         className: `dropzone ${drop.isDragActive ? "drag-active" : ""}`,
         role: "region",
         "aria-label": t("upload"),
+        // Disable file intake without disabling cancel/retry controls inside.
+        "aria-disabled": undefined,
       })}
     >
       <input {...drop.getInputProps({ "aria-label": t("chooseFiles") })} />
