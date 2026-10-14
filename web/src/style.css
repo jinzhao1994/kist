@@ -924,9 +924,9 @@ fieldset > label,
   border-bottom: 1px solid var(--border);
 }
 .box-grid.view-list .box-card {
-  min-height: 72px;
+  min-height: 60px;
   border: 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
   border-radius: 0;
 }
 .box-grid.view-list .box-icon {
@@ -1435,7 +1435,7 @@ fieldset > label,
   grid-column: 1;
   grid-row: 1;
   display: grid;
-  grid-template-columns: var(--box-date-width) 1.4em var(--box-date-width);
+  inline-size: var(--box-date-width);
   font-variant-numeric: tabular-nums;
   text-align: start;
 }
@@ -1449,10 +1449,10 @@ fieldset > label,
   font-weight: 600;
 }
 .box-list-heading > div:first-child {
-  inline-size: calc(var(--box-date-width) * 2 + 1.4em);
-  font-size: 0.85rem;
+  inline-size: var(--box-date-width);
 }
 .box-sort-heading {
+  font-size: inherit;
   font-weight: 600;
   display: inline-flex;
   gap: 0.4rem;
@@ -1492,7 +1492,7 @@ fieldset > label,
     display: none;
   }
   .box-grid.view-list .box-activity {
-    grid-template-columns: minmax(0, 1fr) 1.4em minmax(0, 1fr);
+    inline-size: auto;
   }
 }
 
@@ -1512,4 +1512,9 @@ fieldset > label,
 }
 .box-grid:not(.view-list) .box-activity > span {
   margin-inline: 0.3em;
+}
+
+.box-grid.view-list .box-card:hover,
+.box-grid.view-list .box-card:focus-visible {
+  background: var(--mantine-color-default-hover);
 }

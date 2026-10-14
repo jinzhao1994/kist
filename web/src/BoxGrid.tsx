@@ -97,7 +97,7 @@ export function BoxGrid({
                 >
                   {t(label)}{" "}
                   <span aria-hidden="true">
-                    {filters?.sort === sort ? (filters.asc ? "↑" : "↓") : "⌄"}
+                    {filters?.sort === sort ? (filters.asc ? "↑" : "↓") : null}
                   </span>
                 </UnstyledButton>
               ) : (
@@ -131,7 +131,14 @@ export function BoxGrid({
                 </span>
               )}
             </span>
-            <span className="box-activity">
+            <span
+              className="box-activity"
+              title={
+                mode === "list" && box.end_at
+                  ? `${box.start_at ? formatLocalDate(box.start_at, prefs) : "—"} — ${formatLocalDate(box.end_at, prefs)}`
+                  : undefined
+              }
+            >
               <time>
                 {box.start_at
                   ? formatLocalDate(box.start_at, prefs)
@@ -139,7 +146,7 @@ export function BoxGrid({
                     ? "—"
                     : ""}
               </time>
-              {box.end_at && (
+              {mode !== "list" && box.end_at && (
                 <>
                   <span aria-hidden="true">—</span>
                   <time>{formatLocalDate(box.end_at, prefs)}</time>
