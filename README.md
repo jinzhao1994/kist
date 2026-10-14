@@ -197,7 +197,7 @@ mode. The grid loads derived thumbnails, and details generate larger image
 previews or H.264/AAC video on demand. Unsupported files keep an original
 download link.
 
-Uploads default to at most 1,000 files and a 2 GiB multipart body per batch.
+Uploads default to at most 1,000 files and a 32 GiB multipart body per batch.
 Use `--max-upload-files` and `--max-upload-bytes` to adjust those limits. A batch
 must arrive completely before it can commit. If the response is lost, use
 **Try again** or **Check result**; refreshing the same tab retains the request

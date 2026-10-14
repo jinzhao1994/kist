@@ -25,7 +25,7 @@ import (
 	"github.com/jinzhao1994/kist/internal/library"
 )
 
-const DefaultMaxUploadBytes int64 = 2 << 30
+const DefaultMaxUploadBytes int64 = 32 << 30
 const DefaultMaxUploadFiles = 1000
 
 type uploadInput struct {
