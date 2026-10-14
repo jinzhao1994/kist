@@ -27,7 +27,7 @@ export class APIError extends Error {
     super(body.message);
   }
 }
-async function result<T>(response: Response): Promise<T> {
+export async function result<T>(response: Response): Promise<T> {
   const body = await response.json();
   if (!response.ok) {
     // A committed write can report a failed projection or post-commit read.

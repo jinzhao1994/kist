@@ -1,6 +1,6 @@
 import { hashFile } from "./upload-hash";
 
-self.onmessage = async (event: MessageEvent<File[]>) => {
+self.onmessage = async (event: MessageEvent<Blob[]>) => {
   try {
     const results = [];
     let completed = 0;

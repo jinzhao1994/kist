@@ -5,19 +5,47 @@ import { useQueryClient } from "@tanstack/react-query";
 import { api, APIError, createUpload } from "./api";
 import { formatBytes, formatNumber, useI18n } from "./i18n";
 import { errorMessage } from "./mutations";
-export function Upload({
+import { ResumableUpload } from "./ResumableUpload";
+type UploadProps = {
+  box: string;
+  folder?: string;
+  maxFiles: number;
+  maxBytes: number;
+  resumableVersion?: number;
+  chunkBytes?: number;
+  onComplete: () => Promise<void>;
+};
+export function Upload(props: UploadProps) {
+  let legacyPending = false;
+  try {
+    legacyPending = !!sessionStorage.getItem(
+      `kist.pending-upload.v1:${props.box}${props.folder ? `:${props.folder}` : ""}`,
+    );
+  } catch {
+    /* Preserve the legacy fallback. */
+  }
+  if (
+    !legacyPending &&
+    props.resumableVersion === 1 &&
+    props.folder &&
+    props.chunkBytes
+  )
+    return (
+      <ResumableUpload
+        {...props}
+        folder={props.folder}
+        chunkBytes={props.chunkBytes}
+      />
+    );
+  return <LegacyUpload {...props} />;
+}
+function LegacyUpload({
   box,
   folder,
   maxFiles,
   maxBytes,
   onComplete,
-}: {
-  box: string;
-  folder?: string;
-  maxFiles: number;
-  maxBytes: number;
-  onComplete: () => Promise<void>;
-}) {
+}: UploadProps) {
   const { t, prefs } = useI18n();
   const client = useQueryClient();
   const storage = `kist.pending-upload.v1:${box}${folder ? `:${folder}` : ""}`;

@@ -187,6 +187,8 @@ async function prepare(page: Page, options: Options = {}) {
         projection_dirty: false,
         max_upload_bytes: 1073741824,
         max_upload_files: 100,
+        resumable_upload_version: 1,
+        upload_chunk_bytes: 8388608,
       };
     else if (path === "/boxes/box-1/deletion-preview")
       body = { name: box.name, file_count: 4, revision: 42 };
@@ -1169,6 +1171,64 @@ for (const scenario of ["sidebar", "dialog", "mobile"] as const) {
         .getByRole("textbox", { name: "名称", exact: true })
         .fill("待整理的照片");
     }
+    await capture(page, errors, info.title);
+  });
+}
+
+for (const mobile of [false, true]) {
+  test(`resumable-upload-paused-${mobile ? "mobile" : "desktop"}`, async ({
+    page,
+  }, info) => {
+    const errors = await prepare(page, { mobile });
+    const id = "a".repeat(64);
+    const files = [
+      {
+        path: "旅行视频.mp4",
+        last_modified: 1000,
+        size: 20 * 1024 * 1024,
+        sha256: "b".repeat(64),
+      },
+    ];
+    await page.addInitScript(
+      ({ id, files }) => {
+        localStorage.setItem(
+          "kist.resumable-upload.v1:box-1:folder-1",
+          JSON.stringify({
+            version: 1,
+            key: "visual-upload-key",
+            box: "box-1",
+            folder: "folder-1",
+            id,
+            files,
+          }),
+        );
+      },
+      { id, files },
+    );
+    await page.route(`**/api/v1/upload-sessions/${id}`, (route) =>
+      route.fulfill({
+        json: {
+          session: {
+            version: 1,
+            id,
+            manifest: {
+              box: "box-1",
+              folder: "folder-1",
+              files,
+              target: "c".repeat(64),
+            },
+            offsets: [8 * 1024 * 1024],
+            expires: "2030-01-01T00:00:00Z",
+          },
+        },
+      }),
+    );
+    await page.goto("/boxes/box-1");
+    await expect(page.getByText("已暂停，服务端已确认 40%。")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "重新选择原文件" }),
+    ).toBeVisible();
+    await grid(page);
     await capture(page, errors, info.title);
   });
 }

@@ -1,0 +1,325 @@
+import { Button } from "@mantine/core";
+import { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useDropzone } from "react-dropzone";
+import { APIError } from "./api";
+import { formatBytes, formatNumber, useI18n } from "./i18n";
+import { errorMessage } from "./mutations";
+import {
+  resumableUpload,
+  ResumeError,
+  type PendingUpload,
+  type UploadPhase,
+} from "./resumable-upload";
+
+export function ResumableUpload({
+  box,
+  folder,
+  chunkBytes,
+  maxFiles,
+  maxBytes,
+  onComplete,
+}: {
+  box: string;
+  folder: string;
+  chunkBytes: number;
+  maxFiles: number;
+  maxBytes: number;
+  onComplete: () => Promise<void>;
+}) {
+  const { t, prefs } = useI18n();
+  const client = useQueryClient();
+  const mounted = useRef(true);
+  const [pending, setPending] = useState<PendingUpload>();
+  const [setup] = useState(() => {
+    try {
+      return {
+        operation: resumableUpload(box, folder, chunkBytes, (value) => {
+          if (mounted.current) setPending(value);
+        }),
+      };
+    } catch (error) {
+      return { error };
+    }
+  });
+  const operation = setup.operation;
+  const [phase, setPhase] = useState<
+    UploadPhase | "idle" | "checking" | "paused" | "failed" | "saved"
+  >(operation?.pending() ? "paused" : "idle");
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState("");
+  const running = useRef<Promise<void>>(undefined);
+  const activePending = pending ?? operation?.pending();
+  const busy = ["checking", "hashing", "uploading", "processing"].includes(
+    phase,
+  );
+
+  function message(error: unknown) {
+    if (error instanceof ResumeError) {
+      return t(
+        error.kind === "source"
+          ? "uploadWrongSource"
+          : error.kind === "storage"
+            ? "uploadStorageUnavailable"
+            : error.kind === "selection"
+              ? "uploadReselectHint"
+              : "uploadProtocolError",
+      );
+    }
+    if (error instanceof APIError) {
+      switch (error.body.code) {
+        case "upload_integrity_mismatch":
+        case "upload_chunk_integrity":
+          return t("uploadIntegrityMismatch");
+        case "upload_session_expired":
+        case "upload_session_missing":
+        case "upload_session_canceled":
+          return t("uploadExpired");
+        case "upload_target_changed":
+        case "box_not_found":
+        case "folder_in_another_box":
+          return t("uploadTargetChanged");
+        case "storage_full":
+          return t("uploadStorageFull");
+        case "upload_quota":
+          return t("uploadSessionQuota");
+        case "upload_session_corrupt":
+        case "upload_session_version":
+          return t("uploadSessionDamaged");
+      }
+      if (error.status === 413) return t("uploadTooLarge");
+      return errorMessage(error, t);
+    }
+    return t("uploadResumeFailed");
+  }
+  async function finish() {
+    if (!mounted.current) return;
+    setPhase("saved");
+    setError("");
+    setPending(undefined);
+    await client.invalidateQueries();
+    try {
+      await onComplete();
+    } catch {
+      if (mounted.current) setError(t("extractionFailed"));
+    }
+  }
+  async function run() {
+    if (!operation) return;
+    setPhase("hashing");
+    setError("");
+    try {
+      await operation.run(
+        (value) => {
+          if (mounted.current) setProgress(value);
+        },
+        (value) => {
+          if (mounted.current) setPhase(value);
+        },
+      );
+      await finish();
+    } catch (error) {
+      if (!mounted.current) return;
+      setProgress(operation.confirmedProgress());
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setPhase("paused");
+        setError("");
+      } else {
+        setPhase("failed");
+        setError(message(error));
+      }
+    }
+  }
+  function start() {
+    running.current = run();
+  }
+  async function check() {
+    if (!operation) return;
+    setPhase("checking");
+    setError("");
+    try {
+      const result = await operation.check();
+      if (result.receipt) {
+        await finish();
+        return;
+      }
+      if (!mounted.current) return;
+      if (result.state) {
+        const total = result.state.manifest.files.reduce(
+          (sum, file) => sum + file.size,
+          0,
+        );
+        setProgress(
+          total
+            ? result.state.offsets.reduce((sum, value) => sum + value, 0) /
+                total
+            : 1,
+        );
+      }
+      setPhase("paused");
+    } catch (error) {
+      if (mounted.current) {
+        setPhase("failed");
+        setError(message(error));
+      }
+    }
+  }
+  async function cancel() {
+    if (!operation) return;
+    operation.pause();
+    await running.current;
+    if (!mounted.current) return;
+    setPhase("checking");
+    setError("");
+    try {
+      const receipt = await operation.cancel();
+      if (receipt) {
+        await finish();
+        return;
+      }
+      if (mounted.current) {
+        setPhase("idle");
+        setProgress(0);
+        setPending(undefined);
+      }
+    } catch (error) {
+      if (mounted.current) {
+        setPhase("failed");
+        setError(message(error));
+      }
+    }
+  }
+  useEffect(() => {
+    mounted.current = true;
+    let stopped = false;
+    // React's development remount must not start two concurrent status checks.
+    queueMicrotask(() => {
+      if (!stopped && operation?.pending()?.files) void check();
+    });
+    return () => {
+      stopped = true;
+      mounted.current = false;
+      operation?.pause();
+    };
+  }, []);
+
+  const drop = useDropzone({
+    noClick: true,
+    noKeyboard: true,
+    multiple: true,
+    disabled: busy || !operation,
+    onDrop: (files, rejected) => {
+      if (
+        rejected.length ||
+        files.length > maxFiles ||
+        files.reduce((sum, file) => sum + file.size, 0) > maxBytes
+      ) {
+        setError(t("uploadTooLarge"));
+        return;
+      }
+      if (!files.length || !operation) return;
+      operation.select(files);
+      start();
+    },
+  });
+  const label =
+    phase === "hashing"
+      ? t("uploadHashing")
+      : phase === "processing"
+        ? t("uploadProcessing")
+        : phase === "checking"
+          ? t("uploadChecking")
+          : t("uploading");
+  return (
+    <section
+      {...drop.getRootProps({
+        className: `dropzone ${drop.isDragActive ? "drag-active" : ""}`,
+        role: "region",
+        "aria-label": t("upload"),
+        "aria-disabled": undefined,
+      })}
+    >
+      <input
+        {...drop.getInputProps({
+          "aria-label": activePending ? t("uploadReselect") : t("chooseFiles"),
+        })}
+      />
+      <div>
+        <strong>{t(phase === "saved" ? "uploadComplete" : "upload")}</strong>
+        <p>{t("uploadToFolder")}</p>
+        <small>
+          {t("uploadLimit", {
+            count: formatNumber(maxFiles, prefs),
+            size: formatBytes(maxBytes, prefs),
+          })}
+        </small>
+      </div>
+      <div className="upload-actions">
+        {busy ? (
+          <>
+            <progress
+              value={
+                phase === "processing" || phase === "checking"
+                  ? undefined
+                  : progress
+              }
+              max={1}
+              aria-label={label}
+            />
+            <span role="status">
+              {label}
+              {phase === "uploading" || phase === "hashing"
+                ? ` ${formatNumber(Math.round(progress * 100), prefs)}%`
+                : ""}
+            </span>
+            <Button
+              disabled={phase === "checking"}
+              onClick={() => operation?.pause()}
+            >
+              {t("uploadPause")}
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button variant="filled" disabled={!operation} onClick={drop.open}>
+              {activePending ? t("uploadReselect") : t("chooseFiles")}
+            </Button>
+            {activePending && (
+              <>
+                {operation?.hasFiles() && (
+                  <Button onClick={start}>{t("uploadResume")}</Button>
+                )}
+                {activePending.files && (
+                  <Button onClick={() => void check()}>
+                    {t("checkResult")}
+                  </Button>
+                )}
+              </>
+            )}
+          </>
+        )}
+        {activePending && (
+          <Button disabled={phase === "checking"} onClick={() => void cancel()}>
+            {t("cancel")}
+          </Button>
+        )}
+      </div>
+      {activePending && !busy && (
+        <p role="status">
+          {t("uploadPaused", {
+            percent: formatNumber(Math.round(progress * 100), prefs),
+          })}
+        </p>
+      )}
+      {activePending && !busy && !operation?.hasFiles() && (
+        <p>{t("uploadReselectHint")}</p>
+      )}
+      {activePending && <small>{t("uploadBackgroundHint")}</small>}
+      {!!(error || setup.error) && (
+        <p role="alert" className="upload-error">
+          {error || message(setup.error)}
+        </p>
+      )}
+    </section>
+  );
+}

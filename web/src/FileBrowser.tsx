@@ -68,18 +68,21 @@ export function FileBrowser({
             <bdi>{box.description}</bdi>
           </p>
           <BoxTags box={box.id} tags={tags} />
-          {info.data && (
-            <Upload
-              key={`${box.id}:${uploadFolder || ""}`}
-              box={box.id}
-              folder={uploadFolder}
-              maxFiles={info.data.max_upload_files}
-              maxBytes={info.data.max_upload_bytes}
-              onComplete={async () =>
-                extraction.run(await pendingFiles(box.id))
-              }
-            />
-          )}
+          {info.data &&
+            (info.data.resumable_upload_version !== 1 || uploadFolder) && (
+              <Upload
+                key={`${box.id}:${uploadFolder || ""}`}
+                box={box.id}
+                folder={uploadFolder}
+                maxFiles={info.data.max_upload_files}
+                maxBytes={info.data.max_upload_bytes}
+                resumableVersion={info.data.resumable_upload_version}
+                chunkBytes={info.data.upload_chunk_bytes}
+                onComplete={async () =>
+                  extraction.run(await pendingFiles(box.id))
+                }
+              />
+            )}
         </>
       )}
       {box && uploadFolder && (

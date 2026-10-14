@@ -1,7 +1,7 @@
 export type FileIntegrity = { sha256: string; size: number };
 
 export function calculateIntegrity(
-  files: readonly File[],
+  files: readonly Blob[],
   progress: (fraction: number) => void,
   signal: AbortSignal,
 ): Promise<FileIntegrity[]> {

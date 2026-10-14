@@ -441,3 +441,91 @@ it("keeps cancellation accessible while file intake is disabled", async () => {
   await userEvent.setup().click(cancel);
   expect(await screen.findByRole("alert")).toHaveTextContent(/cancelled/i);
 });
+
+it("shows resumable recovery after remount and requires original files before missing chunks", async () => {
+  const id = "b".repeat(64);
+  let state: any;
+  let hold = true;
+  const offsets: number[] = [];
+  const fetch = vi.fn(async (path: string, options?: RequestInit) => {
+    if (path === "/api/v1/upload-sessions") {
+      const body = JSON.parse(options!.body as string);
+      state = {
+        version: 1,
+        id,
+        manifest: { ...body, target: "c".repeat(64) },
+        offsets: [0],
+        expires: "2030-01-01T00:00:00Z",
+      };
+    }
+    return new Response(
+      JSON.stringify(
+        path.endsWith("/complete")
+          ? { op_id: 45 }
+          : { session: structuredClone(state) },
+      ),
+    );
+  });
+  vi.stubGlobal("fetch", fetch);
+  class XHR {
+    upload = {};
+    status = 200;
+    responseText = "";
+    url = "";
+    onload?: () => void;
+    onabort?: () => void;
+    open(_method: string, url: string) {
+      this.url = url;
+    }
+    setRequestHeader() {}
+    abort() {
+      this.onabort?.();
+    }
+    send(blob: Blob) {
+      const offset = Number(this.url.split("offset=")[1]);
+      offsets.push(offset);
+      if (hold) return;
+      state.offsets[0] = offset + blob.size;
+      this.responseText = JSON.stringify({ session: structuredClone(state) });
+      queueMicrotask(() => this.onload?.());
+    }
+  }
+  vi.stubGlobal("XMLHttpRequest", XHR);
+  const complete = vi.fn(async () => {});
+  const props = {
+    box: "box",
+    folder: "folder",
+    maxFiles: 10,
+    maxBytes: 10000,
+    resumableVersion: 1,
+    chunkBytes: 4,
+    onComplete: complete,
+  };
+  const first = render(<Upload {...props} />, { wrapper });
+  const user = userEvent.setup();
+  const file = new File(["abcdefghij"], "original.bin", { lastModified: 1000 });
+  await user.upload(screen.getByLabelText("Choose files"), file);
+  await waitFor(() => expect(offsets).toEqual([0]));
+  expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+  await user.click(screen.getByRole("button", { name: "Pause" }));
+  await screen.findByRole("button", { name: "Resume" });
+  // The server confirmed the block, but the response was lost before the UI saw it.
+  state.offsets[0] = 4;
+  first.unmount();
+  hold = false;
+  render(<Upload {...props} />, { wrapper });
+  await screen.findByText(/Select the entire original batch again/);
+  await user.upload(
+    screen.getByLabelText("Select original files again"),
+    new File(["abcdefghij"], "wrong.bin", { lastModified: 1000 }),
+  );
+  await screen.findByText(/These are not the original files/);
+  expect(offsets).toEqual([0]);
+  await user.upload(screen.getByLabelText("Select original files again"), file);
+  await screen.findByText("Files saved");
+  expect(offsets).toEqual([0, 4, 8]);
+  expect(complete).toHaveBeenCalledOnce();
+  expect(
+    localStorage.getItem("kist.resumable-upload.v1:box:folder"),
+  ).toBeNull();
+});

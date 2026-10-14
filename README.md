@@ -197,20 +197,35 @@ mode. The grid loads derived thumbnails, and details generate larger image
 previews or H.264/AAC video on demand. Unsupported files keep an original
 download link.
 
-Uploads default to at most 1,000 files and a 32 GiB multipart body per batch.
-Use `--max-upload-files` and `--max-upload-bytes` to adjust those limits. A batch
-must arrive completely before it can commit. The browser first computes SHA-256
-and byte length in a worker using 4 MiB chunks. The server independently checks
-the received bytes, verifies the staged input during import, and reads back the
-final blob before committing. A mismatch rejects the entire batch. Keep enough
-temporary disk space for the received files and blob staging. Older open pages
-must be refreshed after upgrading; uploads without original-file checksums are
-rejected. This is not resumable upload: retrying a failed transfer sends the whole
-batch again. If the response is lost, use
-**Try again** or **Check result**; refreshing the same tab retains the request
-key for checking its receipt. Re-selecting files after explicitly starting a
-new operation creates a new request. Metadata extraction runs separately;
-its failure does not mean the original files were lost.
+Uploads default to at most 1,000 files and 32 GiB per batch. Adjust these limits
+with `--max-upload-files` and `--max-upload-bytes`. A batch is archived only after
+all files pass verification. The browser hashes originals incrementally in a
+worker, uploads sequential blocks of at most 8 MiB with independent SHA-256
+checksums, and the server verifies whole files and final blobs before committing.
+
+**Pause** keeps confirmed progress; **Resume** queries the server and sends only
+missing data. After refreshing or reopening the page, return to the same box and
+folder and select the entire original batch again. The browser rehashes every
+file: matching names, sizes and timestamps alone is insufficient. Recovery also
+works after a server restart. **Check result** can recover a committed receipt
+without the originals. **Cancel** discards staging, but cannot undo an already
+committed import. Metadata extraction is separate; its failure does not mean the
+original files were lost.
+
+Sessions are discardable data under `uploads/` in the library volume, not archive
+history. Keep space for staging and the resulting blobs. At most eight retained
+sessions reserve a combined declared size of twice the per-batch byte limit;
+this is not a guarantee of free disk space. Idle sessions expire after seven
+days. Successful blocks and explicit resume renew them; viewing progress does
+not. Expired or canceled staging is cleaned on creation, cancellation and an
+hourly sweep. Browser recovery requires site storage to be available and the
+same browser profile and site address. A suspended page or locked phone may stop
+uploading; continuous mobile background uploading is not guaranteed.
+
+Refresh old pages after upgrading. The checked multipart endpoint remains
+available for compatible older clients and servers, and retains its all-or-
+nothing batch and receipt semantics; retrying that fallback resends the batch.
+Clients never silently fall back to uploads without original-file checksums.
 
 There is no login. Remote access requires an explicit listener and trusted
 origin, for example on a trusted LAN:

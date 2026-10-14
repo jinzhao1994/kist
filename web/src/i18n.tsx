@@ -252,6 +252,33 @@ export const en = {
   uploadComplete: "Files saved",
   uploading: "Uploading…",
   uploadHashing: "Calculating file checksums…",
+  uploadPause: "Pause",
+  uploadResume: "Resume",
+  uploadReselect: "Select original files again",
+  uploadChecking: "Checking saved upload progress…",
+  uploadPaused: "Paused. {percent}% confirmed by the server.",
+  uploadReselectHint:
+    "Select the entire original batch again. File contents will be verified before only missing data is sent.",
+  uploadWrongSource:
+    "These are not the original files. Select the same batch; names, sizes and timestamps alone are not enough.",
+  uploadStorageUnavailable:
+    "Upload recovery information cannot be saved or read. Check this site's browser storage, then reload.",
+  uploadProtocolError:
+    "The server returned incompatible upload progress. Reload and check the result before starting another upload.",
+  uploadResumeFailed:
+    "Upload interrupted. Confirmed data is retained; resume when the connection is available.",
+  uploadExpired:
+    "This upload session expired or was removed. Cancel it here, then select the files for a new upload.",
+  uploadTargetChanged:
+    "The destination was changed or deleted. Cancel this upload and choose the destination again.",
+  uploadStorageFull:
+    "The server disk is full. Free disk space, then resume this upload.",
+  uploadSessionQuota:
+    "The server upload staging limit has been reached. Complete or cancel other uploads, then retry.",
+  uploadSessionDamaged:
+    "This staging session is damaged or uses an unsupported version. Check the result and server log before removing it.",
+  uploadBackgroundHint:
+    "Confirmed data is retained for 7 idle days. Refresh recovery is supported; background or locked-screen uploading is not guaranteed.",
   uploadProcessing: "Server is verifying and processing files…",
   uploadIntegrityMismatch:
     "File verification failed. Nothing in this batch was archived. Select the original files again and retry.",
@@ -502,6 +529,30 @@ export const zh: Record<MessageKey, string> = {
   uploadComplete: "文件已保存",
   uploading: "正在上传…",
   uploadHashing: "正在计算文件校验值…",
+  uploadPause: "暂停",
+  uploadResume: "继续上传",
+  uploadReselect: "重新选择原文件",
+  uploadChecking: "正在核对已保存的上传进度…",
+  uploadPaused: "已暂停，服务端已确认 {percent}%。",
+  uploadReselectHint:
+    "请重新选择整个原始批次。核对文件内容一致后，只补传缺失部分。",
+  uploadWrongSource:
+    "所选文件与原批次不一致。请重新选择原文件；文件名、大小和修改时间相同并不足以续传。",
+  uploadStorageUnavailable:
+    "无法保存或读取续传信息。请检查此网站的浏览器存储权限与空间，然后刷新页面。",
+  uploadProtocolError:
+    "服务端返回的续传进度不兼容。请刷新并核对结果，再开始新的上传。",
+  uploadResumeFailed: "上传中断，已确认的数据仍保留。连接恢复后可以继续上传。",
+  uploadExpired: "上传会话已过期或被移除。请取消此记录，再选择文件开始新上传。",
+  uploadTargetChanged:
+    "目标归档盒或目录已被修改或删除。请取消本次上传，重新选择目标。",
+  uploadStorageFull: "服务端磁盘空间不足。释放空间后可继续本次上传。",
+  uploadSessionQuota:
+    "服务端暂存上传已达到额度。请先完成或取消其他上传，再重试。",
+  uploadSessionDamaged:
+    "暂存会话损坏或版本不兼容。请核对结果与服务端日志后再清理。",
+  uploadBackgroundHint:
+    "已确认的数据保留至空闲 7 天。支持刷新后恢复，不保证网页后台或锁屏时持续上传。",
   uploadProcessing: "服务端正在校验并处理文件…",
   uploadIntegrityMismatch:
     "文件校验不一致，本批次未归档。请重新选择原文件后重试。",
@@ -587,6 +638,7 @@ interface Parameters {
   fileCount: { count: number };
   uploadLimit: { count: string; size: string };
   uploadProgress: { percent: string };
+  uploadPaused: { percent: string };
 }
 export type Translate = <K extends MessageKey>(
   key: K,
