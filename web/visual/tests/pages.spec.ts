@@ -1226,7 +1226,7 @@ for (const mobile of [false, true]) {
     await page.goto("/boxes/box-1");
     await expect(page.getByText("已暂停，服务端已确认 40%。")).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "重新选择原文件" }),
+      page.locator("button").filter({ hasText: "重新选择原文件" }),
     ).toBeVisible();
     await grid(page);
     await capture(page, errors, info.title);
