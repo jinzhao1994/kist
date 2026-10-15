@@ -1,4 +1,4 @@
-import { Button, Text, TextInput } from "@mantine/core";
+import { Button, InputWrapper, Text, TextInput } from "@mantine/core";
 import { useEffect, useId, useRef, useState } from "react";
 import { createWrite, type Tag } from "./api";
 import { Dialog } from "./Dialog";
@@ -88,11 +88,12 @@ export function TagActionDialog({
   const [parent, setParent] = useState(tag.parent_id || "");
   const state = useWrites(close);
   const descendants = new Set(flattenTags([tag]).map((item) => item.id));
+  const editing = action !== "remove";
   return (
     <Dialog
       open
       title={t(action)}
-      size={action === "addChildTag" ? "sm" : undefined}
+      size="sm"
       onOpenChange={(open) => {
         if (!open && !state.busy) close();
       }}
@@ -113,8 +114,8 @@ export function TagActionDialog({
         }}
       >
         <Text
-          size={action === "addChildTag" ? "sm" : undefined}
-          c={action === "addChildTag" ? "dimmed" : undefined}
+          size={editing ? "sm" : undefined}
+          c={editing ? "dimmed" : undefined}
           mb="md"
           style={{ overflowWrap: "anywhere" }}
         >
@@ -122,7 +123,7 @@ export function TagActionDialog({
             ? t("deleteTagConfirm")
             : t(action === "addChildTag" ? "parentTag" : "tags") + ":"}{" "}
           <bdi>
-            {action === "addChildTag"
+            {editing
               ? tagOption(
                   flattenTags(tags).find((item) => item.id === tag.id) ?? {
                     ...tag,
@@ -146,8 +147,7 @@ export function TagActionDialog({
           />
         )}
         {action === "changeParentTag" && (
-          <>
-            <label htmlFor={id}>{t("parentTag")}</label>
+          <InputWrapper id={id} label={t("parentTag")}>
             <TagSelect
               id={id}
               value={parent}
@@ -160,7 +160,7 @@ export function TagActionDialog({
                   .map(tagOption),
               ]}
             />
-          </>
+          </InputWrapper>
         )}
         <WriteFeedback state={state} />
         <div className="actions">
