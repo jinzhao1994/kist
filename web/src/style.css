@@ -1356,6 +1356,7 @@ fieldset > label,
   align-items: center;
   min-block-size: 2.25rem;
   gap: 0.25rem;
+  border-radius: var(--mantine-radius-sm);
 }
 .saved-search-link {
   display: flex;
@@ -1367,8 +1368,12 @@ fieldset > label,
   font-size: 0.875rem;
   border-radius: var(--mantine-radius-sm);
 }
-.saved-search-link:hover {
+.saved-search-row:hover {
   background: var(--mantine-color-default-hover);
+}
+.saved-search-link:hover,
+.saved-search-row .mantine-ActionIcon-root:hover {
+  background: transparent;
 }
 .saved-search-link svg {
   flex-shrink: 0;
