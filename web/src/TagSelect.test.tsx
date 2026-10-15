@@ -229,6 +229,41 @@ it("renames through the context menu without filtering and cancels with Escape",
   expect(fetcher).toHaveBeenCalledTimes(1);
   expect(choose).not.toHaveBeenCalled();
 });
+it("confirms inline rename on outside click without submitting empty or unchanged names", async () => {
+  const fetcher = vi.fn(async () => new Response("{}", { status: 200 }));
+  vi.stubGlobal("fetch", fetcher);
+  wrap(
+    <>
+      <TagTree tags={tags} choose={vi.fn()} />
+      <button>Outside</button>
+    </>,
+  );
+  const user = userEvent.setup();
+  const outside = screen.getByRole("button", { name: "Outside" });
+  const edit = async () => {
+    fireEvent.contextMenu(screen.getByText("Education"));
+    await user.click(await screen.findByRole("menuitem", { name: "Rename" }));
+    return screen.getByRole("textbox", { name: "Rename" });
+  };
+  await edit();
+  await user.click(outside);
+  expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  expect(fetcher).not.toHaveBeenCalled();
+
+  const input = await edit();
+  await user.clear(input);
+  await user.click(outside);
+  expect(input).toBeInTheDocument();
+  expect(fetcher).not.toHaveBeenCalled();
+
+  await user.type(input, "Learning");
+  await user.click(outside);
+  await waitFor(() =>
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument(),
+  );
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});
+
 it("creates children under the clicked tag and excludes descendants from parent choices", async () => {
   const fetcher = vi.fn(
     async (_url: RequestInfo | URL, _init?: RequestInit) =>

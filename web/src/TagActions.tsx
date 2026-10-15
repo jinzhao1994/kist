@@ -13,6 +13,8 @@ export function TagRename({ tag, close }: { tag: Tag; close: () => void }) {
   const { t } = useI18n();
   const [name, setName] = useState(tag.name);
   const input = useRef<HTMLInputElement>(null);
+  const submitting = useRef(false);
+  const cancelled = useRef(false);
   const state = useWrites(close);
   useEffect(() => {
     input.current?.select();
@@ -21,18 +23,36 @@ export function TagRename({ tag, close }: { tag: Tag; close: () => void }) {
     <form
       className="tag-rename"
       onClick={(e) => e.stopPropagation()}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) {
+          e.currentTarget.requestSubmit();
+        }
+      }}
       onKeyDown={(e) => {
         e.stopPropagation();
         if (e.key === "Escape" && !state.busy) {
           e.preventDefault();
+          cancelled.current = true;
           close();
         }
       }}
       onSubmit={(e) => {
         e.preventDefault();
-        if (state.busy || state.locked) return;
+        if (
+          cancelled.current ||
+          submitting.current ||
+          state.busy ||
+          state.locked
+        )
+          return;
+        submitting.current = true;
         if (name === tag.name) close();
-        else state.run([createWrite("PUT", `/tags/${tag.id}/name`, { name })]);
+        else
+          void state
+            .run([createWrite("PUT", `/tags/${tag.id}/name`, { name })])
+            .finally(() => {
+              submitting.current = false;
+            });
       }}
     >
       <TextInput
