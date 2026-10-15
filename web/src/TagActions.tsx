@@ -1,4 +1,4 @@
-import { Button, InputWrapper, Text, TextInput } from "@mantine/core";
+import { Button, Group, InputWrapper, Text, TextInput } from "@mantine/core";
 import { useEffect, useId, useRef, useState } from "react";
 import { createWrite, type Tag } from "./api";
 import { Dialog } from "./Dialog";
@@ -92,7 +92,7 @@ export function TagActionDialog({
   return (
     <Dialog
       open
-      title={t(action)}
+      title={t(editing ? action : "deleteTagTitle")}
       size="sm"
       onOpenChange={(open) => {
         if (!open && !state.busy) close();
@@ -114,24 +114,28 @@ export function TagActionDialog({
         }}
       >
         <Text
-          size={editing ? "sm" : undefined}
+          size="sm"
           c={editing ? "dimmed" : undefined}
-          mb="md"
+          mb={editing ? "md" : 0}
           style={{ overflowWrap: "anywhere" }}
         >
-          {action === "remove"
-            ? t("deleteTagConfirm")
-            : t(action === "addChildTag" ? "parentTag" : "tags") + ":"}{" "}
-          <bdi>
-            {editing
-              ? tagOption(
-                  flattenTags(tags).find((item) => item.id === tag.id) ?? {
-                    ...tag,
-                    ancestors: [],
-                  },
-                ).label
-              : tag.name}
-          </bdi>
+          {editing ? (
+            <>
+              {t(action === "addChildTag" ? "parentTag" : "tags")}:{" "}
+              <bdi>
+                {
+                  tagOption(
+                    flattenTags(tags).find((item) => item.id === tag.id) ?? {
+                      ...tag,
+                      ancestors: [],
+                    },
+                  ).label
+                }
+              </bdi>
+            </>
+          ) : (
+            t("deleteNamedTagConfirm", { name: `\u2068${tag.name}\u2069` })
+          )}
         </Text>
         {action === "addChildTag" && (
           <TextInput
@@ -163,7 +167,7 @@ export function TagActionDialog({
           </InputWrapper>
         )}
         <WriteFeedback state={state} />
-        <div className="actions">
+        <Group justify="flex-end" gap="sm" mt={editing ? "lg" : "md"}>
           <Button
             variant="subtle"
             color="gray"
@@ -186,7 +190,7 @@ export function TagActionDialog({
                   : "save",
             )}
           </Button>
-        </div>
+        </Group>
       </form>
     </Dialog>
   );

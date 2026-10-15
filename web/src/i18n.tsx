@@ -119,6 +119,8 @@ export const en = {
     "The archive changed or this operation conflicts with existing data. Refresh and try again.",
   tagCycle: "A tag cannot be moved into its own subtree.",
   deleteTagConfirm: "Remove this tag?",
+  deleteTagTitle: "Delete tag",
+  deleteNamedTagConfirm: "Delete the tag “{name}”?",
   uploadTooLarge:
     "The batch exceeds the configured upload limits. Choose fewer or smaller files.",
   appName: "kist",
@@ -404,6 +406,8 @@ export const zh: Record<MessageKey, string> = {
   conflict: "归档状态已变化，或操作与现有数据冲突。请刷新后重试。",
   tagCycle: "不能将标签移动到自身的子树中。",
   deleteTagConfirm: "确认删除此标签？",
+  deleteTagTitle: "删除标签",
+  deleteNamedTagConfirm: "确定删除标签「{name}」吗？",
   uploadTooLarge: "这一批文件超过上传限制，请减少文件数量或大小。",
   appName: "kist",
   archive: "个人归档",
@@ -632,6 +636,7 @@ export function directionFor(prefs: Preferences): "ltr" | "rtl" {
   return "ltr";
 }
 interface Parameters {
+  deleteNamedTagConfirm: { name: string };
   uploadElapsed: { seconds: string; speed: string };
   uploadTiming: { hash: string; transfer: string; processing: string };
   searchText: { value: string };
