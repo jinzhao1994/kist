@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "./themes.css";
 :root {
+  --field-label-gap: 0.35rem;
   font-family: var(--mantine-font-family);
   color: var(--text);
   background: var(--canvas);
@@ -756,9 +757,16 @@ form > label,
 fieldset > label,
 .field-pair label:not([class]) {
   display: block;
-  margin-block: 1rem 0.35rem;
+  margin-block-start: 1rem;
   font-size: var(--mantine-font-size-sm);
   font-weight: 500;
+}
+form > label,
+fieldset > label,
+.field-pair label:not([class]),
+.mantine-InputWrapper-label {
+  display: block;
+  margin-block-end: var(--field-label-gap);
 }
 .settings-form {
   display: grid;
