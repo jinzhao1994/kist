@@ -1,3 +1,4 @@
+import { InlineRename } from "./InlineRename";
 import { SidebarMenuButton } from "./SidebarMenuButton";
 import {
   ActionIcon,
@@ -234,6 +235,7 @@ export function SavedSearches({
     definition: SearchDefinition;
     remove?: boolean;
   }>();
+  const [renaming, setRenaming] = useState<SavedSearch>();
   const context = useContextMenu<SavedSearch>();
   const [error, setError] = useState("");
   const [opening, setOpening] = useState(false);
@@ -307,19 +309,38 @@ export function SavedSearches({
                 data-active={
                   context.menu?.item.id === item.id ||
                   editor?.item.id === item.id ||
+                  renaming?.id === item.id ||
                   undefined
                 }
-                {...context.bindings(item)}
+                {...(renaming ? {} : context.bindings(item))}
               >
-                <UnstyledButton
-                  className="saved-search-link"
-                  disabled={opening}
-                  onClick={() => apply(item)}
-                  title={item.name}
-                >
-                  <bdi>{item.name}</bdi>
-                </UnstyledButton>
+                {renaming?.id === item.id ? (
+                  <InlineRename
+                    initialName={renaming.name}
+                    close={() => setRenaming(undefined)}
+                    write={(name) =>
+                      createWrite("PUT", `/saved-searches/${renaming.id}`, {
+                        name,
+                        definition: renaming.definition,
+                        before: {
+                          name: renaming.name,
+                          definition: renaming.definition,
+                        },
+                      })
+                    }
+                  />
+                ) : (
+                  <UnstyledButton
+                    className="saved-search-link"
+                    disabled={opening}
+                    onClick={() => apply(item)}
+                    title={item.name}
+                  >
+                    <bdi>{item.name}</bdi>
+                  </UnstyledButton>
+                )}
                 <SidebarMenuButton
+                  disabled={!!renaming}
                   label={`${item.name} · ${t("editSavedSearch")}`}
                   expanded={context.menu?.item.id === item.id}
                   onClick={(event) => {
@@ -345,11 +366,7 @@ export function SavedSearches({
         </Menu.Item>
         <Menu.Item
           onClick={() => {
-            if (context.menu)
-              setEditor({
-                item: context.menu.item,
-                definition: context.menu.item.definition,
-              });
+            if (context.menu) setRenaming(context.menu.item);
           }}
         >
           {t("rename")}

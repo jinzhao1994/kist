@@ -1,5 +1,6 @@
+import { InlineRename } from "./InlineRename";
 import { Button, Group, InputWrapper, Text, TextInput } from "@mantine/core";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import { createWrite, type Tag } from "./api";
 import { Dialog } from "./Dialog";
 import { useI18n } from "./i18n";
@@ -10,64 +11,12 @@ import { TagSelect } from "./TagSelect";
 export type TagAction = "rename" | "addChildTag" | "changeParentTag" | "remove";
 
 export function TagRename({ tag, close }: { tag: Tag; close: () => void }) {
-  const { t } = useI18n();
-  const [name, setName] = useState(tag.name);
-  const input = useRef<HTMLInputElement>(null);
-  const submitting = useRef(false);
-  const cancelled = useRef(false);
-  const state = useWrites(close);
-  useEffect(() => {
-    input.current?.select();
-  }, []);
   return (
-    <form
-      className="tag-rename"
-      onClick={(e) => e.stopPropagation()}
-      onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget)) {
-          e.currentTarget.requestSubmit();
-        }
-      }}
-      onKeyDown={(e) => {
-        e.stopPropagation();
-        if (e.key === "Escape" && !state.busy) {
-          e.preventDefault();
-          cancelled.current = true;
-          close();
-        }
-      }}
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (
-          cancelled.current ||
-          submitting.current ||
-          state.busy ||
-          state.locked
-        )
-          return;
-        submitting.current = true;
-        if (name === tag.name) close();
-        else
-          void state
-            .run([createWrite("PUT", `/tags/${tag.id}/name`, { name })])
-            .finally(() => {
-              submitting.current = false;
-            });
-      }}
-    >
-      <TextInput
-        ref={input}
-        autoFocus
-        size="xs"
-        aria-label={t("rename")}
-        required
-        maxLength={255}
-        value={name}
-        disabled={state.busy || state.locked}
-        onChange={(e) => setName(e.target.value)}
-      />
-      <WriteFeedback state={state} />
-    </form>
+    <InlineRename
+      initialName={tag.name}
+      close={close}
+      write={(name) => createWrite("PUT", `/tags/${tag.id}/name`, { name })}
+    />
   );
 }
 

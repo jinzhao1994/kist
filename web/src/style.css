@@ -1335,7 +1335,7 @@ fieldset > label,
   flex-shrink: 0;
   margin-inline-start: auto;
 }
-.tag-rename {
+.inline-rename {
   flex: 1;
   min-inline-size: 0;
 }
@@ -1632,4 +1632,9 @@ fieldset > label,
 .saved-search-row[data-active],
 .file-card[data-active] {
   background: var(--mantine-primary-color-light);
+}
+
+.saved-search-link,
+.saved-search-row > .inline-rename {
+  padding-inline-start: 2rem;
 }

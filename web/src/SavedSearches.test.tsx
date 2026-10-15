@@ -219,10 +219,10 @@ it("renames without changing conditions and confirms removal", async () => {
     }),
   );
   await user.click(screen.getByRole("menuitem", { name: "Rename" }));
-  const input = screen.getByRole("textbox", { name: "Name" });
+  const input = screen.getByRole("textbox", { name: "Rename" });
   await user.clear(input);
   await user.type(input, "Legal");
-  await user.click(screen.getByRole("button", { name: "Save" }));
+  await user.tab();
   await user.click(
     await screen.findByRole("button", { name: "Legal · Edit saved search" }),
   );
@@ -249,7 +249,7 @@ it("renames without changing conditions and confirms removal", async () => {
   );
 });
 
-it("opens favorite context actions without applying the search and reuses its rename editor", async () => {
+it("opens favorite context actions without applying the search and renames inline", async () => {
   const open = vi.fn();
   const item = { id: "s", name: "Contracts", definition };
   vi.stubGlobal(
@@ -264,10 +264,14 @@ it("opens favorite context actions without applying the search and reuses its re
   await userEvent.click(
     await screen.findByRole("menuitem", { name: "Rename" }),
   );
-  expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue(
+  expect(screen.getByRole("textbox", { name: "Rename" })).toHaveValue(
     "Contracts",
   );
-  await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
-  fireEvent.keyDown(link, { key: "F10", shiftKey: true });
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  await userEvent.keyboard("{Escape}");
+  fireEvent.keyDown(screen.getByRole("button", { name: "Contracts" }), {
+    key: "F10",
+    shiftKey: true,
+  });
   expect(await screen.findByRole("menuitem", { name: "Rename" })).toBeVisible();
 });
