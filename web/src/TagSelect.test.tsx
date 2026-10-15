@@ -275,8 +275,10 @@ it("creates children under the clicked tag and excludes descendants from parent 
   await user.click(screen.getByRole("button", { name: "Expand Education" }));
   await user.click(screen.getByRole("button", { name: "Actions for School" }));
   await user.click(screen.getByRole("menuitem", { name: "Add child tag" }));
+  expect(screen.getByText("Education / School")).toBeVisible();
+  expect(screen.getByRole("textbox", { name: "Name" })).toHaveFocus();
   await user.type(screen.getByRole("textbox", { name: "Name" }), "Notes");
-  await user.click(screen.getByRole("button", { name: "Save" }));
+  await user.click(screen.getByRole("button", { name: "Add tag" }));
   await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
   expect(JSON.parse(fetcher.mock.calls[0]?.[1]?.body as string)).toEqual({
     name: "Notes",

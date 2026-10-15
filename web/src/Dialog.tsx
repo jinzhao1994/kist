@@ -8,6 +8,7 @@ export function Dialog({
   description,
   children,
   className = "",
+  size,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -15,6 +16,7 @@ export function Dialog({
   description?: string;
   children: ReactNode;
   className?: string;
+  size?: "sm" | "md";
 }) {
   const { t } = useI18n();
   const descriptionId = useId();
@@ -34,7 +36,10 @@ export function Dialog({
       }}
       title={<bdi>{title}</bdi>}
       size={
-        className === "detail-dialog" ? "min(1100px, calc(100vw - 2rem))" : "md"
+        size ??
+        (className === "detail-dialog"
+          ? "min(1100px, calc(100vw - 2rem))"
+          : "md")
       }
       centered
       closeButtonProps={{ "aria-label": t("close") }}

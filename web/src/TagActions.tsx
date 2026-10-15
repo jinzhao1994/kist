@@ -1,4 +1,4 @@
-import { Button, TextInput } from "@mantine/core";
+import { Button, Text, TextInput } from "@mantine/core";
 import { useEffect, useId, useRef, useState } from "react";
 import { createWrite, type Tag } from "./api";
 import { Dialog } from "./Dialog";
@@ -92,6 +92,7 @@ export function TagActionDialog({
     <Dialog
       open
       title={t(action)}
+      size={action === "addChildTag" ? "sm" : undefined}
       onOpenChange={(open) => {
         if (!open && !state.busy) close();
       }}
@@ -111,17 +112,33 @@ export function TagActionDialog({
           ]);
         }}
       >
-        <p>
+        <Text
+          size={action === "addChildTag" ? "sm" : undefined}
+          c={action === "addChildTag" ? "dimmed" : undefined}
+          mb="md"
+          style={{ overflowWrap: "anywhere" }}
+        >
           {action === "remove"
             ? t("deleteTagConfirm")
             : t(action === "addChildTag" ? "parentTag" : "tags") + ":"}{" "}
-          <bdi>{tag.name}</bdi>
-        </p>
+          <bdi>
+            {action === "addChildTag"
+              ? tagOption(
+                  flattenTags(tags).find((item) => item.id === tag.id) ?? {
+                    ...tag,
+                    ancestors: [],
+                  },
+                ).label
+              : tag.name}
+          </bdi>
+        </Text>
         {action === "addChildTag" && (
           <TextInput
             autoFocus
+            data-autofocus
             label={t("name")}
             required
+            withAsterisk={false}
             maxLength={255}
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -147,7 +164,12 @@ export function TagActionDialog({
         )}
         <WriteFeedback state={state} />
         <div className="actions">
-          <Button onClick={close} disabled={state.busy}>
+          <Button
+            variant="subtle"
+            color="gray"
+            onClick={close}
+            disabled={state.busy}
+          >
             {t("cancel")}
           </Button>
           <Button
@@ -156,7 +178,13 @@ export function TagActionDialog({
             color={action === "remove" ? "red" : undefined}
             disabled={state.busy || state.locked}
           >
-            {t(action === "remove" ? "remove" : "save")}
+            {t(
+              action === "remove"
+                ? "remove"
+                : action === "addChildTag"
+                  ? "addTag"
+                  : "save",
+            )}
           </Button>
         </div>
       </form>

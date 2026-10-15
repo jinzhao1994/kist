@@ -4,6 +4,7 @@ import {
   createTheme,
   Button,
   Combobox,
+  Modal,
 } from "@mantine/core";
 import {
   createContext,
@@ -107,6 +108,14 @@ export function ThemeProvider({
     autoContrast: true,
     components: {
       Button: Button.extend({ defaultProps: { variant: "default" } }),
+      Modal: Modal.extend({
+        defaultProps: {
+          shadow:
+            mode === "dark"
+              ? "0 4px 12px #0005, 0 20px 48px #0007"
+              : "0 4px 12px #00000014, 0 20px 48px #00000033",
+        },
+      }),
       Combobox: Combobox.extend({
         defaultProps: {
           shadow:
