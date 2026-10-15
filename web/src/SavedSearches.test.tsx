@@ -1,5 +1,5 @@
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "./theme";
@@ -247,4 +247,27 @@ it("renames without changing conditions and confirms removal", async () => {
       screen.queryByRole("button", { name: "Legal" }),
     ).not.toBeInTheDocument(),
   );
+});
+
+it("opens favorite context actions without applying the search and reuses its rename editor", async () => {
+  const open = vi.fn();
+  const item = { id: "s", name: "Contracts", definition };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ searches: [item] })),
+  );
+  wrap(<SavedSearches open={open} current={definition} />);
+  const link = await screen.findByRole("button", { name: "Contracts" });
+  fireEvent.contextMenu(link, { clientX: 123, clientY: 234 });
+  expect(open).not.toHaveBeenCalled();
+  expect(link.closest("li")).toHaveAttribute("data-active", "true");
+  await userEvent.click(
+    await screen.findByRole("menuitem", { name: "Rename" }),
+  );
+  expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue(
+    "Contracts",
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  fireEvent.keyDown(link, { key: "F10", shiftKey: true });
+  expect(await screen.findByRole("menuitem", { name: "Rename" })).toBeVisible();
 });

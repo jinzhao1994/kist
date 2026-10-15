@@ -169,6 +169,7 @@ export const en = {
   noResults: "No matching files",
   importHint: "Drop files here, or choose files to add to this box.",
   chooseFiles: "Choose files",
+  openItem: "Open",
   download: "Download original",
   details: "File details",
   previewUnavailable:
@@ -451,6 +452,7 @@ export const zh: Record<MessageKey, string> = {
   noResults: "没有匹配的文件",
   importHint: "将文件拖到这里，或选择文件加入这个归档盒。",
   chooseFiles: "选择文件",
+  openItem: "打开",
   download: "下载原文件",
   details: "文件详情",
   previewUnavailable: "暂不支持预览此格式，仍可下载原文件。",

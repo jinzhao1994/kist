@@ -1616,3 +1616,8 @@ fieldset > label,
 .file-list-heading button:hover:enabled {
   color: var(--text);
 }
+
+.saved-search-row[data-active],
+.file-card[data-active] {
+  background: var(--mantine-primary-color-light);
+}

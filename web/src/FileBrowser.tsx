@@ -50,6 +50,7 @@ export function FileBrowser({
   const picker = useRef<UploadHandle>(null);
   const [addingTag, setAddingTag] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [contextParent, setContextParent] = useState<string>();
   const extraction = useExtraction();
   const info = useQuery({
     queryKey: ["info"],
@@ -75,13 +76,18 @@ export function FileBrowser({
   const content = (
     <>
       {searching && box && <p className="hint">{t("searchWholeBox")}</p>}
-      {creating && box && uploadFolder && (
-        <FolderEditor
-          box={box.id}
-          parent={uploadFolder}
-          close={() => setCreating(false)}
-        />
-      )}
+      {(creating || contextParent) &&
+        box &&
+        (contextParent || uploadFolder) && (
+          <FolderEditor
+            box={box.id}
+            parent={contextParent || uploadFolder!}
+            close={() => {
+              setCreating(false);
+              setContextParent(undefined);
+            }}
+          />
+        )}
       {query.isPending && <p role="status">{t("loading")}</p>}
       {query.isError && !query.isFetchNextPageError && (
         <div role="alert">
@@ -100,6 +106,7 @@ export function FileBrowser({
               files={files}
               folders={folders}
               chooseFolder={chooseFolder}
+              createFolder={box ? setContextParent : undefined}
               filters={filters}
               onSort={onSort}
               open={open}

@@ -1,10 +1,11 @@
 import { createPortal } from "react-dom";
-import { UnstyledButton } from "@mantine/core";
+import { Menu, UnstyledButton } from "@mantine/core";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useVirtualizer, useWindowVirtualizer } from "@tanstack/react-virtual";
+import { ContextMenu, useContextMenu } from "./ContextMenu";
 import { FileIcon, fileType } from "./FileIcon";
 import type { Filters } from "./Filters";
-import type { ArchiveFile, Folder } from "./api";
+import { contentURL, type ArchiveFile, type Folder } from "./api";
 import { Media, hasDerivedMedia } from "./Media";
 import {
   DisplayModeControl,
@@ -28,6 +29,7 @@ export function FileGrid({
   files,
   folders = [],
   chooseFolder,
+  createFolder,
   filters,
   onSort,
   open,
@@ -37,6 +39,7 @@ export function FileGrid({
   files: ArchiveFile[];
   folders?: Folder[];
   chooseFolder?: (id: string) => void;
+  createFolder?: (id: string) => void;
   filters?: Filters;
   onSort?: (sort: NonNullable<Filters["sort"]>) => void;
   paused?: boolean;
@@ -71,6 +74,8 @@ export function FileGrid({
     })),
     ...files.map((file) => ({ id: file.id, name: file.name, file })),
   ];
+  const context = useContextMenu<(typeof items)[number]>();
+  const selected = context.menu?.item;
   const dateSort =
     filters?.sort === "captured" || filters?.sort === "imported"
       ? filters.sort
@@ -301,6 +306,8 @@ export function FileGrid({
                       aria-label={folder ? folder.name : undefined}
                       key={item.id}
                       data-item-id={item.id}
+                      data-active={selected?.id === item.id || undefined}
+                      onContextMenu={context.bindings(item).onContextMenu}
                       ref={(node) => {
                         if (node) buttons.current.set(item.id, node);
                         else buttons.current.delete(item.id);
@@ -309,6 +316,8 @@ export function FileGrid({
                         file ? open(file) : chooseFolder?.(item.id)
                       }
                       onKeyDown={(event) => {
+                        context.bindings(item).onKeyDown(event);
+                        if (event.defaultPrevented) return;
                         const rtl = document.documentElement.dir === "rtl";
                         const delta =
                           event.key === "ArrowDown"
@@ -372,6 +381,26 @@ export function FileGrid({
           ))}
         </div>
       </div>
+      <ContextMenu anchor={context.menu} close={context.close}>
+        <Menu.Item
+          onClick={() => {
+            if (selected?.file) open(selected.file);
+            else if (selected?.folder) chooseFolder?.(selected.id);
+          }}
+        >
+          {t("openItem")}
+        </Menu.Item>
+        {selected?.file && (
+          <Menu.Item component="a" href={contentURL(selected.file, true)}>
+            {t("download")}
+          </Menu.Item>
+        )}
+        {selected?.folder && createFolder && (
+          <Menu.Item onClick={() => createFolder(selected.id)}>
+            {t("createFolder")}
+          </Menu.Item>
+        )}
+      </ContextMenu>
     </>
   );
 }

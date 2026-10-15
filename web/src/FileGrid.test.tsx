@@ -1,6 +1,12 @@
 import { ThemeProvider } from "./theme";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -8,7 +14,7 @@ import { FileBrowser } from "./FileBrowser";
 import { emptyFilters } from "./Filters";
 import { FileGrid } from "./FileGrid";
 import { I18nProvider, storageKey } from "./i18n";
-import type { ArchiveFile } from "./api";
+import type { ArchiveFile, Folder } from "./api";
 const files: ArchiveFile[] = Array.from({ length: 1000 }, (_, index) => ({
   id: String(index),
   name: `photo-${index}.jpg`,
@@ -340,4 +346,42 @@ it("browses folders and files together with compact types and modification dates
   expect(open).toHaveBeenCalledOnce();
   await user.click(screen.getByRole("button", { name: "Filename" }));
   expect(onSort).toHaveBeenCalledWith("name");
+});
+
+it("opens file and folder context actions at the pointer without navigating", async () => {
+  const open = vi.fn(),
+    chooseFolder = vi.fn(),
+    createFolder = vi.fn();
+  const folder = { id: "child", name: "Child", parent_id: "root" } as Folder;
+  render(
+    <ThemeProvider env="test">
+      <I18nProvider>
+        <FileGrid
+          files={[files[0]]}
+          folders={[folder]}
+          open={open}
+          chooseFolder={chooseFolder}
+          createFolder={createFolder}
+        />
+      </I18nProvider>
+    </ThemeProvider>,
+    { wrapper: mediaWrapper },
+  );
+  const file = await screen.findByRole("button", { name: /photo-0.jpg/ });
+  fireEvent.contextMenu(file, { clientX: 111, clientY: 222 });
+  expect(open).not.toHaveBeenCalled();
+  expect(file).toHaveAttribute("data-active", "true");
+  expect(
+    await screen.findByRole("menuitem", { name: "Download original" }),
+  ).toHaveAttribute("href", "/api/v1/files/0/content?download=true");
+  await userEvent.click(screen.getByRole("menuitem", { name: "Open" }));
+  expect(open).toHaveBeenCalledWith(files[0]);
+  const directory = screen.getByRole("button", { name: "Child" });
+  fireEvent.keyDown(directory, { key: "F10", shiftKey: true });
+  expect(chooseFolder).not.toHaveBeenCalled();
+  expect(directory).toHaveAttribute("data-active", "true");
+  await userEvent.click(
+    await screen.findByRole("menuitem", { name: "New folder" }),
+  );
+  expect(createFolder).toHaveBeenCalledWith("child");
 });

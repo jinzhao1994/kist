@@ -10,6 +10,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, createWrite, get, type Box, type Folder, type Tag } from "./api";
 import type { components } from "./api-schema";
+import { ContextMenu, useContextMenu } from "./ContextMenu";
 import { Dialog } from "./Dialog";
 import { useI18n } from "./i18n";
 import { errorMessage, useWrites, WriteFeedback } from "./mutations";
@@ -232,6 +233,7 @@ export function SavedSearches({
     definition: SearchDefinition;
     remove?: boolean;
   }>();
+  const context = useContextMenu<SavedSearch>();
   const [error, setError] = useState("");
   const [opening, setOpening] = useState(false);
   async function apply(item: SavedSearch) {
@@ -298,7 +300,16 @@ export function SavedSearches({
           </summary>
           <ul>
             {items.map((item) => (
-              <li key={item.id} className="saved-search-row">
+              <li
+                key={item.id}
+                className="saved-search-row"
+                data-active={
+                  context.menu?.item.id === item.id ||
+                  editor?.item.id === item.id ||
+                  undefined
+                }
+                {...context.bindings(item)}
+              >
                 <UnstyledButton
                   className="saved-search-link"
                   disabled={opening}
@@ -308,51 +319,19 @@ export function SavedSearches({
                   <StarIcon />
                   <bdi>{item.name}</bdi>
                 </UnstyledButton>
-                <Menu withinPortal position="bottom-end">
-                  <Menu.Target>
-                    <ActionIcon
-                      size="sm"
-                      color="gray"
-                      variant="subtle"
-                      aria-label={`${item.name} · ${t("editSavedSearch")}`}
-                    >
-                      ⋯
-                    </ActionIcon>
-                  </Menu.Target>
-                  <Menu.Dropdown>
-                    <Menu.Item
-                      onClick={() =>
-                        setEditor({ item, definition: item.definition })
-                      }
-                    >
-                      {t("rename")}
-                    </Menu.Item>
-                    <Menu.Item
-                      disabled={!current}
-                      onClick={() =>
-                        current &&
-                        setEditor({
-                          item,
-                          definition: structuredClone(current),
-                        })
-                      }
-                    >
-                      {t("replaceSavedSearch")}
-                    </Menu.Item>
-                    <Menu.Item
-                      color="red"
-                      onClick={() =>
-                        setEditor({
-                          item,
-                          definition: item.definition,
-                          remove: true,
-                        })
-                      }
-                    >
-                      {t("removeSavedSearch")}
-                    </Menu.Item>
-                  </Menu.Dropdown>
-                </Menu>
+                <ActionIcon
+                  size="sm"
+                  color="gray"
+                  variant="subtle"
+                  aria-label={`${item.name} · ${t("editSavedSearch")}`}
+                  aria-haspopup="menu"
+                  aria-expanded={context.menu?.item.id === item.id}
+                  onClick={(event) =>
+                    context.atElement(item, event.currentTarget)
+                  }
+                >
+                  ⋯
+                </ActionIcon>
               </li>
             ))}
           </ul>
@@ -360,6 +339,52 @@ export function SavedSearches({
           {error && <p role="alert">{error}</p>}
         </details>
       )}
+      <ContextMenu anchor={context.menu} close={context.close}>
+        <Menu.Item
+          disabled={opening}
+          onClick={() => {
+            if (context.menu) void apply(context.menu.item);
+          }}
+        >
+          {t("openItem")}
+        </Menu.Item>
+        <Menu.Item
+          onClick={() => {
+            if (context.menu)
+              setEditor({
+                item: context.menu.item,
+                definition: context.menu.item.definition,
+              });
+          }}
+        >
+          {t("rename")}
+        </Menu.Item>
+        <Menu.Item
+          disabled={!current}
+          onClick={() => {
+            if (context.menu && current)
+              setEditor({
+                item: context.menu.item,
+                definition: structuredClone(current),
+              });
+          }}
+        >
+          {t("replaceSavedSearch")}
+        </Menu.Item>
+        <Menu.Item
+          color="red"
+          onClick={() => {
+            if (context.menu)
+              setEditor({
+                item: context.menu.item,
+                definition: context.menu.item.definition,
+                remove: true,
+              });
+          }}
+        >
+          {t("removeSavedSearch")}
+        </Menu.Item>
+      </ContextMenu>
       {editor && (
         <SearchEditor {...editor} close={() => setEditor(undefined)} />
       )}
