@@ -109,6 +109,7 @@ export function ThemeProvider({
     components: {
       Button: Button.extend({ defaultProps: { variant: "default" } }),
       Modal: Modal.extend({
+        styles: { title: { fontWeight: 600 } },
         defaultProps: {
           shadow:
             mode === "dark"
