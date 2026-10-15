@@ -1607,8 +1607,8 @@ fieldset > label,
   width: 48px;
   height: 48px;
 }
-.file-scroll.view-list .file-card:hover,
-.file-scroll.view-list .file-card:focus-visible {
+.file-scroll.view-list .file-card:not([data-active]):hover,
+.file-scroll.view-list .file-card:not([data-active]):focus-visible {
   background: var(--mantine-color-default-hover);
 }
 .file-list-heading button {
