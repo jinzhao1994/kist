@@ -493,7 +493,7 @@ progress {
 }
 .file-card {
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: transparent;
   min-inline-size: 0;
   block-size: 232px;
   padding: 0;
