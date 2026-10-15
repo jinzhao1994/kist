@@ -503,7 +503,7 @@ progress {
 }
 .file-preview {
   block-size: 168px;
-  background: var(--media);
+  background: transparent;
   overflow: hidden;
 }
 .file-image {
