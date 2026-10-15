@@ -980,7 +980,7 @@ fieldset > label,
   padding: 0.75rem;
 }
 .file-scroll.view-list {
-  padding-block-start: 0;
+  padding: 0;
 }
 .file-scroll.view-list .file-card {
   display: grid;
@@ -991,7 +991,7 @@ fieldset > label,
   gap: 0.75rem;
   align-items: center;
   block-size: 50px;
-  padding: 0.5rem;
+  padding: 0.5rem 0.75rem;
   border: 0;
   border-block-end: 1px solid var(--mantine-color-default-border);
   border-radius: 0;
