@@ -107,7 +107,14 @@ export function ThemeProvider({
     autoContrast: true,
     components: {
       Button: Button.extend({ defaultProps: { variant: "default" } }),
-      Combobox: Combobox.extend({ defaultProps: { shadow: "md" } }),
+      Combobox: Combobox.extend({
+        defaultProps: {
+          shadow:
+            mode === "dark"
+              ? "0 2px 6px #0004, 0 10px 24px #0006"
+              : "0 2px 6px #0000001a, 0 10px 24px #00000024",
+        },
+      }),
     },
   });
   return (
