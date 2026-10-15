@@ -304,7 +304,7 @@ it("browses folders and files together with compact types and modification dates
             {
               ...files[0],
               name: "report.txt",
-              kind: "document",
+              kind: "other",
               media_type: "text/plain; charset=utf-8",
               captured_at: "2000-01-01T00:00:00Z",
               size: 41,
@@ -442,3 +442,62 @@ it("places folders at opposite ends for ascending and descending type order", as
     file.compareDocumentPosition(directory) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
 });
+
+it.each(["list", "medium"])(
+  "renames files and folders inline in %s view",
+  async (mode) => {
+    localStorage.setItem("kist.display.files.v1", mode);
+    const open = vi.fn();
+    const chooseFolder = vi.fn();
+    const fetch = vi.fn(async () => Response.json({ op_id: 1 }));
+    vi.stubGlobal("fetch", fetch);
+    render(
+      <ThemeProvider env="test">
+        <I18nProvider>
+          <FileGrid
+            files={[{ ...files[0], kind: "other" }]}
+            folders={[
+              { id: "child", name: "Child", parent_id: "root" } as Folder,
+            ]}
+            boxID="box"
+            open={open}
+            chooseFolder={chooseFolder}
+          />
+        </I18nProvider>
+      </ThemeProvider>,
+      { wrapper: mediaWrapper },
+    );
+    const user = userEvent.setup();
+    fireEvent.contextMenu(
+      await screen.findByRole("button", { name: /photo-0.jpg/ }),
+    );
+    await user.click(await screen.findByRole("menuitem", { name: "Rename" }));
+    let input = screen.getByRole("textbox", { name: "Rename" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(input.closest("button")).toBeNull();
+    expect(input.closest(".file-card")).toHaveAttribute("data-active", "true");
+    await user.clear(input);
+    await user.type(input, "changed.jpg");
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("textbox", { name: "Rename" })).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+    fireEvent.contextMenu(screen.getByRole("button", { name: "Child" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Rename" }));
+    input = screen.getByRole("textbox", { name: "Rename" });
+    await user.clear(input);
+    await user.type(input, "New folder");
+    await user.tab();
+    await waitFor(() =>
+      expect(screen.queryByRole("textbox", { name: "Rename" })).toBeNull(),
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/v1/boxes/box/entries/child/name?folder=true",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({ before: "Child", name: "New folder" }),
+      }),
+    );
+    expect(open).not.toHaveBeenCalled();
+    expect(chooseFolder).not.toHaveBeenCalled();
+  },
+);

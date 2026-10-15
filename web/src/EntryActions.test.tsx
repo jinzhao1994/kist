@@ -9,7 +9,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "./theme";
 import { I18nProvider, storageKey } from "./i18n";
-import { EntryActions } from "./EntryActions";
+import { EntryActions, EntryRename } from "./EntryActions";
 
 beforeEach(() => {
   localStorage.setItem(
@@ -29,6 +29,7 @@ afterEach(() => {
 });
 function mount(action: "rename" | "trash", folder = false) {
   const close = vi.fn();
+  const Component = action === "rename" ? EntryRename : EntryActions;
   render(
     <QueryClientProvider
       client={
@@ -37,7 +38,7 @@ function mount(action: "rename" | "trash", folder = false) {
     >
       <ThemeProvider env="test">
         <I18nProvider>
-          <EntryActions
+          <Component
             entry={{ id: "entry", box: "box", name: "old.txt", folder, action }}
             close={close}
           />
@@ -51,10 +52,10 @@ it("renames using the original name as a concurrency precondition", async () => 
   const fetch = vi.fn(async () => Response.json({ op_id: 1 }));
   vi.stubGlobal("fetch", fetch);
   const close = mount("rename");
-  fireEvent.change(screen.getByLabelText("Name"), {
+  fireEvent.change(screen.getByLabelText("Rename"), {
     target: { value: "new.txt" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  fireEvent.submit(screen.getByLabelText("Rename").closest("form")!);
   await waitFor(() => expect(close).toHaveBeenCalled());
   expect(fetch).toHaveBeenCalledWith(
     "/api/v1/boxes/box/entries/entry/name",
@@ -88,16 +89,16 @@ it("requires confirmation with subtree counts and the preview revision", async (
     }),
   );
 });
-it("keeps the dialog open when a concurrent rename is rejected", async () => {
+it("keeps the inline editor open when a concurrent rename is rejected", async () => {
   vi.stubGlobal(
     "fetch",
     vi.fn(async () => Response.json({ code: "stale_before" }, { status: 409 })),
   );
   const close = mount("rename");
-  fireEvent.change(screen.getByLabelText("Name"), {
+  fireEvent.change(screen.getByLabelText("Rename"), {
     target: { value: "new.txt" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  fireEvent.submit(screen.getByLabelText("Rename").closest("form")!);
   await screen.findByRole("alert");
   expect(close).not.toHaveBeenCalled();
   expect(screen.getByRole("button", { name: "Try again" })).toBeEnabled();

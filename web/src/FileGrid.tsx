@@ -1,8 +1,18 @@
 import { SidebarMenuButton } from "./SidebarMenuButton";
-import { EntryActions, type EntryActionTarget } from "./EntryActions";
+import {
+  EntryActions,
+  EntryRename,
+  type EntryActionTarget,
+} from "./EntryActions";
 import { createPortal } from "react-dom";
 import { Menu, UnstyledButton } from "@mantine/core";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import { useVirtualizer, useWindowVirtualizer } from "@tanstack/react-virtual";
 import { ContextMenu, useContextMenu } from "./ContextMenu";
 import { FileIcon, fileType } from "./FileIcon";
@@ -175,7 +185,7 @@ export function FileGrid({
       window.removeEventListener("resize", measure);
     };
   }, [mobile]);
-  const buttons = useRef(new Map<string, HTMLButtonElement>());
+  const buttons = useRef(new Map<string, HTMLElement>());
   const [columns, setColumns] = useState(3);
   useEffect(() => {
     const element = scroll.current;
@@ -302,6 +312,9 @@ export function FileGrid({
                 .slice(row.index * columns, (row.index + 1) * columns)
                 .map((item, offset) => {
                   const { file, folder } = item;
+                  const editing =
+                    entryAction?.action === "rename" &&
+                    entryAction.id === item.id;
                   const timestamp = file
                     ? dateSort === "captured"
                       ? file.captured_at
@@ -315,19 +328,28 @@ export function FileGrid({
                   return (
                     <div className="file-entry" key={item.id}>
                       <UnstyledButton
+                        component={editing ? "div" : "button"}
                         className={`file-card ${folder ? "directory-card" : ""}`}
                         aria-label={folder ? folder.name : undefined}
                         data-item-id={item.id}
-                        data-active={selected?.id === item.id || undefined}
-                        onContextMenu={context.bindings(item).onContextMenu}
-                        ref={(node) => {
+                        data-active={
+                          selected?.id === item.id || editing || undefined
+                        }
+                        onContextMenu={
+                          editing
+                            ? undefined
+                            : context.bindings(item).onContextMenu
+                        }
+                        ref={(node: HTMLElement | null) => {
                           if (node) buttons.current.set(item.id, node);
                           else buttons.current.delete(item.id);
                         }}
                         onClick={() =>
-                          file ? open(file) : chooseFolder?.(item.id)
+                          !editing &&
+                          (file ? open(file) : chooseFolder?.(item.id))
                         }
-                        onKeyDown={(event) => {
+                        onKeyDown={(event: KeyboardEvent<HTMLElement>) => {
+                          if (editing) return;
                           context.bindings(item).onKeyDown(event);
                           if (event.defaultPrevented) return;
                           const rtl = document.documentElement.dir === "rtl";
@@ -363,7 +385,16 @@ export function FileGrid({
                             <FileIcon folder={!!folder} />
                           )}
                         </div>
-                        <bdi className="file-name">{item.name}</bdi>
+                        {editing ? (
+                          <div className="file-name file-name-edit">
+                            <EntryRename
+                              entry={entryAction}
+                              close={() => setEntryAction(undefined)}
+                            />
+                          </div>
+                        ) : (
+                          <bdi className="file-name">{item.name}</bdi>
+                        )}
                         {mode === "list" && (
                           <>
                             <span className="file-list-kind">
@@ -389,7 +420,7 @@ export function FileGrid({
                           </bdi>
                         </small>
                       </UnstyledButton>
-                      {mode === "list" && (
+                      {mode === "list" && !editing && (
                         <SidebarMenuButton
                           label={t("moreActions")}
                           expanded={selected?.id === item.id}
@@ -449,7 +480,7 @@ export function FileGrid({
           </>
         )}
       </ContextMenu>
-      {entryAction && (
+      {entryAction?.action === "trash" && (
         <EntryActions
           entry={entryAction}
           close={() => setEntryAction(undefined)}

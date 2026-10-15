@@ -1,5 +1,5 @@
-import { Button, Group, Text, TextInput } from "@mantine/core";
-import { useState } from "react";
+import { Button, Group, Text } from "@mantine/core";
+import { InlineRename } from "./InlineRename";
 import { useQuery } from "@tanstack/react-query";
 import { createWrite, get } from "./api";
 import type { components } from "./api-schema";
@@ -14,6 +14,27 @@ export type EntryActionTarget = {
   folder: boolean;
   action: "rename" | "trash";
 };
+export function EntryRename({
+  entry,
+  close,
+}: {
+  entry: EntryActionTarget;
+  close: () => void;
+}) {
+  return (
+    <InlineRename
+      initialName={entry.name}
+      close={close}
+      write={(name) =>
+        createWrite(
+          "PUT",
+          `/boxes/${entry.box}/entries/${entry.id}/name${entry.folder ? "?folder=true" : ""}`,
+          { before: entry.name, name },
+        )
+      }
+    />
+  );
+}
 export function EntryActions({
   entry,
   close,
@@ -22,7 +43,6 @@ export function EntryActions({
   close: () => void;
 }) {
   const { t } = useI18n();
-  const [name, setName] = useState(entry.name);
   const state = useWrites(close);
   const path = `/boxes/${entry.box}/entries/${entry.id}`;
   const suffix = entry.folder ? "?folder=true" : "";
@@ -42,7 +62,7 @@ export function EntryActions({
     <Dialog
       open
       size="sm"
-      title={t(entry.action === "rename" ? "rename" : "trashEntry")}
+      title={t("trashEntry")}
       onOpenChange={(open) => {
         if (!open && !state.busy) close();
       }}
@@ -51,18 +71,7 @@ export function EntryActions({
         onSubmit={(event) => {
           event.preventDefault();
           if (state.busy || state.locked) return;
-          if (entry.action === "rename") {
-            if (name === entry.name) {
-              close();
-              return;
-            }
-            void state.run([
-              createWrite("PUT", `${path}/name${suffix}`, {
-                before: entry.name,
-                name,
-              }),
-            ]);
-          } else if (preview.data && !preview.isFetching && !preview.isError) {
+          if (preview.data && !preview.isFetching && !preview.isError) {
             void state.run([
               createWrite("DELETE", `${path}${suffix}`, {
                 revision: preview.data.revision,
@@ -71,54 +80,41 @@ export function EntryActions({
           }
         }}
       >
-        {entry.action === "rename" ? (
-          <TextInput
-            data-autofocus
-            label={t("name")}
-            required
-            withAsterisk={false}
-            maxLength={255}
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            disabled={state.busy || state.locked}
-          />
-        ) : (
-          <>
-            {preview.isFetching && (
-              <Text size="sm" role="status">
-                {t("loading")}
+        <>
+          {preview.isFetching && (
+            <Text size="sm" role="status">
+              {t("loading")}
+            </Text>
+          )}
+          {preview.isError && (
+            <div role="alert">
+              {errorMessage(preview.error, t)}{" "}
+              <Button variant="subtle" onClick={() => preview.refetch()}>
+                {t("retry")}
+              </Button>
+            </div>
+          )}
+          {preview.data && (
+            <>
+              <Text size="sm">
+                {t("trashEntryConfirm", {
+                  name: `\u2068${preview.data.name}\u2069`,
+                })}
               </Text>
-            )}
-            {preview.isError && (
-              <div role="alert">
-                {errorMessage(preview.error, t)}{" "}
-                <Button variant="subtle" onClick={() => preview.refetch()}>
-                  {t("retry")}
-                </Button>
-              </div>
-            )}
-            {preview.data && (
-              <>
-                <Text size="sm">
-                  {t("trashEntryConfirm", {
-                    name: `\u2068${preview.data.name}\u2069`,
+              {entry.folder && (
+                <Text size="sm" c="dimmed" mt="xs">
+                  {t("trashFolderContents", {
+                    files: preview.data.file_count,
+                    folders: preview.data.folder_count,
                   })}
                 </Text>
-                {entry.folder && (
-                  <Text size="sm" c="dimmed" mt="xs">
-                    {t("trashFolderContents", {
-                      files: preview.data.file_count,
-                      folders: preview.data.folder_count,
-                    })}
-                  </Text>
-                )}
-                <Text size="sm" c="dimmed" mt="xs">
-                  {t("trashEntryRestoreHint")}
-                </Text>
-              </>
-            )}
-          </>
-        )}
+              )}
+              <Text size="sm" c="dimmed" mt="xs">
+                {t("trashEntryRestoreHint")}
+              </Text>
+            </>
+          )}
+        </>
         <WriteFeedback state={state} />
         <Group justify="flex-end" gap="sm" mt="md">
           <Button
@@ -132,15 +128,16 @@ export function EntryActions({
           <Button
             type="submit"
             variant="filled"
-            color={entry.action === "trash" ? "red" : undefined}
+            color="red"
             disabled={
               state.busy ||
               state.locked ||
-              (entry.action === "trash" &&
-                (!preview.data || preview.isFetching || preview.isError))
+              !preview.data ||
+              preview.isFetching ||
+              preview.isError
             }
           >
-            {t(entry.action === "rename" ? "save" : "trashEntry")}
+            {t("trashEntry")}
           </Button>
         </Group>
       </form>
