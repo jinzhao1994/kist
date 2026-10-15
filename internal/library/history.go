@@ -96,7 +96,7 @@ func (l *Library) HistoryOp(ctx context.Context, id int64) (HistoryEntry, error)
 
 // TrashOptions lists uncompensated deletion events, preserving atomic restore.
 func TrashOptions(opt ListOpsOptions) ListOpsOptions {
-	opt.Actions = []string{string(oplog.ActionDeleteFiles), string(oplog.ActionDeleteFolder), string(oplog.ActionDeleteBox), string(oplog.ActionDeleteBoxContents), string(oplog.ActionDeleteTag)}
+	opt.Actions = []string{string(oplog.ActionDeleteEntryContents), string(oplog.ActionDeleteFiles), string(oplog.ActionDeleteFolder), string(oplog.ActionDeleteBox), string(oplog.ActionDeleteBoxContents), string(oplog.ActionDeleteTag)}
 	opt.Unreverted = true
 	return opt
 }

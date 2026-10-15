@@ -16,15 +16,18 @@ package oplog
 type Action string
 
 const (
-	ActionCreateSavedSearch  Action = "create_saved_search"
-	ActionUpdateSavedSearch  Action = "update_saved_search"
-	ActionDeleteSavedSearch  Action = "delete_saved_search"
-	ActionRequestReceipt     Action = "request_receipt"
-	ActionCreateBox          Action = "create_box"
-	ActionDeleteBox          Action = "delete_box"
-	ActionUpdateBox          Action = "update_box"
-	ActionDeleteBoxContents  Action = "delete_box_contents"
-	ActionRestoreBoxContents Action = "restore_box_contents"
+	ActionRenameEntry          Action = "rename_entry"
+	ActionDeleteEntryContents  Action = "delete_entry_contents"
+	ActionRestoreEntryContents Action = "restore_entry_contents"
+	ActionCreateSavedSearch    Action = "create_saved_search"
+	ActionUpdateSavedSearch    Action = "update_saved_search"
+	ActionDeleteSavedSearch    Action = "delete_saved_search"
+	ActionRequestReceipt       Action = "request_receipt"
+	ActionCreateBox            Action = "create_box"
+	ActionDeleteBox            Action = "delete_box"
+	ActionUpdateBox            Action = "update_box"
+	ActionDeleteBoxContents    Action = "delete_box_contents"
+	ActionRestoreBoxContents   Action = "restore_box_contents"
 
 	ActionCreateTag Action = "create_tag"
 	ActionDeleteTag Action = "delete_tag"
@@ -70,7 +73,7 @@ func AllActions() []Action {
 // Finder.
 func (a Action) ChangesContent() bool {
 	switch a {
-	case ActionCreateBox, ActionDeleteBox, ActionUpdateBox, ActionDeleteBoxContents, ActionRestoreBoxContents,
+	case ActionRenameEntry, ActionDeleteEntryContents, ActionRestoreEntryContents, ActionCreateBox, ActionDeleteBox, ActionUpdateBox, ActionDeleteBoxContents, ActionRestoreBoxContents,
 		ActionImportFiles, ActionDeleteFiles, ActionCreateFolder, ActionDeleteFolder:
 		return true
 	}

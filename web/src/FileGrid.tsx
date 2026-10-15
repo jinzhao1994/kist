@@ -1,3 +1,4 @@
+import { EntryActions, type EntryActionTarget } from "./EntryActions";
 import { createPortal } from "react-dom";
 import { Menu, UnstyledButton } from "@mantine/core";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -30,6 +31,7 @@ export function FileGrid({
   folders = [],
   chooseFolder,
   createFolder,
+  boxID,
   filters,
   onSort,
   open,
@@ -40,6 +42,7 @@ export function FileGrid({
   folders?: Folder[];
   chooseFolder?: (id: string) => void;
   createFolder?: (id: string) => void;
+  boxID?: string;
   filters?: Filters;
   onSort?: (sort: NonNullable<Filters["sort"]>) => void;
   paused?: boolean;
@@ -76,6 +79,8 @@ export function FileGrid({
   ];
   const context = useContextMenu<(typeof items)[number]>();
   const selected = context.menu?.item;
+  const [entryAction, setEntryAction] = useState<EntryActionTarget>();
+  const selectedBox = selected?.file?.box_id || boxID;
   const dateSort =
     filters?.sort === "captured" || filters?.sort === "imported"
       ? filters.sort
@@ -400,7 +405,35 @@ export function FileGrid({
             {t("createFolder")}
           </Menu.Item>
         )}
+        {selected && selectedBox && (
+          <>
+            <Menu.Divider />
+            {(["rename", "trash"] as const).map((action) => (
+              <Menu.Item
+                key={action}
+                color={action === "trash" ? "red" : undefined}
+                onClick={() =>
+                  setEntryAction({
+                    id: selected.id,
+                    name: selected.name,
+                    box: selectedBox,
+                    folder: !!selected.folder,
+                    action,
+                  })
+                }
+              >
+                {t(action === "rename" ? "rename" : "trashEntry")}
+              </Menu.Item>
+            ))}
+          </>
+        )}
       </ContextMenu>
+      {entryAction && (
+        <EntryActions
+          entry={entryAction}
+          close={() => setEntryAction(undefined)}
+        />
+      )}
     </>
   );
 }

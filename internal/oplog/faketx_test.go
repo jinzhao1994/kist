@@ -378,3 +378,14 @@ func (f *fakeTx) SavedSearchByName(name string) (domain.SavedSearch, bool, error
 	}
 	return domain.SavedSearch{}, false, nil
 }
+
+func (*fakeTx) EntryContents(domain.BoxID, domain.ID, bool) (domain.EntryContents, bool, error) {
+	panic("not implemented")
+}
+func (*fakeTx) DeleteEntryContents(domain.EntryContents) error  { panic("not implemented") }
+func (*fakeTx) RestoreEntryContents(domain.EntryContents) error { panic("not implemented") }
+func (*fakeTx) RenameEntry(domain.ID, bool, string) error       { panic("not implemented") }
+
+func (*fakeTx) EntryNameAvailable(domain.FolderID, string, domain.ID) (bool, error) {
+	panic("not implemented")
+}

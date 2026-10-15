@@ -61,6 +61,13 @@ export const en = {
   action_create_box: "Create box",
   action_delete_box: "Delete box",
   action_delete_box_contents: "Move box to trash",
+  action_rename_entry: "Rename file or folder",
+  action_delete_entry_contents: "Move file or folder to trash",
+  action_restore_entry_contents: "Restore file or folder",
+  trashEntry: "Move to trash",
+  trashEntryConfirm: "Move “{name}” to trash?",
+  trashFolderContents: "Includes {files} files and {folders} subfolders.",
+  trashEntryRestoreHint: "You can restore it from Trash.",
   action_restore_box_contents: "Restore box",
   moveBoxToTrash: "Move to trash",
   trashBoxConfirm:
@@ -357,6 +364,13 @@ export const zh: Record<MessageKey, string> = {
   action_create_box: "创建归档箱",
   action_delete_box: "删除归档箱",
   action_delete_box_contents: "归档盒移入回收站",
+  action_rename_entry: "重命名文件或目录",
+  action_delete_entry_contents: "文件或目录移入回收站",
+  action_restore_entry_contents: "恢复文件或目录",
+  trashEntry: "移入回收站",
+  trashEntryConfirm: "确定将「{name}」移入回收站吗？",
+  trashFolderContents: "包含 {files} 个文件和 {folders} 个子目录。",
+  trashEntryRestoreHint: "之后可以从回收站恢复。",
   action_restore_box_contents: "恢复归档盒",
   moveBoxToTrash: "移入回收站",
   trashBoxConfirm:
@@ -642,6 +656,8 @@ export function directionFor(prefs: Preferences): "ltr" | "rtl" {
   return "ltr";
 }
 interface Parameters {
+  trashEntryConfirm: { name: string };
+  trashFolderContents: { files: number; folders: number };
   deleteNamedTagConfirm: { name: string };
   uploadElapsed: { seconds: string; speed: string };
   uploadTiming: { hash: string; transfer: string; processing: string };

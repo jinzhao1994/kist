@@ -23,6 +23,11 @@ import (
 // (spec 1.5.1 ②). Putting them here would invite a handler to do it, and then
 // a new op type could forget to.
 type Tx interface {
+	EntryNameAvailable(domain.FolderID, string, domain.ID) (bool, error)
+	EntryContents(domain.BoxID, domain.ID, bool) (domain.EntryContents, bool, error)
+	DeleteEntryContents(domain.EntryContents) error
+	RestoreEntryContents(domain.EntryContents) error
+	RenameEntry(domain.ID, bool, string) error
 	SavedSearchByName(string) (domain.SavedSearch, bool, error)
 	InsertSavedSearch(domain.SavedSearch) error
 	UpdateSavedSearch(domain.SavedSearch) error

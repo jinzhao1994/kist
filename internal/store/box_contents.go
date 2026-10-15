@@ -8,6 +8,11 @@ import (
 // BoxContents reads a complete box in the caller's snapshot. Queries never
 // inspect operation payloads. UNION makes damaged recursive trees terminate.
 func (v *ViewTx) BoxContents(id domain.BoxID) (domain.BoxContents, bool, error) {
+	return v.boxContents(id, nil, false)
+}
+
+// boxContents can limit file annotations to a single entry or subtree.
+func (v *ViewTx) boxContents(id domain.BoxID, entry *domain.ID, folder bool) (domain.BoxContents, bool, error) {
 	var s domain.BoxContents
 	b, found, err := v.GetBox(id)
 	if err != nil || !found {
@@ -49,7 +54,17 @@ func (v *ViewTx) BoxContents(id domain.BoxID) (domain.BoxContents, bool, error) 
 		}
 		pending = rest
 	}
-	rows, err = v.tx.Query(`SELECT `+fileColumns+` FROM files WHERE folder_id IN (`+FoldersOfBoxSQL+`) ORDER BY id`, id)
+	fileQuery := `SELECT ` + fileColumns + ` FROM files WHERE folder_id IN (` + FoldersOfBoxSQL + `)`
+	args := []any{id}
+	if entry != nil {
+		if folder {
+			fileQuery += ` AND folder_id IN (WITH RECURSIVE subtree(id) AS (SELECT id FROM folders WHERE id=? UNION SELECT f.id FROM folders f JOIN subtree s ON f.parent_id=s.id) SELECT id FROM subtree)`
+		} else {
+			fileQuery += ` AND id=?`
+		}
+		args = append(args, *entry)
+	}
+	rows, err = v.tx.Query(fileQuery+` ORDER BY id`, args...)
 	if err != nil {
 		return s, false, err
 	}
@@ -197,7 +212,11 @@ func (v *ViewTx) RestoreBoxContents(s domain.BoxContents) error {
 			return err
 		}
 	}
-	for _, f := range s.Files {
+	return v.restoreArchivedFiles(s.Files)
+}
+
+func (v *ViewTx) restoreArchivedFiles(files []domain.ArchivedFile) error {
+	for _, f := range files {
 		if err := v.UpsertBlob(f.File.BlobKey, f.SHA256, f.Size); err != nil {
 			return err
 		}

@@ -271,7 +271,8 @@ func declaredConstants(t *testing.T, typeName string) []string {
 // would decay one action at a time with nothing to notice it.
 func TestEveryActionDeclaresWhetherItChangesContent(t *testing.T) {
 	want := map[Action]bool{
-		ActionRequestReceipt:    false,
+		ActionRequestReceipt: false,
+		ActionRenameEntry:    true, ActionDeleteEntryContents: true, ActionRestoreEntryContents: true,
 		ActionDeleteBoxContents: true, ActionRestoreBoxContents: true,
 		ActionCreateBox: true, ActionDeleteBox: true, ActionUpdateBox: true,
 		ActionImportFiles: true, ActionDeleteFiles: true, ActionCreateFolder: true, ActionDeleteFolder: true,

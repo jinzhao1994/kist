@@ -104,6 +104,7 @@ export function FileBrowser({
           {files.length || folders.length ? (
             <FileGrid
               files={files}
+              boxID={box?.id}
               folders={folders}
               chooseFolder={chooseFolder}
               createFolder={box ? setContextParent : undefined}

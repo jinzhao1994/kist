@@ -137,6 +137,7 @@ func (s *Server) mutate(ctx context.Context, key, method, target string, body an
 	return response(result, err)
 }
 func (s *Server) writeRoutes() {
+	s.entryRoutes()
 	huma.Post(s.contract, Prefix+"/boxes/{id}/folders", func(ctx context.Context, in *struct {
 		ID   string `path:"id"`
 		Key  string `header:"Idempotency-Key" required:"true"`

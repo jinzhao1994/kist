@@ -35,6 +35,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/boxes/{box}/entries/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete API v1 boxes by box entries by ID */
+        delete: operations["delete-api-v1-boxes-by-box-entries-by-id"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boxes/{box}/entries/{id}/deletion-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 boxes by box entries by ID deletion preview */
+        get: operations["get-api-v1-boxes-by-box-entries-by-id-deletion-preview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/boxes/{box}/entries/{id}/name": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put API v1 boxes by box entries by ID name */
+        put: operations["put-api-v1-boxes-by-box-entries-by-id-name"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/boxes/{id}": {
         parameters: {
             query?: never;
@@ -637,6 +688,23 @@ export interface components {
             /** Format: int64 */
             revision: number;
         };
+        EntryDeleteInputBody: {
+            /** Format: int64 */
+            revision: number;
+        };
+        EntryDeletionPreview: {
+            /** Format: int64 */
+            file_count: number;
+            /** Format: int64 */
+            folder_count: number;
+            name: string;
+            /** Format: int64 */
+            revision: number;
+        };
+        EntryRenameInputBody: {
+            before: string;
+            name: string;
+        };
         ExtractionInputBody: Record<string, never>;
         File: {
             blob_key: string;
@@ -1025,6 +1093,120 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BoxSearchResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "delete-api-v1-boxes-by-box-entries-by-id": {
+        parameters: {
+            query?: {
+                folder?: boolean;
+            };
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                box: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EntryDeleteInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-boxes-by-box-entries-by-id-deletion-preview": {
+        parameters: {
+            query?: {
+                folder?: boolean;
+            };
+            header?: never;
+            path: {
+                box: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntryDeletionPreview"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "put-api-v1-boxes-by-box-entries-by-id-name": {
+        parameters: {
+            query?: {
+                folder?: boolean;
+            };
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                box: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EntryRenameInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestResult"];
                 };
             };
             /** @description Error */
