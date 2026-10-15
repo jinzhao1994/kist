@@ -189,6 +189,38 @@ export function App() {
                   />
                 </svg>
                 {t("allTags")}
+                <Tooltip
+                  label={t("manageTags")}
+                  events={{ hover: true, focus: true, touch: false }}
+                >
+                  <ActionIcon
+                    className="manage-tags-button"
+                    variant="subtle"
+                    color="gray"
+                    size="sm"
+                    aria-label={t("manageTags")}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setManage(true);
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M4 7h6m4 0h6M4 17h10m4 0h2" />
+                      <circle cx="12" cy="7" r="2" />
+                      <circle cx="16" cy="17" r="2" />
+                    </svg>
+                  </ActionIcon>
+                </Tooltip>
               </summary>
               {tags.isError ? (
                 <Button onClick={() => tags.refetch()}>{t("retry")}</Button>
@@ -212,34 +244,6 @@ export function App() {
                 />
               )}
             </details>
-            <Tooltip
-              label={t("manageTags")}
-              events={{ hover: true, focus: true, touch: false }}
-            >
-              <ActionIcon
-                className="manage-tags-button"
-                variant="subtle"
-                color="gray"
-                size="sm"
-                aria-label={t("manageTags")}
-                onClick={() => setManage(true)}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  aria-hidden="true"
-                >
-                  <path d="M4 7h6m4 0h6M4 17h10m4 0h2" />
-                  <circle cx="12" cy="7" r="2" />
-                  <circle cx="16" cy="17" r="2" />
-                </svg>
-              </ActionIcon>
-            </Tooltip>
           </div>
           <div className="sidebar-footer">
             <small>kist · {info.data?.version || "v0.1"}</small>

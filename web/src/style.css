@@ -332,9 +332,11 @@ summary {
   min-inline-size: 0;
 }
 .manage-tags-button {
-  position: absolute;
-  inset-inline-end: 0;
-  inset-block-start: 0.35rem;
+  flex-shrink: 0;
+  margin-inline-start: auto;
+}
+.sidebar-tag-section > .sidebar-tags > summary {
+  padding-inline-end: 0.35rem;
 }
 .sidebar-tags > summary {
   padding-inline-end: 2rem;
