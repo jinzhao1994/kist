@@ -112,7 +112,7 @@ func TestListFilesSortsCapturedFirstThenNewest(t *testing.T) {
 // allSortSpecs is every ordering the contract offers.
 func allSortSpecs() []query.SortSpec {
 	var out []query.SortSpec
-	for _, k := range []query.SortKey{query.SortCaptured, query.SortImported, query.SortName, query.SortUpdated} {
+	for _, k := range []query.SortKey{query.SortCaptured, query.SortImported, query.SortName, query.SortUpdated, query.SortType, query.SortSize} {
 		out = append(out, query.SortSpec{Key: k}, query.SortSpec{Key: k, Asc: true})
 	}
 	return out
@@ -578,6 +578,56 @@ func TestUpdatedSortUsesModificationTimeAndStablePaging(t *testing.T) {
 		}
 		if cursor != "" {
 			t.Fatal("unexpected extra page")
+		}
+	}
+}
+
+func TestTypeAndSizeSortKeysAndPaging(t *testing.T) {
+	db := migrated(t)
+	_, root := seedBoxWithRoot(t, db)
+	names := []string{"unknown", "long-photo.JPG", "report", "notes-longer.txt"}
+	sizes := []int64{100, 2, 0, 10}
+	for i, name := range names {
+		id := putFile(t, db, root, name, "")
+		if _, err := db.Exec(`UPDATE blobs SET size=? WHERE key=(SELECT blob_key FROM files WHERE id=?)`, sizes[i], id); err != nil {
+			t.Fatal(err)
+		}
+		if name == "report" {
+			if _, err := db.Exec(`INSERT INTO file_metadata(file_id,key,value,type,source) VALUES (?,'media:mime','application/pdf; charset=utf-8','text','user')`, id); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	for _, tc := range []struct {
+		key  query.SortKey
+		want []string
+	}{
+		{query.SortType, names},
+		{query.SortSize, []string{"report", "long-photo.JPG", "notes-longer.txt", "unknown"}},
+	} {
+		for _, asc := range []bool{true, false} {
+			want := slices.Clone(tc.want)
+			if !asc {
+				slices.Reverse(want)
+			}
+			var got []string
+			cursor := ""
+			for range 10 {
+				page, next, err := ListFiles(db, query.Query{Sort: query.SortSpec{Key: tc.key, Asc: asc}, Limit: 1, Cursor: cursor}, time.UTC)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, f := range page {
+					got = append(got, f.Name)
+				}
+				if next == "" {
+					break
+				}
+				cursor = next
+			}
+			if !slices.Equal(got, want) {
+				t.Fatalf("%s asc=%v: %v want %v", tc.key, asc, got, want)
+			}
 		}
 	}
 }

@@ -722,6 +722,7 @@ export interface components {
             path?: string;
             /** Format: int64 */
             size?: number;
+            type_label?: string;
             /** Format: date-time */
             updated_at: string;
         };
@@ -1506,7 +1507,7 @@ export interface operations {
                 name?: string;
                 from?: string;
                 to?: string;
-                sort?: "captured" | "imported" | "name" | "updated";
+                sort?: "captured" | "imported" | "name" | "updated" | "type" | "size";
                 asc?: boolean;
                 cursor?: string;
                 limit?: number;

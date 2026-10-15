@@ -32,7 +32,7 @@ function readFilters(
     if (
       (boxes
         ? ["updated", "activity", "name"]
-        : ["captured", "imported", "name", "updated"]
+        : ["captured", "imported", "name", "updated", "type", "size"]
       ).includes(input.sort)
     )
       out.sort = input.sort;

@@ -346,6 +346,10 @@ it("browses folders and files together with compact types and modification dates
   expect(open).toHaveBeenCalledOnce();
   await user.click(screen.getByRole("button", { name: "Filename" }));
   expect(onSort).toHaveBeenCalledWith("name");
+  await user.click(screen.getByRole("button", { name: "File type" }));
+  expect(onSort).toHaveBeenCalledWith("type");
+  await user.click(screen.getByRole("button", { name: "Size" }));
+  expect(onSort).toHaveBeenCalledWith("size");
 });
 
 it("opens file and folder context actions at the pointer without navigating", async () => {
@@ -410,4 +414,31 @@ it("opens the same context menu from the list row action without opening the fil
   await userEvent.click(screen.getByRole("menuitem", { name: "Open" }));
   expect(open).toHaveBeenCalledWith(files[0]);
   await waitFor(() => expect(more).toHaveAttribute("aria-expanded", "false"));
+});
+
+it("places folders at opposite ends for ascending and descending type order", async () => {
+  localStorage.setItem("kist.display.files.v1", "list");
+  const folder = { id: "child", name: "Child", parent_id: "root" } as Folder;
+  const page = (asc: boolean) => (
+    <ThemeProvider env="test">
+      <I18nProvider>
+        <FileGrid
+          files={[files[0]]}
+          folders={[folder]}
+          filters={{ ...emptyFilters, sort: "type", asc }}
+          open={vi.fn()}
+        />
+      </I18nProvider>
+    </ThemeProvider>
+  );
+  const view = render(page(true), { wrapper: mediaWrapper });
+  const directory = await screen.findByRole("button", { name: "Child" });
+  const file = screen.getByRole("button", { name: /photo-0.jpg/ });
+  expect(
+    directory.compareDocumentPosition(file) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  view.rerender(page(false));
+  expect(
+    file.compareDocumentPosition(directory) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
 });

@@ -105,7 +105,11 @@ export function FileBrowser({
             <FileGrid
               files={files}
               boxID={box?.id}
-              folders={folders}
+              folders={
+                filters.sort === "type" && !filters.asc && query.hasNextPage
+                  ? []
+                  : folders
+              }
               chooseFolder={chooseFolder}
               createFolder={box ? setContextParent : undefined}
               filters={filters}

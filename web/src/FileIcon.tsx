@@ -2,19 +2,7 @@ import type { ArchiveFile } from "./api";
 
 export function fileType(file: ArchiveFile): string | undefined {
   const extension = file.name.match(/\.([a-z0-9]{1,12})$/i)?.[1];
-  const known: Record<string, string> = {
-    "text/plain": "TXT",
-    "application/pdf": "PDF",
-    "image/jpeg": "JPG",
-    "image/png": "PNG",
-    "video/mp4": "MP4",
-    "audio/mpeg": "MP3",
-    "application/zip": "ZIP",
-  };
-  return (
-    extension?.toUpperCase() ||
-    known[(file.media_type || "").split(";")[0].trim().toLowerCase()]
-  );
+  return file.type_label || extension?.toUpperCase();
 }
 
 export function FileIcon({ folder = false }: { folder?: boolean }) {

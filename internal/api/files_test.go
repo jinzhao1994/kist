@@ -137,7 +137,7 @@ func TestFileQueryAndTagMutations(t *testing.T) {
 }
 func TestInvalidFileQueries(t *testing.T) {
 	s, _ := testServer(t)
-	for _, path := range []string{"/files?box=bad", "/files?folder=bad", "/files?from=nope", "/files?from=2021&to=2020", "/files?cursor=bad", "/files?limit=1001", "/files?sort=size", "/files/nope"} {
+	for _, path := range []string{"/files?box=bad", "/files?folder=bad", "/files?from=nope", "/files?from=2021&to=2020", "/files?cursor=bad", "/files?limit=1001", "/files?sort=invalid", "/files/nope"} {
 		w := call(s, "GET", Prefix+path, "", "")
 		if w.Code != 400 && w.Code != 422 {
 			t.Fatalf("%s: %d %s", path, w.Code, w.Body)

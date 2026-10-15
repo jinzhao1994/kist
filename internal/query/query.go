@@ -43,6 +43,11 @@ const (
 	// SortUpdated orders by the archive record modification time.
 	SortUpdated
 
+	// SortType orders by the displayed extension or MIME fallback.
+	SortType
+	// SortSize orders by blob size in bytes.
+	SortSize
+
 	numSortKeys
 )
 
@@ -56,6 +61,10 @@ func (k SortKey) String() string {
 		return "name"
 	case SortUpdated:
 		return "updated"
+	case SortType:
+		return "type"
+	case SortSize:
+		return "size"
 	}
 	return fmt.Sprintf("SortKey(%d)", int(k))
 }

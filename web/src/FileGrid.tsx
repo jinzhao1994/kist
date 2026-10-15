@@ -65,19 +65,25 @@ export function FileGrid({
       );
     return byName * (filters?.sort === "name" && !filters.asc ? -1 : 1);
   });
+  const folderItems = sortedFolders.map((folder) => ({
+    id: folder.id,
+    name: folder.name,
+    folder,
+  }));
+  const fileItems = files.map((file) => ({
+    id: file.id,
+    name: file.name,
+    file,
+  }));
   const items: {
     id: string;
     name: string;
     file?: ArchiveFile;
     folder?: Folder;
-  }[] = [
-    ...sortedFolders.map((folder) => ({
-      id: folder.id,
-      name: folder.name,
-      folder,
-    })),
-    ...files.map((file) => ({ id: file.id, name: file.name, file })),
-  ];
+  }[] =
+    filters?.sort === "type" && !filters.asc
+      ? [...fileItems, ...folderItems]
+      : [...folderItems, ...fileItems];
   const context = useContextMenu<(typeof items)[number]>();
   const selected = context.menu?.item;
   const [entryAction, setEntryAction] = useState<EntryActionTarget>();
@@ -266,8 +272,8 @@ export function FileGrid({
       {mode === "list" && (
         <div className="file-list-heading">
           <span>{heading(t("filename"), "name")}</span>
-          <span>{t("kind")}</span>
-          <span>{t("fileSize")}</span>
+          <span>{heading(t("kind"), "type")}</span>
+          <span>{heading(t("fileSize"), "size")}</span>
           <span>{heading(dateLabel, dateSort)}</span>
         </div>
       )}

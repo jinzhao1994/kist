@@ -28,6 +28,11 @@ func (s SortSpec) ID() string {
 // SQLite compares them using the integer affinity of the updated_at column.
 func (s SortSpec) Value(f domain.File) string {
 	switch s.Key {
+	case SortType:
+		// Joined keys are supplied explicitly by the query backend.
+		return ""
+	case SortSize:
+		return "0"
 	case SortUpdated:
 		return strconv.FormatInt(f.UpdatedAt.UnixNano(), 10)
 	case SortImported:
@@ -49,7 +54,12 @@ func (s SortSpec) Value(f domain.File) string {
 // page that looks perfectly normal and is silently wrong (spec 4.2.1) — and
 // nobody ever notices that.
 func EncodeCursor(s SortSpec, f domain.File) string {
-	raw := s.ID() + "\x00" + s.Value(f) + "\x00" + f.ID.String()
+	return EncodeCursorValue(s, s.Value(f), f.ID)
+}
+
+// EncodeCursorValue encodes a key read from the same snapshot as the page.
+func EncodeCursorValue(s SortSpec, value string, id domain.FileID) string {
+	raw := s.ID() + "\x00" + value + "\x00" + id.String()
 	return base64.RawURLEncoding.EncodeToString([]byte(raw))
 }
 
@@ -66,6 +76,12 @@ func DecodeCursor(s SortSpec, cursor string) (string, domain.FileID, error) {
 	if parts[0] != s.ID() {
 		return "", domain.FileID{}, fmt.Errorf("%w: it was made under %s, this query is %s",
 			ErrCursorSortMismatch, parts[0], s.ID())
+	}
+	if s.Key == SortSize {
+		size, err := strconv.ParseInt(parts[1], 10, 64)
+		if err != nil || size < 0 {
+			return "", domain.FileID{}, fmt.Errorf("bad cursor: invalid file size")
+		}
 	}
 	id, err := domain.ParseID(parts[2])
 	if err != nil {

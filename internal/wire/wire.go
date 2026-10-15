@@ -69,6 +69,7 @@ func NewBoxes(boxes []domain.Box) []Box {
 // them — a listing that already names its box has no reason to pay for it per
 // row.
 type File struct {
+	TypeLabel         string     `json:"type_label,omitempty"`
 	Size              *int64     `json:"size,omitempty"`
 	MediaType         string     `json:"media_type,omitempty"`
 	Kind              string     `json:"kind,omitempty"`

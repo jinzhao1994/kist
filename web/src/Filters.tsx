@@ -404,6 +404,8 @@ export function FiltersPanel<T extends FilterValues>({
                     ["captured", "captured"],
                     ["imported", "imported"],
                     ["name", "filename"],
+                    ["type", "kind"],
+                    ["size", "fileSize"],
                   ]) as [
                 T["sort"],
                 (
@@ -413,6 +415,8 @@ export function FiltersPanel<T extends FilterValues>({
                   | "captured"
                   | "imported"
                   | "filename"
+                  | "kind"
+                  | "fileSize"
                 ),
               ][]
             ).map(([sort, label]) => (

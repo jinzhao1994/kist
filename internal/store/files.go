@@ -2,6 +2,7 @@ package store
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -30,6 +31,9 @@ func orderBy(s query.SortSpec) string {
 	dir := " DESC"
 	if s.Asc {
 		dir = " ASC"
+	}
+	if key := extraFileSortKey(s.Key); key != "" {
+		return ` ORDER BY ` + key + dir + `, id` + dir
 	}
 	switch s.Key {
 	case query.SortUpdated:
@@ -62,6 +66,13 @@ func cursorPredicate(s query.SortSpec, key string, id domain.FileID) (string, []
 		cmp = " > ?"
 	}
 
+	if expression := extraFileSortKey(s.Key); expression != "" {
+		var value any = key
+		if s.Key == query.SortSize {
+			value, _ = strconv.ParseInt(key, 10, 64)
+		}
+		return ` AND (` + expression + cmp + ` OR (` + expression + ` = ? AND id` + cmp + `))`, []any{value, value, id}
+	}
 	switch s.Key {
 	case query.SortUpdated:
 		return ` AND (updated_at` + cmp + ` OR (updated_at = ? AND id` + cmp + `))`, []any{key, key, id}
@@ -124,7 +135,15 @@ func ListFiles(q Queryer, qry query.Query, zone *time.Location) ([]domain.File, 
 		return out, "", nil
 	}
 	out = out[:size]
-	return out, query.EncodeCursor(qry.Sort, out[len(out)-1]), nil
+	last := out[len(out)-1]
+	if expression := extraFileSortKey(qry.Sort.Key); expression != "" {
+		var value string
+		if err := q.QueryRow(`SELECT `+expression+` FROM files WHERE id=?`, last.ID).Scan(&value); err != nil {
+			return nil, "", err
+		}
+		return out, query.EncodeCursorValue(qry.Sort, value, last.ID), nil
+	}
+	return out, query.EncodeCursor(qry.Sort, last), nil
 }
 
 // escapeLike neutralizes LIKE's wildcards so a pattern matches literally.

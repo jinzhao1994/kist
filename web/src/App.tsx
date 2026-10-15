@@ -493,7 +493,9 @@ export function App() {
                       ...filters,
                       sort,
                       asc:
-                        filters.sort === sort ? !filters.asc : sort === "name",
+                        filters.sort === sort
+                          ? !filters.asc
+                          : sort === "name" || sort === "type",
                     };
                     setFilters(next);
                     go({ ...route, filters: next }, true);
