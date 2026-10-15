@@ -300,7 +300,6 @@ summary {
   gap: 0.25rem;
   min-block-size: 2.25rem;
   padding-block: 0.2rem;
-  padding-inline-end: 0.35rem;
   border-radius: var(--mantine-radius-sm);
   cursor: pointer;
   font-size: 0.875rem;
@@ -1319,6 +1318,10 @@ fieldset > label,
 
 .tag-tree bdi {
   flex: 1;
+}
+.tag-tree-row,
+.saved-search-row {
+  padding-inline-end: 0.35rem;
 }
 .sidebar-row-menu {
   flex-shrink: 0;
