@@ -48,8 +48,14 @@ export function ContextMenu({
   close: () => void;
   children: ReactNode;
 }) {
+  // Keep the exit frame anchored to the last trigger, not the viewport origin.
+  const [position, setPosition] = useState(anchor);
+  if (anchor && (anchor.x !== position?.x || anchor.y !== position?.y)) {
+    setPosition(anchor);
+  }
   return (
     <Menu
+      transitionProps={{ transition: "fade", duration: 100, exitDuration: 0 }}
       returnFocus={false}
       withinPortal
       position="bottom-start"
@@ -67,8 +73,8 @@ export function ContextMenu({
             aria-hidden="true"
             style={{
               position: "fixed",
-              left: anchor?.x ?? 0,
-              top: anchor?.y ?? 0,
+              left: position?.x ?? 0,
+              top: position?.y ?? 0,
               width: 1,
               height: 1,
               pointerEvents: "none",

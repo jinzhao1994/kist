@@ -28,6 +28,12 @@ export function Dialog({
   return (
     <Modal
       opened={open}
+      transitionProps={{ transition: "fade", duration: 180 }}
+      classNames={
+        open
+          ? { content: "dialog-enter", overlay: "dialog-overlay-enter" }
+          : undefined
+      }
       onClose={() => {
         onOpenChange(false);
         requestAnimationFrame(() => {

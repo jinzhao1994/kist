@@ -1,7 +1,7 @@
+import { ContextMenu } from "./ContextMenu";
 import { SidebarMenuButton } from "./SidebarMenuButton";
 import {
   Menu,
-  Portal,
   UnstyledButton,
   TextInput,
   Button,
@@ -182,58 +182,27 @@ export function TagTree({
           </div>
         )}
       />
-      <Menu
-        returnFocus={false}
-        withinPortal
-        position="bottom-start"
-        floatingStrategy="fixed"
-        offset={0}
-        opened={menu !== null}
-        onChange={(open) => {
-          if (!open) setMenu(null);
-        }}
-        styles={{ item: { fontSize: "var(--mantine-font-size-xs)" } }}
-      >
-        <Portal>
-          <Menu.Target>
-            <span
-              aria-hidden="true"
-              style={{
-                position: "fixed",
-                left: menu?.x ?? 0,
-                top: menu?.y ?? 0,
-                width: 1,
-                height: 1,
-                pointerEvents: "none",
-              }}
-            />
-          </Menu.Target>
-        </Portal>
-        <Menu.Dropdown
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => e.stopPropagation()}
-        >
-          {(["tag", "boxes", "files"] as const).map((destination) => (
-            <Menu.Item
-              key={destination}
-              onClick={() => {
-                if (menu) choose(menu.id, destination);
-                setMenu(null);
-              }}
-            >
-              {t(
-                destination === "tag"
-                  ? "openTagPage"
-                  : destination === "boxes"
-                    ? "viewTaggedBoxes"
-                    : "viewTaggedFiles",
-              )}
-            </Menu.Item>
-          ))}
-          <Menu.Divider />
-          {(
-            ["rename", "addChildTag", "changeParentTag", "remove"] as const
-          ).map((kind) => (
+      <ContextMenu anchor={menu} close={() => setMenu(null)}>
+        {(["tag", "boxes", "files"] as const).map((destination) => (
+          <Menu.Item
+            key={destination}
+            onClick={() => {
+              if (menu) choose(menu.id, destination);
+              setMenu(null);
+            }}
+          >
+            {t(
+              destination === "tag"
+                ? "openTagPage"
+                : destination === "boxes"
+                  ? "viewTaggedBoxes"
+                  : "viewTaggedFiles",
+            )}
+          </Menu.Item>
+        ))}
+        <Menu.Divider />
+        {(["rename", "addChildTag", "changeParentTag", "remove"] as const).map(
+          (kind) => (
             <Menu.Item
               key={kind}
               color={kind === "remove" ? "red" : undefined}
@@ -245,9 +214,9 @@ export function TagTree({
             >
               {t(kind)}
             </Menu.Item>
-          ))}
-        </Menu.Dropdown>
-      </Menu>
+          ),
+        )}
+      </ContextMenu>
       {action && action.kind !== "rename" && (
         <TagActionDialog
           key={`${action.tag.id}:${action.kind}`}
