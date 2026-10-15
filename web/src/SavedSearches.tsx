@@ -1,3 +1,4 @@
+import { SidebarMenuButton } from "./SidebarMenuButton";
 import {
   ActionIcon,
   Button,
@@ -319,19 +320,14 @@ export function SavedSearches({
                   <StarIcon />
                   <bdi>{item.name}</bdi>
                 </UnstyledButton>
-                <ActionIcon
-                  size="sm"
-                  color="gray"
-                  variant="subtle"
-                  aria-label={`${item.name} · ${t("editSavedSearch")}`}
-                  aria-haspopup="menu"
-                  aria-expanded={context.menu?.item.id === item.id}
-                  onClick={(event) =>
-                    context.atElement(item, event.currentTarget)
-                  }
-                >
-                  ⋯
-                </ActionIcon>
+                <SidebarMenuButton
+                  label={`${item.name} · ${t("editSavedSearch")}`}
+                  expanded={context.menu?.item.id === item.id}
+                  onClick={(event) => {
+                    if (context.menu?.item.id === item.id) context.close();
+                    else context.atElement(item, event.currentTarget);
+                  }}
+                />
               </li>
             ))}
           </ul>

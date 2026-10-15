@@ -1,5 +1,5 @@
+import { SidebarMenuButton } from "./SidebarMenuButton";
 import {
-  ActionIcon,
   Menu,
   Portal,
   UnstyledButton,
@@ -165,15 +165,10 @@ export function TagTree({
                 {formatNumber(counts.get(node.value)!.count!, prefs)}
               </small>
             )}
-            <ActionIcon
+            <SidebarMenuButton
               disabled={action?.kind === "rename"}
-              className="tag-row-menu"
-              size="sm"
-              variant="subtle"
-              color="gray"
-              aria-label={t("tagActions", { name: String(node.label) })}
-              aria-haspopup="menu"
-              aria-expanded={menu?.id === node.value}
+              label={t("tagActions", { name: String(node.label) })}
+              expanded={menu?.id === node.value}
               onClick={(event) => {
                 event.stopPropagation();
                 const rect = event.currentTarget.getBoundingClientRect();
@@ -183,19 +178,7 @@ export function TagTree({
                     : { id: node.value, x: rect.left, y: rect.bottom },
                 );
               }}
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                aria-hidden="true"
-              >
-                <circle cx="5" cy="12" r="1.5" />
-                <circle cx="12" cy="12" r="1.5" />
-                <circle cx="19" cy="12" r="1.5" />
-              </svg>
-            </ActionIcon>
+            />
           </div>
         )}
       />

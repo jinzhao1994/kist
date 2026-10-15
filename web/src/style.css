@@ -1320,7 +1320,7 @@ fieldset > label,
 .tag-tree bdi {
   flex: 1;
 }
-.tag-row-menu {
+.sidebar-row-menu {
   flex-shrink: 0;
   margin-inline-start: auto;
 }
@@ -1329,12 +1329,14 @@ fieldset > label,
   min-inline-size: 0;
 }
 @media (hover: hover) and (pointer: fine) {
-  .tag-row-menu {
+  .sidebar-row-menu {
     opacity: 0;
   }
-  .tag-tree-row:hover .tag-row-menu,
-  .tag-tree-row:focus-within .tag-row-menu,
-  .tag-row-menu[aria-expanded="true"] {
+  .tag-tree-row:hover .sidebar-row-menu,
+  .tag-tree-row:focus-within .sidebar-row-menu,
+  .saved-search-row:hover .sidebar-row-menu,
+  .saved-search-row:focus-within .sidebar-row-menu,
+  .sidebar-row-menu[aria-expanded="true"] {
     opacity: 1;
   }
 }
