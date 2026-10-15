@@ -491,6 +491,19 @@ progress {
   display: grid;
   gap: 12px;
 }
+.file-entry {
+  position: relative;
+  min-inline-size: 0;
+}
+.file-entry > .file-card {
+  inline-size: 100%;
+}
+.file-entry > .sidebar-row-menu {
+  position: absolute;
+  inset-inline-end: 0.75rem;
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+}
 .file-card {
   border: 1px solid var(--border);
   background: transparent;
@@ -987,6 +1000,10 @@ fieldset > label,
 .file-scroll.view-list {
   padding: 0;
 }
+.file-list-heading,
+.file-scroll.view-list .file-card {
+  padding-inline-end: 3rem;
+}
 .file-scroll.view-list .file-card {
   display: grid;
   grid-template-columns: 24px minmax(100px, 2fr) minmax(100px, 1fr) 90px minmax(
@@ -1351,6 +1368,8 @@ fieldset > label,
   }
   .tag-tree-row:hover .sidebar-row-menu,
   .tag-tree-row:focus-within .sidebar-row-menu,
+  .file-entry:hover .sidebar-row-menu,
+  .file-entry:focus-within .sidebar-row-menu,
   .saved-search-row:hover .sidebar-row-menu,
   .saved-search-row:focus-within .sidebar-row-menu,
   .sidebar-row-menu[aria-expanded="true"] {
@@ -1618,7 +1637,7 @@ fieldset > label,
 }
 .box-grid.view-list .box-card:hover,
 .box-grid.view-list .box-card:focus-visible,
-.file-card:not([data-active]):hover,
+.file-entry:hover .file-card:not([data-active]),
 .file-card:not([data-active]):focus-visible {
   background: var(--mantine-color-default-hover);
 }

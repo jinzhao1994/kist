@@ -385,3 +385,29 @@ it("opens file and folder context actions at the pointer without navigating", as
   );
   expect(createFolder).toHaveBeenCalledWith("child");
 });
+
+it("opens the same context menu from the list row action without opening the file", async () => {
+  localStorage.setItem("kist.display.files.v1", "list");
+  const open = vi.fn();
+  render(
+    <ThemeProvider env="test">
+      <I18nProvider>
+        <FileGrid files={[files[0]]} boxID="box" open={open} />
+      </I18nProvider>
+    </ThemeProvider>,
+    { wrapper: mediaWrapper },
+  );
+  const more = await screen.findByRole("button", { name: "More actions" });
+  expect(more.closest(".file-card")).toBeNull();
+  await userEvent.click(more);
+  expect(open).not.toHaveBeenCalled();
+  expect(more).toHaveAttribute("aria-expanded", "true");
+  expect(await screen.findByRole("menuitem", { name: "Rename" })).toBeVisible();
+  expect(screen.getByRole("menuitem", { name: "Move to trash" })).toBeVisible();
+  expect(
+    screen.getByRole("menuitem", { name: "Download original" }),
+  ).toHaveAttribute("href", "/api/v1/files/0/content?download=true");
+  await userEvent.click(screen.getByRole("menuitem", { name: "Open" }));
+  expect(open).toHaveBeenCalledWith(files[0]);
+  await waitFor(() => expect(more).toHaveAttribute("aria-expanded", "false"));
+});

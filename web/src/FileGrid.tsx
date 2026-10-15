@@ -1,3 +1,4 @@
+import { SidebarMenuButton } from "./SidebarMenuButton";
 import { EntryActions, type EntryActionTarget } from "./EntryActions";
 import { createPortal } from "react-dom";
 import { Menu, UnstyledButton } from "@mantine/core";
@@ -306,80 +307,94 @@ export function FileGrid({
                       : undefined;
                   const index = row.index * columns + offset;
                   return (
-                    <UnstyledButton
-                      className={`file-card ${folder ? "directory-card" : ""}`}
-                      aria-label={folder ? folder.name : undefined}
-                      key={item.id}
-                      data-item-id={item.id}
-                      data-active={selected?.id === item.id || undefined}
-                      onContextMenu={context.bindings(item).onContextMenu}
-                      ref={(node) => {
-                        if (node) buttons.current.set(item.id, node);
-                        else buttons.current.delete(item.id);
-                      }}
-                      onClick={() =>
-                        file ? open(file) : chooseFolder?.(item.id)
-                      }
-                      onKeyDown={(event) => {
-                        context.bindings(item).onKeyDown(event);
-                        if (event.defaultPrevented) return;
-                        const rtl = document.documentElement.dir === "rtl";
-                        const delta =
-                          event.key === "ArrowDown"
-                            ? columns
-                            : event.key === "ArrowUp"
-                              ? -columns
-                              : event.key === "ArrowRight"
-                                ? rtl
-                                  ? -1
-                                  : 1
-                                : event.key === "ArrowLeft"
-                                  ? rtl
-                                    ? 1
-                                    : -1
-                                  : 0;
-                        if (delta) {
-                          event.preventDefault();
-                          move(index, delta);
+                    <div className="file-entry" key={item.id}>
+                      <UnstyledButton
+                        className={`file-card ${folder ? "directory-card" : ""}`}
+                        aria-label={folder ? folder.name : undefined}
+                        data-item-id={item.id}
+                        data-active={selected?.id === item.id || undefined}
+                        onContextMenu={context.bindings(item).onContextMenu}
+                        ref={(node) => {
+                          if (node) buttons.current.set(item.id, node);
+                          else buttons.current.delete(item.id);
+                        }}
+                        onClick={() =>
+                          file ? open(file) : chooseFolder?.(item.id)
                         }
-                      }}
-                    >
-                      <div className="file-preview">
-                        {mode !== "list" && file && hasDerivedMedia(file) ? (
-                          <Media
-                            key={file.id}
-                            file={file}
-                            active={active.has(file.id)}
-                            paused={paused}
-                          />
-                        ) : (
-                          <FileIcon folder={!!folder} />
+                        onKeyDown={(event) => {
+                          context.bindings(item).onKeyDown(event);
+                          if (event.defaultPrevented) return;
+                          const rtl = document.documentElement.dir === "rtl";
+                          const delta =
+                            event.key === "ArrowDown"
+                              ? columns
+                              : event.key === "ArrowUp"
+                                ? -columns
+                                : event.key === "ArrowRight"
+                                  ? rtl
+                                    ? -1
+                                    : 1
+                                  : event.key === "ArrowLeft"
+                                    ? rtl
+                                      ? 1
+                                      : -1
+                                    : 0;
+                          if (delta) {
+                            event.preventDefault();
+                            move(index, delta);
+                          }
+                        }}
+                      >
+                        <div className="file-preview">
+                          {mode !== "list" && file && hasDerivedMedia(file) ? (
+                            <Media
+                              key={file.id}
+                              file={file}
+                              active={active.has(file.id)}
+                              paused={paused}
+                            />
+                          ) : (
+                            <FileIcon folder={!!folder} />
+                          )}
+                        </div>
+                        <bdi className="file-name">{item.name}</bdi>
+                        {mode === "list" && (
+                          <>
+                            <span className="file-list-kind">
+                              {folder
+                                ? t("folderType")
+                                : fileType(file!) || t("unknown")}
+                            </span>
+                            <span className="file-list-size">
+                              {file?.size == null
+                                ? "—"
+                                : formatBytes(file.size, prefs)}
+                            </span>
+                            <time className="file-list-date">
+                              {timestamp
+                                ? formatInstant(timestamp, prefs)
+                                : "—"}
+                            </time>
+                          </>
                         )}
-                      </div>
-                      <bdi className="file-name">{item.name}</bdi>
+                        <small>
+                          <bdi>
+                            {file ? file.path || file.name : t("folderType")}
+                          </bdi>
+                        </small>
+                      </UnstyledButton>
                       {mode === "list" && (
-                        <>
-                          <span className="file-list-kind">
-                            {folder
-                              ? t("folderType")
-                              : fileType(file!) || t("unknown")}
-                          </span>
-                          <span className="file-list-size">
-                            {file?.size == null
-                              ? "—"
-                              : formatBytes(file.size, prefs)}
-                          </span>
-                          <time className="file-list-date">
-                            {timestamp ? formatInstant(timestamp, prefs) : "—"}
-                          </time>
-                        </>
+                        <SidebarMenuButton
+                          label={t("moreActions")}
+                          expanded={selected?.id === item.id}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (selected?.id === item.id) context.close();
+                            else context.atElement(item, event.currentTarget);
+                          }}
+                        />
                       )}
-                      <small>
-                        <bdi>
-                          {file ? file.path || file.name : t("folderType")}
-                        </bdi>
-                      </small>
-                    </UnstyledButton>
+                    </div>
                   );
                 })}
             </div>
