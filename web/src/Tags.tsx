@@ -23,7 +23,7 @@ export function TagTree({
   choose,
 }: {
   tags: Tag[];
-  choose: (id: string) => void;
+  choose: (id: string, destination?: "tag" | "boxes" | "files") => void;
 }) {
   const { prefs, t } = useI18n();
   const tree = useTree();
@@ -213,6 +213,24 @@ export function TagTree({
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
         >
+          {(["tag", "boxes", "files"] as const).map((destination) => (
+            <Menu.Item
+              key={destination}
+              onClick={() => {
+                if (menu) choose(menu.id, destination);
+                setMenu(null);
+              }}
+            >
+              {t(
+                destination === "tag"
+                  ? "openTagPage"
+                  : destination === "boxes"
+                    ? "viewTaggedBoxes"
+                    : "viewTaggedFiles",
+              )}
+            </Menu.Item>
+          ))}
+          <Menu.Divider />
           {(
             ["rename", "addChildTag", "changeParentTag", "remove"] as const
           ).map((kind) => (

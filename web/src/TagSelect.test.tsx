@@ -314,3 +314,20 @@ it("requires confirmation before deleting through the keyboard context menu", as
   expect(fetcher.mock.calls[0]?.[1]?.method).toBe("DELETE");
   expect(choose).not.toHaveBeenCalled();
 });
+
+it("offers separate tag, box, and file destinations without navigating on right click", async () => {
+  const choose = vi.fn();
+  wrap(<TagTree tags={tags} choose={choose} />);
+  const user = userEvent.setup();
+  for (const [label, destination] of [
+    ["Open tag page", "tag"],
+    ["View boxes", "boxes"],
+    ["View files", "files"],
+  ]) {
+    choose.mockClear();
+    fireEvent.contextMenu(screen.getByText("Education"));
+    expect(choose).not.toHaveBeenCalled();
+    await user.click(await screen.findByRole("menuitem", { name: label }));
+    expect(choose).toHaveBeenCalledExactlyOnceWith("a", destination);
+  }
+});

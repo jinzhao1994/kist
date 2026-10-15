@@ -195,9 +195,19 @@ export function App() {
               ) : (
                 <TagTree
                   tags={tree}
-                  choose={(id) => {
-                    setFilters({ ...emptyFilters });
-                    go({ files: false, tag: id });
+                  choose={(id, destination = "tag") => {
+                    if (destination === "files") {
+                      const next = { ...emptyFilters, tag_all: [id] };
+                      setFilters(next);
+                      go({ files: true, filters: next });
+                    } else if (destination === "boxes") {
+                      const next = { ...emptyBoxFilters, tag_all: [id] };
+                      setBoxFilters(next);
+                      go({ files: false, boxFilters: next });
+                    } else {
+                      setFilters({ ...emptyFilters });
+                      go({ files: false, tag: id });
+                    }
                   }}
                 />
               )}
