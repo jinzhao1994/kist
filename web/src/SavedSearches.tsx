@@ -317,7 +317,6 @@ export function SavedSearches({
                   onClick={() => apply(item)}
                   title={item.name}
                 >
-                  <StarIcon />
                   <bdi>{item.name}</bdi>
                 </UnstyledButton>
                 <SidebarMenuButton

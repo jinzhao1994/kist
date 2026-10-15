@@ -1388,12 +1388,6 @@ fieldset > label,
 .saved-search-row .mantine-ActionIcon-root:hover {
   background: transparent;
 }
-.saved-search-link svg {
-  flex-shrink: 0;
-  color: var(--mantine-color-dimmed);
-  width: 14px;
-  height: 14px;
-}
 .saved-search-link bdi {
   overflow: hidden;
   white-space: nowrap;
