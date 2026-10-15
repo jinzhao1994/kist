@@ -3,6 +3,7 @@ import {
   DirectionProvider,
   createTheme,
   Button,
+  Combobox,
 } from "@mantine/core";
 import {
   createContext,
@@ -106,6 +107,7 @@ export function ThemeProvider({
     autoContrast: true,
     components: {
       Button: Button.extend({ defaultProps: { variant: "default" } }),
+      Combobox: Combobox.extend({ defaultProps: { shadow: "md" } }),
     },
   });
   return (
