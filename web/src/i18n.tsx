@@ -251,6 +251,9 @@ export const en = {
   uploadFailed:
     "Upload interrupted. Retry with the same files to safely recover the result.",
   uploadComplete: "Files saved",
+  uploadElapsed: "Last attempt: {seconds} s · effective transfer {speed}/s",
+  uploadTiming:
+    "Read/checksum: {hash} s; block requests (including server writes): {transfer} s; final processing: {processing} s. Reading and transfer overlap; stages do not add up to total time. Pauses are excluded.",
   uploading: "Uploading…",
   uploadHashing: "Calculating file checksums…",
   uploadPause: "Pause",
@@ -279,7 +282,7 @@ export const en = {
   uploadSessionDamaged:
     "This staging session is damaged or uses an unsupported version. Check the result and server log before removing it.",
   uploadBackgroundHint:
-    "Confirmed data is retained for 7 idle days. Refresh recovery is supported; background or locked-screen uploading is not guaranteed.",
+    "Keep this page open and the device awake. You do not need to watch it. If the browser suspends it, resume from confirmed data (retained for 7 idle days).",
   uploadProcessing: "Server is verifying and processing files…",
   uploadIntegrityMismatch:
     "File verification failed. Nothing in this batch was archived. Select the original files again and retry.",
@@ -530,6 +533,9 @@ export const zh: Record<MessageKey, string> = {
   uploadCancelled: "上传已取消。开始新上传前，请核对提交结果。",
   uploadFailed: "上传中断。使用相同文件重试，可安全恢复提交结果。",
   uploadComplete: "文件已保存",
+  uploadElapsed: "最近一次上传：{seconds} 秒 · 有效传输 {speed}/秒",
+  uploadTiming:
+    "读取与校验 {hash} 秒；分块请求（含服务端写盘）{transfer} 秒；最终处理 {processing} 秒。读取与传输有重叠，各阶段不能直接相加；不含暂停时间。",
   uploading: "正在上传…",
   uploadHashing: "正在计算文件校验值…",
   uploadPause: "暂停",
@@ -555,7 +561,7 @@ export const zh: Record<MessageKey, string> = {
   uploadSessionDamaged:
     "暂存会话损坏或版本不兼容。请核对结果与服务端日志后再清理。",
   uploadBackgroundHint:
-    "已确认的数据保留至空闲 7 天。支持刷新后恢复，不保证网页后台或锁屏时持续上传。",
+    "无需一直盯着页面，请保持页面打开、设备不休眠。若浏览器挂起，可从已确认的位置继续；数据保留至空闲 7 天。",
   uploadProcessing: "服务端正在校验并处理文件…",
   uploadIntegrityMismatch:
     "文件校验不一致，本批次未归档。请重新选择原文件后重试。",
@@ -624,6 +630,8 @@ export function directionFor(prefs: Preferences): "ltr" | "rtl" {
   return "ltr";
 }
 interface Parameters {
+  uploadElapsed: { seconds: string; speed: string };
+  uploadTiming: { hash: string; transfer: string; processing: string };
   searchText: { value: string };
   tagResultCounts: { boxes: number; files: number };
   trashBoxConfirm: { name: string; count: number };

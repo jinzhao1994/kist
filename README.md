@@ -199,14 +199,21 @@ download link.
 
 Uploads default to at most 1,000 files and 32 GiB per batch. Adjust these limits
 with `--max-upload-files` and `--max-upload-bytes`. A batch is archived only after
-all files pass verification. The browser hashes originals incrementally in a
-worker, uploads sequential blocks of at most 8 MiB with independent SHA-256
-checksums, and the server verifies whole files and final blobs before committing.
+all files pass verification. New sessions read, hash and upload together in a
+worker: each source block is read once, with at most one block prefetched while
+the previous request is in flight. Blocks of at most 8 MiB have independent
+SHA-256 checksums; the whole-file digest is sealed at completion. The server
+checks blocks, import input and final blobs before committing. The upload summary
+keeps elapsed time, effective transfer speed and stage timings for the latest
+attempt. Overlapping stages should not be added together.
 
 **Pause** keeps confirmed progress; **Resume** queries the server and sends only
 missing data. After refreshing or reopening the page, return to the same box and
-folder and select the entire original batch again. The browser rehashes every
-file: matching names, sizes and timestamps alone is insufficient. Recovery also
+folder and select the entire original batch again. The browser rehashes the
+confirmed prefix and compares it with the server's staged bytes before continuing;
+the remaining bytes are hashed while uploading. Matching names, sizes and
+timestamps alone is insufficient. Older sessions retain their whole-file
+preflight verification. Recovery also
 works after a server restart. **Check result** can recover a committed receipt
 without the originals. **Cancel** discards staging, but cannot undo an already
 committed import. Metadata extraction is separate; its failure does not mean the
@@ -220,7 +227,9 @@ days. Successful blocks and explicit resume renew them; viewing progress does
 not. Expired or canceled staging is cleaned on creation, cancellation and an
 hourly sweep. Browser recovery requires site storage to be available and the
 same browser profile and site address. A suspended page or locked phone may stop
-uploading; continuous mobile background uploading is not guaranteed.
+uploading; continuous mobile background uploading is not guaranteed. You do not
+need to watch the page, but keep it open and the device awake for uninterrupted
+transfers. Resume after a suspension instead of starting over.
 
 Refresh old pages after upgrading. The checked multipart endpoint remains
 available for compatible older clients and servers, and retains its all-or-

@@ -33,6 +33,20 @@ type sessionCommand struct {
 	ID   string `path:"id" minLength:"64" maxLength:"64" pattern:"^[0-9a-f]{64}$"`
 	Body struct{}
 }
+type sessionFinish struct {
+	ID   string `path:"id" minLength:"64" maxLength:"64" pattern:"^[0-9a-f]{64}$"`
+	Body struct {
+		Digests []string `json:"digests,omitempty"`
+	}
+}
+type sessionPrefix struct {
+	ID   string `path:"id" minLength:"64" maxLength:"64" pattern:"^[0-9a-f]{64}$"`
+	Body struct {
+		Index  int    `json:"index" minimum:"0"`
+		Offset int64  `json:"offset" minimum:"0"`
+		SHA256 string `json:"sha256" pattern:"^[0-9a-f]{64}$"`
+	}
+}
 type sessionCreate struct {
 	Key  string `header:"Idempotency-Key" required:"true"`
 	Body struct {
@@ -46,18 +60,22 @@ type sessionCreate struct {
 func sessionRequest(id string, m staging.Manifest) library.Request {
 	// The target snapshot is a server-side precondition, not business input.
 	// A receipt must remain retrievable after the target changes or is deleted.
+	version := staging.Version
+	if m.Protocol == 2 {
+		version = 2
+	}
 	raw, _ := json.Marshal(struct {
 		Version     int
 		Box, Folder string
 		Files       []staging.File
-	}{staging.Version, m.Box, m.Folder, m.Files})
+	}{version, m.Box, m.Folder, m.Files})
 	hash := sha256.Sum256(raw)
 	return library.Request{ID: "upload." + id, Digest: hex.EncodeToString(hash[:])}
 }
 
 func (s *Server) uploadSessionRoutes() {
 	huma.Post(s.contract, Prefix+"/upload-sessions", func(ctx context.Context, in *sessionCreate) (*output[sessionStatus], error) {
-		if in.Body.Version != staging.Version {
+		if in.Body.Version != 1 && in.Body.Version != 2 {
 			return nil, failure(&staging.Problem{Kind: "unsupported_version"})
 		}
 		if !(library.Request{ID: in.Key, Digest: strings.Repeat("0", 64)}).Valid() {
@@ -74,6 +92,9 @@ func (s *Server) uploadSessionRoutes() {
 		files := append([]staging.File(nil), in.Body.Files...)
 		sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
 		m := staging.Manifest{Box: box.String(), Folder: folder.String(), Files: files}
+		if in.Body.Version == 2 {
+			m.Protocol = 2
+		}
 		id := staging.ID(in.Key)
 		receipt, found, err := s.library.CheckRequest(ctx, sessionRequest(id, m))
 		if err != nil {
@@ -130,8 +151,19 @@ func (s *Server) uploadSessionRoutes() {
 		}
 		return response(status, err)
 	})
-	huma.Post(s.contract, Prefix+"/upload-sessions/{id}/complete", func(ctx context.Context, in *sessionCommand) (*output[sessionStatus], error) {
-		status, err := s.sessionAction(ctx, in.ID, func(v *staging.Session) error { return s.completeSession(ctx, v) })
+	huma.Post(s.contract, Prefix+"/upload-sessions/{id}/complete", func(ctx context.Context, in *sessionFinish) (*output[sessionStatus], error) {
+		status, err := s.sessionAction(ctx, in.ID, func(v *staging.Session) error {
+			if err := v.Seal(in.Body.Digests); err != nil {
+				return err
+			}
+			return s.completeSession(ctx, v)
+		})
+		return response(status, err)
+	})
+	huma.Post(s.contract, Prefix+"/upload-sessions/{id}/prefix", func(ctx context.Context, in *sessionPrefix) (*output[sessionStatus], error) {
+		status, err := s.sessionAction(ctx, in.ID, func(v *staging.Session) error {
+			return v.MatchPrefix(ctx, in.Body.Index, in.Body.Offset, in.Body.SHA256)
+		})
 		return response(status, err)
 	})
 	s.uploadChunkRoute()
@@ -178,7 +210,11 @@ func (s *Server) sessionAction(ctx context.Context, id string, fn func(*staging.
 
 func (s *Server) completeSession(ctx context.Context, v *staging.Session) error {
 	state := v.State()
-	paths, err := v.Verify(ctx)
+	started := time.Now()
+	defer func() {
+		slog.Info("upload processing", "session", state.ID, "elapsed_ms", time.Since(started).Milliseconds())
+	}()
+	paths, err := v.Paths(ctx)
 	if err != nil {
 		return err
 	}
@@ -193,6 +229,9 @@ func (s *Server) completeSession(ctx context.Context, v *staging.Session) error 
 	sources := make([]library.ImportSource, len(paths))
 	for i, path := range paths {
 		file := state.Manifest.Files[i]
+		if state.Manifest.Protocol == 2 {
+			file.SHA256 = state.Digests[i]
+		}
 		sources[i] = library.ImportSource{Path: path, RelativePath: file.Path, Expected: &library.ImportIntegrity{Size: file.Size, SHA256: file.SHA256}}
 	}
 	prepared, err := s.library.PrepareFiles(ctx, sources, library.ImportOptions{Box: domain.BoxID{ID: box}, Into: domain.FolderID{ID: folder}, Hidden: true})
@@ -271,10 +310,6 @@ func (s *Server) receiveChunk(r *http.Request, in *chunkInput) (sessionStatus, e
 	}
 	if int64(len(data)) != in.Length || len(data) > staging.ChunkBytes {
 		return sessionStatus{}, failure(&staging.Problem{Kind: "invalid_chunk"})
-	}
-	digest := sha256.Sum256(data)
-	if hex.EncodeToString(digest[:]) != in.SHA256 {
-		return sessionStatus{}, &staging.Problem{Kind: "chunk_integrity"}
 	}
 	return s.sessionAction(r.Context(), in.ID, func(v *staging.Session) error { return v.Append(r.Context(), in.Index, in.Offset, data, in.SHA256) })
 }

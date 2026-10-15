@@ -83,7 +83,7 @@ func (s *Server) readRoutes() {
 	})
 
 	huma.Get(s.contract, Prefix+"/info", func(ctx context.Context, _ *struct{}) (*output[libraryInfo], error) {
-		return response(libraryInfo{Version: buildinfo.Get().Version, Timezone: s.library.Zone().String(), ProjectionDirty: s.library.ProjectionDirty(), MaxUploadBytes: s.maxUploadBytes, MaxUploadFiles: s.maxUploadFiles, ResumableUploadVersion: staging.Version, UploadChunkBytes: staging.ChunkBytes}, nil)
+		return response(libraryInfo{Version: buildinfo.Get().Version, Timezone: s.library.Zone().String(), ProjectionDirty: s.library.ProjectionDirty(), MaxUploadBytes: s.maxUploadBytes, MaxUploadFiles: s.maxUploadFiles, ResumableUploadVersion: staging.ProtocolVersion, UploadChunkBytes: staging.ChunkBytes}, nil)
 	})
 	huma.Get(s.contract, Prefix+"/boxes", func(ctx context.Context, in *struct {
 		Tag string `query:"tag"`

@@ -37,7 +37,7 @@ export function Upload(props: UploadProps) {
   }
   if (
     !legacyPending &&
-    props.resumableVersion === 1 &&
+    (props.resumableVersion === 1 || props.resumableVersion === 2) &&
     props.folder &&
     props.chunkBytes
   )

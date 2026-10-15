@@ -196,7 +196,7 @@ export function FileBrowser({
       )}
       {box &&
       info.data &&
-      (info.data.resumable_upload_version !== 1 || uploadFolder) ? (
+      (!info.data.resumable_upload_version || uploadFolder) ? (
         <Upload
           key={`${box.id}:${uploadFolder || ""}`}
           compact

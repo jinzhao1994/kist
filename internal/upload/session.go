@@ -23,11 +23,12 @@ import (
 )
 
 const (
-	Version        = 1
-	ChunkBytes     = 8 << 20
-	MaxSessions    = 8
-	IdleTTL        = 7 * 24 * time.Hour
-	maxRecordBytes = 8 << 20
+	Version         = 1
+	ProtocolVersion = 2
+	ChunkBytes      = 8 << 20
+	MaxSessions     = 8
+	IdleTTL         = 7 * 24 * time.Hour
+	maxRecordBytes  = 8 << 20
 )
 
 // Problem distinguishes recoverable protocol failures from filesystem errors.
@@ -51,10 +52,11 @@ type File struct {
 // Manifest is immutable for the lifetime of a session. Target identifies the
 // target's structural snapshot, computed and rechecked by the archive layer.
 type Manifest struct {
-	Box    string `json:"box"`
-	Folder string `json:"folder"`
-	Target string `json:"target"`
-	Files  []File `json:"files"`
+	Protocol int    `json:"protocol,omitempty"`
+	Box      string `json:"box"`
+	Folder   string `json:"folder"`
+	Target   string `json:"target"`
+	Files    []File `json:"files"`
 }
 
 // State is a snapshot, never a mutable in-process progress cache.
@@ -63,6 +65,7 @@ type State struct {
 	ID       string    `json:"id"`
 	Manifest Manifest  `json:"manifest"`
 	Offsets  []int64   `json:"offsets"`
+	Digests  []string  `json:"digests,omitempty"`
 	Expires  time.Time `json:"expires"`
 	Canceled bool      `json:"canceled,omitempty"`
 	OpID     int64     `json:"op_id,omitempty"`
@@ -105,13 +108,13 @@ func validDigest(s string) bool {
 }
 
 func manifestBytes(m Manifest) (int64, error) {
-	if m.Box == "" || m.Folder == "" || !validDigest(m.Target) || len(m.Files) == 0 {
+	if (m.Protocol != 0 && m.Protocol != 2) || m.Box == "" || m.Folder == "" || !validDigest(m.Target) || len(m.Files) == 0 {
 		return 0, problem("invalid_manifest")
 	}
 	var total int64
 	seen := map[string]bool{}
 	for _, f := range m.Files {
-		if !fs.ValidPath(f.Path) || f.Path == "." || len(f.Path) > 4096 || strings.ContainsAny(f.Path, "\\\x00") || f.Size < 0 || !validDigest(f.SHA256) || f.LastModified < -9223372036854 || f.LastModified > 9223372036854 {
+		if !fs.ValidPath(f.Path) || f.Path == "." || len(f.Path) > 4096 || strings.ContainsAny(f.Path, "\\\x00") || f.Size < 0 || ((m.Protocol != 2 && !validDigest(f.SHA256)) || (m.Protocol == 2 && f.SHA256 != "")) || f.LastModified < -9223372036854 || f.LastModified > 9223372036854 {
 			return 0, problem("invalid_manifest")
 		}
 		for _, part := range strings.Split(f.Path, "/") {
@@ -378,6 +381,16 @@ func readState(root *os.Root, name string) (State, error) {
 	if !validDigest(state.ID) || state.Expires.IsZero() || state.OpID < 0 || len(state.Offsets) != len(state.Manifest.Files) {
 		return state, problem("corrupt")
 	}
+	if len(state.Digests) > 0 {
+		if state.Manifest.Protocol != 2 || len(state.Digests) != len(state.Manifest.Files) {
+			return state, problem("corrupt")
+		}
+		for _, digest := range state.Digests {
+			if !validDigest(digest) {
+				return state, problem("corrupt")
+			}
+		}
+	}
 	for i, offset := range state.Offsets {
 		if offset < 0 || offset > state.Manifest.Files[i].Size {
 			return state, problem("corrupt")
@@ -390,6 +403,7 @@ func (s *Session) State() State {
 	state := s.state
 	state.Manifest.Files = append([]File(nil), state.Manifest.Files...)
 	state.Offsets = append([]int64(nil), state.Offsets...)
+	state.Digests = append([]string(nil), state.Digests...)
 	return state
 }
 
@@ -545,7 +559,13 @@ func (s *Session) Append(ctx context.Context, index int, offset int64, data []by
 // Verify checks every original before archive preparation. Paths are only
 // usable while With holds the session lock. The archive must still verify the
 // bytes it actually imports, including its content-addressed deduplication path.
-func (s *Session) Verify(ctx context.Context) ([]string, error) {
+func (s *Session) Verify(ctx context.Context) ([]string, error) { return s.paths(ctx, true) }
+
+// Paths checks completeness and metadata. The caller must use PutVerified and
+// verify final blobs while holding the session lock before committing.
+func (s *Session) Paths(ctx context.Context) ([]string, error) { return s.paths(ctx, false) }
+
+func (s *Session) paths(ctx context.Context, verify bool) ([]string, error) {
 	paths := make([]string, len(s.state.Manifest.Files))
 	for i, expected := range s.state.Manifest.Files {
 		if s.state.Offsets[i] != expected.Size {
@@ -555,17 +575,33 @@ func (s *Session) Verify(ctx context.Context) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		hash := sha256.New()
-		n, err := io.Copy(hash, contextReader{ctx: ctx, r: f})
-		closeErr := f.Close()
-		if err != nil {
+		if s.state.Manifest.Protocol == 2 {
+			if len(s.state.Digests) != len(s.state.Manifest.Files) {
+				f.Close()
+				return nil, problem("incomplete")
+			}
+			expected.SHA256 = s.state.Digests[i]
+		}
+		if verify {
+			hash := sha256.New()
+			n, err := io.Copy(hash, contextReader{ctx: ctx, r: f})
+			closeErr := f.Close()
+			if err != nil {
+				return nil, err
+			}
+			if closeErr != nil {
+				return nil, closeErr
+			}
+			if n != expected.Size || hex.EncodeToString(hash.Sum(nil)) != expected.SHA256 {
+				return nil, problem("file_integrity")
+			}
+		} else {
+			if err := f.Close(); err != nil {
+				return nil, err
+			}
+		}
+		if err := ctx.Err(); err != nil {
 			return nil, err
-		}
-		if closeErr != nil {
-			return nil, closeErr
-		}
-		if n != expected.Size || hex.EncodeToString(hash.Sum(nil)) != expected.SHA256 {
-			return nil, problem("file_integrity")
 		}
 		name := strconv.Itoa(i)
 		modified := time.UnixMilli(expected.LastModified)
@@ -729,6 +765,60 @@ func (s *Store) sweep(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// Seal binds final client digests once. Retrying cannot change an upload's content.
+func (s *Session) Seal(digests []string) error {
+	if s.state.Manifest.Protocol != 2 {
+		if len(digests) != 0 {
+			return problem("invalid_manifest")
+		}
+		return nil
+	}
+	if len(digests) != len(s.state.Manifest.Files) {
+		return problem("invalid_manifest")
+	}
+	for i, d := range digests {
+		if !validDigest(d) {
+			return problem("invalid_manifest")
+		}
+		if s.state.Offsets[i] != s.state.Manifest.Files[i].Size {
+			return problem("incomplete")
+		}
+	}
+	if len(s.state.Digests) > 0 {
+		for i, d := range digests {
+			if d != s.state.Digests[i] {
+				return problem("file_integrity")
+			}
+		}
+		return nil
+	}
+	s.state.Digests = append([]string(nil), digests...)
+	return s.save()
+}
+
+// MatchPrefix checks actual durable bytes when originals are reselected.
+func (s *Session) MatchPrefix(ctx context.Context, index int, offset int64, digest string) error {
+	if index < 0 || index >= len(s.state.Offsets) || offset != s.state.Offsets[index] {
+		return problem("invalid_chunk")
+	}
+	if !validDigest(digest) {
+		return problem("invalid_chunk")
+	}
+	f, err := s.openFile(index)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.CopyN(h, contextReader{ctx: ctx, r: f}, offset); err != nil {
+		return err
+	}
+	if hex.EncodeToString(h.Sum(nil)) != digest {
+		return problem("file_integrity")
 	}
 	return nil
 }

@@ -309,3 +309,49 @@ func TestResumableExpiredSessionCanBeDiscarded(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestStreamingSessionFinalIntegrity(t *testing.T) {
+	for _, corrupt := range []bool{false, true} {
+		t.Run(fmt.Sprint(corrupt), func(t *testing.T) {
+			s, l := testServer(t)
+			box, err := l.CreateBox(t.Context(), "streaming", "", domain.LocalDate{}, domain.LocalDate{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			body, _ := json.Marshal(map[string]any{"version": 2, "box": box.ID.String(), "folder": box.RootFolderID.String(), "files": []staging.File{{Path: "file.txt", Size: 8, LastModified: 1000}}})
+			status := decodeSession(t, call(s, "POST", Prefix+"/upload-sessions", "streaming-session-001", string(body)))
+			id := status.Session.ID
+			decodeSession(t, sessionChunk(s, id, 0, "abcd"))
+			prefix := fmt.Sprintf(`{"index":0,"offset":4,"sha256":"%x"}`, sha256.Sum256([]byte("abcd")))
+			decodeSession(t, call(s, "POST", sessionURL(id)+"/prefix", "", prefix))
+			decodeSession(t, sessionChunk(s, id, 4, "efgh"))
+			if corrupt {
+				if err := os.WriteFile(filepath.Join(l.Layout().Root, "uploads", id, "0"), []byte("xxxxefgh"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			count, _ := l.OpCount(t.Context())
+			final := fmt.Sprintf(`{"digests":["%x"]}`, sha256.Sum256([]byte("abcdefgh")))
+			result := call(s, "POST", sessionURL(id)+"/complete", "", final)
+			if corrupt {
+				assertAPIError(t, result, 400, "upload_integrity_mismatch")
+				after, _ := l.OpCount(t.Context())
+				if after != count {
+					t.Fatal("corrupt upload committed")
+				}
+			} else {
+				receipt := decodeSession(t, result)
+				if receipt.OpID == 0 {
+					t.Fatal("missing receipt")
+				}
+				retry := decodeSession(t, call(s, "POST", sessionURL(id)+"/complete", "", final))
+				if retry.OpID != receipt.OpID {
+					t.Fatal("duplicate commit")
+				}
+				if _, err := l.Verify(t.Context(), library.VerifyOptions{Deep: true}); err != nil {
+					t.Fatal(err)
+				}
+			}
+		})
+	}
+}

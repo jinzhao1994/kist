@@ -2,6 +2,16 @@ import { APIError, get, requestKey, result, type Receipt } from "./api";
 import type { components } from "./api-schema";
 import { calculateIntegrity } from "./upload-integrity";
 
+import { uploadStreamWorker } from "./upload-stream-client";
+
+export type UploadMetrics = {
+  totalMs: number;
+  hashMs: number;
+  transferMs: number;
+  processingMs: number;
+  bytes: number;
+};
+
 type FileSpec = components["schemas"]["UploadFile"];
 type WireState = components["schemas"]["UploadState"];
 type State = Omit<WireState, "manifest" | "offsets"> & {
@@ -11,7 +21,7 @@ type State = Omit<WireState, "manifest" | "offsets"> & {
 type Status = components["schemas"]["SessionStatus"];
 export type UploadPhase = "hashing" | "uploading" | "processing";
 export type PendingUpload = {
-  version: 1;
+  version: 1 | 2;
   key: string;
   box: string;
   folder: string;
@@ -44,7 +54,7 @@ export function loadUpload(
   try {
     const value = JSON.parse(raw) as PendingUpload;
     if (
-      value.version !== 1 ||
+      ![1, 2].includes(value.version) ||
       value.box !== box ||
       value.folder !== folder ||
       typeof value.key !== "string" ||
@@ -59,7 +69,9 @@ export function loadUpload(
               typeof file.last_modified !== "number" ||
               !Number.isSafeInteger(file.size) ||
               file.size < 0 ||
-              !/^[0-9a-f]{64}$/.test(file.sha256),
+              (value.version === 1
+                ? !/^[0-9a-f]{64}$/.test(file.sha256)
+                : file.sha256 !== ""),
           )))
     )
       throw new Error("Invalid stored upload");
@@ -94,6 +106,7 @@ export function resumableUpload(
   folder: string,
   chunkBytes: number,
   changed: (pending: PendingUpload | undefined) => void = () => {},
+  protocol = 1,
 ) {
   if (
     !Number.isSafeInteger(chunkBytes) ||
@@ -148,6 +161,7 @@ export function resumableUpload(
       !state ||
       !pending?.files ||
       state.version !== 1 ||
+      (state.manifest.protocol === 2 ? 2 : 1) !== pending.version ||
       !/^[0-9a-f]{64}$/.test(state.id) ||
       (pending.id && pending.id !== state.id) ||
       state.manifest.box !== box ||
@@ -198,7 +212,7 @@ export function resumableUpload(
       "",
       "POST",
       signal,
-      { version: 1, box, folder, files: pending.files },
+      { version: pending.version, box, folder, files: pending.files },
       pending.key,
     );
   }
@@ -264,6 +278,152 @@ export function resumableUpload(
         reject(error);
       }
     });
+  }
+
+  async function streamRun(
+    signal: AbortSignal,
+    progress: (value: number) => void,
+    phase: (value: UploadPhase) => void,
+    metrics: UploadMetrics,
+    report: () => void,
+  ): Promise<Receipt> {
+    if (!selected?.length) throw new ResumeError("selection");
+    const identities = selected.map((file) => ({
+      path: file.webkitRelativePath || file.name,
+      last_modified: file.lastModified,
+      size: file.size,
+      sha256: "",
+    }));
+    if (
+      !sameFiles(identities, identities) ||
+      (pending?.files && !sameFiles(pending.files, identities))
+    )
+      throw new ResumeError("source");
+    save({ ...pending!, files: identities });
+    let response = await status(signal);
+    let receipt = done(response);
+    if (receipt) return receipt;
+    let state = stateOf(response);
+    response = await command(`/${state.id}/resume`, "POST", signal);
+    receipt = done(response);
+    if (receipt) return receipt;
+    state = stateOf(response);
+    const byPath = new Map(
+      selected.map((file) => [file.webkitRelativePath || file.name, file]),
+    );
+    const total = identities.reduce((sum, file) => sum + file.size, 0);
+    const received = () =>
+      state.offsets.reduce((sum, offset) => sum + offset, 0);
+    const worker = uploadStreamWorker(signal, (ms) => {
+      metrics.hashMs += ms;
+      report();
+    });
+    const digests: string[] = [];
+    try {
+      for (let index = 0; index < state.manifest.files.length; index++) {
+        const file = byPath.get(state.manifest.files[index].path)!;
+        const offset = state.offsets[index];
+        phase(offset ? "hashing" : "uploading");
+        const { prefix } = await worker.open(file, offset);
+        if (offset) {
+          response = await command(`/${state.id}/prefix`, "POST", signal, {
+            index,
+            offset,
+            sha256: prefix,
+          });
+          receipt = done(response);
+          if (receipt) return receipt;
+          state = stateOf(response);
+          if (state.offsets[index] !== offset)
+            throw new ResumeError("protocol");
+        }
+        if (offset === file.size) {
+          digests.push(prefix);
+          continue;
+        }
+        phase("uploading");
+        let upcoming = worker.next(chunkBytes);
+        // Attach immediately: a prefetched read may fail while the request is in flight.
+        void upcoming.catch(() => {});
+        while (state.offsets[index] < file.size) {
+          const chunk = await upcoming;
+          signal.throwIfAborted();
+          if (chunk.offset !== state.offsets[index])
+            throw new ResumeError("protocol");
+          const end = chunk.offset + chunk.data.byteLength;
+          if (end < file.size) {
+            upcoming = worker.next(chunkBytes);
+            void upcoming.catch(() => {});
+          }
+          const before = received();
+          const started = performance.now();
+          let failures = 0;
+          try {
+            while (true) {
+              try {
+                response = await put(
+                  state.id,
+                  index,
+                  chunk.offset,
+                  new Blob([chunk.data]),
+                  chunk.sha256,
+                  signal,
+                  (bytes) => progress(total ? (before + bytes) / total : 1),
+                );
+                receipt = done(response);
+                if (receipt) return receipt;
+                state = stateOf(response);
+                if (state.offsets[index] !== end)
+                  throw new ResumeError("protocol");
+                break;
+              } catch (error) {
+                signal.throwIfAborted();
+                if (
+                  !(error instanceof APIError) ||
+                  !["upload_chunk_integrity", "upload_offset"].includes(
+                    error.body.code,
+                  ) ||
+                  ++failures > 2
+                )
+                  throw error;
+                response = await status(signal);
+                receipt = done(response);
+                if (receipt) return receipt;
+                state = stateOf(response);
+                if (
+                  state.offsets[index] !== chunk.offset &&
+                  state.offsets[index] !== end
+                )
+                  throw new ResumeError("protocol");
+                // Resend the identical buffer even if the previous response was lost.
+              }
+            }
+          } finally {
+            metrics.transferMs += performance.now() - started;
+            report();
+          }
+          metrics.bytes += chunk.data.byteLength;
+          report();
+          progress(total ? received() / total : 1);
+          if (chunk.whole) digests.push(chunk.whole);
+        }
+      }
+      phase("processing");
+      const started = performance.now();
+      try {
+        response = await command(`/${state.id}/complete`, "POST", signal, {
+          digests,
+        });
+      } finally {
+        metrics.processingMs += performance.now() - started;
+        report();
+      }
+      receipt = done(response);
+      if (!receipt) throw new ResumeError("protocol");
+      return receipt;
+    } finally {
+      worker.close();
+    }
   }
 
   return {
@@ -353,9 +513,23 @@ export function resumableUpload(
     async run(
       progress: (fraction: number) => void,
       phase: (phase: UploadPhase) => void,
+      measured: (metrics: UploadMetrics) => void = () => {},
     ): Promise<Receipt> {
       const attempt = begin();
       const signal = attempt.signal;
+      const started = performance.now();
+      const metrics: UploadMetrics = {
+        totalMs: 0,
+        hashMs: 0,
+        transferMs: 0,
+        processingMs: 0,
+        bytes: 0,
+      };
+      const report = () => {
+        metrics.totalMs = performance.now() - started;
+        measured({ ...metrics });
+      };
+      const timer = setInterval(report, 1000);
       try {
         // Refresh recovery checks for a committed receipt before requiring
         // originals; otherwise identity must be proven before sending any block.
@@ -366,11 +540,22 @@ export function resumableUpload(
           stateOf(response);
         }
         if (!selected?.length) throw new ResumeError("selection");
-        if (!pending) save({ version: 1, key: requestKey(), box, folder });
+        if (!pending)
+          save({
+            version: protocol === 2 ? 2 : 1,
+            key: requestKey(),
+            box,
+            folder,
+          });
+        if (pending!.version === 2)
+          return await streamRun(signal, progress, phase, metrics, report);
         phase("hashing");
         progress(0);
         if (!verified) {
+          const hashStarted = performance.now();
           const hashes = await calculateIntegrity(selected, progress, signal);
+          metrics.hashMs += performance.now() - hashStarted;
+          report();
           signal.throwIfAborted();
           const identities = selected.map((file, index) => ({
             path: file.webkitRelativePath || file.name,
@@ -413,13 +598,16 @@ export function resumableUpload(
               offset,
               Math.min(file.size, offset + chunkBytes),
             );
+            const hashStarted = performance.now();
             const [identity] = await calculateIntegrity(
               [chunk],
               () => {},
               signal,
             );
             signal.throwIfAborted();
+            metrics.hashMs += performance.now() - hashStarted;
             const before = received();
+            const transferStarted = performance.now();
             try {
               response = await put(
                 state.id,
@@ -436,6 +624,9 @@ export function resumableUpload(
               if (next.offsets[index] < offset + chunk.size)
                 throw new ResumeError("protocol");
               state = next;
+              metrics.transferMs += performance.now() - transferStarted;
+              metrics.bytes += chunk.size;
+              report();
               failures = 0;
               progress(total ? received() / total : 1);
             } catch (error) {
@@ -456,11 +647,19 @@ export function resumableUpload(
           }
         }
         phase("processing");
-        response = await command(`/${state.id}/complete`, "POST", signal);
+        const processingStarted = performance.now();
+        try {
+          response = await command(`/${state.id}/complete`, "POST", signal);
+        } finally {
+          metrics.processingMs += performance.now() - processingStarted;
+          report();
+        }
         receipt = done(response);
         if (!receipt) throw new ResumeError("protocol");
         return receipt;
       } finally {
+        clearInterval(timer);
+        report();
         controller = undefined;
       }
     },

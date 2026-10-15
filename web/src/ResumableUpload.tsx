@@ -18,6 +18,7 @@ import {
   ResumeError,
   type PendingUpload,
   type UploadPhase,
+  type UploadMetrics,
 } from "./resumable-upload";
 
 export function ResumableUpload({
@@ -27,6 +28,7 @@ export function ResumableUpload({
   box,
   folder,
   chunkBytes,
+  resumableVersion,
   maxFiles,
   maxBytes,
   onComplete,
@@ -37,6 +39,7 @@ export function ResumableUpload({
   box: string;
   folder: string;
   chunkBytes: number;
+  resumableVersion?: number;
   maxFiles: number;
   maxBytes: number;
   onComplete: () => Promise<void>;
@@ -48,9 +51,15 @@ export function ResumableUpload({
   const [setup] = useState(() => {
     try {
       return {
-        operation: resumableUpload(box, folder, chunkBytes, (value) => {
-          if (mounted.current) setPending(value);
-        }),
+        operation: resumableUpload(
+          box,
+          folder,
+          chunkBytes,
+          (value) => {
+            if (mounted.current) setPending(value);
+          },
+          resumableVersion,
+        ),
       };
     } catch (error) {
       return { error };
@@ -60,6 +69,20 @@ export function ResumableUpload({
   const [phase, setPhase] = useState<
     UploadPhase | "idle" | "checking" | "paused" | "failed" | "saved"
   >(operation?.pending() ? "paused" : "idle");
+  const timingKey = `kist.upload-timing:${box}:${folder}`;
+  const [metrics, setMetrics] = useState<UploadMetrics | undefined>(() => {
+    try {
+      const value = JSON.parse(localStorage.getItem(timingKey) ?? "null");
+      return value &&
+        ["totalMs", "hashMs", "transferMs", "processingMs", "bytes"].every(
+          (key) => Number.isFinite(value[key]) && value[key] >= 0,
+        )
+        ? value
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  });
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
   const running = useRef<Promise<void>>(undefined);
@@ -129,6 +152,14 @@ export function ResumableUpload({
         },
         (value) => {
           if (mounted.current) setPhase(value);
+        },
+        (value) => {
+          if (mounted.current) setMetrics(value);
+          try {
+            localStorage.setItem(timingKey, JSON.stringify(value));
+          } catch {
+            /* Timing is optional, unlike recovery state. */
+          }
         },
       );
       await finish();
@@ -346,6 +377,34 @@ export function ResumableUpload({
           </p>
         )}
       </div>
+      {metrics && (
+        <details className="upload-timing">
+          <summary>
+            {t("uploadElapsed", {
+              seconds: formatNumber(Math.round(metrics.totalMs / 1000), prefs),
+              speed: formatBytes(
+                metrics.transferMs > 0
+                  ? (metrics.bytes * 1000) / metrics.transferMs
+                  : 0,
+                prefs,
+              ),
+            })}
+          </summary>
+          <small>
+            {t("uploadTiming", {
+              hash: formatNumber(Math.round(metrics.hashMs / 1000), prefs),
+              transfer: formatNumber(
+                Math.round(metrics.transferMs / 1000),
+                prefs,
+              ),
+              processing: formatNumber(
+                Math.round(metrics.processingMs / 1000),
+                prefs,
+              ),
+            })}
+          </small>
+        </details>
+      )}
       {children}
     </section>
   );

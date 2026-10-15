@@ -192,3 +192,12 @@ func TestCrossSiteUINavigation(t *testing.T) {
 		})
 	}
 }
+
+func TestUploadWASMCSP(t *testing.T) {
+	s, _ := testServer(t)
+	w := call(s, "GET", Prefix+"/info", "", "")
+	policy := w.Header().Get("Content-Security-Policy")
+	if !strings.Contains(policy, "script-src 'self' 'wasm-unsafe-eval';") || strings.Contains(policy, "'unsafe-eval'") {
+		t.Fatalf("WASM must work without enabling JavaScript eval: %s", policy)
+	}
+}

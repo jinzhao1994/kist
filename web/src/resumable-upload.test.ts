@@ -6,6 +6,7 @@ import {
   pendingUploadKey,
   ResumeError,
 } from "./resumable-upload";
+import { UploadStream } from "./upload-stream";
 import { calculateIntegrity } from "./upload-integrity";
 
 function bytes(blob: Blob): Promise<ArrayBuffer> {
@@ -39,11 +40,36 @@ vi.mock("./upload-integrity", () => ({
     },
   ),
 }));
+vi.mock("./upload-stream-client", () => ({
+  uploadStreamWorker: (signal: AbortSignal, measured: (ms: number) => void) => {
+    let stream: UploadStream;
+    return {
+      async open(file: Blob, offset: number) {
+        signal.throwIfAborted();
+        stream = new UploadStream({
+          size: file.size,
+          slice: (start: number, end: number) => ({
+            arrayBuffer: () => bytes(file.slice(start, end)),
+          }),
+        } as Blob);
+        return { prefix: await stream.prefix(offset) };
+      },
+      async next(size: number) {
+        signal.throwIfAborted();
+        const value = await stream.next(size);
+        measured(1);
+        return { ...value, hashMs: 1 };
+      },
+      close() {},
+    };
+  },
+}));
 const id = "a".repeat(64);
 const original = () =>
   new File(["abcdefghij"], "source.bin", { lastModified: 1000 });
 const identity = (value: string) =>
   createHash("sha256").update(value).digest("hex");
+let expectedDigests: string[];
 let state: any;
 let archived: number;
 let sent: { offset: number; data: string }[];
@@ -62,6 +88,7 @@ function status() {
 beforeEach(() => {
   localStorage.clear();
   state = undefined;
+  expectedDigests = [identity("abcdefghij")];
   archived = 0;
   sent = [];
   creates = 0;
@@ -85,6 +112,7 @@ beforeEach(() => {
             box: body.box,
             folder: body.folder,
             target: "b".repeat(64),
+            protocol: body.version === 2 ? 2 : undefined,
             files: [...body.files].sort((a, b) =>
               a.path < b.path ? -1 : a.path > b.path ? 1 : 0,
             ),
@@ -92,7 +120,23 @@ beforeEach(() => {
           offsets: body.files.map(() => 0),
           expires: "2030-01-01T00:00:00Z",
         };
+      } else if (path.endsWith("/prefix")) {
+        const body = JSON.parse(options!.body as string);
+        const prefix = sent
+          .filter((chunk) => chunk.offset < body.offset)
+          .map((chunk) => chunk.data)
+          .join("")
+          .slice(0, body.offset);
+        if (body.sha256 !== identity(prefix))
+          return response(
+            { code: "upload_integrity_mismatch", message: "wrong prefix" },
+            400,
+          );
       } else if (path.endsWith("/complete")) {
+        if (state.manifest.protocol === 2) {
+          const body = JSON.parse(options!.body as string);
+          expect(body.digests).toEqual(expectedDigests);
+        }
         completes++;
         archived = 31;
       } else if (options?.method === "DELETE") {
@@ -377,4 +421,80 @@ it("uses the server manifest order while hashing and matching originals by path"
     { offset: 0, data: "1234" },
     { offset: 4, data: "5" },
   ]);
+});
+
+it("streams before whole-file hashing and resumes only missing bytes after remount", async () => {
+  const first = resumableUpload("box", "folder", 4, () => {}, 2);
+  first.select([original()]);
+  loseResponse = true;
+  await expect(
+    first.run(
+      () => {},
+      () => {},
+    ),
+  ).rejects.toThrow("connection");
+  expect(calculateIntegrity).not.toHaveBeenCalled();
+  expect(sent).toEqual([{ offset: 0, data: "abcd" }]);
+  const restored = resumableUpload("box", "folder", 4, () => {}, 2);
+  restored.select([original()]);
+  const metrics: any[] = [];
+  await expect(
+    restored.run(
+      () => {},
+      () => {},
+      (m) => metrics.push(m),
+    ),
+  ).resolves.toEqual({ op_id: 31 });
+  expect(sent).toEqual([
+    { offset: 0, data: "abcd" },
+    { offset: 4, data: "efgh" },
+    { offset: 8, data: "ij" },
+  ]);
+  expect(metrics.at(-1).bytes).toBe(6);
+  expect(completes).toBe(1);
+});
+it("rejects a reselected mismatching durable prefix before sending new bytes", async () => {
+  const first = resumableUpload("box", "folder", 4, () => {}, 2);
+  first.select([original()]);
+  loseResponse = true;
+  await expect(
+    first.run(
+      () => {},
+      () => {},
+    ),
+  ).rejects.toThrow();
+  const restored = resumableUpload("box", "folder", 4, () => {}, 2);
+  restored.select([
+    new File(["XXXXefghij"], "source.bin", { lastModified: 1000 }),
+  ]);
+  await expect(
+    restored.run(
+      () => {},
+      () => {},
+    ),
+  ).rejects.toThrow();
+  expect(sent).toHaveLength(1);
+  expect(completes).toBe(0);
+});
+
+it("seals multiple streamed files including empty files in server manifest order", async () => {
+  expectedDigests = [identity("abc"), identity(""), identity("12345")];
+  const operation = resumableUpload("box", "folder", 4, () => {}, 2);
+  operation.select([
+    new File(["12345"], "z.txt", { lastModified: 1000 }),
+    new File([], "empty.txt", { lastModified: 1000 }),
+    new File(["abc"], "a.txt", { lastModified: 1000 }),
+  ]);
+  await expect(
+    operation.run(
+      () => {},
+      () => {},
+    ),
+  ).resolves.toEqual({ op_id: 31 });
+  expect(sent).toEqual([
+    { offset: 0, data: "abc" },
+    { offset: 0, data: "1234" },
+    { offset: 4, data: "5" },
+  ]);
+  expect(calculateIntegrity).not.toHaveBeenCalled();
 });

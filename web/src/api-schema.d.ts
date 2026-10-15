@@ -557,6 +557,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/upload-sessions/{id}/prefix": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 upload sessions by ID prefix */
+        post: operations["post-api-v1-upload-sessions-by-id-prefix"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/upload-sessions/{id}/resume": {
         parameters: {
             query?: never;
@@ -838,6 +855,16 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        SessionFinishBody: {
+            digests?: string[] | null;
+        };
+        SessionPrefixBody: {
+            /** Format: int64 */
+            index: number;
+            /** Format: int64 */
+            offset: number;
+            sha256: string;
+        };
         SessionStatus: {
             /** Format: int64 */
             op_id?: number;
@@ -879,10 +906,13 @@ export interface components {
             box: string;
             files: components["schemas"]["UploadFile"][] | null;
             folder: string;
+            /** Format: int64 */
+            protocol?: number;
             target: string;
         };
         UploadState: {
             canceled?: boolean;
+            digests?: string[] | null;
             /** Format: date-time */
             expires: string;
             id: string;
@@ -2445,7 +2475,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SessionCommandBody"];
+                "application/json": components["schemas"]["SessionFinishBody"];
             };
         };
         responses: {
@@ -2491,6 +2521,41 @@ export interface operations {
         };
         responses: {
             /** @description Durable progress or archive receipt */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-upload-sessions-by-id-prefix": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionPrefixBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
