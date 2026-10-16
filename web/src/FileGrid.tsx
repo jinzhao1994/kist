@@ -282,8 +282,8 @@ export function FileGrid({
       {toolbarHost ? createPortal(displayControl, toolbarHost) : displayControl}
       {mode === "list" && (
         <div className="file-list-heading">
-          <span>{heading(t("filename"), "name")}</span>
-          <span>{heading(t("kind"), "type")}</span>
+          <span>{heading(t("name"), "name")}</span>
+          <span>{heading(t("type"), "type")}</span>
           <span>{heading(t("fileSize"), "size")}</span>
           <span>{heading(dateLabel, dateSort)}</span>
         </div>

@@ -344,9 +344,9 @@ it("browses folders and files together with compact types and modification dates
   expect(open).not.toHaveBeenCalled();
   await user.click(document);
   expect(open).toHaveBeenCalledOnce();
-  await user.click(screen.getByRole("button", { name: "Filename" }));
+  await user.click(screen.getByRole("button", { name: "Name" }));
   expect(onSort).toHaveBeenCalledWith("name");
-  await user.click(screen.getByRole("button", { name: "File type" }));
+  await user.click(screen.getByRole("button", { name: "Type" }));
   expect(onSort).toHaveBeenCalledWith("type");
   await user.click(screen.getByRole("button", { name: "Size" }));
   expect(onSort).toHaveBeenCalledWith("size");

@@ -179,6 +179,7 @@ export const en = {
   emptyBoxesHint:
     "Create a box for a trip, an experience, or a batch of documents.",
   name: "Name",
+  type: "Type",
   description: "Description",
   startAt: "Start date",
   endAt: "End date",
@@ -493,6 +494,7 @@ export const zh: Record<MessageKey, string> = {
   emptyBoxes: "留存值得珍藏的资料。",
   emptyBoxesHint: "为一次旅行、一段经历或一批档案创建归档盒。",
   name: "名称",
+  type: "类型",
   description: "描述",
   startAt: "开始日期",
   endAt: "结束日期",
