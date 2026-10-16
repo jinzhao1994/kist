@@ -198,3 +198,20 @@ it("appends repeated name and tag clauses and edits only the selected instance",
     { field: "name_equals", values: ["B"] },
   ]);
 });
+
+it("keeps segmented prefixes while editing and offers the value directly", async () => {
+  const user = userEvent.setup();
+  render(<Harness />);
+  await user.click(screen.getByRole("combobox"));
+  await user.click(screen.getByRole("option", { name: "Name" }));
+  await user.click(screen.getByRole("option", { name: "contains" }));
+  expect(screen.getByText("Name")).toHaveClass("filter-token-segment");
+  expect(screen.getByText("contains")).toHaveClass("filter-token-segment");
+  await user.type(screen.getByRole("combobox"), "456");
+  await user.click(screen.getByRole("option", { name: "456" }));
+  await user.click(screen.getByRole("button", { name: "Name: 456" }));
+  expect(screen.getByRole("combobox")).toHaveValue("456");
+  expect(screen.getByText("Name")).toHaveClass("filter-token-segment");
+  expect(screen.getByText("contains")).toHaveClass("filter-token-segment");
+  expect(screen.getByRole("option", { name: "456" })).toBeVisible();
+});

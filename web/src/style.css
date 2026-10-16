@@ -868,10 +868,10 @@ fieldset > label,
 .filter-edit-slot {
   max-inline-size: 100%;
 }
-.filter-field-label {
-  font-size: 0.875rem;
+.filter-token.filter-editor-prefix {
+  flex-shrink: 0;
+  padding-inline-end: 0;
   white-space: nowrap;
-  color: var(--muted);
 }
 .filter-option-value {
   display: flex;
@@ -896,7 +896,7 @@ fieldset > label,
 .filter-token-segment + .filter-token-segment {
   border-inline-start: 2px solid var(--surface);
 }
-.filter-token-segment:hover {
+button.filter-token-segment:hover {
   background: var(--border);
 }
 .filter-token-value {

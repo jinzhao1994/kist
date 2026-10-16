@@ -316,14 +316,16 @@ export function FiltersPanel<T extends FilterValues>({
         ? (boxes || []).map((box) => ({ value: box.id, label: box.name }))
         : flat.map(tagOption);
   const editor = (
-    <Combobox.DropdownTarget>
-      <div className="filter-inline-editor">
-        {field !== "keyword" && (
-          <span className="filter-field-label">
-            {title(field)}
-            {stage === "value" && ` ${operator(field)}`}
-          </span>
-        )}
+    <div className="filter-inline-editor">
+      {field !== "keyword" && (
+        <span className="filter-token filter-editor-prefix">
+          <span className="filter-token-segment">{title(field)}</span>
+          {stage === "value" && (
+            <span className="filter-token-segment">{operator(field)}</span>
+          )}
+        </span>
+      )}
+      <Combobox.DropdownTarget>
         <Combobox.EventsTarget withExpandedAttribute>
           <input
             ref={input}
@@ -369,8 +371,8 @@ export function FiltersPanel<T extends FilterValues>({
             }}
           />
         </Combobox.EventsTarget>
-      </div>
-    </Combobox.DropdownTarget>
+      </Combobox.DropdownTarget>
+    </div>
   );
   return (
     <section className="filters-bar" aria-label={t("filters")}>
@@ -517,13 +519,13 @@ export function FiltersPanel<T extends FilterValues>({
                     </Combobox.Empty>
                   )}
                   {invalid && <p role="alert">{t("invalidDate")}</p>}
-                  <Combobox.Option
-                    value="apply"
-                    disabled={!draft.trim() || invalid}
-                  >
-                    {t("applyFilter")}
-                    {draft.trim() ? `: ${draft.trim()}` : ""}
-                  </Combobox.Option>
+                  {draft.trim() ? (
+                    <Combobox.Option value="apply" disabled={invalid}>
+                      {draft.trim()}
+                    </Combobox.Option>
+                  ) : (
+                    <Combobox.Empty>{t("filterValue")}</Combobox.Empty>
+                  )}
                 </>
               ) : (
                 <>
