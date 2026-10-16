@@ -1,11 +1,12 @@
 import {
   cleanup,
+  act,
   fireEvent,
   render,
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { useState } from "react";
 import { Dialog, DialogPresence } from "./Dialog";
 import { ThemeProvider } from "./theme";
@@ -43,6 +44,7 @@ it.each(["cancel", "saved", "close"])(
     );
     fireEvent.click(screen.getByText("launch"));
     const input = await screen.findByLabelText("draft");
+    await waitFor(() => expect(input).toBeVisible());
     if (path === "close")
       fireEvent.click(document.querySelector(".mantine-Modal-close")!);
     else fireEvent.click(screen.getByText(path));
@@ -50,6 +52,44 @@ it.each(["cancel", "saved", "close"])(
     expect(input).toHaveValue("unsaved draft");
     await waitFor(() => expect(screen.queryByLabelText("draft")).toBeNull());
     fireEvent.click(screen.getByText("launch"));
-    expect(await screen.findByLabelText("draft")).toBeVisible();
+    const reopened = await screen.findByLabelText("draft");
+    await waitFor(() => expect(reopened).toBeVisible());
   },
 );
+
+it("enters through a transition when an asynchronous result mounts an open dialog", async () => {
+  let nextFrame: FrameRequestCallback | undefined;
+  const frames = vi
+    .spyOn(window, "requestAnimationFrame")
+    .mockImplementation((callback) => {
+      nextFrame = callback;
+      return 1;
+    });
+  try {
+    render(
+      <ThemeProvider>
+        <I18nProvider>
+          <DialogPresence>
+            <Dialog open title="Upload conflict" onOpenChange={() => {}}>
+              <input aria-label="conflict choice" />
+            </Dialog>
+          </DialogPresence>
+        </I18nProvider>
+      </ThemeProvider>,
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    frames.mockRestore();
+    await act(async () => {
+      nextFrame?.(0);
+    });
+    const input = await screen.findByLabelText("conflict choice");
+    const dialog = input.closest('[role="dialog"]')!;
+    expect(dialog).toHaveStyle({ opacity: "0" });
+    await waitFor(() => expect(dialog).toHaveStyle({ opacity: "1" }));
+    expect((dialog as HTMLElement).style.transitionProperty).toContain(
+      "transform",
+    );
+  } finally {
+    frames.mockRestore();
+  }
+});

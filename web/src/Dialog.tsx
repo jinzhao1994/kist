@@ -3,6 +3,7 @@ import { Modal, useMantineEnv } from "@mantine/core";
 import {
   createContext,
   useContext,
+  useEffect,
   useId,
   useState,
   type ReactNode,
@@ -49,7 +50,14 @@ export function Dialog({
   const presence = useContext(Presence);
   const env = useMantineEnv();
   const reducedMotion = useReducedMotion();
-  const visible = open && (presence?.present ?? true);
+  // Mount closed first so dialogs created by an async result also enter through
+  // Mantine's transition lifecycle instead of starting in the entered state.
+  const [mounted, setMounted] = useState(env === "test" || reducedMotion);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  const visible = !!mounted && open && (presence?.present ?? true);
   const descriptionId = useId();
   const [opener] = useState(() =>
     document.activeElement instanceof HTMLElement
@@ -66,14 +74,15 @@ export function Dialog({
         });
       }}
       transitionProps={{
-        transition: "fade",
+        transition: {
+          in: { opacity: 1, transform: "translateY(0) scale(1)" },
+          out: { opacity: 0, transform: "translateY(6px) scale(0.98)" },
+          common: { transformOrigin: "center" },
+          transitionProperty: "opacity, transform",
+        },
+        timingFunction: "cubic-bezier(0.2, 0.8, 0.2, 1)",
         duration: reducedMotion || env === "test" ? 0 : 180,
       }}
-      classNames={
-        visible
-          ? { content: "dialog-enter", overlay: "dialog-overlay-enter" }
-          : undefined
-      }
       onClose={() => onOpenChange(false)}
       title={<bdi>{title}</bdi>}
       size={
