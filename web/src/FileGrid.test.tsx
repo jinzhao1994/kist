@@ -501,3 +501,35 @@ it.each(["list", "medium"])(
     expect(chooseFolder).not.toHaveBeenCalled();
   },
 );
+
+it.each([
+  [0, "All 1 folder shown"],
+  [1, "All 1 folder and 1 file shown"],
+])(
+  "includes folders in the completion count with %i files",
+  async (count, label) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ files: files.slice(0, count) })),
+      ),
+    );
+    render(
+      <ThemeProvider env="test">
+        <I18nProvider>
+          <FileBrowser
+            filters={emptyFilters}
+            folders={[
+              { id: "child", name: "Child", parent_id: "root" } as Folder,
+            ]}
+            tags={[]}
+            open={vi.fn()}
+          />
+        </I18nProvider>
+      </ThemeProvider>,
+      { wrapper: mediaWrapper },
+    );
+    expect(await screen.findByText(label)).toBeVisible();
+  },
+);

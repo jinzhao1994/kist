@@ -239,6 +239,10 @@ export const en = {
   smallIcons: "Small icons",
   listView: "List",
   fileSize: "Size",
+  allFoldersShown:
+    "{count, plural, one {All # folder shown} other {All # folders shown}}",
+  allEntriesShown:
+    "All {folders, plural, one {# folder} other {# folders}} and {files, plural, one {# file} other {# files}} shown",
   allFilesShown:
     "{count, plural, one {All # file shown} other {All # files shown}}",
   filters: "Filters",
@@ -544,6 +548,9 @@ export const zh: Record<MessageKey, string> = {
   smallIcons: "小图标",
   listView: "列表",
   fileSize: "大小",
+  allFoldersShown: "已全部显示 {count, number} 个文件夹",
+  allEntriesShown:
+    "已全部显示 {folders, number} 个文件夹、{files, number} 个文件",
   allFilesShown: "已全部显示 {count, number} 个文件",
   filters: "筛选",
   tagAll: "同时包含这些标签",
@@ -706,6 +713,8 @@ interface Parameters {
   errorDetails: { message: string; code: string };
   loadedFiles: { count: number };
   allFilesShown: { count: number };
+  allFoldersShown: { count: number };
+  allEntriesShown: { folders: number; files: number };
   allBoxesShown: { count: number };
   fileCount: { count: number };
   uploadLimit: { count: string; size: string };

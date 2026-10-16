@@ -153,8 +153,16 @@ export function FileBrowser({
               <p role="status">
                 {query.isFetchingNextPage
                   ? t("loading")
-                  : !query.hasNextPage && files.length > 0
-                    ? t("allFilesShown", { count: files.length })
+                  : !query.hasNextPage &&
+                      (files.length > 0 || folders.length > 0)
+                    ? folders.length > 0
+                      ? files.length > 0
+                        ? t("allEntriesShown", {
+                            folders: folders.length,
+                            files: files.length,
+                          })
+                        : t("allFoldersShown", { count: folders.length })
+                      : t("allFilesShown", { count: files.length })
                     : null}
               </p>
             )}
