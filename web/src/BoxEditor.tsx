@@ -21,6 +21,7 @@ export function BoxEditor({ box, close }: { box?: Box; close: () => void }) {
       title={t(box ? "editBox" : "createBox")}
     >
       <form
+        className="box-editor-form"
         onSubmit={(event) => {
           event.preventDefault();
           if (state.locked) return;
@@ -34,45 +35,51 @@ export function BoxEditor({ box, close }: { box?: Box; close: () => void }) {
         }}
       >
         <fieldset disabled={state.busy || state.locked}>
-          <label htmlFor={`${id}-name`}>{t("name")}</label>
           <TextInput
+            label={t("name")}
             id={`${id}-name`}
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
+            withAsterisk={false}
             maxLength={255}
             autoFocus
           />
-          <label htmlFor={`${id}-description`}>{t("description")}</label>
           <Textarea
+            label={t("description")}
             id={`${id}-description`}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
           />
-          <div className="field-pair">
-            <div>
-              <label htmlFor={`${id}-start`}>{t("startAt")}</label>
-              <TextInput
-                id={`${id}-start`}
-                value={start}
-                onChange={(e) => setStart(e.target.value)}
-                aria-describedby={`${id}-hint`}
-              />
+          <div className="box-editor-dates">
+            <div className="field-pair">
+              <div>
+                <TextInput
+                  label={t("startAt")}
+                  id={`${id}-start`}
+                  value={start}
+                  onChange={(e) => setStart(e.target.value)}
+                  aria-describedby={`${id}-hint`}
+                />
+              </div>
+              <div>
+                <TextInput
+                  label={t("endAt")}
+                  id={`${id}-end`}
+                  value={end}
+                  onChange={(e) => setEnd(e.target.value)}
+                  aria-describedby={`${id}-hint`}
+                />
+              </div>
             </div>
-            <div>
-              <label htmlFor={`${id}-end`}>{t("endAt")}</label>
-              <TextInput
-                id={`${id}-end`}
-                value={end}
-                onChange={(e) => setEnd(e.target.value)}
-                aria-describedby={`${id}-hint`}
-              />
-            </div>
+            <p
+              className="supporting-text box-editor-date-hint"
+              id={`${id}-hint`}
+            >
+              {t("dateHint")}
+            </p>
           </div>
-          <p className="hint" id={`${id}-hint`}>
-            {t("dateHint")}
-          </p>
         </fieldset>
         <WriteFeedback state={state} />
         <div className="actions">

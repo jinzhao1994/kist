@@ -1965,3 +1965,34 @@ main.upload-drag-active {
   overflow-wrap: anywhere;
   font-size: 0.85rem;
 }
+
+.box-editor-form fieldset {
+  display: grid;
+  gap: 1rem;
+}
+.box-editor-form .mantine-InputWrapper-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text);
+}
+.box-editor-form .mantine-Input-input {
+  font-size: 0.875rem;
+}
+.box-editor-form textarea {
+  min-block-size: 5rem;
+}
+.box-editor-date-hint {
+  margin-block-start: 0.5rem;
+}
+.box-editor-form .actions {
+  margin-block-start: 1.25rem;
+  padding-block-start: 1rem;
+  border-block-start: 1px solid var(--border);
+}
+@media (max-width: 400px) {
+  .box-editor-dates .field-pair {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+}
