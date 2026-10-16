@@ -1,3 +1,4 @@
+import { NavigationIcon } from "./NavigationIcon";
 import { Anchor, Breadcrumbs, Button, TextInput } from "@mantine/core";
 import { useState } from "react";
 import { createWrite, type Folder } from "./api";
@@ -34,7 +35,21 @@ export function FolderBreadcrumbs({
   return (
     <nav className="folder-breadcrumbs" aria-label={t("folderPath")}>
       <Breadcrumbs
-        separator="›"
+        separator={
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="m9 6 6 6-6 6" />
+          </svg>
+        }
         separatorMargin="xs"
         className="folder-path-segments"
       >
@@ -46,22 +61,13 @@ export function FolderBreadcrumbs({
               key={folder.id}
               onClick={() => choose(folder.id)}
               aria-label={t("boxRoot")}
-              title={rootLabel || t("boxRoot")}
+              title={
+                rootLabel
+                  ? `${t("returnToBoxRoot")} · ${rootLabel}`
+                  : t("returnToBoxRoot")
+              }
             >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <rect x="3" y="3" width="18" height="4" rx="1" />
-                <path d="M5 7v13h14V7M10 11h4" />
-              </svg>
+              <NavigationIcon kind="boxes" />
             </Anchor>
           ) : folder.id === current ? (
             <span key={folder.id} aria-current="page">

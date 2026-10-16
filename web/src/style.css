@@ -1323,6 +1323,7 @@ fieldset > label,
   font-size: 0.8125rem;
 }
 .folder-path-segments {
+  align-items: center;
   flex-wrap: wrap;
   font-size: inherit;
 }
@@ -1333,10 +1334,14 @@ fieldset > label,
   min-width: 20px;
   min-height: 20px;
 }
+.folder-breadcrumbs .breadcrumb-root,
 .folder-breadcrumbs [aria-current="page"] {
   color: color-mix(in srgb, var(--text) 78%, var(--canvas));
 }
 .folder-path-segments .mantine-Breadcrumbs-separator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: var(--muted);
   opacity: 0.55;
 }
