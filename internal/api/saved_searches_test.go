@@ -44,7 +44,7 @@ func TestSavedSearchRequests(t *testing.T) {
 	if absent.Code != 404 {
 		t.Fatalf("missing: %d %s", absent.Code, absent.Body)
 	}
-	invalid := call(s, "POST", Prefix+"/saved-searches", "bad-search", string(bytes.ReplaceAll([]byte(body), []byte(`"version":1`), []byte(`"version":2`))))
+	invalid := call(s, "POST", Prefix+"/saved-searches", "bad-search", string(bytes.ReplaceAll([]byte(body), []byte(`"version":1`), []byte(`"version":3`))))
 	if invalid.Code != 400 {
 		t.Fatalf("invalid: %d %s", invalid.Code, invalid.Body)
 	}

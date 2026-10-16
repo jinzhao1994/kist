@@ -14,12 +14,16 @@ import (
 // Time overlaps the declared activity interval. A missing endpoint uses the
 // known endpoint's precision; entirely undated boxes do not match a range.
 type BoxQuery struct {
-	Text   string
-	Tags   TagExpr
-	Time   *DateRange
-	Sort   BoxSort
-	Cursor string
-	Limit  int
+	// Keywords are independent text terms combined with AND.
+	Keywords     []string
+	NameContains string
+	NameEquals   string
+	Text         string
+	Tags         TagExpr
+	Time         *DateRange
+	Sort         BoxSort
+	Cursor       string
+	Limit        int
 }
 
 // BoxSort orders by updated time (the default), folded name, or activity start.
@@ -48,7 +52,7 @@ func (q BoxQuery) Validate() error {
 	default:
 		return fmt.Errorf("unknown box sort %q", q.Sort.Key)
 	}
-	return (Query{Limit: q.Limit, Time: q.Time}).Validate()
+	return (Query{Limit: q.Limit, Time: q.Time, Keywords: q.Keywords, NameContains: q.NameContains, NameEquals: q.NameEquals}).Validate()
 }
 func (q BoxQuery) PageSize() int { return (Query{Limit: q.Limit}).PageSize() }
 

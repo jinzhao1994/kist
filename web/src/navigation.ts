@@ -21,9 +21,22 @@ function readFilters(
     const out: Omit<Filters, "sort"> & {
       sort?: Filters["sort"] | BoxFilters["sort"];
     } = {};
-    for (const key of ["name", "from", "to"] as const)
+    for (const key of [
+      "name",
+      "name_contains",
+      "name_equals",
+      "from",
+      "to",
+    ] as const)
       if (typeof input[key] === "string") out[key] = input[key];
-    for (const key of ["box", "kind", "tag_all", "tag_any", "tag_not"] as const)
+    for (const key of [
+      "keyword",
+      "box",
+      "kind",
+      "tag_all",
+      "tag_any",
+      "tag_not",
+    ] as const)
       if (
         Array.isArray(input[key]) &&
         input[key].every((v: unknown) => typeof v === "string")

@@ -76,7 +76,13 @@ export const api = {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(query))
       if (value !== undefined && value !== "")
-        params.set(key, Array.isArray(value) ? value.join(",") : String(value));
+        if (key === "keyword" && Array.isArray(value))
+          value.forEach((term) => params.append(key, term));
+        else
+          params.set(
+            key,
+            Array.isArray(value) ? value.join(",") : String(value),
+          );
     return get<components["schemas"]["BoxSearchResult"]>(
       `/boxes/search?${params}`,
       signal,
@@ -99,7 +105,13 @@ export const api = {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(query))
       if (value !== undefined && value !== "")
-        params.set(key, Array.isArray(value) ? value.join(",") : String(value));
+        if (key === "keyword" && Array.isArray(value))
+          value.forEach((term) => params.append(key, term));
+        else
+          params.set(
+            key,
+            Array.isArray(value) ? value.join(",") : String(value),
+          );
     return get<components["schemas"]["FileList"]>(`/files?${params}`, signal);
   },
   receipt: (key: string) =>

@@ -53,6 +53,14 @@ func cases() []testCase {
 		out = append(out, testCase{name: name, build: build, check: check})
 	}
 	simple := func() *Builder { return library() }
+	add("keywords and explicit name operators", simple, func(t *testing.T, b Backend, f *Builder) {
+		requireSet(t, run(t, b, query.Query{Keywords: []string{"IMG", "1"}}), "IMG_1.jpg")
+		requireSet(t, run(t, b, query.Query{NameContains: "PDF"}), "100%.pdf", "contract.PDF")
+		requireSet(t, run(t, b, query.Query{NameEquals: "CONTRACT.pdf"}), "contract.PDF")
+		requireSet(t, run(t, b, query.Query{NameEquals: "contract"}))
+		requireSet(t, run(t, b, query.Query{NameContains: "%"}), "100%.pdf")
+		requireSet(t, run(t, b, query.Query{Keywords: []string{"IMG"}, NameEquals: "contract.PDF"}))
+	})
 
 	add("recorded kinds ignore extensions and omit unclassified files", func() *Builder {
 		return library().Kind("passport.jpg", "document").Kind("notes.txt", "image").Kind("100%.pdf", "other")

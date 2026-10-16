@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { useDebouncedValue } from "@mantine/hooks";
 import { Button } from "@mantine/core";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { api, type Box } from "./api";
@@ -24,8 +23,7 @@ export function BoxBrowser({
   onSort?: (sort: NonNullable<BoxFilters["sort"]>) => void;
 }) {
   const { t } = useI18n();
-  const [text] = useDebouncedValue(filters.name || "", 250);
-  const search = { ...filters, name: text };
+  const search = filters;
   const query = useInfiniteQuery({
     queryKey: ["boxes", "search", search],
     initialPageParam: "",
@@ -61,6 +59,9 @@ export function BoxBrowser({
   );
   const filtered = !!(
     filters.name ||
+    filters.keyword?.length ||
+    filters.name_contains ||
+    filters.name_equals ||
     filters.from ||
     filters.to ||
     filters.tag_all?.length ||

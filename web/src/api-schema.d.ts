@@ -908,8 +908,11 @@ export interface components {
             asc: boolean;
             box?: string[] | null;
             from?: string;
+            keyword?: string[] | null;
             kind?: string[] | null;
             name?: string;
+            name_contains?: string;
+            name_equals?: string;
             sort: string;
             tag_all?: string[] | null;
             tag_any?: string[] | null;
@@ -1081,6 +1084,9 @@ export interface operations {
     "get-api-v1-boxes-search": {
         parameters: {
             query?: {
+                keyword?: string[] | null;
+                name_contains?: string;
+                name_equals?: string;
                 text?: string;
                 tag_all?: string[] | null;
                 tag_any?: string[] | null;
@@ -1509,6 +1515,9 @@ export interface operations {
     "get-api-v1-files": {
         parameters: {
             query?: {
+                keyword?: string[] | null;
+                name_contains?: string;
+                name_equals?: string;
                 kind?: string[] | null;
                 box?: string[] | null;
                 folder?: string;

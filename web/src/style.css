@@ -822,31 +822,56 @@ fieldset > label,
   min-inline-size: 0;
 }
 .filter-search-input {
+  display: flex;
+  align-items: center;
   flex: 1;
   min-inline-size: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--mantine-radius-md);
+  background: var(--surface);
+  min-block-size: 2.5rem;
 }
-.filter-sort {
-  display: flex;
-  align-items: flex-end;
-  gap: 0.5rem;
-}
-.filter-sort > :first-child {
-  inline-size: 10rem;
+.filter-search-input:focus-within {
+  border-color: var(--mantine-primary-color-filled);
 }
 .filter-input-content {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  padding-block: 0.2rem;
-}
-.filter-input-content .mantine-PillsInputField-field {
-  min-inline-size: min(12rem, 100%);
   flex: 1;
+  min-inline-size: 0;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.3rem 0.5rem;
+}
+.filter-inline-editor {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-inline-size: 8rem;
+  flex: 1;
+}
+.filter-inline-editor input {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.875rem;
+  inline-size: 10rem;
+  min-inline-size: 4rem;
+  flex: 1;
+  block-size: 1.65rem;
+}
+.filter-inline-editor input::placeholder {
+  color: var(--muted);
+}
+.filter-edit-slot {
+  max-inline-size: 100%;
 }
 .filter-field-label {
   font-size: 0.875rem;
-  color: var(--mantine-color-dimmed);
+  white-space: nowrap;
+  color: var(--muted);
 }
 .filter-option-value {
   display: flex;
@@ -856,25 +881,58 @@ fieldset > label,
 .filter-token {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
   max-inline-size: 100%;
-  border: 1px solid var(--mantine-primary-color-light-color);
-  border-radius: var(--mantine-radius-md);
-  background: var(--mantine-primary-color-light);
-  padding: 0.25rem 0.5rem;
-  color: var(--mantine-primary-color-light-color);
-}
-.filter-token-label {
+  border-radius: 0.25rem;
+  background: var(--mantine-color-gray-2);
+  overflow: hidden;
   font-size: 0.875rem;
+  padding-inline-end: 0.2rem;
+}
+.filter-token-segment {
+  padding: 0.15rem 0.45rem;
+  font-size: inherit;
   overflow-wrap: anywhere;
-  min-inline-size: 0;
+}
+.filter-token-segment + .filter-token-segment {
+  border-inline-start: 2px solid var(--surface);
+}
+.filter-token-segment:hover {
+  background: var(--border);
+}
+.filter-token-value {
+  font-weight: 500;
+  background: var(--mantine-color-gray-3);
+}
+[data-mantine-color-scheme="dark"] .filter-token {
+  background: var(--mantine-color-dark-4);
+}
+[data-mantine-color-scheme="dark"] .filter-token-value {
+  background: var(--mantine-color-dark-3);
+}
+.filter-submit {
+  border-inline-start: 1px solid var(--border);
+  border-radius: 0;
+  align-self: stretch;
+  block-size: auto;
+  inline-size: 2.5rem;
+  flex-shrink: 0;
 }
 .filter-editor {
   max-inline-size: calc(100vw - 2rem);
 }
 .filter-options {
-  max-block-size: 18rem;
+  max-block-size: min(20rem, 60vh);
   overflow-y: auto;
+}
+.filter-editor .mantine-Combobox-option {
+  font-size: 0.875rem;
+  padding: 0.5rem 0.65rem;
+}
+.filter-option-hint {
+  float: inline-end;
+  color: var(--muted);
+  font-size: 0.75rem;
+  margin-inline-start: 1rem;
 }
 @media (max-width: 680px) {
   .filter-search {

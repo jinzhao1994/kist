@@ -63,14 +63,14 @@ it("keeps committed searches in the list URL and restores empty history entries"
   await waitFor(() => expect(location.href).toBe(filteredURL));
   expect(
     await screen.findByRole("button", {
-      name: "Filename: travel",
+      name: "travel",
     }),
   ).toBeVisible();
   history.pushState(null, "", "/files");
   window.dispatchEvent(new PopStateEvent("popstate"));
   await waitFor(() =>
     expect(
-      screen.queryByRole("button", { name: "Filename: travel" }),
+      screen.queryByRole("button", { name: "travel" }),
     ).not.toBeInTheDocument(),
   );
   view.unmount();
@@ -288,6 +288,7 @@ it("replaces the box search bar when switching to all files and applies a box co
   );
   await user.click(screen.getByRole("option", { name: "Boxes" }));
   await user.click(await screen.findByRole("option", { name: "Current box" }));
+  await user.click(screen.getByRole("button", { name: "Search" }));
   await waitFor(() =>
     expect(
       requests.some(
@@ -336,7 +337,9 @@ it("sorts boxes from list headings and keeps the search when switching views", a
   // Wait for the debounced search to replace the initial query before using
   // its headings: a refetch can otherwise detach the button mid-click.
   await waitFor(() =>
-    expect(requests.some((path) => path.includes("text=Archive"))).toBe(true),
+    expect(requests.some((path) => path.includes("keyword=Archive"))).toBe(
+      true,
+    ),
   );
   await screen.findByRole("heading", { name: "Archive" });
   await user.click(screen.getByRole("button", { name: "Display mode" }));

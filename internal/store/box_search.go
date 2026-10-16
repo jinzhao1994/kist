@@ -33,6 +33,18 @@ func SearchBoxes(db Queryer, q query.BoxQuery) ([]domain.Box, string, error) {
 		text := domain.Fold(q.Text)
 		args = append(args, text, text)
 	}
+	for _, term := range q.Keywords {
+		sql += ` AND (instr(name_fold, ?) > 0 OR instr(kist_fold(description), ?) > 0)`
+		args = append(args, domain.Fold(term), domain.Fold(term))
+	}
+	if q.NameContains != "" {
+		sql += ` AND instr(name_fold, ?) > 0`
+		args = append(args, domain.Fold(q.NameContains))
+	}
+	if q.NameEquals != "" {
+		sql += ` AND name_fold = ?`
+		args = append(args, domain.Fold(q.NameEquals))
+	}
 	if q.Time != nil && (!q.Time.From.IsZero() || !q.Time.To.IsZero()) {
 		sql += ` AND coalesce(start_at,end_at) IS NOT NULL`
 		if !q.Time.To.IsZero() {

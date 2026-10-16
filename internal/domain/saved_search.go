@@ -8,16 +8,19 @@ import (
 // SearchFilters is the versioned, portable subset of the UI query contract.
 // Pagination, transient input, and presentation preferences are not saved.
 type SearchFilters struct {
-	Name   string   `json:"name,omitempty"`
-	Sort   string   `json:"sort"`
-	Asc    bool     `json:"asc"`
-	From   string   `json:"from,omitempty"`
-	To     string   `json:"to,omitempty"`
-	Boxes  []string `json:"box,omitempty"`
-	Kinds  []string `json:"kind,omitempty"`
-	TagAll []string `json:"tag_all,omitempty"`
-	TagAny []string `json:"tag_any,omitempty"`
-	TagNot []string `json:"tag_not,omitempty"`
+	Keywords     []string `json:"keyword,omitempty"`
+	NameContains string   `json:"name_contains,omitempty"`
+	NameEquals   string   `json:"name_equals,omitempty"`
+	Name         string   `json:"name,omitempty"`
+	Sort         string   `json:"sort"`
+	Asc          bool     `json:"asc"`
+	From         string   `json:"from,omitempty"`
+	To           string   `json:"to,omitempty"`
+	Boxes        []string `json:"box,omitempty"`
+	Kinds        []string `json:"kind,omitempty"`
+	TagAll       []string `json:"tag_all,omitempty"`
+	TagAny       []string `json:"tag_any,omitempty"`
+	TagNot       []string `json:"tag_not,omitempty"`
 }
 
 // SearchDefinition preserves IDs even when referenced entities disappear.
@@ -38,8 +41,26 @@ type SavedSearch struct {
 
 // Normalize returns a detached canonical value suitable for durable payloads.
 func (d SearchDefinition) Normalize() (SearchDefinition, error) {
-	if d.Version != 1 {
+	if d.Version != 1 && d.Version != 2 {
 		return d, fmt.Errorf("unsupported search version %d", d.Version)
+	}
+	if d.Version == 1 && (len(d.Filters.Keywords) > 0 || d.Filters.NameContains != "" || d.Filters.NameEquals != "") {
+		return d, fmt.Errorf("extended filters require search version 2")
+	}
+	if d.Version == 2 && d.Filters.Name != "" {
+		return d, fmt.Errorf("legacy name filter requires search version 1")
+	}
+	if len(d.Filters.Keywords) > 128 {
+		return d, fmt.Errorf("too many keywords")
+	}
+	d.Filters.Keywords = slices.Clone(d.Filters.Keywords)
+	if len(d.Filters.Keywords) == 0 {
+		d.Filters.Keywords = nil
+	}
+	for _, text := range append(slices.Clone(d.Filters.Keywords), d.Filters.NameContains, d.Filters.NameEquals) {
+		if len(text) > 4096 {
+			return d, fmt.Errorf("search text is too long")
+		}
 	}
 	if d.Entity != "files" && d.Entity != "boxes" {
 		return d, fmt.Errorf("invalid search entity")

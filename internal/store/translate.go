@@ -81,6 +81,18 @@ func translate(q query.Query, zone *time.Location) (string, []any, error) {
 		sb.WriteString(` AND name_fold LIKE ? ESCAPE '\'`)
 		args = append(args, "%"+escapeLike(domain.Fold(q.Text))+"%")
 	}
+	for _, term := range q.Keywords {
+		sb.WriteString(` AND instr(name_fold, ?) > 0`)
+		args = append(args, domain.Fold(term))
+	}
+	if q.NameContains != "" {
+		sb.WriteString(` AND instr(name_fold, ?) > 0`)
+		args = append(args, domain.Fold(q.NameContains))
+	}
+	if q.NameEquals != "" {
+		sb.WriteString(` AND name_fold = ?`)
+		args = append(args, domain.Fold(q.NameEquals))
+	}
 	if q.Time != nil {
 		frag, targs, err := timePredicate("captured_at", *q.Time, zone)
 		if err != nil {

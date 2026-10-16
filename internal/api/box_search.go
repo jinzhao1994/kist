@@ -8,16 +8,19 @@ import (
 )
 
 type boxQueryInput struct {
-	Text   string   `query:"text"`
-	All    []string `query:"tag_all"`
-	Any    []string `query:"tag_any"`
-	Not    []string `query:"tag_not"`
-	From   string   `query:"from"`
-	To     string   `query:"to"`
-	Sort   string   `query:"sort" enum:"updated,name,activity" default:"updated"`
-	Asc    bool     `query:"asc"`
-	Cursor string   `query:"cursor"`
-	Limit  int      `query:"limit" minimum:"0" maximum:"1000"`
+	Keywords     []string `query:"keyword,explode" maxItems:"128"`
+	NameContains string   `query:"name_contains" maxLength:"4096"`
+	NameEquals   string   `query:"name_equals" maxLength:"4096"`
+	Text         string   `query:"text"`
+	All          []string `query:"tag_all"`
+	Any          []string `query:"tag_any"`
+	Not          []string `query:"tag_not"`
+	From         string   `query:"from"`
+	To           string   `query:"to"`
+	Sort         string   `query:"sort" enum:"updated,name,activity" default:"updated"`
+	Asc          bool     `query:"asc"`
+	Cursor       string   `query:"cursor"`
+	Limit        int      `query:"limit" minimum:"0" maximum:"1000"`
 }
 type boxSearchResult struct {
 	Boxes  []wire.Box `json:"boxes"`
@@ -31,7 +34,7 @@ func (s *Server) boxSearchRoute() {
 		if err != nil {
 			return nil, err
 		}
-		q := query.BoxQuery{Text: in.Text, Tags: shared.Tags, Time: shared.Time, Sort: query.BoxSort{Key: in.Sort, Asc: in.Asc}, Cursor: in.Cursor, Limit: in.Limit}
+		q := query.BoxQuery{Keywords: in.Keywords, NameContains: in.NameContains, NameEquals: in.NameEquals, Text: in.Text, Tags: shared.Tags, Time: shared.Time, Sort: query.BoxSort{Key: in.Sort, Asc: in.Asc}, Cursor: in.Cursor, Limit: in.Limit}
 		if err := q.Validate(); err != nil {
 			return nil, invalid(err.Error())
 		}

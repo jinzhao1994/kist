@@ -88,7 +88,7 @@ func TestFileQueryAndTagMutations(t *testing.T) {
 	}{
 		{"tag_all=" + parent, 1}, {"tag_any=" + parent + "," + other, 2}, {"tag_not=" + parent, 2},
 		{"tag_any=" + parent + "," + other + "&tag_not=" + other, 1},
-		{"tag_all=" + parent + "," + other, 0}, {"name=B", 1}, {"from=1900&to=1901", 0},
+		{"tag_all=" + parent + "," + other, 0}, {"name=B", 1}, {"keyword=B&keyword=.txt", 1}, {"keyword=B%2C.txt", 0}, {"name_contains=B", 1}, {"name_equals=B.TXT", 1}, {"name_equals=B", 0}, {"keyword=a&name_equals=b.txt", 0}, {"from=1900&to=1901", 0},
 		{"box=" + box.ID.String(), 3}, {"box=" + domain.NewBoxID().String(), 0},
 	} {
 		page := decodeBody[wire.FileList](t, s, "/files?"+tc.filter)

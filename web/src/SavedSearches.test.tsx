@@ -157,7 +157,7 @@ it("keeps box filters distinct and restores them from the URL", async () => {
   expect(screen.getByRole("status")).toHaveTextContent('"sort":"activity"');
   view.unmount();
   render(<Harness />);
-  expect(screen.getByRole("status")).toHaveTextContent('"name":"Trips"');
+  expect(screen.getByRole("status")).toHaveTextContent('"keyword":["Trips"]');
   expect(screen.getByRole("status")).toHaveTextContent('"asc":true');
   expect(screen.getByRole("status")).not.toHaveTextContent('"filters":');
 });
@@ -175,7 +175,7 @@ it("validates scope IDs and does not save cursor or UI state", () => {
     ),
   ).toBe(false);
   expect(
-    searchReferencesExist({ ...definition, version: 2 }, tags, boxes),
+    searchReferencesExist({ ...definition, version: 3 }, tags, boxes),
   ).toBe(false);
   expect(
     searchDefinition("files", {

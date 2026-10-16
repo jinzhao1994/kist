@@ -78,6 +78,9 @@ export function App() {
     route.folder || folderList.find((folder) => !folder.parent_id)?.id;
   const searching = !!(
     filters.name ||
+    filters.keyword?.length ||
+    filters.name_contains ||
+    filters.name_equals ||
     filters.from ||
     filters.to ||
     filters.kind?.length ||

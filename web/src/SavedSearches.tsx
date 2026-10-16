@@ -30,12 +30,17 @@ export function searchDefinition(
   folder?: string,
 ): SearchDefinition {
   return {
-    version: 1,
+    version: 2,
     entity,
     ...(box && { box_id: box }),
     ...(box && folder && { folder_id: folder }),
     filters: {
-      name: filters.name || "",
+      keyword: [
+        ...(filters.keyword || []),
+        ...(filters.name ? [filters.name] : []),
+      ],
+      name_contains: filters.name_contains || "",
+      name_equals: filters.name_equals || "",
       sort: filters.sort || "updated",
       asc: !!filters.asc,
       from: filters.from || "",
@@ -72,7 +77,7 @@ export function searchReferencesExist(
   const tagIDs = new Set(flattenTags(tags).map((tag) => tag.id));
   const boxIDs = new Set(boxes.map((box) => box.id));
   return (
-    d.version === 1 &&
+    (d.version === 1 || d.version === 2) &&
     (d.entity === "files" || d.entity === "boxes") &&
     [
       ...(d.filters.tag_all || []),

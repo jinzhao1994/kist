@@ -97,6 +97,10 @@ type DateRange struct {
 //
 // The zero value is a valid query: everything, newest first.
 type Query struct {
+	// Keywords are independent text terms combined with AND.
+	Keywords     []string
+	NameContains string
+	NameEquals   string
 	// Kinds matches recorded content classification, never filename extensions.
 	Kinds []string
 	// Boxes restricts to these boxes. Empty means all of them.
@@ -131,6 +135,15 @@ type Query struct {
 // pinned successes would let two implementations disagree about what counts as
 // an error.
 func (q Query) Validate() error {
+	if len(q.Keywords) > 128 {
+		return fmt.Errorf("too many keywords")
+	}
+	for _, text := range append(append([]string{}, q.Keywords...), q.NameContains, q.NameEquals) {
+		if len(text) > 4096 {
+			return fmt.Errorf("search text is too long")
+		}
+	}
+
 	for _, kind := range q.Kinds {
 		switch kind {
 		case "image", "video", "audio", "document", "other":

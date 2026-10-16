@@ -13,19 +13,22 @@ import (
 )
 
 type fileQueryInput struct {
-	Kinds  []string `query:"kind"`
-	Boxes  []string `query:"box"`
-	Folder string   `query:"folder"`
-	All    []string `query:"tag_all"`
-	Any    []string `query:"tag_any"`
-	Not    []string `query:"tag_not"`
-	Name   string   `query:"name"`
-	From   string   `query:"from"`
-	To     string   `query:"to"`
-	Sort   string   `query:"sort" enum:"captured,imported,name,updated,type,size" default:"captured"`
-	Asc    bool     `query:"asc"`
-	Cursor string   `query:"cursor"`
-	Limit  int      `query:"limit" minimum:"0" maximum:"1000"`
+	Keywords     []string `query:"keyword,explode" maxItems:"128"`
+	NameContains string   `query:"name_contains" maxLength:"4096"`
+	NameEquals   string   `query:"name_equals" maxLength:"4096"`
+	Kinds        []string `query:"kind"`
+	Boxes        []string `query:"box"`
+	Folder       string   `query:"folder"`
+	All          []string `query:"tag_all"`
+	Any          []string `query:"tag_any"`
+	Not          []string `query:"tag_not"`
+	Name         string   `query:"name"`
+	From         string   `query:"from"`
+	To           string   `query:"to"`
+	Sort         string   `query:"sort" enum:"captured,imported,name,updated,type,size" default:"captured"`
+	Asc          bool     `query:"asc"`
+	Cursor       string   `query:"cursor"`
+	Limit        int      `query:"limit" minimum:"0" maximum:"1000"`
 }
 
 type fileDetail struct {
@@ -40,7 +43,7 @@ type tagList struct {
 }
 
 func (s *Server) fileQuery(in *fileQueryInput) (query.Query, error) {
-	q := query.Query{Kinds: in.Kinds, Text: in.Name, Cursor: in.Cursor, Limit: in.Limit, Sort: query.SortSpec{Asc: in.Asc}}
+	q := query.Query{Keywords: in.Keywords, NameContains: in.NameContains, NameEquals: in.NameEquals, Kinds: in.Kinds, Text: in.Name, Cursor: in.Cursor, Limit: in.Limit, Sort: query.SortSpec{Asc: in.Asc}}
 	switch in.Sort {
 	case "type":
 		q.Sort.Key = query.SortType
