@@ -1603,14 +1603,123 @@ fieldset > label,
   background: var(--drop-active);
 }
 .upload-panel {
-  padding: 1rem;
+  padding: 0.85rem 1rem;
   margin-block-end: 1rem;
-  border: 1px solid var(--drop-border);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--canvas);
+}
+.upload-panel-heading,
+.upload-panel-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.upload-panel-heading {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.upload-panel-status {
+  font-size: 0.85rem;
+  min-inline-size: 0;
+}
+.upload-panel-status strong {
+  font-weight: 550;
+}
+.upload-panel-status > span {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.upload-panel .upload-actions {
+  margin: 0;
+  gap: 0.4rem;
+}
+.upload-panel-details {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.upload-panel-details > p,
+.upload-panel-details > small {
+  display: block;
+  margin: 0.55rem 0 0;
+  font-size: inherit;
+}
+.upload-panel-details .upload-error {
+  color: var(--danger);
+}
+.upload-progress {
+  display: block;
+  appearance: none;
+  border: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  block-size: 5px;
+  margin-block: 0.75rem;
+  background: var(--surface-hover);
+}
+.upload-progress::-webkit-progress-bar {
+  background: var(--surface-hover);
   border-radius: 8px;
 }
-.upload-panel small {
+.upload-progress::-webkit-progress-value {
+  background: var(--accent);
+  border-radius: 8px;
+  transition: width 160ms ease;
+}
+.upload-progress::-moz-progress-bar {
+  background: var(--accent);
+  border-radius: 8px;
+}
+.upload-progress:indeterminate {
+  background: linear-gradient(
+    90deg,
+    var(--surface-hover) 25%,
+    var(--accent) 50%,
+    var(--surface-hover) 75%
+  );
+  background-size: 200% 100%;
+  animation: upload-pulse 1.4s linear infinite;
+}
+.upload-progress:indeterminate::-webkit-progress-bar {
+  background: transparent;
+}
+@keyframes upload-pulse {
+  to {
+    background-position: -200% 0;
+  }
+}
+.upload-result {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-block: 0.5rem 0.85rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.upload-timing {
+  min-inline-size: 0;
+}
+.upload-timing > summary {
+  font-size: inherit;
+  font-weight: 400;
+  cursor: pointer;
+}
+.upload-timing > small {
   display: block;
-  margin-block: 0.5rem;
+  margin-block-start: 0.4rem;
+  max-inline-size: 70ch;
+}
+.upload-result-dismiss {
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  padding: 0 0.3rem;
+  cursor: pointer;
+}
+.upload-result-dismiss:hover {
+  background: var(--surface-hover);
+  color: var(--text);
 }
 .file-empty-state {
   padding: 2.5rem 1rem;

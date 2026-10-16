@@ -1,3 +1,4 @@
+import { UploadPanel } from "./UploadPanel";
 import type { UploadHandle } from "./Upload";
 import { Button } from "@mantine/core";
 import {
@@ -69,20 +70,8 @@ export function ResumableUpload({
   const [phase, setPhase] = useState<
     UploadPhase | "idle" | "checking" | "paused" | "failed" | "saved"
   >(operation?.pending() ? "paused" : "idle");
-  const timingKey = `kist.upload-timing:${box}:${folder}`;
-  const [metrics, setMetrics] = useState<UploadMetrics | undefined>(() => {
-    try {
-      const value = JSON.parse(localStorage.getItem(timingKey) ?? "null");
-      return value &&
-        ["totalMs", "hashMs", "transferMs", "processingMs", "bytes"].every(
-          (key) => Number.isFinite(value[key]) && value[key] >= 0,
-        )
-        ? value
-        : undefined;
-    } catch {
-      return undefined;
-    }
-  });
+  const [metrics, setMetrics] = useState<UploadMetrics>();
+  const [dismissed, setDismissed] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
   const running = useRef<Promise<void>>(undefined);
@@ -144,6 +133,8 @@ export function ResumableUpload({
   async function run() {
     if (!operation) return;
     setPhase("hashing");
+    setMetrics(undefined);
+    setDismissed(false);
     setError("");
     try {
       await operation.run(
@@ -155,11 +146,6 @@ export function ResumableUpload({
         },
         (value) => {
           if (mounted.current) setMetrics(value);
-          try {
-            localStorage.setItem(timingKey, JSON.stringify(value));
-          } catch {
-            /* Timing is optional, unlike recovery state. */
-          }
         },
       );
       await finish();
@@ -292,74 +278,90 @@ export function ResumableUpload({
           "aria-label": activePending ? t("uploadReselect") : t("chooseFiles"),
         })}
       />
-      <div hidden={!showPanel} className={compact ? "upload-panel" : undefined}>
-        <div>
-          <strong>{t(phase === "saved" ? "uploadComplete" : "upload")}</strong>
-          <p>{t("uploadToFolder")}</p>
-          <small>
+      <UploadPanel
+        visible={showPanel}
+        title={
+          busy ? label : t(phase === "saved" ? "uploadComplete" : "upload")
+        }
+        progress={
+          busy
+            ? phase === "processing" || phase === "checking"
+              ? null
+              : progress
+            : undefined
+        }
+        progressLabel={label}
+        actions={
+          <>
+            {busy ? (
+              <>
+                <Button
+                  size="xs"
+                  disabled={phase === "checking"}
+                  onClick={() => operation?.pause()}
+                >
+                  {t("uploadPause")}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  size="xs"
+                  variant="filled"
+                  disabled={!operation}
+                  onClick={drop.open}
+                >
+                  {activePending ? t("uploadReselect") : t("chooseFiles")}
+                </Button>
+                {activePending && (
+                  <>
+                    {operation?.hasFiles() && (
+                      <Button size="xs" onClick={start}>
+                        {t("uploadResume")}
+                      </Button>
+                    )}
+                    {activePending.files && (
+                      <Button size="xs" onClick={() => void check()}>
+                        {t("checkResult")}
+                      </Button>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+            {activePending && (
+              <Button
+                size="xs"
+                disabled={phase === "checking"}
+                onClick={() => void cancel()}
+              >
+                {t("cancel")}
+              </Button>
+            )}
+          </>
+        }
+      >
+        {!busy && !activePending && (
+          <p className="upload-hint">
             {t("uploadLimit", {
               count: formatNumber(maxFiles, prefs),
               size: formatBytes(maxBytes, prefs),
             })}
-          </small>
-        </div>
-        <div className="upload-actions">
-          {busy ? (
-            <>
-              <progress
-                value={
-                  phase === "processing" || phase === "checking"
-                    ? undefined
-                    : progress
-                }
-                max={1}
-                aria-label={label}
-              />
-              <span role="status">
-                {label}
-                {phase === "uploading" || phase === "hashing"
-                  ? ` ${formatNumber(Math.round(progress * 100), prefs)}%`
-                  : ""}
-              </span>
-              <Button
-                disabled={phase === "checking"}
-                onClick={() => operation?.pause()}
-              >
-                {t("uploadPause")}
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                variant="filled"
-                disabled={!operation}
-                onClick={drop.open}
-              >
-                {activePending ? t("uploadReselect") : t("chooseFiles")}
-              </Button>
-              {activePending && (
-                <>
-                  {operation?.hasFiles() && (
-                    <Button onClick={start}>{t("uploadResume")}</Button>
-                  )}
-                  {activePending.files && (
-                    <Button onClick={() => void check()}>
-                      {t("checkResult")}
-                    </Button>
-                  )}
-                </>
-              )}
-            </>
-          )}
-          {activePending && (
-            <Button
-              disabled={phase === "checking"}
-              onClick={() => void cancel()}
-            >
-              {t("cancel")}
-            </Button>
-          )}
-        </div>
+          </p>
+        )}
+        {metrics && phase !== "saved" && (
+          <p className="upload-live-metrics">
+            {t("uploadCurrentStats", {
+              seconds: formatNumber(Math.round(metrics.totalMs / 1000), prefs),
+              speed: formatBytes(
+                metrics.transferMs > 0
+                  ? (metrics.bytes * 1000) / metrics.transferMs
+                  : 0,
+                prefs,
+              ),
+            })}
+          </p>
+        )}
         {activePending && !busy && (
           <p role="status">
             {t("uploadPaused", {
@@ -376,34 +378,47 @@ export function ResumableUpload({
             {error || message(setup.error)}
           </p>
         )}
-      </div>
-      {metrics && (
-        <details className="upload-timing">
-          <summary>
-            {t("uploadElapsed", {
-              seconds: formatNumber(Math.round(metrics.totalMs / 1000), prefs),
-              speed: formatBytes(
-                metrics.transferMs > 0
-                  ? (metrics.bytes * 1000) / metrics.transferMs
-                  : 0,
-                prefs,
-              ),
-            })}
-          </summary>
-          <small>
-            {t("uploadTiming", {
-              hash: formatNumber(Math.round(metrics.hashMs / 1000), prefs),
-              transfer: formatNumber(
-                Math.round(metrics.transferMs / 1000),
-                prefs,
-              ),
-              processing: formatNumber(
-                Math.round(metrics.processingMs / 1000),
-                prefs,
-              ),
-            })}
-          </small>
-        </details>
+      </UploadPanel>
+      {phase === "saved" && metrics && !dismissed && (
+        <div className="upload-result">
+          <details className="upload-timing">
+            <summary>
+              {t("uploadElapsed", {
+                seconds: formatNumber(
+                  Math.round(metrics.totalMs / 1000),
+                  prefs,
+                ),
+                speed: formatBytes(
+                  metrics.transferMs > 0
+                    ? (metrics.bytes * 1000) / metrics.transferMs
+                    : 0,
+                  prefs,
+                ),
+              })}
+            </summary>
+            <small>
+              {t("uploadTiming", {
+                hash: formatNumber(Math.round(metrics.hashMs / 1000), prefs),
+                transfer: formatNumber(
+                  Math.round(metrics.transferMs / 1000),
+                  prefs,
+                ),
+                processing: formatNumber(
+                  Math.round(metrics.processingMs / 1000),
+                  prefs,
+                ),
+              })}
+            </small>
+          </details>
+          <button
+            type="button"
+            className="upload-result-dismiss"
+            aria-label={t("close")}
+            onClick={() => setDismissed(true)}
+          >
+            ×
+          </button>
+        </div>
       )}
       {children}
     </section>

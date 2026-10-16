@@ -1,3 +1,4 @@
+import { UploadPanel } from "./UploadPanel";
 import { Button } from "@mantine/core";
 import {
   useEffect,
@@ -170,77 +171,74 @@ function LegacyUpload({
       })}
     >
       <input {...drop.getInputProps({ "aria-label": t("chooseFiles") })} />
-      <div hidden={!showPanel} className={compact ? "upload-panel" : undefined}>
-        <div>
-          <strong>{t(phase === "saved" ? "uploadComplete" : "upload")}</strong>
-          <p>{t(folder ? "uploadToFolder" : "importHint")}</p>
-          <small>
+      <UploadPanel
+        visible={showPanel}
+        title={t(
+          busy
+            ? phase === "hashing"
+              ? "uploadHashing"
+              : phase === "processing"
+                ? "uploadProcessing"
+                : "uploading"
+            : phase === "saved"
+              ? "uploadComplete"
+              : "upload",
+        )}
+        progress={busy ? (phase === "processing" ? null : progress) : undefined}
+        actions={
+          <>
+            {busy ? (
+              <>
+                <Button size="xs" onClick={() => operation.current?.cancel()}>
+                  {t("cancel")}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  size="xs"
+                  variant="filled"
+                  disabled={phase === "failed"}
+                  onClick={drop.open}
+                >
+                  {t("chooseFiles")}
+                </Button>
+                {phase === "failed" && (
+                  <>
+                    {operation.current && (
+                      <Button size="xs" onClick={run}>
+                        {t("retry")}
+                      </Button>
+                    )}
+                    <Button size="xs" onClick={check}>
+                      {t("checkResult")}
+                    </Button>
+                    <Button
+                      size="xs"
+                      onClick={() => {
+                        remember("");
+                        operation.current = null;
+                        setPhase("idle");
+                        setError("");
+                      }}
+                    >
+                      {t("newOperation")}
+                    </Button>
+                  </>
+                )}
+              </>
+            )}
+          </>
+        }
+      >
+        {!busy && (
+          <p className="upload-hint">
             {t("uploadLimit", {
               count: formatNumber(maxFiles, prefs),
               size: formatBytes(maxBytes, prefs),
             })}
-          </small>
-        </div>
-        <div className="upload-actions">
-          {busy ? (
-            <>
-              <progress
-                value={phase === "processing" ? undefined : progress}
-                max={1}
-                aria-label={t(
-                  phase === "hashing"
-                    ? "uploadHashing"
-                    : phase === "processing"
-                      ? "uploadProcessing"
-                      : "uploading",
-                )}
-              />
-              <span role="status">
-                {phase === "processing"
-                  ? t("uploadProcessing")
-                  : phase === "hashing"
-                    ? `${t("uploadHashing")} ${formatNumber(Math.round(progress * 100), prefs)}%`
-                    : t("uploadProgress", {
-                        percent: formatNumber(
-                          Math.round(progress * 100),
-                          prefs,
-                        ),
-                      })}
-              </span>
-              <Button onClick={() => operation.current?.cancel()}>
-                {t("cancel")}
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                variant="filled"
-                disabled={phase === "failed"}
-                onClick={drop.open}
-              >
-                {t("chooseFiles")}
-              </Button>
-              {phase === "failed" && (
-                <>
-                  {operation.current && (
-                    <Button onClick={run}>{t("retry")}</Button>
-                  )}
-                  <Button onClick={check}>{t("checkResult")}</Button>
-                  <Button
-                    onClick={() => {
-                      remember("");
-                      operation.current = null;
-                      setPhase("idle");
-                      setError("");
-                    }}
-                  >
-                    {t("newOperation")}
-                  </Button>
-                </>
-              )}
-            </>
-          )}
-        </div>
+          </p>
+        )}
         {phase === "failed" && !error && (
           <p role="status">{t("uploadFailed")}</p>
         )}
@@ -249,7 +247,7 @@ function LegacyUpload({
             {error}
           </p>
         )}
-      </div>
+      </UploadPanel>
       {children}
     </section>
   );

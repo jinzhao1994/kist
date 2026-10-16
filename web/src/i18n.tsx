@@ -264,7 +264,10 @@ export const en = {
   uploadFailed:
     "Upload interrupted. Retry with the same files to safely recover the result.",
   uploadComplete: "Files saved",
-  uploadElapsed: "Last attempt: {seconds} s · effective transfer {speed}/s",
+  uploadElapsed:
+    "Upload complete · this attempt {seconds} s · average {speed}/s",
+  uploadCurrentStats:
+    "Elapsed {seconds} s · average effective transfer {speed}/s",
   uploadTiming:
     "Read/checksum: {hash} s; block requests (including server writes): {transfer} s; final processing: {processing} s. Reading and transfer overlap; stages do not add up to total time. Pauses are excluded.",
   uploading: "Uploading…",
@@ -559,7 +562,8 @@ export const zh: Record<MessageKey, string> = {
   uploadCancelled: "上传已取消。开始新上传前，请核对提交结果。",
   uploadFailed: "上传中断。使用相同文件重试，可安全恢复提交结果。",
   uploadComplete: "文件已保存",
-  uploadElapsed: "最近一次上传：{seconds} 秒 · 有效传输 {speed}/秒",
+  uploadElapsed: "上传完成 · 本次耗时 {seconds} 秒 · 平均 {speed}/秒",
+  uploadCurrentStats: "已用时 {seconds} 秒 · 平均有效传输 {speed}/秒",
   uploadTiming:
     "读取与校验 {hash} 秒；分块请求（含服务端写盘）{transfer} 秒；最终处理 {processing} 秒。读取与传输有重叠，各阶段不能直接相加；不含暂停时间。",
   uploading: "正在上传…",
@@ -660,6 +664,7 @@ interface Parameters {
   trashFolderContents: { files: number; folders: number };
   deleteNamedTagConfirm: { name: string };
   uploadElapsed: { seconds: string; speed: string };
+  uploadCurrentStats: { seconds: string; speed: string };
   uploadTiming: { hash: string; transfer: string; processing: string };
   searchText: { value: string };
   tagResultCounts: { boxes: number; files: number };

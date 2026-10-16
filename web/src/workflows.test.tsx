@@ -341,7 +341,8 @@ it("keeps a dropped batch locked after cancellation and retries it unchanged", a
       total: 2,
     }),
   );
-  expect(screen.getByText("50% uploaded")).toBeVisible();
+  expect(screen.getByText("50%")).toBeVisible();
+  expect(screen.getByRole("progressbar")).toHaveAttribute("value", "0.5");
   await user.click(screen.getByRole("button", { name: "Cancel" }));
   expect(await screen.findByRole("alert")).toHaveTextContent(/cancelled/i);
   expect(screen.getByRole("button", { name: "Choose files" })).toBeDisabled();
@@ -501,11 +502,26 @@ it("shows resumable recovery after remount and requires original files before mi
     chunkBytes: 4,
     onComplete: complete,
   };
+  localStorage.setItem(
+    "kist.upload-timing:box:folder",
+    JSON.stringify({
+      totalMs: 999000,
+      transferMs: 1000,
+      bytes: 1000,
+      hashMs: 0,
+      processingMs: 0,
+    }),
+  );
   const first = render(<Upload {...props} />, { wrapper });
+  expect(document.querySelector(".upload-timing")).toBeNull();
   const user = userEvent.setup();
   const file = new File(["abcdefghij"], "original.bin", { lastModified: 1000 });
   await user.upload(screen.getByLabelText("Choose files"), file);
   await waitFor(() => expect(offsets).toEqual([0]));
+  expect(
+    document.querySelector(".upload-live-metrics")?.closest(".upload-panel"),
+  ).not.toBeNull();
+  expect(document.querySelector(".upload-timing")).toBeNull();
   expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
   await user.click(screen.getByRole("button", { name: "Pause" }));
   await screen.findByRole("button", { name: "Resume" });
@@ -524,6 +540,12 @@ it("shows resumable recovery after remount and requires original files before mi
   await user.upload(screen.getByLabelText("Select original files again"), file);
   await screen.findByText("Files saved");
   expect(offsets).toEqual([0, 4, 8]);
+  expect(document.querySelector(".upload-timing")).toHaveTextContent(
+    "Upload complete",
+  );
+  expect(document.querySelector(".upload-live-metrics")).toBeNull();
+  await user.click(screen.getByRole("button", { name: "Close" }));
+  expect(document.querySelector(".upload-timing")).toBeNull();
   expect(complete).toHaveBeenCalledOnce();
   expect(
     localStorage.getItem("kist.resumable-upload.v1:box:folder"),
