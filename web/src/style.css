@@ -887,7 +887,8 @@ fieldset > label,
   gap: 0.5rem;
 }
 .filter-token {
-  --token-surface: var(--mantine-color-gray-2);
+  --token-surface: var(--mantine-color-gray-1);
+  --token-value-surface: var(--mantine-color-gray-2);
   display: flex;
   align-items: center;
   max-inline-size: 100%;
@@ -907,7 +908,7 @@ fieldset > label,
   padding-inline-end: 4px;
 }
 .filter-token-tail-value {
-  background: var(--mantine-color-gray-3);
+  background: var(--token-value-surface);
 }
 .filter-token-operator {
   border-inline-end: 1px solid var(--surface);
@@ -937,14 +938,11 @@ button.filter-token-segment:hover {
 }
 .filter-token-value {
   font-weight: 500;
-  background: var(--mantine-color-gray-3);
+  background: var(--token-value-surface);
 }
 [data-mantine-color-scheme="dark"] .filter-token {
   --token-surface: var(--mantine-color-dark-4);
-}
-[data-mantine-color-scheme="dark"] .filter-token-tail-value,
-[data-mantine-color-scheme="dark"] .filter-token-value {
-  background: var(--mantine-color-dark-3);
+  --token-value-surface: var(--mantine-color-dark-3);
 }
 .filter-submit {
   border-inline-start: 1px solid var(--border);
