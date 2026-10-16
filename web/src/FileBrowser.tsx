@@ -3,7 +3,7 @@ import { DisplayModeControl, useDisplayMode } from "./DisplayMode";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Dialog, DialogPresence } from "./Dialog";
-import { Button, ActionIcon, Menu, Text } from "@mantine/core";
+import { Button, ActionIcon, Menu } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { api, type Box, type Tag, type Folder, type ArchiveFile } from "./api";
 import type { Filters } from "./Filters";
@@ -81,9 +81,9 @@ export function FileBrowser({
   const content = (
     <>
       {searching && box && searchingSubfolder && (
-        <Text size="sm" c="dimmed" mb="xs">
+        <p className="supporting-text search-scope-hint">
           {t("searchWholeBox")}
-        </Text>
+        </p>
       )}
       <DialogPresence>
         {(creating || contextParent) &&
@@ -144,11 +144,11 @@ export function FileBrowser({
             <section className="empty-state file-empty-state">
               <FileIcon folder={!!box && !searching} />
               <h2>{t(box && !searching ? "emptyFolder" : "noResults")}</h2>
-              <p>
+              <p className="supporting-text">
                 {emptyHint ||
                   (box && !searching
                     ? t("emptyFolderUploadHint")
-                    : t("clearFilters"))}
+                    : t("adjustSearchHint"))}
               </p>
               {box && !searching && info.data && uploadFolder && (
                 <Button

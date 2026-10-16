@@ -231,6 +231,7 @@ export const en = {
   from: "Start date",
   to: "End date",
   clearFilters: "Clear filters",
+  adjustSearchHint: "Try adjusting or clearing the search conditions",
   loadMore: "Load more",
   searchBoxes: "Search box names and descriptions",
   boxDateHint:
@@ -550,6 +551,7 @@ export const zh: Record<MessageKey, string> = {
   from: "开始日期",
   to: "结束日期",
   clearFilters: "清除筛选",
+  adjustSearchHint: "试试调整或清除搜索条件",
   loadMore: "加载更多",
   searchBoxes: "搜索归档盒名称和描述",
   boxDateHint: "筛选与活动时间重叠的范围，支持 YYYY、YYYY-MM 或 YYYY-MM-DD。",
