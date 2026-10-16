@@ -31,37 +31,52 @@ export function FolderBreadcrumbs({
 }) {
   const { t } = useI18n();
   const chain = folderChain(folders, current);
-  const root = chain.find((folder) => !folder.parent_id);
   return (
     <nav className="folder-breadcrumbs" aria-label={t("folderPath")}>
-      {root && (
-        <Anchor
-          component="button"
-          onClick={() => choose(root.id)}
-          aria-label={t("boxRoot")}
-          title={rootLabel || t("boxRoot")}
-        >
-          <span dir="ltr">./</span>
-        </Anchor>
-      )}
-      <Breadcrumbs separatorMargin="xs" className="folder-path-segments">
-        {chain
-          .filter((folder) => folder.parent_id)
-          .map((folder) =>
-            folder.id === current ? (
-              <span key={folder.id} aria-current="page">
-                <bdi>{folder.name || rootLabel || t("boxRoot")}</bdi>
-              </span>
-            ) : (
-              <Anchor
-                component="button"
-                key={folder.id}
-                onClick={() => choose(folder.id)}
+      <Breadcrumbs
+        separator="›"
+        separatorMargin="xs"
+        className="folder-path-segments"
+      >
+        {chain.map((folder) =>
+          !folder.parent_id ? (
+            <Anchor
+              component="button"
+              className="breadcrumb-root"
+              key={folder.id}
+              onClick={() => choose(folder.id)}
+              aria-label={t("boxRoot")}
+              title={rootLabel || t("boxRoot")}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
               >
-                <bdi>{folder.name || rootLabel || t("boxRoot")}</bdi>
-              </Anchor>
-            ),
-          )}
+                <rect x="3" y="3" width="18" height="4" rx="1" />
+                <path d="M5 7v13h14V7M10 11h4" />
+              </svg>
+            </Anchor>
+          ) : folder.id === current ? (
+            <span key={folder.id} aria-current="page">
+              <bdi>{folder.name}</bdi>
+            </span>
+          ) : (
+            <Anchor
+              component="button"
+              key={folder.id}
+              onClick={() => choose(folder.id)}
+            >
+              <bdi>{folder.name}</bdi>
+            </Anchor>
+          ),
+        )}
       </Breadcrumbs>
     </nav>
   );

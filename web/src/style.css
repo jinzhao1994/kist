@@ -1316,9 +1316,8 @@ fieldset > label,
 }
 .folder-breadcrumbs {
   display: flex;
-  align-items: baseline;
-  gap: 0.35rem;
-  margin-top: 0.5rem;
+  align-items: center;
+  margin-top: 0.25rem;
   flex-wrap: wrap;
   overflow-wrap: anywhere;
   font-size: 0.8125rem;
@@ -1326,6 +1325,16 @@ fieldset > label,
 .folder-path-segments {
   flex-wrap: wrap;
   font-size: inherit;
+}
+.folder-breadcrumbs .breadcrumb-root {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  min-height: 20px;
+}
+.folder-breadcrumbs [aria-current="page"] {
+  color: color-mix(in srgb, var(--text) 78%, var(--canvas));
 }
 .folder-path-segments .mantine-Breadcrumbs-separator {
   color: var(--muted);
