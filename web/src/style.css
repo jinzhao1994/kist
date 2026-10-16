@@ -907,8 +907,8 @@ fieldset > label,
 .filter-token-tail-value {
   background: var(--mantine-color-gray-3);
 }
-.filter-token-tail-value > .filter-token-segment {
-  border-inline-start: 1px solid var(--surface);
+.filter-token-operator {
+  border-inline-end: 1px solid var(--surface);
 }
 .filter-token .filter-token-remove {
   align-self: stretch;

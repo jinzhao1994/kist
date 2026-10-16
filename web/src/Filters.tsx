@@ -410,7 +410,7 @@ export function FiltersPanel<T extends FilterValues>({
                           {title(c.field as Field)}
                         </UnstyledButton>
                         <UnstyledButton
-                          className="filter-token-segment"
+                          className="filter-token-segment filter-token-operator"
                           aria-label={`${t("operator")}: ${title(c.field as Field)}`}
                           onClick={() => edit(index, "operator")}
                         >
