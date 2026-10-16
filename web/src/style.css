@@ -840,7 +840,7 @@ fieldset > label,
   flex: 1;
   min-inline-size: 0;
   flex-wrap: wrap;
-  gap: 0.25rem;
+  gap: 0.5rem;
   padding: 0.3rem 0.5rem;
 }
 .filter-inline-editor {
@@ -884,6 +884,7 @@ fieldset > label,
   max-inline-size: 100%;
   border-radius: 0.25rem;
   background: var(--mantine-color-gray-2);
+  border: 1px solid var(--mantine-color-gray-2);
   overflow: hidden;
   font-size: 0.875rem;
   padding-inline-end: 0.2rem;
@@ -905,6 +906,7 @@ button.filter-token-segment:hover {
 }
 [data-mantine-color-scheme="dark"] .filter-token {
   background: var(--mantine-color-dark-4);
+  border-color: var(--mantine-color-dark-4);
 }
 [data-mantine-color-scheme="dark"] .filter-token-value {
   background: var(--mantine-color-dark-3);
