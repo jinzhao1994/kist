@@ -307,6 +307,17 @@ export function App() {
               {route.files && <div ref={setInfoHost} />}
             </div>
             <div className="header-actions">
+              {!route.section && !selected && !route.files && !route.tag && (
+                <ActionIcon
+                  variant="default"
+                  size="lg"
+                  aria-label={t("createBox")}
+                  title={t("createBox")}
+                  onClick={() => setEditor("new")}
+                >
+                  <span aria-hidden="true">＋</span>
+                </ActionIcon>
+              )}
               {route.files && selected && <span ref={setActionsHost} />}
               <Tooltip
                 label={t("refresh")}
@@ -386,17 +397,6 @@ export function App() {
                     </Menu.Item>
                   </Menu.Dropdown>
                 </Menu>
-              )}
-              {!route.section && !selected && !route.files && !route.tag && (
-                <ActionIcon
-                  variant="default"
-                  size="lg"
-                  aria-label={t("createBox")}
-                  title={t("createBox")}
-                  onClick={() => setEditor("new")}
-                >
-                  <span aria-hidden="true">＋</span>
-                </ActionIcon>
               )}
             </div>
           </header>
