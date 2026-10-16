@@ -222,15 +222,14 @@ export const en = {
   operator: "Operator",
   chooseOperator: "Choose an operator…",
   executeSearch: "Search",
-  filterCondition: "Filter",
   chooseFilter: "Choose a condition",
   filterValue: "Type to choose a value…",
-  searchText: "Search for “{value}”",
+  searchText: "Search this text",
   applyFilter: "Apply",
   filterDateHint: "Content date: YYYY, YYYY-MM or YYYY-MM-DD",
   noFilterOptions: "No matching options",
-  from: "From",
-  to: "Until",
+  from: "Start date",
+  to: "End date",
   clearFilters: "Clear filters",
   loadMore: "Load more",
   searchBoxes: "Search box names and descriptions",
@@ -542,15 +541,14 @@ export const zh: Record<MessageKey, string> = {
   operator: "运算符",
   chooseOperator: "选择运算符…",
   executeSearch: "搜索",
-  filterCondition: "筛选条件",
   chooseFilter: "选择条件",
   filterValue: "输入以选择条件值…",
-  searchText: "搜索此文本：“{value}”",
+  searchText: "搜索此文本",
   applyFilter: "应用",
   filterDateHint: "内容日期：年、年-月或年-月-日",
   noFilterOptions: "没有匹配的选项",
-  from: "从",
-  to: "至",
+  from: "开始日期",
+  to: "结束日期",
   clearFilters: "清除筛选",
   loadMore: "加载更多",
   searchBoxes: "搜索归档盒名称和描述",
@@ -720,7 +718,6 @@ interface Parameters {
   uploadElapsed: { seconds: string; speed: string };
   uploadCurrentStats: { seconds: string; speed: string };
   uploadTiming: { hash: string; transfer: string; processing: string };
-  searchText: { value: string };
   tagResultCounts: { boxes: number; files: number };
   trashBoxConfirm: { name: string; count: number };
   tagActions: { name: string };

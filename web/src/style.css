@@ -894,7 +894,7 @@ fieldset > label,
   overflow-wrap: anywhere;
 }
 .filter-token-segment + .filter-token-segment {
-  border-inline-start: 2px solid var(--surface);
+  border-inline-start: 1px solid var(--surface);
 }
 button.filter-token-segment:hover {
   background: var(--border);
@@ -927,12 +927,6 @@ button.filter-token-segment:hover {
 .filter-editor .mantine-Combobox-option {
   font-size: 0.875rem;
   padding: 0.5rem 0.65rem;
-}
-.filter-option-hint {
-  float: inline-end;
-  color: var(--muted);
-  font-size: 0.75rem;
-  margin-inline-start: 1rem;
 }
 @media (max-width: 680px) {
   .filter-search {

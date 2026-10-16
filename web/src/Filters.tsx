@@ -491,7 +491,22 @@ export function FiltersPanel<T extends FilterValues>({
                 <>
                   {!!draft.trim() && (
                     <Combobox.Option value="apply">
-                      {t("searchText", { value: draft.trim() })}
+                      <span className="filter-option-value">
+                        <svg
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.7"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M3 6V4h12v2M9 4v16M6 20h6M15 12h6M15 16h6" />
+                        </svg>
+                        {t("searchText")}
+                      </span>
                     </Combobox.Option>
                   )}
                   {visibleFields
@@ -499,9 +514,6 @@ export function FiltersPanel<T extends FilterValues>({
                     .map(([key]) => (
                       <Combobox.Option key={key} value={`field:${key}`}>
                         {title(key)}
-                        <span aria-hidden="true" className="filter-option-hint">
-                          {t("filterCondition")}
-                        </span>
                       </Combobox.Option>
                     ))}
                 </>

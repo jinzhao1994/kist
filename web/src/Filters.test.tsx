@@ -119,14 +119,14 @@ it("rejects impossible dates and Escape leaves the previous condition intact", a
       .filter((c: { field: string }) => c.field === field)
       .flatMap((c: { values: string[] }) => c.values);
   await user.click(screen.getByRole("combobox"));
-  await user.click(screen.getByRole("option", { name: "From" }));
+  await user.click(screen.getByRole("option", { name: "Start date" }));
   await user.type(screen.getByRole("combobox"), "2026-02-30{Enter}");
   expect(values("from")).toEqual([]);
   expect(screen.getByRole("alert")).toBeVisible();
   await user.clear(screen.getByRole("combobox"));
   await user.type(screen.getByRole("combobox"), "2026-10{Enter}");
   expect(values("from")).toEqual(["2026-10"]);
-  await user.click(screen.getByRole("button", { name: "From: 2026-10" }));
+  await user.click(screen.getByRole("button", { name: "Start date: 2026-10" }));
   await user.clear(screen.getByRole("combobox"));
   await user.type(screen.getByRole("combobox"), "2025{Escape}");
   expect(values("from")).toEqual(["2026-10"]);
