@@ -23,6 +23,7 @@ import {
   FiltersPanel,
   emptyFilters,
   emptyBoxFilters,
+  searchConditions,
   type BoxFilters,
   type Filters,
 } from "./Filters";
@@ -76,27 +77,15 @@ export function App() {
   const folderList = folders.data?.folders || [];
   const currentFolder =
     route.folder || folderList.find((folder) => !folder.parent_id)?.id;
-  const searching = !!(
-    filters.name ||
-    filters.keyword?.length ||
-    filters.condition?.length ||
-    filters.name_contains ||
-    filters.name_equals ||
-    filters.from ||
-    filters.to ||
-    filters.kind?.length ||
-    filters.tag_all?.length ||
-    filters.tag_any?.length ||
-    filters.tag_not?.length
-  );
-  const queryFolder = route.box && !searching ? currentFolder : undefined;
+  const searching = searchConditions(filters).length > 0;
+  const queryFolder = route.box ? currentFolder : undefined;
   const currentSearch =
     !route.section && !route.tag
       ? searchDefinition(
           route.files ? "files" : "boxes",
           route.files ? filters : boxFilters,
           route.files ? route.box : undefined,
-          route.box && !searching ? currentFolder : undefined,
+          route.box ? currentFolder : undefined,
         )
       : undefined;
   const chooseFolder = (folder: string) => {

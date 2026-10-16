@@ -561,7 +561,9 @@ it.each([
       </ThemeProvider>,
       { wrapper: mediaWrapper },
     );
-    const hint = screen.queryByText("Search scope: entire box");
+    const hint = screen.queryByText(
+      "Search scope: current folder and subfolders",
+    );
     if (visible) expect(hint).toBeVisible();
     else expect(hint).not.toBeInTheDocument();
   },

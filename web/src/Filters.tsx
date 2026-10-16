@@ -11,7 +11,10 @@ import type { components } from "./api-schema";
 import type { FileQuery, BoxQuery, Box, Tag } from "./api";
 import { flattenTags, tagOption, TagPath } from "./TagPath";
 import { useI18n } from "./i18n";
-export type Filters = Omit<FileQuery, "folder" | "cursor" | "limit">;
+export type Filters = Omit<
+  FileQuery,
+  "folder" | "recursive" | "cursor" | "limit"
+>;
 export const emptyFilters: Filters = {
   condition: [],
   name: "",

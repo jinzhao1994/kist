@@ -20,6 +20,7 @@ type fileQueryInput struct {
 	Kinds        []string `query:"kind"`
 	Boxes        []string `query:"box"`
 	Folder       string   `query:"folder"`
+	Recursive    bool     `query:"recursive" doc:"Include descendants of folder"`
 	All          []string `query:"tag_all"`
 	Any          []string `query:"tag_any"`
 	Not          []string `query:"tag_not"`
@@ -44,7 +45,7 @@ type tagList struct {
 }
 
 func (s *Server) fileQuery(in *fileQueryInput) (query.Query, error) {
-	q := query.Query{Keywords: in.Keywords, NameContains: in.NameContains, NameEquals: in.NameEquals, Kinds: in.Kinds, Text: in.Name, Cursor: in.Cursor, Limit: in.Limit, Sort: query.SortSpec{Asc: in.Asc}}
+	q := query.Query{Recursive: in.Recursive, Keywords: in.Keywords, NameContains: in.NameContains, NameEquals: in.NameEquals, Kinds: in.Kinds, Text: in.Name, Cursor: in.Cursor, Limit: in.Limit, Sort: query.SortSpec{Asc: in.Asc}}
 	switch in.Sort {
 	case "type":
 		q.Sort.Key = query.SortType

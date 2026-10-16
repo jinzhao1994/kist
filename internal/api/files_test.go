@@ -238,3 +238,55 @@ func TestFileUpdatedSortQuery(t *testing.T) {
 		t.Fatalf("query: %+v %v", q, err)
 	}
 }
+
+func TestRecursiveFolderSearchScope(t *testing.T) {
+	s, l := testServer(t)
+	box, err := l.CreateBox(t.Context(), "scope", "", domain.LocalDate{}, domain.LocalDate{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := t.TempDir()
+	for _, name := range []string{"root-match.txt", "child/child-match.txt", "child/nested/deep-match.txt", "child/other.txt", "sibling/sibling-match.txt"} {
+		path := filepath.Join(src, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(name), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := l.Import(t.Context(), src, library.ImportOptions{Box: box.ID}); err != nil {
+		t.Fatal(err)
+	}
+	folders := decodeBody[folderList](t, s, "/boxes/"+box.ID.String()+"/folders")
+	var child string
+	for _, folder := range folders.Folders {
+		if folder.Name == "child" {
+			child = folder.ID
+		}
+	}
+	if child == "" {
+		t.Fatal("missing child folder")
+	}
+	base := "/files?box=" + box.ID.String() + "&folder=" + child + "&sort=name&asc=true&" + encodedCondition("name_contains", "match")
+	direct := decodeBody[wire.FileList](t, s, base)
+	if len(direct.Files) != 1 || direct.Files[0].Name != "child-match.txt" {
+		t.Fatalf("direct: %+v", direct)
+	}
+	first := decodeBody[wire.FileList](t, s, base+"&recursive=true&limit=1")
+	if len(first.Files) != 1 || first.Files[0].Name != "child-match.txt" || first.Cursor == "" {
+		t.Fatalf("first: %+v", first)
+	}
+	second := decodeBody[wire.FileList](t, s, base+"&recursive=true&limit=1&cursor="+url.QueryEscape(first.Cursor))
+	if len(second.Files) != 1 || second.Files[0].Name != "deep-match.txt" || second.Cursor != "" {
+		t.Fatalf("second: %+v", second)
+	}
+	missing := decodeBody[wire.FileList](t, s, "/files?folder="+domain.NewFolderID().String()+"&recursive=true")
+	if len(missing.Files) != 0 {
+		t.Fatal("missing folder broadened the search")
+	}
+	invalid := call(s, "GET", Prefix+"/files?recursive=true", "", "")
+	if invalid.Code < 400 {
+		t.Fatal("recursive search without a folder was accepted")
+	}
+}

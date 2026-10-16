@@ -294,3 +294,17 @@ it("round-trips repeated and contradictory conditions without merging them", () 
     savedSearchRoute(d).filters?.condition?.map((raw) => JSON.parse(raw)),
   ).toEqual(clauses);
 });
+
+it("preserves the current folder and conditions when restoring a saved search", () => {
+  const filters = {
+    condition: [JSON.stringify({ field: "name_contains", values: ["match"] })],
+    sort: "name" as const,
+    asc: true,
+  };
+  const saved = searchDefinition("files", filters, "box-1", "child-folder");
+  expect(saved.folder_id).toBe("child-folder");
+  const restored = savedSearchRoute(saved);
+  expect(restored.folder).toBe("child-folder");
+  expect(restored.box).toBe("box-1");
+  expect(restored.filters?.condition).toEqual(filters.condition);
+});

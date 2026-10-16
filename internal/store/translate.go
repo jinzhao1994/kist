@@ -69,8 +69,19 @@ func translate(q query.Query, zone *time.Location) (string, []any, error) {
 		}
 	}
 	if q.Folder != nil {
-		// One directory, not its subtree. `kist ls` is ls (spec 1.4).
-		sb.WriteString(` AND folder_id = ?`)
+		if q.Recursive {
+			sb.WriteString(` AND folder_id IN (
+                WITH RECURSIVE scoped_folders(id) AS (
+                    SELECT id FROM folders WHERE id = ?
+                    UNION
+                    SELECT f.id FROM folders f JOIN scoped_folders ON f.parent_id = scoped_folders.id
+                )
+                SELECT id FROM scoped_folders
+            )`)
+		} else {
+			// Directory browsing and `kist ls` stay non-recursive.
+			sb.WriteString(` AND folder_id = ?`)
+		}
 		args = append(args, *q.Folder)
 	}
 	if q.Text != "" {

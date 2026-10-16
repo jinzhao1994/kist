@@ -1,6 +1,6 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { api, type ArchiveFile } from "./api";
-import type { Filters } from "./Filters";
+import { searchConditions, type Filters } from "./Filters";
 
 export function useFileResults(
   box: string | undefined,
@@ -14,7 +14,9 @@ export function useFileResults(
       api.files(
         {
           ...filters,
-          ...(folder ? { folder } : {}),
+          ...(folder
+            ? { folder, recursive: searchConditions(filters).length > 0 }
+            : {}),
           box: box ? [box] : filters.box?.length ? filters.box : undefined,
           limit: 100,
           cursor: pageParam,

@@ -631,3 +631,29 @@ func TestTypeAndSizeSortKeysAndPaging(t *testing.T) {
 		}
 	}
 }
+
+func TestRecursiveFolderSearchTerminatesOnCycle(t *testing.T) {
+	db := migrated(t)
+	_, root := seedBoxWithRoot(t, db)
+	child, leaf := domain.NewFolderID(), domain.NewFolderID()
+	viewTx(t, db, testTime, func(vtx *ViewTx) {
+		for _, pair := range [][2]domain.FolderID{{child, root}, {leaf, child}} {
+			folder, _ := domain.NewFolder(pair[0], pair[1], pair[0].String())
+			if err := vtx.InsertFolder(folder); err != nil {
+				t.Fatal(err)
+			}
+		}
+	})
+	putFile(t, db, child, "child.txt", "")
+	putFile(t, db, leaf, "leaf.txt", "")
+	if _, err := db.Exec("UPDATE folders SET parent_id = ? WHERE id = ?", leaf, child); err != nil {
+		t.Fatal(err)
+	}
+	got, _, err := ListFiles(db, query.Query{Folder: &child, Recursive: true}, time.UTC)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("cycle result: %v", fileNames(got))
+	}
+}

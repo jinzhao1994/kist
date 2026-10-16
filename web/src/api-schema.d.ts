@@ -1528,6 +1528,8 @@ export interface operations {
                 kind?: string[] | null;
                 box?: string[] | null;
                 folder?: string;
+                /** @description Include descendants of folder */
+                recursive?: boolean;
                 tag_all?: string[] | null;
                 tag_any?: string[] | null;
                 tag_not?: string[] | null;

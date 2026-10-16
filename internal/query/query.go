@@ -110,6 +110,8 @@ type Query struct {
 	// Folder restricts to one directory, without recursing. It is what
 	// `kist ls` asks for.
 	Folder *domain.FolderID
+	// Recursive includes descendants of Folder; it requires a folder scope.
+	Recursive bool
 	// Tags is the tag condition. nil means no tag filtering at all, which is
 	// not the same as an expression that happens to match everything.
 	Tags TagExpr
@@ -137,6 +139,9 @@ type Query struct {
 // pinned successes would let two implementations disagree about what counts as
 // an error.
 func (q Query) Validate() error {
+	if q.Recursive && q.Folder == nil {
+		return fmt.Errorf("recursive search requires a folder")
+	}
 	if len(q.All) > 128 {
 		return fmt.Errorf("too many conditions")
 	}
