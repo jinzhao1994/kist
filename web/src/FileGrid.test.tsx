@@ -14,7 +14,7 @@ import { FileBrowser } from "./FileBrowser";
 import { emptyFilters } from "./Filters";
 import { FileGrid } from "./FileGrid";
 import { I18nProvider, storageKey } from "./i18n";
-import type { ArchiveFile, Folder } from "./api";
+import type { ArchiveFile, Box, Folder } from "./api";
 const files: ArchiveFile[] = Array.from({ length: 1000 }, (_, index) => ({
   id: String(index),
   name: `photo-${index}.jpg`,
@@ -531,5 +531,38 @@ it.each([
       { wrapper: mediaWrapper },
     );
     expect(await screen.findByText(label)).toBeVisible();
+  },
+);
+
+it.each([
+  [false, false, false],
+  [true, false, false],
+  [false, true, false],
+  [true, true, true],
+])(
+  "shows scope only for a subfolder search (%s, %s)",
+  (searching, searchingSubfolder, visible) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ files: [] }))),
+    );
+    render(
+      <ThemeProvider env="test">
+        <I18nProvider>
+          <FileBrowser
+            box={{ id: "box" } as Box}
+            searching={searching}
+            searchingSubfolder={searchingSubfolder}
+            filters={emptyFilters}
+            tags={[]}
+            open={vi.fn()}
+          />
+        </I18nProvider>
+      </ThemeProvider>,
+      { wrapper: mediaWrapper },
+    );
+    const hint = screen.queryByText("Search scope: entire box");
+    if (visible) expect(hint).toBeVisible();
+    else expect(hint).not.toBeInTheDocument();
   },
 );

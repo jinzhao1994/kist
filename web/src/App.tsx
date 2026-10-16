@@ -535,6 +535,10 @@ export function App() {
                   }
                   chooseFolder={chooseFolder}
                   searching={searching && !!route.box}
+                  searchingSubfolder={
+                    !!folderList.find((folder) => folder.id === currentFolder)
+                      ?.parent_id
+                  }
                   paused={!!route.file}
                   filters={filters}
                   tags={tree}
