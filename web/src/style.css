@@ -895,6 +895,21 @@ fieldset > label,
   font-size: 0.875rem;
   padding: 4px;
 }
+.filter-token-tail {
+  display: flex;
+  align-items: center;
+  min-inline-size: 0;
+  margin-block: -4px;
+  margin-inline-end: -4px;
+  padding-block: 4px;
+  padding-inline-end: 4px;
+}
+.filter-token-tail-value {
+  background: var(--mantine-color-gray-3);
+}
+.filter-token-tail-value > .filter-token-segment {
+  border-inline-start: 1px solid var(--surface);
+}
 .filter-token .filter-token-remove {
   align-self: stretch;
   block-size: auto;
@@ -925,6 +940,7 @@ button.filter-token-segment:hover {
 [data-mantine-color-scheme="dark"] .filter-token {
   --token-surface: var(--mantine-color-dark-4);
 }
+[data-mantine-color-scheme="dark"] .filter-token-tail-value,
 [data-mantine-color-scheme="dark"] .filter-token-value {
   background: var(--mantine-color-dark-3);
 }
