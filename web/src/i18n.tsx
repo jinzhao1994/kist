@@ -278,7 +278,7 @@ export const en = {
   uploadChecking: "Checking saved upload progress…",
   uploadPaused: "Paused. {percent}% confirmed by the server.",
   uploadReselectHint:
-    "Select the entire original batch again. File contents will be verified before only missing data is sent.",
+    "After refreshing or reopening this page, select the files again so the browser can read them. Select the entire original batch again; uploading resumes automatically after verification, without resending confirmed data.",
   uploadWrongSource:
     "These are not the original files. Select the same batch; names, sizes and timestamps alone are not enough.",
   uploadStorageUnavailable:
@@ -574,7 +574,7 @@ export const zh: Record<MessageKey, string> = {
   uploadChecking: "正在核对已保存的上传进度…",
   uploadPaused: "已暂停，服务端已确认 {percent}%。",
   uploadReselectHint:
-    "请重新选择整个原始批次。核对文件内容一致后，只补传缺失部分。",
+    "刷新或重新打开网页后，需要重新选择文件，网页才能再次读取。请选择上次上传的全部原文件；核对一致后会自动续传，已确认的部分不会重复上传。",
   uploadWrongSource:
     "所选文件与原批次不一致。请重新选择原文件；文件名、大小和修改时间相同并不足以续传。",
   uploadStorageUnavailable:
