@@ -443,7 +443,7 @@ export function FiltersPanel<T extends FilterValues>({
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
-                        strokeWidth="1.7"
+                        strokeWidth="2.5"
                         strokeLinecap="round"
                         aria-hidden="true"
                       >
