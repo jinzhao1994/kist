@@ -395,13 +395,15 @@ export function App() {
                 </Menu>
               )}
               {!route.section && !selected && !route.files && !route.tag && (
-                <Button
+                <ActionIcon
                   variant="default"
-                  leftSection={<span aria-hidden="true">+</span>}
+                  size="lg"
+                  aria-label={t("createBox")}
+                  title={t("createBox")}
                   onClick={() => setEditor("new")}
                 >
-                  {t("createBox")}
-                </Button>
+                  <span aria-hidden="true">＋</span>
+                </ActionIcon>
               )}
             </div>
           </header>
