@@ -22,8 +22,9 @@ import (
 )
 
 type sessionStatus struct {
-	Session *staging.State `json:"session,omitempty"`
-	OpID    int64          `json:"op_id,omitempty"`
+	Conflicts *library.UploadConflicts `json:"conflicts,omitempty"`
+	Session   *staging.State           `json:"session,omitempty"`
+	OpID      int64                    `json:"op_id,omitempty"`
 }
 
 type sessionInput struct {
@@ -50,10 +51,12 @@ type sessionPrefix struct {
 type sessionCreate struct {
 	Key  string `header:"Idempotency-Key" required:"true"`
 	Body struct {
-		Version int            `json:"version"`
-		Box     string         `json:"box"`
-		Folder  string         `json:"folder"`
-		Files   []staging.File `json:"files"`
+		ConflictMode  string         `json:"conflict_mode,omitempty"`
+		ConflictToken string         `json:"conflict_token,omitempty"`
+		Version       int            `json:"version"`
+		Box           string         `json:"box"`
+		Folder        string         `json:"folder"`
+		Files         []staging.File `json:"files"`
 	}
 }
 
@@ -65,10 +68,12 @@ func sessionRequest(id string, m staging.Manifest) library.Request {
 		version = 2
 	}
 	raw, _ := json.Marshal(struct {
-		Version     int
-		Box, Folder string
-		Files       []staging.File
-	}{version, m.Box, m.Folder, m.Files})
+		Version       int
+		Box, Folder   string
+		Files         []staging.File
+		ConflictMode  string `json:",omitempty"`
+		ConflictToken string `json:",omitempty"`
+	}{version, m.Box, m.Folder, m.Files, m.ConflictMode, m.ConflictToken})
 	hash := sha256.Sum256(raw)
 	return library.Request{ID: "upload." + id, Digest: hex.EncodeToString(hash[:])}
 }
@@ -91,7 +96,13 @@ func (s *Server) uploadSessionRoutes() {
 		}
 		files := append([]staging.File(nil), in.Body.Files...)
 		sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
-		m := staging.Manifest{Box: box.String(), Folder: folder.String(), Files: files}
+		m := staging.Manifest{Box: box.String(), Folder: folder.String(), Files: files, ConflictMode: in.Body.ConflictMode, ConflictToken: in.Body.ConflictToken}
+		if m.ConflictMode != "" && m.ConflictMode != "overwrite" && m.ConflictMode != "keep_both" {
+			return nil, invalid("Unknown conflict mode")
+		}
+		if len(files) == 0 || len(files) > s.maxUploadFiles {
+			return nil, invalid("Invalid upload file count")
+		}
 		if in.Body.Version == 2 {
 			m.Protocol = 2
 		}
@@ -120,6 +131,25 @@ func (s *Server) uploadSessionRoutes() {
 		if !errors.As(existingErr, &absent) || absent.Kind != "not_found" {
 			return nil, failure(existingErr)
 		}
+		paths := make([]string, len(files))
+		for i, f := range files {
+			paths[i] = f.Path
+		}
+		preview, err := s.library.PreviewUpload(ctx, domain.BoxID{ID: box}, domain.FolderID{ID: folder}, paths)
+		if err != nil {
+			return nil, failure(err)
+		}
+		if m.ConflictToken != "" && m.ConflictToken != preview.Token && len(preview.Paths) == 0 {
+			return nil, failure(library.ErrUploadTargetChanged)
+		}
+		if len(preview.Paths) > 0 && (m.ConflictMode == "" || m.ConflictToken != preview.Token) {
+			return response(sessionStatus{Conflicts: &preview}, nil)
+		}
+		if m.ConflictMode == "overwrite" && !preview.CanOverwrite {
+			return nil, invalid("A folder cannot be overwritten by a file")
+		}
+		// Retain an absent-name snapshot too, so a late collision is never silently overwritten.
+		m.DestinationToken = preview.Token
 		m.Target, err = s.library.UploadTarget(ctx, domain.BoxID{ID: box}, domain.FolderID{ID: folder})
 		if err != nil {
 			return nil, failure(err)
@@ -234,7 +264,27 @@ func (s *Server) completeSession(ctx context.Context, v *staging.Session) error 
 		}
 		sources[i] = library.ImportSource{Path: path, RelativePath: file.Path, Expected: &library.ImportIntegrity{Size: file.Size, SHA256: file.SHA256}}
 	}
-	prepared, err := s.library.PrepareFiles(ctx, sources, library.ImportOptions{Box: domain.BoxID{ID: box}, Into: domain.FolderID{ID: folder}, Hidden: true})
+	checkDestinations := func() error {
+		if state.Manifest.DestinationToken == "" {
+			return nil
+		}
+		paths := make([]string, len(sources))
+		for i, f := range sources {
+			paths[i] = f.RelativePath
+		}
+		preview, err := s.library.PreviewUpload(ctx, domain.BoxID{ID: box}, domain.FolderID{ID: folder}, paths)
+		if err != nil {
+			return err
+		}
+		if preview.Token != state.Manifest.DestinationToken {
+			return library.ErrUploadTargetChanged
+		}
+		return nil
+	}
+	if err := checkDestinations(); err != nil {
+		return err
+	}
+	prepared, err := s.library.PrepareFiles(ctx, sources, library.ImportOptions{Box: domain.BoxID{ID: box}, Into: domain.FolderID{ID: folder}, Hidden: true, ConflictMode: state.Manifest.ConflictMode})
 	if err != nil {
 		return err
 	}
@@ -250,6 +300,9 @@ func (s *Server) completeSession(ctx context.Context, v *staging.Session) error 
 		}
 		if target != state.Manifest.Target {
 			return library.ErrUploadTargetChanged
+		}
+		if err := checkDestinations(); err != nil {
+			return err
 		}
 		_, err = prepared.Commit(ctx)
 		return err

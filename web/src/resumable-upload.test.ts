@@ -498,3 +498,65 @@ it("seals multiple streamed files including empty files in server manifest order
   ]);
   expect(calculateIntegrity).not.toHaveBeenCalled();
 });
+
+it.each([1, 2] as const)(
+  "waits for conflict confirmation before sending bytes (v%s)",
+  async (version) => {
+    const fetcher = vi.mocked(fetch);
+    fetcher.mockImplementationOnce(async () =>
+      response({
+        conflicts: {
+          token: "c".repeat(64),
+          paths: ["source.bin"],
+          can_overwrite: true,
+        },
+      }),
+    );
+    const upload = resumableUpload("box", "folder", 4, () => {}, version);
+    upload.select([original()]);
+    await expect(
+      upload.run(
+        () => {},
+        () => {},
+      ),
+    ).rejects.toMatchObject({ conflicts: { paths: ["source.bin"] } });
+    expect(sent).toHaveLength(0);
+    const initialKey = upload.pending()!.key;
+    upload.resolveConflict("overwrite", "c".repeat(64));
+    expect(upload.pending()!.key).toBe(initialKey);
+    expect(loadUpload("box", "folder")?.conflict_mode).toBe("overwrite");
+    await upload.run(
+      () => {},
+      () => {},
+    );
+    const creation = fetcher.mock.calls.find(
+      ([, options]) =>
+        JSON.parse(String(options?.body || "{}")).conflict_mode === "overwrite",
+    );
+    expect(creation).toBeDefined();
+    expect(sent.length).toBeGreaterThan(0);
+    expect(archived).toBe(31);
+  },
+);
+it("cancels a conflict without creating a staging session", async () => {
+  vi.mocked(fetch).mockImplementation(async () =>
+    response({
+      conflicts: {
+        token: "c".repeat(64),
+        paths: ["source.bin"],
+        can_overwrite: true,
+      },
+    }),
+  );
+  const upload = resumableUpload("box", "folder", 4);
+  upload.select([original()]);
+  await expect(
+    upload.run(
+      () => {},
+      () => {},
+    ),
+  ).rejects.toMatchObject({ conflicts: { paths: ["source.bin"] } });
+  await upload.cancel();
+  expect(upload.pending()).toBeUndefined();
+  expect(sent).toHaveLength(0);
+});

@@ -52,11 +52,14 @@ type File struct {
 // Manifest is immutable for the lifetime of a session. Target identifies the
 // target's structural snapshot, computed and rechecked by the archive layer.
 type Manifest struct {
-	Protocol int    `json:"protocol,omitempty"`
-	Box      string `json:"box"`
-	Folder   string `json:"folder"`
-	Target   string `json:"target"`
-	Files    []File `json:"files"`
+	DestinationToken string `json:"destination_token,omitempty"`
+	ConflictMode     string `json:"conflict_mode,omitempty"`
+	ConflictToken    string `json:"conflict_token,omitempty"`
+	Protocol         int    `json:"protocol,omitempty"`
+	Box              string `json:"box"`
+	Folder           string `json:"folder"`
+	Target           string `json:"target"`
+	Files            []File `json:"files"`
 }
 
 // State is a snapshot, never a mutable in-process progress cache.

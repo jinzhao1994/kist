@@ -919,6 +919,8 @@ export interface components {
         SessionCommandBody: Record<string, never>;
         SessionCreateBody: {
             box: string;
+            conflict_mode?: string;
+            conflict_token?: string;
             files: components["schemas"]["UploadFile"][] | null;
             folder: string;
             /** Format: int64 */
@@ -935,6 +937,7 @@ export interface components {
             sha256: string;
         };
         SessionStatus: {
+            conflicts?: components["schemas"]["UploadConflicts"];
             /** Format: int64 */
             op_id?: number;
             session?: components["schemas"]["UploadState"];
@@ -963,6 +966,11 @@ export interface components {
             definition: components["schemas"]["SearchDefinition"];
             name: string;
         };
+        UploadConflicts: {
+            can_overwrite: boolean;
+            paths: string[] | null;
+            token: string;
+        };
         UploadFile: {
             /** Format: int64 */
             last_modified: number;
@@ -973,6 +981,9 @@ export interface components {
         };
         UploadManifest: {
             box: string;
+            conflict_mode?: string;
+            conflict_token?: string;
+            destination_token?: string;
             files: components["schemas"]["UploadFile"][] | null;
             folder: string;
             /** Format: int64 */

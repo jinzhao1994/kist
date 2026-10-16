@@ -1835,3 +1835,10 @@ fieldset > label,
     opacity: 1;
   }
 }
+
+.upload-conflict-files {
+  max-block-size: 12rem;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+}

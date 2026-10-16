@@ -272,7 +272,8 @@ func declaredConstants(t *testing.T, typeName string) []string {
 func TestEveryActionDeclaresWhetherItChangesContent(t *testing.T) {
 	want := map[Action]bool{
 		ActionRequestReceipt: false,
-		ActionRenameEntry:    true, ActionDeleteEntryContents: true, ActionRestoreEntryContents: true,
+		ActionUploadFiles:    true, ActionUndoUploadFiles: true,
+		ActionRenameEntry: true, ActionDeleteEntryContents: true, ActionRestoreEntryContents: true,
 		ActionDeleteBoxContents: true, ActionRestoreBoxContents: true,
 		ActionCreateBox: true, ActionDeleteBox: true, ActionUpdateBox: true,
 		ActionImportFiles: true, ActionDeleteFiles: true, ActionCreateFolder: true, ActionDeleteFolder: true,

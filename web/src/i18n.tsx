@@ -8,6 +8,15 @@ import {
 } from "react";
 
 export const en = {
+  action_upload_files: "Upload and replace files",
+  action_undo_upload_files: "Undo file upload",
+  uploadConflictTitle: "Files already exist",
+  uploadConflictHint:
+    "These names already exist in this folder. Apply one choice to all conflicts: overwrite keeps the previous content in history; keep both adds a number to the new names.",
+  uploadFolderConflict:
+    "A name belongs to a folder. Choose keep both to avoid replacing the folder.",
+  uploadOverwrite: "Overwrite",
+  uploadKeepBoth: "Keep both",
   searchTags: "Search tags",
   tagResultCounts:
     "{boxes, plural, one {# box} other {# boxes}} · {files, plural, one {# file} other {# files}}",
@@ -291,7 +300,7 @@ export const en = {
   uploadExpired:
     "This upload session expired or was removed. Cancel it here, then select the files for a new upload.",
   uploadTargetChanged:
-    "The destination was changed or deleted. Cancel this upload and choose the destination again.",
+    "The destination or an existing file changed. Cancel this upload, select the files again, and confirm any name conflicts.",
   uploadStorageFull:
     "The server disk is full. Free disk space, then resume this upload.",
   uploadSessionQuota:
@@ -368,6 +377,14 @@ export const zh: Record<MessageKey, string> = {
   action_create_box: "创建归档箱",
   action_delete_box: "删除归档箱",
   action_delete_box_contents: "归档盒移入回收站",
+  action_upload_files: "上传并覆盖文件",
+  action_undo_upload_files: "撤销文件上传",
+  uploadConflictTitle: "文件已存在",
+  uploadConflictHint:
+    "当前目录中已有以下同名条目。此选择适用于本批全部冲突：覆盖会保留旧内容的历史记录；保留两者会为新文件名添加序号。",
+  uploadFolderConflict: "同名条目中包含文件夹，请选择保留两者。",
+  uploadOverwrite: "覆盖",
+  uploadKeepBoth: "保留两者",
   action_rename_entry: "重命名文件或目录",
   action_delete_entry_contents: "文件或目录移入回收站",
   action_restore_entry_contents: "恢复文件或目录",
@@ -586,7 +603,7 @@ export const zh: Record<MessageKey, string> = {
   uploadResumeFailed: "上传中断，已确认的数据仍保留。连接恢复后可以继续上传。",
   uploadExpired: "上传会话已过期或被移除。请取消此记录，再选择文件开始新上传。",
   uploadTargetChanged:
-    "目标归档盒或目录已被修改或删除。请取消本次上传，重新选择目标。",
+    "目标归档盒、目录或同名文件已发生变化。请取消本次上传，重新选择文件并确认冲突处理方式。",
   uploadStorageFull: "服务端磁盘空间不足。释放空间后可继续本次上传。",
   uploadSessionQuota:
     "服务端暂存上传已达到额度。请先完成或取消其他上传，再重试。",

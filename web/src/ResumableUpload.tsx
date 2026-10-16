@@ -1,6 +1,7 @@
+import { Dialog, DialogPresence } from "./Dialog";
 import { UploadPanel } from "./UploadPanel";
 import type { UploadHandle } from "./Upload";
-import { Button } from "@mantine/core";
+import { Button, Text } from "@mantine/core";
 import {
   useEffect,
   useRef,
@@ -17,6 +18,8 @@ import { errorMessage } from "./mutations";
 import {
   resumableUpload,
   ResumeError,
+  UploadConflictError,
+  type UploadConflictMode,
   type PendingUpload,
   type UploadPhase,
   type UploadMetrics,
@@ -70,6 +73,7 @@ export function ResumableUpload({
   const [phase, setPhase] = useState<
     UploadPhase | "idle" | "checking" | "paused" | "failed" | "saved"
   >(operation?.pending() ? "paused" : "idle");
+  const [conflict, setConflict] = useState<UploadConflictError>();
   const [metrics, setMetrics] = useState<UploadMetrics>();
   const [dismissed, setDismissed] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -152,7 +156,11 @@ export function ResumableUpload({
     } catch (error) {
       if (!mounted.current) return;
       setProgress(operation.confirmedProgress());
-      if (error instanceof DOMException && error.name === "AbortError") {
+      if (error instanceof UploadConflictError) {
+        setConflict(error);
+        setPhase("paused");
+        setError("");
+      } else if (error instanceof DOMException && error.name === "AbortError") {
         setPhase("paused");
         setError("");
       } else {
@@ -190,8 +198,14 @@ export function ResumableUpload({
       setPhase("paused");
     } catch (error) {
       if (mounted.current) {
-        setPhase("failed");
-        setError(message(error));
+        if (error instanceof UploadConflictError) {
+          setConflict(error);
+          setPhase("paused");
+          setError("");
+        } else {
+          setPhase("failed");
+          setError(message(error));
+        }
       }
     }
   }
@@ -238,7 +252,7 @@ export function ResumableUpload({
     noClick: true,
     noKeyboard: true,
     multiple: true,
-    disabled: busy || !operation,
+    disabled: busy || !!conflict || !operation,
     onDrop: (files, rejected) => {
       if (
         rejected.length ||
@@ -254,6 +268,18 @@ export function ResumableUpload({
     },
   });
   useImperativeHandle(pickerRef, () => ({ open: drop.open }), [drop.open]);
+  function chooseConflict(mode: UploadConflictMode) {
+    if (!operation || !conflict) return;
+    try {
+      operation.resolveConflict(mode, conflict.conflicts.token);
+      setConflict(undefined);
+      start();
+    } catch (error) {
+      setError(message(error));
+      setConflict(undefined);
+      setPhase("failed");
+    }
+  }
   const showPanel =
     !compact || busy || !!activePending || !!error || !!setup.error;
   const label =
@@ -278,6 +304,56 @@ export function ResumableUpload({
           "aria-label": activePending ? t("uploadReselect") : t("chooseFiles"),
         })}
       />
+      <DialogPresence>
+        {conflict && (
+          <Dialog
+            open
+            onOpenChange={(open) => {
+              if (!open) {
+                setConflict(undefined);
+                void cancel();
+              }
+            }}
+            title={t("uploadConflictTitle")}
+            size="sm"
+          >
+            <Text size="sm" c="dimmed">
+              {t("uploadConflictHint")}
+            </Text>
+            <ul className="upload-conflict-files">
+              {conflict.conflicts.paths?.map((path) => (
+                <li key={path}>{path}</li>
+              ))}
+            </ul>
+            {!conflict.conflicts.can_overwrite && (
+              <p>{t("uploadFolderConflict")}</p>
+            )}
+            <div className="actions">
+              <Button
+                variant="subtle"
+                onClick={() => {
+                  setConflict(undefined);
+                  void cancel();
+                }}
+              >
+                {t("cancel")}
+              </Button>
+              <Button
+                disabled={!conflict.conflicts.can_overwrite}
+                onClick={() => chooseConflict("overwrite")}
+              >
+                {t("uploadOverwrite")}
+              </Button>
+              <Button
+                variant="filled"
+                onClick={() => chooseConflict("keep_both")}
+              >
+                {t("uploadKeepBoth")}
+              </Button>
+            </div>
+          </Dialog>
+        )}
+      </DialogPresence>
       <UploadPanel
         visible={showPanel}
         title={

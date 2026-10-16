@@ -15,6 +15,7 @@ import {
   renderHook,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -582,3 +583,58 @@ for (const resumable of [false, true]) {
     expect(screen.getByText("File list content")).toBeVisible();
   });
 }
+
+it.each(["Overwrite", "Keep both"])(
+  "confirms upload conflicts with %s",
+  async (choice) => {
+    const completed = vi.fn(async () => {});
+    const fetcher = vi.fn(async (_url: string, options?: RequestInit) => {
+      const body = JSON.parse(String(options?.body || "{}"));
+      if (body.conflict_mode)
+        return new Response(JSON.stringify({ op_id: 42 }), { status: 200 });
+      return new Response(
+        JSON.stringify({
+          conflicts: {
+            token: "c".repeat(64),
+            paths: ["same.txt"],
+            can_overwrite: true,
+          },
+        }),
+        { status: 200 },
+      );
+    });
+    vi.stubGlobal("fetch", fetcher);
+    render(
+      <Upload
+        box="conflicts"
+        folder="root"
+        resumableVersion={1}
+        chunkBytes={4}
+        maxFiles={10}
+        maxBytes={10000}
+        onComplete={completed}
+      />,
+      { wrapper },
+    );
+    const user = userEvent.setup();
+    await user.upload(
+      screen.getByLabelText("Choose files"),
+      new File(["new"], "same.txt"),
+    );
+    const dialog = await screen.findByRole("dialog", {
+      name: "Files already exist",
+    });
+    expect(within(dialog).getByText("same.txt")).toBeVisible();
+    expect(completed).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole("button", { name: choice }));
+    await waitFor(() => expect(completed).toHaveBeenCalledOnce());
+    expect(
+      fetcher.mock.calls.some(
+        ([, options]) =>
+          JSON.parse(String(options?.body || "{}")).conflict_mode ===
+          (choice === "Overwrite" ? "overwrite" : "keep_both"),
+      ),
+    ).toBe(true);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  },
+);

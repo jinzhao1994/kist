@@ -88,6 +88,9 @@ func (r *ImportResult) Count(s FileStatus) int {
 
 // ImportOptions configures one import.
 type ImportOptions struct {
+	// ConflictMode is an explicitly confirmed web upload policy. Empty preserves CLI import semantics.
+	ConflictMode string
+
 	// Box must already exist. Import never creates one and never infers one
 	// (spec 3.7).
 	Box domain.BoxID
@@ -195,6 +198,8 @@ func (l *Library) Import(ctx context.Context, src string, opt ImportOptions) (*I
 // blobs but does not append history or change views; abandoning it can only
 // leave unreferenced blobs, which the existing integrity tools report.
 type PreparedImport struct {
+	action oplog.Action
+
 	library *Library
 	payload []byte
 	result  ImportResult
@@ -216,7 +221,7 @@ func (p *PreparedImport) Result() ImportResult {
 func (p *PreparedImport) Commit(ctx context.Context) (*ImportResult, error) {
 	res := p.Result()
 	if len(p.payload) != 0 {
-		id, err := p.library.write(ctx, oplog.ActionImportFiles, p.payload, oplog.OriginUser, writeOptions{RootOpID: p.rootOp})
+		id, err := p.library.write(ctx, p.action, p.payload, oplog.OriginUser, writeOptions{RootOpID: p.rootOp})
 		if err != nil {
 			return nil, err
 		}
@@ -327,6 +332,33 @@ func (l *Library) prepareCandidates(ctx context.Context, candidates []scanned, o
 		return nil, err
 	}
 
+	replacements := []oplog.FileReplacement{}
+	var conflicts UploadConflicts
+	if opt.ConflictMode != "" {
+		if opt.ConflictMode != "keep_both" && opt.ConflictMode != "overwrite" {
+			return nil, ErrInvalidRequest
+		}
+		paths := make([]string, len(candidates))
+		for i, c := range candidates {
+			paths[i] = c.rel
+		}
+		conflicts, err = l.PreviewUpload(ctx, opt.Box, tree.base, paths)
+		if err != nil {
+			return nil, err
+		}
+		if opt.ConflictMode == "overwrite" && !conflicts.CanOverwrite {
+			return nil, ErrUploadTargetChanged
+		}
+		// Folder names share the destination namespace with files.
+		for _, d := range folders {
+			if d.ParentID != nil {
+				if taken[*d.ParentID] == nil {
+					taken[*d.ParentID] = map[string]string{}
+				}
+				taken[*d.ParentID][domain.Fold(d.Name)] = "folder"
+			}
+		}
+	}
 	strict := false
 	for _, c := range candidates {
 		strict = strict || c.expected != nil
@@ -341,7 +373,18 @@ func (l *Library) prepareCandidates(ctx context.Context, candidates []scanned, o
 			res.Remaining = len(candidates) - i
 			break
 		}
-		r := l.importOne(ctx, c, tree, taken, &payload)
+		before, replacing := conflicts.entries[c.rel]
+		replacing = replacing && opt.ConflictMode == "overwrite"
+		if replacing {
+			delete(taken[before.Parent], domain.Fold(before.Name))
+		}
+		r := l.importOne(ctx, c, tree, taken, &payload, opt.ConflictMode != "")
+		if replacing && r.Status == FileImported {
+			file := payload.Files[len(payload.Files)-1]
+			payload.Files = payload.Files[:len(payload.Files)-1]
+			replacements = append(replacements, oplog.FileReplacement{Before: before, After: l.replacementAfter(before, file)})
+			r.Name = before.Name
+		}
 		if strict && r.Err != nil {
 			return nil, r.Err
 		}
@@ -378,13 +421,18 @@ func (l *Library) prepareCandidates(ctx context.Context, candidates []scanned, o
 			}
 		}
 	}
-	prepared := &PreparedImport{library: l, result: *res}
+	prepared := &PreparedImport{library: l, result: *res, action: oplog.ActionImportFiles}
 	if opt.RootOp != nil {
 		id := *opt.RootOp
 		prepared.rootOp = &id
 	}
-	if len(payload.Files) > 0 || len(payload.Folders) > 0 {
-		raw, err := oplog.Marshal(payload)
+	if len(payload.Files) > 0 || len(payload.Folders) > 0 || len(replacements) > 0 {
+		var body any = payload
+		if len(replacements) > 0 {
+			body = oplog.UploadFilesPayload{Import: payload, Replacements: replacements}
+			prepared.action = oplog.ActionUploadFiles
+		}
+		raw, err := oplog.Marshal(body)
 		if err != nil {
 			return nil, err
 		}
@@ -404,6 +452,7 @@ func (l *Library) importOne(
 	tree *importTree,
 	taken map[domain.FolderID]map[string]string,
 	payload *oplog.ImportFilesPayload,
+	keepBoth bool,
 ) FileResult {
 	r := FileResult{Source: c.abs, Rel: c.rel, Name: path.Base(c.rel), Status: FileFailed}
 	if c.err != nil {
@@ -457,7 +506,11 @@ func (l *Library) importOne(
 	r.Outcome = put.Outcome
 	r.blobKey = put.Key
 
-	name, skip := resolveName(taken, folder, r.Name, string(put.Key))
+	key := string(put.Key)
+	if keepBoth {
+		key = "new:" + c.rel
+	}
+	name, skip := resolveName(taken, folder, r.Name, key)
 	if skip {
 		r.Status = FileSkipped
 		return r

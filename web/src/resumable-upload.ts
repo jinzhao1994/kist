@@ -20,7 +20,15 @@ type State = Omit<WireState, "manifest" | "offsets"> & {
 };
 type Status = components["schemas"]["SessionStatus"];
 export type UploadPhase = "hashing" | "uploading" | "processing";
+export type UploadConflictMode = "overwrite" | "keep_both";
+export class UploadConflictError extends Error {
+  constructor(public readonly conflicts: NonNullable<Status["conflicts"]>) {
+    super("Upload names already exist");
+  }
+}
 export type PendingUpload = {
+  conflict_mode?: UploadConflictMode;
+  conflict_token?: string;
   version: 1 | 2;
   key: string;
   box: string;
@@ -153,6 +161,7 @@ export function resumableUpload(
     return undefined;
   }
   function stateOf(status: Status): State {
+    if (status.conflicts) throw new UploadConflictError(status.conflicts);
     const state = status.session;
     if (!state) throw new ResumeError("protocol");
     const files = state.manifest.files;
@@ -212,7 +221,14 @@ export function resumableUpload(
       "",
       "POST",
       signal,
-      { version: pending.version, box, folder, files: pending.files },
+      {
+        version: pending.version,
+        box,
+        folder,
+        files: pending.files,
+        conflict_mode: pending.conflict_mode,
+        conflict_token: pending.conflict_token,
+      },
       pending.key,
     );
   }
@@ -428,6 +444,15 @@ export function resumableUpload(
 
   return {
     pending: () => pending,
+    resolveConflict(mode: UploadConflictMode, token: string) {
+      if (controller || !pending || pending.id)
+        throw new ResumeError("protocol");
+      save({
+        ...pending,
+        conflict_mode: mode,
+        conflict_token: token,
+      });
+    },
     hasFiles: () => !!selected,
     confirmedProgress: () => confirmed,
     select(files: readonly File[]) {
@@ -469,6 +494,10 @@ export function resumableUpload(
         if (committed) return committed;
         clear();
       } catch (error) {
+        if (error instanceof UploadConflictError && !pending?.id) {
+          clear();
+          return;
+        }
         if (
           !pending?.id &&
           error instanceof APIError &&
