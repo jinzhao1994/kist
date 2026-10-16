@@ -118,7 +118,7 @@ it("virtualizes a thousand files and preserves thumbnail nodes while details are
     </ThemeProvider>,
     { wrapper: mediaWrapper },
   );
-  await waitFor(() => expect(screen.getAllByRole("img")).toHaveLength(12));
+  await waitFor(() => expect(screen.getAllByRole("img")).toHaveLength(9));
   const thumbnails = screen.getAllByRole("img");
   expect(screen.getAllByRole("button").length).toBeLessThan(25);
   const user = userEvent.setup();
@@ -166,7 +166,7 @@ it("moves keyboard focus by row and respects RTL horizontal navigation", async (
   await user.keyboard("{ArrowLeft}");
   await waitFor(() => expect(buttons[1]).toHaveFocus());
   await user.keyboard("{ArrowDown}");
-  await waitFor(() => expect(buttons[5]).toHaveFocus());
+  await waitFor(() => expect(buttons[4]).toHaveFocus());
 });
 
 it("automatically uses keyset pagination, shows the total and resets when filters change", async () => {

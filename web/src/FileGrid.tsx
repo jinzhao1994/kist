@@ -1,3 +1,4 @@
+import { iconGridColumns, iconGridStyle } from "./icon-grid";
 import { DialogPresence } from "./Dialog";
 import { SidebarMenuButton } from "./SidebarMenuButton";
 import {
@@ -132,16 +133,12 @@ export function FileGrid({
           ? 168
           : 248;
   const columnCount = (width: number, value: DisplayMode) =>
-    value === "list"
+    value !== "small" && window.matchMedia("(max-width: 680px)").matches
       ? 1
-      : Math.max(
-          1,
-          Math.min(
-            value === "large" ? 3 : value === "small" ? 8 : 4,
-            Math.floor(
-              width / (value === "large" ? 300 : value === "small" ? 130 : 210),
-            ),
-          ),
+      : iconGridColumns(
+          width,
+          value,
+          parseFloat(getComputedStyle(document.documentElement).fontSize) || 16,
         );
   const anchor = useRef<{ index: number; offset: number } | null>(null);
   const scroll = useRef<HTMLDivElement>(null);
@@ -194,7 +191,9 @@ export function FileGrid({
     const update = () =>
       setColumns(
         columnCount(
-          element.getBoundingClientRect().width || element.offsetWidth,
+          (element.getBoundingClientRect().width || element.offsetWidth) -
+            (parseFloat(getComputedStyle(element).paddingLeft) || 0) -
+            (parseFloat(getComputedStyle(element).paddingRight) || 0),
           mode,
         ),
       );
@@ -204,7 +203,7 @@ export function FileGrid({
     update();
     observer.observe(element);
     return () => observer.disconnect();
-  }, [mode]);
+  }, [mode, mobile]);
   const options = {
     count: Math.ceil(items.length / columns),
     estimateSize: () => rowSize,
@@ -290,6 +289,7 @@ export function FileGrid({
       )}
       <div
         className={`file-scroll view-${mode}`}
+        style={iconGridStyle(mode)}
         ref={scroll}
         role="region"
         aria-label={t("files")}

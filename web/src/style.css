@@ -139,8 +139,11 @@ main {
 }
 .box-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 1.2rem;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(var(--icon-grid-min-width), 1fr)
+  );
+  gap: var(--icon-grid-gap);
 }
 .box-card {
   background: var(--surface);
@@ -489,7 +492,7 @@ progress {
   inset-inline-start: 0;
   inline-size: 100%;
   display: grid;
-  gap: 12px;
+  column-gap: var(--icon-grid-gap);
 }
 .file-entry {
   position: relative;
@@ -905,9 +908,6 @@ fieldset > label,
   justify-content: flex-end;
   margin-block: 0.75rem;
 }
-.box-grid.view-large {
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-}
 .box-grid.view-large .box-card {
   min-height: 260px;
 }
@@ -915,8 +915,10 @@ fieldset > label,
   font-size: 2.5rem;
 }
 .box-grid.view-small {
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 0.65rem;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(var(--icon-grid-min-width), 1fr)
+  );
 }
 .box-grid.view-small .box-card {
   padding: 0.75rem;

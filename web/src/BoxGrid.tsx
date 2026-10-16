@@ -1,3 +1,4 @@
+import { iconGridStyle } from "./icon-grid";
 import { UnstyledButton } from "@mantine/core";
 import { useLayoutEffect, useRef } from "react";
 import { DisplayModeControl, useDisplayMode } from "./DisplayMode";
@@ -107,7 +108,11 @@ export function BoxGrid({
           ))}
         </div>
       )}
-      <div ref={root} className={`box-grid view-${mode}`}>
+      <div
+        ref={root}
+        className={`box-grid view-${mode}`}
+        style={iconGridStyle(mode)}
+      >
         {boxes.map((box) => (
           <UnstyledButton
             className="box-card"
