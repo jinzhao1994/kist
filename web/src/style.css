@@ -557,6 +557,11 @@ progress {
 .load-more {
   text-align: center;
   padding-block: 1.5rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.load-more > [role="status"] {
+  margin: 0;
 }
 .detail-dialog {
   inline-size: min(1000px, calc(100vw - 2rem));
@@ -1511,10 +1516,6 @@ fieldset > label,
 }
 .boxes-page .filters-bar {
   margin-block-end: 0.75rem;
-}
-.boxes-page .load-more {
-  color: var(--muted);
-  font-size: 0.8rem;
 }
 @media (max-width: 680px) {
   .box-list-heading {
