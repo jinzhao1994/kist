@@ -421,11 +421,9 @@ export function FiltersPanel<T extends FilterValues>({
                         </UnstyledButton>
                       </>
                     )}
-                    <div
-                      className={`filter-token-tail${c.field !== "keyword" ? " filter-token-tail-value" : ""}`}
-                    >
+                    <div className="filter-token-tail">
                       <UnstyledButton
-                        className={`filter-token-segment${c.field !== "keyword" ? " filter-token-value" : ""}`}
+                        className="filter-token-segment filter-token-value"
                         aria-label={
                           c.field === "keyword"
                             ? describe(c)
@@ -436,7 +434,7 @@ export function FiltersPanel<T extends FilterValues>({
                         {describe(c)}
                       </UnstyledButton>
                       <ActionIcon
-                        className={`filter-token-remove${c.field !== "keyword" ? " filter-token-value" : ""}`}
+                        className="filter-token-remove"
                         size="xs"
                         variant="transparent"
                         color="gray"

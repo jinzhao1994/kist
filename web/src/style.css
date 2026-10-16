@@ -888,7 +888,6 @@ fieldset > label,
 }
 .filter-token {
   --token-surface: var(--mantine-color-gray-1);
-  --token-value-surface: var(--mantine-color-gray-2);
   display: flex;
   align-items: center;
   max-inline-size: 100%;
@@ -906,9 +905,6 @@ fieldset > label,
   margin-inline-end: -4px;
   padding-block: 4px;
   padding-inline-end: 4px;
-}
-.filter-token-tail-value {
-  background: var(--token-value-surface);
 }
 .filter-token-operator {
   border-inline-end: 1px solid var(--surface);
@@ -936,13 +932,17 @@ fieldset > label,
 button.filter-token-segment:hover {
   background: var(--border);
 }
+.filter-token > .filter-token-segment {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
 .filter-token-value {
   font-weight: 500;
-  background: var(--token-value-surface);
+  color: var(--mantine-primary-color-light-color);
 }
 [data-mantine-color-scheme="dark"] .filter-token {
   --token-surface: var(--mantine-color-dark-4);
-  --token-value-surface: var(--mantine-color-dark-3);
 }
 .filter-submit {
   border-inline-start: 1px solid var(--border);
