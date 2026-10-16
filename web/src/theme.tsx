@@ -4,6 +4,7 @@ import {
   createTheme,
   Button,
   Combobox,
+  Menu,
   Modal,
 } from "@mantine/core";
 import {
@@ -103,6 +104,10 @@ export function ThemeProvider({
         ? "dark"
         : "light"
       : appearance.mode;
+  const dropdownShadow =
+    mode === "dark"
+      ? "0 2px 6px #0004, 0 10px 24px #0006"
+      : "0 2px 6px #0000001a, 0 10px 24px #00000024";
   const theme = createTheme({
     primaryColor: appearance.primaryColor,
     autoContrast: true,
@@ -118,12 +123,10 @@ export function ThemeProvider({
         },
       }),
       Combobox: Combobox.extend({
-        defaultProps: {
-          shadow:
-            mode === "dark"
-              ? "0 2px 6px #0004, 0 10px 24px #0006"
-              : "0 2px 6px #0000001a, 0 10px 24px #00000024",
-        },
+        defaultProps: { shadow: dropdownShadow },
+      }),
+      Menu: Menu.extend({
+        defaultProps: { shadow: dropdownShadow },
       }),
     },
   });
