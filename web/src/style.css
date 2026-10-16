@@ -895,19 +895,11 @@ fieldset > label,
   background: var(--token-surface);
   overflow: hidden;
   font-size: 0.875rem;
-  padding: 4px;
 }
 .filter-token-tail {
   display: flex;
   align-items: center;
   min-inline-size: 0;
-  margin-block: -4px;
-  margin-inline-end: -4px;
-  padding-block: 4px;
-  padding-inline-end: 4px;
-}
-.filter-token-operator {
-  border-inline-end: 1px solid var(--surface);
 }
 .filter-token .filter-token-remove {
   align-self: stretch;
@@ -921,13 +913,10 @@ fieldset > label,
   color: color-mix(in srgb, var(--muted) 70%, var(--token-surface));
 }
 .filter-token-segment {
-  padding: 0 0.45rem;
+  padding: 4px 0.45rem;
   font-size: inherit;
   line-height: 1.25rem;
   overflow-wrap: anywhere;
-}
-.filter-token-segment + .filter-token-segment {
-  border-inline-start: 1px solid var(--surface);
 }
 button.filter-token-segment:hover {
   background: var(--border);
