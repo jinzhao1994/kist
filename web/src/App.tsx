@@ -266,14 +266,26 @@ export function App() {
             <div>
               <div className="box-title-line">
                 <h1>
-                  <bdi>
-                    {route.section
-                      ? t(route.section)
-                      : route.tag
-                        ? selectedTag?.name || t("tags")
-                        : selected?.name ||
-                          t(route.files ? "allFiles" : "boxes")}
-                  </bdi>
+                  {selected && route.files && !route.section ? (
+                    <UnstyledButton
+                      className="box-root-link"
+                      onClick={() => {
+                        setFilters({ ...emptyFilters });
+                        go({ box: route.box, files: true });
+                      }}
+                    >
+                      <bdi>{selected.name}</bdi>
+                    </UnstyledButton>
+                  ) : (
+                    <bdi>
+                      {route.section
+                        ? t(route.section)
+                        : route.tag
+                          ? selectedTag?.name || t("tags")
+                          : selected?.name ||
+                            t(route.files ? "allFiles" : "boxes")}
+                    </bdi>
+                  )}
                 </h1>
                 {selected &&
                   !route.section &&

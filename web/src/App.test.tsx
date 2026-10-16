@@ -277,6 +277,9 @@ it("replaces the box search bar when switching to all files and applies a box co
   const view = mount();
   const user = userEvent.setup();
   await screen.findByRole("heading", { name: "Current box", level: 1 });
+  expect(await screen.findByText("No files or folders yet")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Display mode" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Upload files" })).toBeVisible();
   await user.click(screen.getByRole("button", { name: /All files/ }));
   expect(screen.getAllByRole("region", { name: "Filters" })).toHaveLength(1);
   await user.type(

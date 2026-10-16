@@ -1,3 +1,5 @@
+import { FileIcon } from "./FileIcon";
+import { DisplayModeControl, useDisplayMode } from "./DisplayMode";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Dialog, DialogPresence } from "./Dialog";
@@ -47,6 +49,7 @@ export function FileBrowser({
   open: (file: ArchiveFile) => void;
 }) {
   const { t } = useI18n();
+  const [emptyMode, setEmptyMode] = useDisplayMode("files");
   const picker = useRef<UploadHandle>(null);
   const [addingTag, setAddingTag] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -90,6 +93,17 @@ export function FileBrowser({
             />
           )}
       </DialogPresence>
+      {!files.length &&
+        !folders.length &&
+        toolbarHost &&
+        createPortal(
+          <DisplayModeControl
+            dropdown
+            mode={emptyMode}
+            change={setEmptyMode}
+          />,
+          toolbarHost,
+        )}
       {query.isPending && <p role="status">{t("loading")}</p>}
       {query.isError && !query.isFetchNextPageError && (
         <div role="alert">
@@ -122,19 +136,21 @@ export function FileBrowser({
             />
           ) : !folders.length ? (
             <section className="empty-state file-empty-state">
-              <span className="archive-mark" aria-hidden="true">
-                ▤
-              </span>
+              <FileIcon folder={!!box && !searching} />
               <h2>{t(box && !searching ? "emptyFolder" : "noResults")}</h2>
               <p>
-                {emptyHint || (box ? t("uploadToFolder") : t("clearFilters"))}
+                {emptyHint ||
+                  (box && !searching
+                    ? t("emptyFolderUploadHint")
+                    : t("clearFilters"))}
               </p>
               {box && !searching && info.data && uploadFolder && (
                 <Button
                   variant="default"
+                  size="sm"
                   onClick={() => picker.current?.open()}
                 >
-                  {t("chooseFiles")}
+                  {t("uploadFiles")}
                 </Button>
               )}
             </section>

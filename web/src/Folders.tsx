@@ -32,21 +32,23 @@ export function FolderBreadcrumbs({
   const { t } = useI18n();
   return (
     <Breadcrumbs className="folder-breadcrumbs" aria-label={t("folderPath")}>
-      {folderChain(folders, current).map((folder) =>
-        folder.id === current ? (
-          <span key={folder.id} aria-current="page">
-            <bdi>{folder.name || rootLabel || t("boxRoot")}</bdi>
-          </span>
-        ) : (
-          <Anchor
-            component="button"
-            key={folder.id}
-            onClick={() => choose(folder.id)}
-          >
-            <bdi>{folder.name || rootLabel || t("boxRoot")}</bdi>
-          </Anchor>
-        ),
-      )}
+      {folderChain(folders, current)
+        .filter((folder) => folder.parent_id)
+        .map((folder) =>
+          folder.id === current ? (
+            <span key={folder.id} aria-current="page">
+              <bdi>{folder.name || rootLabel || t("boxRoot")}</bdi>
+            </span>
+          ) : (
+            <Anchor
+              component="button"
+              key={folder.id}
+              onClick={() => choose(folder.id)}
+            >
+              <bdi>{folder.name || rootLabel || t("boxRoot")}</bdi>
+            </Anchor>
+          ),
+        )}
     </Breadcrumbs>
   );
 }

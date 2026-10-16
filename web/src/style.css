@@ -1757,12 +1757,45 @@ main.upload-drag-active {
   }
 }
 .file-empty-state {
-  padding: 2.5rem 1rem;
-  margin-block: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 2rem 1rem;
+  margin-block: 0.5rem;
   border: 0;
 }
-.file-empty-state .archive-mark {
-  font-size: 2rem;
+.file-empty-state > .browser-item-icon {
+  width: 32px;
+  height: 32px;
+  margin-block-end: 0.25rem;
+}
+.file-empty-state h2 {
+  font-size: 1rem;
+  font-weight: 400;
+  margin: 0;
+}
+.file-empty-state p {
+  font-size: 0.875rem;
+  margin: 0;
+}
+.file-empty-state button {
+  margin-block-start: 0.35rem;
+}
+.box-root-link {
+  font: inherit;
+  color: inherit;
+}
+.box-root-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.folder-breadcrumbs button {
+  font-size: inherit;
+  color: var(--muted);
+}
+.folder-breadcrumbs button:hover {
+  color: var(--accent);
 }
 
 .browser-item-icon {
