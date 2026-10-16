@@ -482,7 +482,7 @@ progress {
   margin-block: 1rem;
 }
 .file-scroll {
-  padding: 4px;
+  padding-block: 4px;
   border-radius: 8px;
 }
 .virtual-space {
