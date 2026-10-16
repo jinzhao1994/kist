@@ -459,18 +459,20 @@ export function ResumableUpload({
         <div className="upload-result">
           <details className="upload-timing">
             <summary>
-              {t("uploadElapsed", {
-                seconds: formatNumber(
-                  Math.round(metrics.totalMs / 1000),
-                  prefs,
-                ),
-                speed: formatBytes(
-                  metrics.transferMs > 0
-                    ? (metrics.bytes * 1000) / metrics.transferMs
-                    : 0,
-                  prefs,
-                ),
-              })}
+              <span>
+                {t("uploadElapsed", {
+                  seconds: formatNumber(
+                    Math.round(metrics.totalMs / 1000),
+                    prefs,
+                  ),
+                  speed: formatBytes(
+                    metrics.transferMs > 0
+                      ? (metrics.bytes * 1000) / metrics.transferMs
+                      : 0,
+                    prefs,
+                  ),
+                })}
+              </span>
             </summary>
             <small>
               {t("uploadTiming", {

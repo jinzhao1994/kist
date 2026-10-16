@@ -1716,6 +1716,9 @@ fieldset > label,
   font-weight: 400;
   cursor: pointer;
 }
+.upload-timing > summary > span {
+  margin-inline-start: 0.3rem;
+}
 .upload-timing > small {
   display: block;
   margin-block-start: 0.4rem;
