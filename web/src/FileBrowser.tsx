@@ -180,7 +180,7 @@ export function FileBrowser({
           disabled={!info.data || !uploadFolder}
           onClick={() => picker.current?.open()}
         >
-          {t("chooseFiles")}
+          {t("uploadFiles")}
         </Menu.Item>
         <Menu.Item disabled={!uploadFolder} onClick={() => setCreating(true)}>
           {t("createFolder")}
