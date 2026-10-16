@@ -599,6 +599,7 @@ export function FiltersPanel<T extends FilterValues>({
         <Menu position="bottom-end">
           <Menu.Target>
             <ActionIcon
+              className="filter-toolbar-button"
               size="lg"
               variant="default"
               aria-label={t("sort")}

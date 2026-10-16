@@ -205,6 +205,7 @@ export function SaveSearchButton({
     <>
       <Tooltip label={t("saveSearch")}>
         <ActionIcon
+          className="filter-toolbar-button"
           size="lg"
           variant="default"
           aria-label={t("saveSearch")}
