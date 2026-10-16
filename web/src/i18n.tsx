@@ -2,7 +2,7 @@ import { useDirection } from "@mantine/core";
 import {
   createContext,
   useContext,
-  useEffect,
+  useLayoutEffect,
   useState,
   type ReactNode,
 } from "react";
@@ -659,6 +659,13 @@ export function directionFor(prefs: Preferences): "ltr" | "rtl" {
   // independent of regional number and date formatting.
   return "ltr";
 }
+function applyDocumentLanguage(prefs: Preferences) {
+  document.documentElement.lang = prefs.language;
+  document.documentElement.dir = directionFor(prefs);
+}
+export function initializeLanguage() {
+  applyDocumentLanguage(initialPreferences());
+}
 interface Parameters {
   trashEntryConfirm: { name: string };
   trashFolderContents: { files: number; folders: number };
@@ -716,9 +723,8 @@ const I18nContext = createContext<{
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [prefs, setPrefs] = useState(initialPreferences);
   const { setDirection } = useDirection();
-  useEffect(() => {
-    document.documentElement.lang = prefs.language;
-    document.documentElement.dir = directionFor(prefs);
+  useLayoutEffect(() => {
+    applyDocumentLanguage(prefs);
     setDirection(directionFor(prefs));
     try {
       window.localStorage.setItem(storageKey, JSON.stringify(prefs));

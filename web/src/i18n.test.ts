@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   parse,
   TYPE,
@@ -12,6 +12,7 @@ import {
   formatInstant,
   formatNumber,
   initialPreferences,
+  initializeLanguage,
   storageKey,
   type Preferences,
 } from "./i18n";
@@ -81,5 +82,39 @@ describe("message contract", () => {
     );
     expect(initialPreferences().formatLocale).not.toBe("not_a_locale");
     window.localStorage.removeItem(storageKey);
+  });
+});
+
+describe("document language initialization", () => {
+  it("applies saved message language and direction before React mounts", () => {
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify({ ...prefs, language: "zh", direction: "rtl" }),
+    );
+    initializeLanguage();
+    expect(document.documentElement.lang).toBe("zh");
+    expect(document.documentElement.dir).toBe("rtl");
+    localStorage.removeItem(storageKey);
+  });
+  it("uses browser language when saved preferences cannot be read", () => {
+    const languages = vi
+      .spyOn(navigator, "languages", "get")
+      .mockReturnValue(["zh-CN"]);
+    const storage = vi
+      .spyOn(Storage.prototype, "getItem")
+      .mockImplementation(() => {
+        throw new Error("Storage is unavailable");
+      });
+    try {
+      initializeLanguage();
+      expect(document.documentElement.lang).toBe("zh");
+      expect(document.documentElement.dir).toBe("ltr");
+      languages.mockReturnValue(["en-US"]);
+      initializeLanguage();
+      expect(document.documentElement.lang).toBe("en");
+    } finally {
+      languages.mockRestore();
+      storage.mockRestore();
+    }
   });
 });
