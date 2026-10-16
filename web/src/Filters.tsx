@@ -430,13 +430,25 @@ export function FiltersPanel<T extends FilterValues>({
                       {describe(c)}
                     </UnstyledButton>
                     <ActionIcon
+                      className={`filter-token-remove${c.field !== "keyword" ? " filter-token-value" : ""}`}
                       size="xs"
                       variant="transparent"
                       color="gray"
                       aria-label={`${t("remove")}: ${c.field === "keyword" ? "" : `${title(c.field as Field)}: `}${describe(c)}`}
                       onClick={() => remove(index)}
                     >
-                      ×
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.7"
+                        strokeLinecap="round"
+                        aria-hidden="true"
+                      >
+                        <path d="m6 6 12 12M18 6 6 18" />
+                      </svg>
                     </ActionIcon>
                   </div>
                 ),

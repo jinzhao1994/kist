@@ -879,15 +879,32 @@ fieldset > label,
   gap: 0.5rem;
 }
 .filter-token {
+  --token-surface: var(--mantine-color-gray-2);
+  position: relative;
   display: flex;
   align-items: center;
   max-inline-size: 100%;
   border-radius: 0.25rem;
-  background: var(--mantine-color-gray-2);
-  border: 1px solid var(--mantine-color-gray-2);
+  background: var(--token-surface);
   overflow: hidden;
   font-size: 0.875rem;
-  padding-inline-end: 0.2rem;
+}
+.filter-token::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--token-surface);
+  border-radius: inherit;
+  pointer-events: none;
+}
+.filter-token .filter-token-remove {
+  align-self: stretch;
+  block-size: auto;
+  inline-size: 1.5rem;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 0;
+  color: var(--muted);
 }
 .filter-token-segment {
   padding: 0.15rem 0.45rem;
@@ -905,8 +922,7 @@ button.filter-token-segment:hover {
   background: var(--mantine-color-gray-3);
 }
 [data-mantine-color-scheme="dark"] .filter-token {
-  background: var(--mantine-color-dark-4);
-  border-color: var(--mantine-color-dark-4);
+  --token-surface: var(--mantine-color-dark-4);
 }
 [data-mantine-color-scheme="dark"] .filter-token-value {
   background: var(--mantine-color-dark-3);
