@@ -1693,7 +1693,7 @@ fieldset > label,
   align-items: flex-start;
   inline-size: fit-content;
   max-inline-size: 100%;
-  padding: 0.25rem 0.4rem;
+  padding: 0.5rem 0.625rem;
   border-radius: 6px;
   transition: background-color 120ms ease;
   gap: 0.5rem;
@@ -1702,13 +1702,15 @@ fieldset > label,
   font-size: 0.75rem;
 }
 .upload-result:hover,
-.upload-result:focus-within {
+.upload-result:has(:focus-visible) {
   background: var(--surface-hover);
 }
 .upload-timing {
   min-inline-size: 0;
 }
 .upload-timing > summary {
+  padding: 0;
+  line-height: 1.25rem;
   font-size: inherit;
   font-weight: 400;
   cursor: pointer;
@@ -1731,7 +1733,7 @@ fieldset > label,
   border-radius: 4px;
   background: transparent;
   color: inherit;
-  padding: 0 0.3rem;
+  padding: 0;
   cursor: pointer;
 }
 .upload-result-dismiss:hover {
@@ -1744,7 +1746,7 @@ fieldset > label,
     pointer-events: none;
   }
   .upload-result:hover .upload-result-dismiss,
-  .upload-result:focus-within .upload-result-dismiss {
+  .upload-result:has(:focus-visible) .upload-result-dismiss {
     opacity: 1;
     pointer-events: auto;
   }
