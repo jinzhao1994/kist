@@ -120,7 +120,7 @@ func TestSavedSearchRejectsDuplicateAndInvalidWithoutLogging(t *testing.T) {
 func TestSavedSearchV2LifecycleReplayAndDrift(t *testing.T) {
 	l, _ := openWithBox(t)
 	ctx := t.Context()
-	definition := domain.SearchDefinition{Version: 2, Entity: "files", Filters: domain.SearchFilters{Sort: "captured", Keywords: []string{"report", "2026"}, NameContains: "report", NameEquals: "report.pdf", TagNot: []string{domain.NewTagID().String()}}}
+	definition := domain.SearchDefinition{Version: 2, Entity: "files", Filters: domain.SearchFilters{Sort: "captured", Conditions: []domain.SearchCondition{{Field: "name_contains", Values: []string{"123"}}, {Field: "name_contains", Values: []string{"456"}}, {Field: "name_equals", Values: []string{"A"}}, {Field: "name_equals", Values: []string{"B"}}}, Keywords: []string{"report", "2026"}, NameContains: "report", NameEquals: "report.pdf", TagNot: []string{domain.NewTagID().String()}}}
 	s, err := l.CreateSavedSearch(ctx, "Contracts", definition)
 	if err != nil {
 		t.Fatal(err)

@@ -1,18 +1,19 @@
 import {
   ActionIcon,
   Button,
-  CheckIcon,
   Menu,
   Combobox,
   UnstyledButton,
   useCombobox,
 } from "@mantine/core";
-import { useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import type { components } from "./api-schema";
 import type { FileQuery, BoxQuery, Box, Tag } from "./api";
 import { flattenTags, tagOption, TagPath } from "./TagPath";
 import { useI18n } from "./i18n";
 export type Filters = Omit<FileQuery, "folder" | "cursor" | "limit">;
 export const emptyFilters: Filters = {
+  condition: [],
   name: "",
   keyword: [],
   name_contains: "",
@@ -35,7 +36,9 @@ export const emptyBoxFilters: BoxFilters = { ...emptyFilters, sort: "updated" };
 type FilterValues = Omit<Filters, "sort"> & {
   sort?: Filters["sort"] | BoxFilters["sort"];
 };
+export type SearchCondition = components["schemas"]["SearchCondition"];
 type Field =
+  | "keyword"
   | "name_contains"
   | "name_equals"
   | "box"
@@ -54,13 +57,44 @@ const fields = [
   ["to", "to"],
 ] as const;
 const kinds = ["image", "video", "audio", "document", "other"] as const;
-const isScalar = (field: Field) =>
-  ["name_contains", "name_equals", "from", "to"].includes(field);
+const scalar = (field: Field) =>
+  ["keyword", "name_contains", "name_equals", "from", "to"].includes(field);
+export function searchConditions(value: FilterValues): SearchCondition[] {
+  const result: SearchCondition[] = [];
+  for (const raw of value.condition || []) {
+    try {
+      const c = JSON.parse(raw);
+      if (
+        typeof c.field === "string" &&
+        Array.isArray(c.values) &&
+        c.values.every((v: unknown) => typeof v === "string")
+      )
+        result.push(c);
+    } catch {
+      /* Invalid URL clauses remain server-validated until edited. */
+    }
+  }
+  for (const term of [
+    ...(value.keyword || []),
+    ...(value.name ? [value.name] : []),
+  ])
+    result.push({ field: "keyword", values: [term] });
+  for (const field of ["name_contains", "name_equals", "from", "to"] as const)
+    if (value[field]) result.push({ field, values: [value[field]] });
+  for (const id of value.tag_all || [])
+    result.push({ field: "tag_all", values: [id] });
+  // Preserve the meaning of legacy union/exclusion groups instead of splitting them.
+  for (const field of ["box", "kind", "tag_any", "tag_not"] as const)
+    if (value[field]?.length) result.push({ field, values: [...value[field]] });
+  return result;
+}
 export function normalizedFilters<T extends FilterValues>(value: T): T {
   return {
     ...value,
-    name: "",
-    keyword: [...(value.keyword || []), ...(value.name ? [value.name] : [])],
+    ...emptyFilters,
+    sort: value.sort,
+    asc: value.asc,
+    condition: searchConditions(value).map((c) => JSON.stringify(c)),
   };
 }
 function validDate(value: string) {
@@ -99,22 +133,32 @@ export function FiltersPanel<T extends FilterValues>({
   const { t } = useI18n();
   const [working, setWorking] = useState(() => normalizedFilters(value));
   const [previous, setPrevious] = useState(value);
-  const [field, setField] = useState<Field | null>(null);
+  const [field, setField] = useState<Field>("keyword");
   const [stage, setStage] = useState<"field" | "operator" | "value">("field");
-  const [editing, setEditing] = useState<Field | number | null>(null);
+  const [editing, setEditing] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
   const input = useRef<HTMLInputElement>(null);
+  const restoreFocus = useRef<boolean | null>(null);
+  const suppressFocusDropdown = useRef(false);
   const combo = useCombobox({
     onDropdownClose: () => combo.resetSelectedOption(),
   });
+  useLayoutEffect(() => {
+    if (restoreFocus.current !== null) {
+      suppressFocusDropdown.current = restoreFocus.current;
+      input.current?.focus();
+      suppressFocusDropdown.current = false;
+      if (restoreFocus.current) combo.closeDropdown();
+      restoreFocus.current = null;
+    }
+  });
   const reset = () => {
-    setField(null);
-    setDraft("");
+    setField("keyword");
     setStage("field");
     setEditing(null);
+    setDraft("");
     combo.resetSelectedOption();
   };
-  // Navigation replaces the draft; sorting alone preserves unsubmitted conditions.
   if (previous !== value) {
     setPrevious(value);
     const conditions = ({ sort: _sort, asc: _asc, ...rest }: FilterValues) =>
@@ -123,15 +167,14 @@ export function FiltersPanel<T extends FilterValues>({
       setWorking({ ...working, sort: value.sort, asc: value.asc });
     else {
       setWorking(normalizedFilters(value));
-      setField(null);
-      setDraft("");
+      setField("keyword");
       setStage("field");
       setEditing(null);
+      setDraft("");
     }
   }
+  const clauses = searchConditions(working);
   const flat = flattenTags(tags);
-  const change = (patch: Partial<FilterValues>) =>
-    onChange({ ...value, ...patch });
   const visibleFields = fields.filter(
     ([key]) =>
       (entity !== "boxes" || (key !== "kind" && key !== "box")) &&
@@ -142,55 +185,127 @@ export function FiltersPanel<T extends FilterValues>({
       ? t("name")
       : key.startsWith("tag_")
         ? t("tags")
-        : t(fields.find(([id]) => id === key)![1]);
+        : key === "keyword"
+          ? t("searchConditions")
+          : fields.some(([id]) => id === key)
+            ? t(fields.find(([id]) => id === key)![1])
+            : key;
   const operator = (key: Field) =>
     key === "name_contains"
       ? t("contains")
-      : key === "tag_all"
-        ? t("tagAll")
-        : key === "tag_any"
-          ? t("tagAny")
-          : key === "tag_not"
-            ? t("tagNot")
-            : key === "from"
-              ? "≥"
-              : key === "to"
-                ? "≤"
-                : "=";
+      : key === "tag_any"
+        ? t("tagAny")
+        : key === "tag_not"
+          ? t("tagNot")
+          : key === "from"
+            ? "≥"
+            : key === "to"
+              ? "≤"
+              : "=";
   const operators = (key: Field): Field[] =>
-    key.startsWith("name_")
-      ? ["name_contains", "name_equals"]
-      : key.startsWith("tag_")
-        ? ["tag_all", "tag_any", "tag_not"]
-        : [key];
-  const describe = (key: Field) => {
-    const selected = working[key];
-    if (!Array.isArray(selected)) return selected || "";
-    return selected
+    key.startsWith("name_") ? ["name_contains", "name_equals"] : [key];
+  const describe = (c: SearchCondition) =>
+    (c.values || [])
       .map((item) =>
-        key === "kind"
+        c.field === "kind"
           ? t(item as (typeof kinds)[number])
-          : key === "box"
+          : c.field === "box"
             ? boxes?.find((box) => box.id === item)?.name || item
-            : flat.map(tagOption).find((tag) => tag.value === item)?.label ||
-              item,
+            : c.field.startsWith("tag_")
+              ? flat.map(tagOption).find((tag) => tag.value === item)?.label ||
+                item
+              : item,
       )
       .join(", ");
-  };
-  const edit = (key: Field | number, nextStage: typeof stage) => {
-    setEditing(key);
+  const change = (patch: Partial<FilterValues>) =>
+    onChange({ ...value, ...patch });
+  const edit = (index: number, nextStage: typeof stage) => {
+    const c = clauses[index];
+    setEditing(index);
+    setField(c.field as Field);
     setStage(nextStage);
-    setField(typeof key === "number" ? null : key);
     setDraft(
-      typeof key === "number"
-        ? working.keyword?.[key] || ""
-        : nextStage === "value" && isScalar(key)
-          ? String(working[key] || "")
-          : "",
+      nextStage === "value" && scalar(c.field as Field)
+        ? c.values?.[0] || ""
+        : "",
     );
+    combo.openDropdown();
+    restoreFocus.current = false;
+  };
+  const nextFilters = (c?: SearchCondition) => {
+    const next = [...clauses];
+    if (c) {
+      if (editing === null) next.push(c);
+      else next[editing] = c;
+    }
+    return { ...working, condition: next.map((item) => JSON.stringify(item)) };
+  };
+  const invalid =
+    (field === "from" || field === "to") &&
+    !!draft.trim() &&
+    !validDate(draft.trim());
+  const commitText = (execute: boolean) => {
+    if (
+      invalid ||
+      (!draft.trim() && field !== "keyword") ||
+      (draft.trim() &&
+        (!scalar(field) || (field !== "keyword" && stage !== "value")))
+    )
+      return;
+    const next = nextFilters(
+      draft.trim() ? { field, values: [draft.trim()] } : undefined,
+    );
+    setWorking(next);
+    reset();
+    restoreFocus.current = execute;
+    if (execute) {
+      onChange(next);
+      combo.closeDropdown();
+    } else combo.openDropdown();
+  };
+  const submit = (option: string) => {
+    if (option.startsWith("field:")) {
+      const next = option.slice(6) as Field;
+      setField(next);
+      setDraft("");
+      setStage(operators(next).length > 1 ? "operator" : "value");
+    } else if (option.startsWith("operator:")) {
+      setField(option.slice(9) as Field);
+      setStage("value");
+      setDraft(
+        editing !== null && scalar(field)
+          ? clauses[editing].values?.[0] || ""
+          : "",
+      );
+    } else if (option === "apply") {
+      commitText(false);
+      return;
+    } else if (option.startsWith("value:")) {
+      const item = option.slice(6);
+      // Existing union groups remain editable as groups; new conditions are atomic.
+      const old = editing !== null ? clauses[editing] : undefined;
+      const values =
+        old && old.field === field && (old.values?.length || 0) > 1
+          ? old.values!.includes(item)
+            ? old.values!.filter((v) => v !== item)
+            : [...old.values!, item]
+          : [item];
+      if (values.length) setWorking(nextFilters({ field, values }));
+      reset();
+    }
     combo.resetSelectedOption();
     combo.openDropdown();
-    requestAnimationFrame(() => input.current?.focus());
+    restoreFocus.current = false;
+  };
+  const remove = (index: number) => {
+    setWorking({
+      ...working,
+      condition: clauses
+        .filter((_, i) => i !== index)
+        .map((c) => JSON.stringify(c)),
+    });
+    reset();
+    restoreFocus.current = false;
   };
   const needle = draft.trim().toLocaleLowerCase();
   const matches = (text: string) => text.toLocaleLowerCase().includes(needle);
@@ -200,122 +315,10 @@ export function FiltersPanel<T extends FilterValues>({
       : field === "box"
         ? (boxes || []).map((box) => ({ value: box.id, label: box.name }))
         : flat.map(tagOption);
-  const invalid =
-    (field === "from" || field === "to") &&
-    !!draft.trim() &&
-    !validDate(draft.trim());
-  const textResult = (): T | null => {
-    if (invalid) return null;
-    if (!draft.trim()) return field ? null : working;
-    if (field && (!isScalar(field) || stage !== "value")) return null;
-    const next = { ...working };
-    if (field) {
-      if (typeof editing === "string" && editing !== field)
-        Object.assign(next, { [editing]: isScalar(editing) ? "" : [] });
-      Object.assign(next, { [field]: draft.trim() });
-      if (typeof editing === "number")
-        next.keyword = next.keyword?.filter((_, index) => index !== editing);
-    } else {
-      const terms = [...(next.keyword || [])];
-      if (typeof editing === "number") terms[editing] = draft.trim();
-      else terms.push(draft.trim());
-      next.keyword = terms;
-    }
-    return next;
-  };
-  const commitText = (execute: boolean) => {
-    const next = textResult();
-    if (!next) return;
-    setWorking(next);
-    reset();
-    if (execute) {
-      onChange(next);
-      combo.closeDropdown();
-    } else combo.openDropdown();
-    requestAnimationFrame(() => {
-      input.current?.focus();
-      if (execute) combo.closeDropdown();
-    });
-  };
-  const submit = (option: string) => {
-    if (option.startsWith("field:")) {
-      const next = option.slice(6) as Field;
-      setField(next);
-      setDraft("");
-      setStage(operators(next).length > 1 ? "operator" : "value");
-    } else if (option.startsWith("operator:")) {
-      const nextField = option.slice(9) as Field;
-      setField(nextField);
-      setStage("value");
-      setDraft(
-        typeof editing === "string" && isScalar(editing)
-          ? String(working[editing] || "")
-          : "",
-      );
-      if (
-        typeof editing === "string" &&
-        editing.startsWith("tag_") &&
-        nextField.startsWith("tag_")
-      ) {
-        const values = [
-          ...new Set([
-            ...(working[editing] || []),
-            ...(working[nextField] || []),
-          ]),
-        ];
-        setWorking({ ...working, [editing]: [], [nextField]: values });
-        reset();
-      }
-    } else if (option === "apply") {
-      commitText(false);
-      return;
-    } else if (field && option.startsWith("value:")) {
-      const item = option.slice(6);
-      const selected = working[field];
-      const values = Array.isArray(selected) ? selected : [];
-      const next = {
-        ...working,
-        [field]: values.includes(item)
-          ? values.filter((id) => id !== item)
-          : [...values, item],
-      };
-      if (typeof editing === "string" && editing !== field)
-        Object.assign(next, { [editing]: isScalar(editing) ? "" : [] });
-      if (typeof editing === "number")
-        next.keyword = next.keyword?.filter((_, index) => index !== editing);
-      setWorking(next);
-      reset();
-    }
-    combo.resetSelectedOption();
-    combo.openDropdown();
-    requestAnimationFrame(() => input.current?.focus());
-  };
-  const active = (
-    [
-      "name_contains",
-      "name_equals",
-      "box",
-      "kind",
-      "tag_all",
-      "tag_any",
-      "tag_not",
-      "from",
-      "to",
-    ] as Field[]
-  ).filter((key) => !!working[key]?.length);
-  const remove = (key: Field | number) => {
-    setWorking(
-      typeof key === "number"
-        ? { ...working, keyword: working.keyword?.filter((_, i) => i !== key) }
-        : { ...working, [key]: isScalar(key) ? "" : [] },
-    );
-    reset();
-    input.current?.focus();
-  };
   const editor = (
     <Combobox.DropdownTarget>
       <div className="filter-inline-editor">
-        {field && (
+        {field !== "keyword" && (
           <span className="filter-field-label">
             {title(field)}
             {stage === "value" && ` ${operator(field)}`}
@@ -325,14 +328,19 @@ export function FiltersPanel<T extends FilterValues>({
           <input
             ref={input}
             role="combobox"
-            aria-label={field ? title(field) : t("searchConditions")}
+            aria-label={
+              field === "keyword" ? t("searchConditions") : title(field)
+            }
             placeholder={
-              field
-                ? t(stage === "operator" ? "chooseOperator" : "filterValue")
-                : t("searchConditions")
+              field === "keyword"
+                ? t("searchConditions")
+                : t(stage === "operator" ? "chooseOperator" : "filterValue")
             }
             value={draft}
-            onFocus={() => combo.openDropdown()}
+            maxLength={4096}
+            onFocus={() => {
+              if (!suppressFocusDropdown.current) combo.openDropdown();
+            }}
             onClick={() => combo.openDropdown()}
             onBlur={() => combo.closeDropdown()}
             onChange={(event) => {
@@ -345,13 +353,11 @@ export function FiltersPanel<T extends FilterValues>({
               if (event.key === "Escape") {
                 reset();
                 combo.closeDropdown();
+                restoreFocus.current = true;
               }
               if (event.key === "Backspace" && !draft) {
-                if (field) reset();
-                else if (working.keyword?.length)
-                  edit(working.keyword.length - 1, "value");
-                else if (active.length)
-                  edit(active[active.length - 1], "value");
+                if (field !== "keyword") reset();
+                else if (clauses.length) edit(clauses.length - 1, "value");
               }
               if (
                 event.key === "Enter" &&
@@ -386,66 +392,46 @@ export function FiltersPanel<T extends FilterValues>({
                   input.current?.focus();
               }}
             >
-              {active.map((key) =>
-                editing === key ? (
-                  <div key={key} className="filter-edit-slot">
-                    {editor}
-                  </div>
-                ) : (
-                  <div className="filter-token" key={key}>
-                    <UnstyledButton
-                      className="filter-token-segment"
-                      onClick={() => edit(key, "field")}
-                    >
-                      {title(key)}
-                    </UnstyledButton>
-                    <UnstyledButton
-                      className="filter-token-segment"
-                      aria-label={`${t("operator")}: ${title(key)}`}
-                      onClick={() => edit(key, "operator")}
-                    >
-                      {operator(key)}
-                    </UnstyledButton>
-                    <UnstyledButton
-                      className="filter-token-segment filter-token-value"
-                      aria-label={`${title(key)}: ${describe(key)}`}
-                      onClick={() => edit(key, "value")}
-                    >
-                      {describe(key)}
-                    </UnstyledButton>
-                    <ActionIcon
-                      size="xs"
-                      variant="transparent"
-                      color="gray"
-                      aria-label={`${t("remove")}: ${title(key)}`}
-                      onClick={() => remove(key)}
-                    >
-                      ×
-                    </ActionIcon>
-                  </div>
-                ),
-              )}
-              {(working.keyword || []).map((term, index) =>
+              {clauses.map((c, index) =>
                 editing === index ? (
-                  <div key={`keyword:${index}`} className="filter-edit-slot">
+                  <div className="filter-edit-slot" key={index}>
                     {editor}
                   </div>
                 ) : (
-                  <div
-                    className="filter-token filter-keyword"
-                    key={`keyword:${index}`}
-                  >
+                  <div className="filter-token" key={index}>
+                    {c.field !== "keyword" && (
+                      <>
+                        <UnstyledButton
+                          className="filter-token-segment"
+                          onClick={() => edit(index, "field")}
+                        >
+                          {title(c.field as Field)}
+                        </UnstyledButton>
+                        <UnstyledButton
+                          className="filter-token-segment"
+                          aria-label={`${t("operator")}: ${title(c.field as Field)}`}
+                          onClick={() => edit(index, "operator")}
+                        >
+                          {operator(c.field as Field)}
+                        </UnstyledButton>
+                      </>
+                    )}
                     <UnstyledButton
-                      className="filter-token-segment"
+                      className={`filter-token-segment${c.field !== "keyword" ? " filter-token-value" : ""}`}
+                      aria-label={
+                        c.field === "keyword"
+                          ? describe(c)
+                          : `${title(c.field as Field)}: ${describe(c)}`
+                      }
                       onClick={() => edit(index, "value")}
                     >
-                      {term}
+                      {describe(c)}
                     </UnstyledButton>
                     <ActionIcon
                       size="xs"
                       variant="transparent"
                       color="gray"
-                      aria-label={`${t("remove")}: ${term}`}
+                      aria-label={`${t("remove")}: ${c.field === "keyword" ? "" : `${title(c.field as Field)}: `}${describe(c)}`}
                       onClick={() => remove(index)}
                     >
                       ×
@@ -455,7 +441,7 @@ export function FiltersPanel<T extends FilterValues>({
               )}
               {editing === null && editor}
             </div>
-            {(active.length > 0 || !!working.keyword?.length || !!draft) && (
+            {(clauses.length > 0 || !!draft) && (
               <ActionIcon
                 variant="transparent"
                 color="gray"
@@ -470,7 +456,7 @@ export function FiltersPanel<T extends FilterValues>({
                   setWorking(next);
                   onChange(next);
                   reset();
-                  input.current?.focus();
+                  restoreFocus.current = false;
                 }}
               >
                 ×
@@ -499,10 +485,7 @@ export function FiltersPanel<T extends FilterValues>({
           </div>
           <Combobox.Dropdown className="filter-editor">
             <Combobox.Options className="filter-options">
-              {(stage === "field" &&
-                editing !== null &&
-                typeof editing !== "number") ||
-              !field ? (
+              {stage === "field" || field === "keyword" ? (
                 <>
                   {!!draft.trim() && (
                     <Combobox.Option value="apply">
@@ -526,7 +509,7 @@ export function FiltersPanel<T extends FilterValues>({
                     {operator(key)}
                   </Combobox.Option>
                 ))
-              ) : isScalar(field) ? (
+              ) : scalar(field) ? (
                 <>
                   {(field === "from" || field === "to") && (
                     <Combobox.Empty>
@@ -560,15 +543,12 @@ export function FiltersPanel<T extends FilterValues>({
                       const tag = field.startsWith("tag_")
                         ? flat.find((tag) => tag.id === option.value)
                         : undefined;
-                      const checked = working[field]?.includes(option.value);
                       return (
                         <Combobox.Option
                           key={option.value}
                           value={`value:${option.value}`}
-                          active={checked}
                         >
                           <span className="filter-option-value">
-                            {checked && <CheckIcon size={12} aria-hidden />}
                             {tag ? (
                               <TagPath option={tagOption(tag)} />
                             ) : (

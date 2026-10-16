@@ -79,6 +79,7 @@ export function App() {
   const searching = !!(
     filters.name ||
     filters.keyword?.length ||
+    filters.condition?.length ||
     filters.name_contains ||
     filters.name_equals ||
     filters.from ||

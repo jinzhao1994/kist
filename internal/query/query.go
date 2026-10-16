@@ -97,6 +97,8 @@ type DateRange struct {
 //
 // The zero value is a valid query: everything, newest first.
 type Query struct {
+	// All holds independent, non-nested clauses combined with AND.
+	All []Query
 	// Keywords are independent text terms combined with AND.
 	Keywords     []string
 	NameContains string
@@ -135,6 +137,18 @@ type Query struct {
 // pinned successes would let two implementations disagree about what counts as
 // an error.
 func (q Query) Validate() error {
+	if len(q.All) > 128 {
+		return fmt.Errorf("too many conditions")
+	}
+	for _, clause := range q.All {
+		if len(clause.All) > 0 {
+			return fmt.Errorf("nested conditions are not supported")
+		}
+		if err := clause.Validate(); err != nil {
+			return err
+		}
+	}
+
 	if len(q.Keywords) > 128 {
 		return fmt.Errorf("too many keywords")
 	}

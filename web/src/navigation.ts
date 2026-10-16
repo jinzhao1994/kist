@@ -31,6 +31,7 @@ function readFilters(
       if (typeof input[key] === "string") out[key] = input[key];
     for (const key of [
       "keyword",
+      "condition",
       "box",
       "kind",
       "tag_all",

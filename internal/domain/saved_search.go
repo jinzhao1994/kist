@@ -8,19 +8,20 @@ import (
 // SearchFilters is the versioned, portable subset of the UI query contract.
 // Pagination, transient input, and presentation preferences are not saved.
 type SearchFilters struct {
-	Keywords     []string `json:"keyword,omitempty"`
-	NameContains string   `json:"name_contains,omitempty"`
-	NameEquals   string   `json:"name_equals,omitempty"`
-	Name         string   `json:"name,omitempty"`
-	Sort         string   `json:"sort"`
-	Asc          bool     `json:"asc"`
-	From         string   `json:"from,omitempty"`
-	To           string   `json:"to,omitempty"`
-	Boxes        []string `json:"box,omitempty"`
-	Kinds        []string `json:"kind,omitempty"`
-	TagAll       []string `json:"tag_all,omitempty"`
-	TagAny       []string `json:"tag_any,omitempty"`
-	TagNot       []string `json:"tag_not,omitempty"`
+	Conditions   []SearchCondition `json:"conditions,omitempty"`
+	Keywords     []string          `json:"keyword,omitempty"`
+	NameContains string            `json:"name_contains,omitempty"`
+	NameEquals   string            `json:"name_equals,omitempty"`
+	Name         string            `json:"name,omitempty"`
+	Sort         string            `json:"sort"`
+	Asc          bool              `json:"asc"`
+	From         string            `json:"from,omitempty"`
+	To           string            `json:"to,omitempty"`
+	Boxes        []string          `json:"box,omitempty"`
+	Kinds        []string          `json:"kind,omitempty"`
+	TagAll       []string          `json:"tag_all,omitempty"`
+	TagAny       []string          `json:"tag_any,omitempty"`
+	TagNot       []string          `json:"tag_not,omitempty"`
 }
 
 // SearchDefinition preserves IDs even when referenced entities disappear.
@@ -44,7 +45,7 @@ func (d SearchDefinition) Normalize() (SearchDefinition, error) {
 	if d.Version != 1 && d.Version != 2 {
 		return d, fmt.Errorf("unsupported search version %d", d.Version)
 	}
-	if d.Version == 1 && (len(d.Filters.Keywords) > 0 || d.Filters.NameContains != "" || d.Filters.NameEquals != "") {
+	if d.Version == 1 && (len(d.Filters.Conditions) > 0 || len(d.Filters.Keywords) > 0 || d.Filters.NameContains != "" || d.Filters.NameEquals != "") {
 		return d, fmt.Errorf("extended filters require search version 2")
 	}
 	if d.Version == 2 && d.Filters.Name != "" {
@@ -52,6 +53,16 @@ func (d SearchDefinition) Normalize() (SearchDefinition, error) {
 	}
 	if len(d.Filters.Keywords) > 128 {
 		return d, fmt.Errorf("too many keywords")
+	}
+	if len(d.Filters.Conditions) > 128 {
+		return d, fmt.Errorf("too many search conditions")
+	}
+	d.Filters.Conditions = slices.Clone(d.Filters.Conditions)
+	for i, condition := range d.Filters.Conditions {
+		if err := condition.Validate(d.Entity); err != nil {
+			return d, err
+		}
+		d.Filters.Conditions[i].Values = slices.Clone(condition.Values)
 	}
 	d.Filters.Keywords = slices.Clone(d.Filters.Keywords)
 	if len(d.Filters.Keywords) == 0 {

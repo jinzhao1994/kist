@@ -14,6 +14,8 @@ import (
 // Time overlaps the declared activity interval. A missing endpoint uses the
 // known endpoint's precision; entirely undated boxes do not match a range.
 type BoxQuery struct {
+	// All holds independent, non-nested clauses combined with AND.
+	All []BoxQuery
 	// Keywords are independent text terms combined with AND.
 	Keywords     []string
 	NameContains string
@@ -47,6 +49,18 @@ func (s BoxSort) ID() string {
 	return "box:" + s.KeyName() + direction
 }
 func (q BoxQuery) Validate() error {
+	if len(q.All) > 128 {
+		return fmt.Errorf("too many conditions")
+	}
+	for _, clause := range q.All {
+		if len(clause.All) > 0 {
+			return fmt.Errorf("nested conditions are not supported")
+		}
+		if err := clause.Validate(); err != nil {
+			return err
+		}
+	}
+
 	switch q.Sort.KeyName() {
 	case "updated", "name", "activity":
 	default:

@@ -292,7 +292,14 @@ it("replaces the box search bar when switching to all files and applies a box co
   await waitFor(() =>
     expect(
       requests.some(
-        (path) => path.includes("/files?") && path.includes("box=current"),
+        (path) =>
+          path.includes("/files?") &&
+          new URL(path, "http://localhost").searchParams
+            .getAll("condition")
+            .some((raw) => {
+              const c = JSON.parse(raw);
+              return c.field === "box" && c.values.includes("current");
+            }),
       ),
     ).toBe(true),
   );
@@ -337,9 +344,16 @@ it("sorts boxes from list headings and keeps the search when switching views", a
   // Wait for the debounced search to replace the initial query before using
   // its headings: a refetch can otherwise detach the button mid-click.
   await waitFor(() =>
-    expect(requests.some((path) => path.includes("keyword=Archive"))).toBe(
-      true,
-    ),
+    expect(
+      requests.some((path) =>
+        new URL(path, "http://localhost").searchParams
+          .getAll("condition")
+          .some((raw) => {
+            const c = JSON.parse(raw);
+            return c.field === "keyword" && c.values.includes("Archive");
+          }),
+      ),
+    ).toBe(true),
   );
   await screen.findByRole("heading", { name: "Archive" });
   await user.click(screen.getByRole("button", { name: "Display mode" }));

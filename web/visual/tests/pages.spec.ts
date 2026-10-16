@@ -721,10 +721,12 @@ for (const mobile of [false, true]) {
       const params = new URL(route.request().url()).searchParams;
       return route.fulfill({
         json: {
-          boxes:
-            params.get("keyword") === "年度报告"
-              ? [{ ...box, name: "工作档案", description: "年度报告和合同" }]
-              : [box],
+          boxes: params.getAll("condition").some((raw) => {
+            const c = JSON.parse(raw);
+            return c.field === "keyword" && c.values.includes("年度报告");
+          })
+            ? [{ ...box, name: "工作档案", description: "年度报告和合同" }]
+            : [box],
         },
       });
     });
@@ -760,7 +762,7 @@ test("box-automatic-pagination-and-search-reset", async ({ page }, info) => {
   });
   await page.route("**/api/v1/boxes/search?**", async (route) => {
     const params = new URL(route.request().url()).searchParams;
-    if (params.get("keyword")) {
+    if (params.has("condition")) {
       expect(params.get("cursor") || "").toBe("");
       return route.fulfill({
         json: { boxes: [{ ...box, name: "Search result" }] },

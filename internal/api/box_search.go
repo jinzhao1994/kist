@@ -8,6 +8,7 @@ import (
 )
 
 type boxQueryInput struct {
+	Conditions   []string `query:"condition,explode" maxItems:"128"`
 	Keywords     []string `query:"keyword,explode" maxItems:"128"`
 	NameContains string   `query:"name_contains" maxLength:"4096"`
 	NameEquals   string   `query:"name_equals" maxLength:"4096"`
@@ -35,6 +36,13 @@ func (s *Server) boxSearchRoute() {
 			return nil, err
 		}
 		q := query.BoxQuery{Keywords: in.Keywords, NameContains: in.NameContains, NameEquals: in.NameEquals, Text: in.Text, Tags: shared.Tags, Time: shared.Time, Sort: query.BoxSort{Key: in.Sort, Asc: in.Asc}, Cursor: in.Cursor, Limit: in.Limit}
+		clauses, err := s.searchConditions(in.Conditions, "boxes")
+		if err != nil {
+			return nil, err
+		}
+		for _, clause := range clauses {
+			q.All = append(q.All, query.BoxQuery{Text: clause.Text, NameContains: clause.NameContains, NameEquals: clause.NameEquals, Tags: clause.Tags, Time: clause.Time})
+		}
 		if err := q.Validate(); err != nil {
 			return nil, invalid(err.Error())
 		}

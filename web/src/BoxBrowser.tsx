@@ -60,6 +60,7 @@ export function BoxBrowser({
   const filtered = !!(
     filters.name ||
     filters.keyword?.length ||
+    filters.condition?.length ||
     filters.name_contains ||
     filters.name_equals ||
     filters.from ||

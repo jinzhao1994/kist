@@ -13,6 +13,7 @@ import (
 )
 
 type fileQueryInput struct {
+	Conditions   []string `query:"condition,explode" maxItems:"128"`
 	Keywords     []string `query:"keyword,explode" maxItems:"128"`
 	NameContains string   `query:"name_contains" maxLength:"4096"`
 	NameEquals   string   `query:"name_equals" maxLength:"4096"`
@@ -123,6 +124,13 @@ func (s *Server) fileQuery(in *fileQueryInput) (query.Query, error) {
 	}
 	if len(conditions) > 0 {
 		q.Tags = conditions
+	}
+	if len(in.Conditions) > 0 {
+		var err error
+		q.All, err = s.searchConditions(in.Conditions, "files")
+		if err != nil {
+			return q, err
+		}
 	}
 	return q, nil
 }

@@ -31,6 +31,11 @@ func mustWrite(t *testing.T, s *Server, method, path, key, body string) {
 		t.Fatalf("%s %s: %d %s", method, path, w.Code, w.Body)
 	}
 }
+func encodedCondition(field string, values ...string) string {
+	raw, _ := json.Marshal(domain.SearchCondition{Field: field, Values: values})
+	return "condition=" + url.QueryEscape(string(raw))
+}
+
 func TestFileQueryAndTagMutations(t *testing.T) {
 	s, l := testServer(t)
 	box, err := l.CreateBox(t.Context(), "archive", "", domain.LocalDate{}, domain.LocalDate{})
@@ -89,6 +94,14 @@ func TestFileQueryAndTagMutations(t *testing.T) {
 		{"tag_all=" + parent, 1}, {"tag_any=" + parent + "," + other, 2}, {"tag_not=" + parent, 2},
 		{"tag_any=" + parent + "," + other + "&tag_not=" + other, 1},
 		{"tag_all=" + parent + "," + other, 0}, {"name=B", 1}, {"keyword=B&keyword=.txt", 1}, {"keyword=B%2C.txt", 0}, {"name_contains=B", 1}, {"name_equals=B.TXT", 1}, {"name_equals=B", 0}, {"keyword=a&name_equals=b.txt", 0}, {"from=1900&to=1901", 0},
+		{encodedCondition("name_contains", "b") + "&" + encodedCondition("name_contains", "txt"), 1},
+		{encodedCondition("name_contains", "a") + "&" + encodedCondition("name_contains", "b"), 0},
+		{encodedCondition("name_equals", "a.txt") + "&" + encodedCondition("name_equals", "b.txt"), 0},
+		{encodedCondition("name_contains", "a") + "&" + encodedCondition("name_contains", "a"), 1},
+		{encodedCondition("tag_all", parent) + "&" + encodedCondition("tag_all", other), 0},
+		{encodedCondition("tag_all", parent) + "&" + encodedCondition("tag_all", child), 1},
+		{encodedCondition("from", "2026") + "&" + encodedCondition("to", "2020"), 0},
+		{encodedCondition("box", box.ID.String()) + "&" + encodedCondition("box", domain.NewBoxID().String()), 0},
 		{"box=" + box.ID.String(), 3}, {"box=" + domain.NewBoxID().String(), 0},
 	} {
 		page := decodeBody[wire.FileList](t, s, "/files?"+tc.filter)

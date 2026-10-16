@@ -896,6 +896,10 @@ export interface components {
             id: string;
             name: string;
         };
+        SearchCondition: {
+            field: string;
+            values: string[] | null;
+        };
         SearchDefinition: {
             box_id?: string;
             entity: string;
@@ -907,6 +911,7 @@ export interface components {
         SearchFilters: {
             asc: boolean;
             box?: string[] | null;
+            conditions?: components["schemas"]["SearchCondition"][] | null;
             from?: string;
             keyword?: string[] | null;
             kind?: string[] | null;
@@ -1084,6 +1089,7 @@ export interface operations {
     "get-api-v1-boxes-search": {
         parameters: {
             query?: {
+                condition?: string[] | null;
                 keyword?: string[] | null;
                 name_contains?: string;
                 name_equals?: string;
@@ -1515,6 +1521,7 @@ export interface operations {
     "get-api-v1-files": {
         parameters: {
             query?: {
+                condition?: string[] | null;
                 keyword?: string[] | null;
                 name_contains?: string;
                 name_equals?: string;

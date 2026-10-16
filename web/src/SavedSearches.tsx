@@ -17,7 +17,7 @@ import { Dialog, DialogPresence } from "./Dialog";
 import { useI18n } from "./i18n";
 import { errorMessage, useWrites, WriteFeedback } from "./mutations";
 import { flattenTags } from "./TagPath";
-import type { BoxFilters, Filters } from "./Filters";
+import { searchConditions, type BoxFilters, type Filters } from "./Filters";
 import type { Route } from "./navigation";
 
 export type SearchDefinition = components["schemas"]["SearchDefinition"];
@@ -35,35 +35,26 @@ export function searchDefinition(
     ...(box && { box_id: box }),
     ...(box && folder && { folder_id: folder }),
     filters: {
-      keyword: [
-        ...(filters.keyword || []),
-        ...(filters.name ? [filters.name] : []),
-      ],
-      name_contains: filters.name_contains || "",
-      name_equals: filters.name_equals || "",
+      conditions: searchConditions(filters),
       sort: filters.sort || "updated",
       asc: !!filters.asc,
-      from: filters.from || "",
-      to: filters.to || "",
-      tag_all: filters.tag_all || [],
-      tag_any: filters.tag_any || [],
-      tag_not: filters.tag_not || [],
-      ...(entity === "files" && {
-        kind: filters.kind || [],
-        box: box ? [] : (filters as Filters).box || [],
-      }),
     },
   };
 }
 
 export function savedSearchRoute(d: SearchDefinition): Route {
+  const { conditions, ...legacy } = d.filters;
+  const filters = {
+    ...legacy,
+    condition: conditions?.map((c) => JSON.stringify(c)),
+  };
   if (d.entity === "boxes")
-    return { files: false, boxFilters: d.filters as BoxFilters };
+    return { files: false, boxFilters: filters as BoxFilters };
   return {
     files: true,
     box: d.box_id,
     folder: d.folder_id,
-    filters: d.filters as Filters,
+    filters: filters as Filters,
   };
 }
 
@@ -80,13 +71,20 @@ export function searchReferencesExist(
     (d.version === 1 || d.version === 2) &&
     (d.entity === "files" || d.entity === "boxes") &&
     [
+      ...(d.filters.conditions || [])
+        .filter((c) => c.field.startsWith("tag_"))
+        .flatMap((c) => c.values || []),
       ...(d.filters.tag_all || []),
       ...(d.filters.tag_any || []),
       ...(d.filters.tag_not || []),
     ].every((id) => tagIDs.has(id)) &&
-    [...(d.filters.box || []), ...(d.box_id ? [d.box_id] : [])].every((id) =>
-      boxIDs.has(id),
-    ) &&
+    [
+      ...(d.filters.conditions || [])
+        .filter((c) => c.field === "box")
+        .flatMap((c) => c.values || []),
+      ...(d.filters.box || []),
+      ...(d.box_id ? [d.box_id] : []),
+    ].every((id) => boxIDs.has(id)) &&
     (!d.folder_id || !!folders?.some((folder) => folder.id === d.folder_id))
   );
 }

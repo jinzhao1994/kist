@@ -106,7 +106,10 @@ it("saves committed conditions to the library and loads them after remount", asy
   await waitFor(() =>
     expect(open).toHaveBeenCalledWith(savedSearchRoute(definition)),
   );
-  expect(definition.filters.tag_not).toEqual(["tag-1"]);
+  expect(definition.filters.conditions).toContainEqual({
+    field: "tag_not",
+    values: ["tag-1"],
+  });
 });
 it("refuses missing exclusion references without opening a broader search", async () => {
   const open = vi.fn();
@@ -157,7 +160,7 @@ it("keeps box filters distinct and restores them from the URL", async () => {
   expect(screen.getByRole("status")).toHaveTextContent('"sort":"activity"');
   view.unmount();
   render(<Harness />);
-  expect(screen.getByRole("status")).toHaveTextContent('"keyword":["Trips"]');
+  expect(screen.getByRole("status")).toHaveTextContent("Trips");
   expect(screen.getByRole("status")).toHaveTextContent('"asc":true');
   expect(screen.getByRole("status")).not.toHaveTextContent('"filters":');
 });
@@ -274,4 +277,20 @@ it("opens favorite context actions without applying the search and renames inlin
     shiftKey: true,
   });
   expect(await screen.findByRole("menuitem", { name: "Rename" })).toBeVisible();
+});
+
+it("round-trips repeated and contradictory conditions without merging them", () => {
+  const clauses = [
+    { field: "name_contains", values: ["123"] },
+    { field: "name_contains", values: ["456"] },
+    { field: "name_equals", values: ["A"] },
+    { field: "name_equals", values: ["B"] },
+  ];
+  const d = searchDefinition("files", {
+    condition: clauses.map((c) => JSON.stringify(c)),
+  });
+  expect(d.filters.conditions).toEqual(clauses);
+  expect(
+    savedSearchRoute(d).filters?.condition?.map((raw) => JSON.parse(raw)),
+  ).toEqual(clauses);
 });

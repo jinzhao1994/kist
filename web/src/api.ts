@@ -76,7 +76,7 @@ export const api = {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(query))
       if (value !== undefined && value !== "")
-        if (key === "keyword" && Array.isArray(value))
+        if ((key === "keyword" || key === "condition") && Array.isArray(value))
           value.forEach((term) => params.append(key, term));
         else
           params.set(
@@ -105,7 +105,7 @@ export const api = {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(query))
       if (value !== undefined && value !== "")
-        if (key === "keyword" && Array.isArray(value))
+        if ((key === "keyword" || key === "condition") && Array.isArray(value))
           value.forEach((term) => params.append(key, term));
         else
           params.set(

@@ -111,6 +111,17 @@ func translate(q query.Query, zone *time.Location) (string, []any, error) {
 		sb.WriteString(` AND ` + pred)
 		args = append(args, targs...)
 	}
+	for _, clause := range q.All {
+		fragment, values, err := translate(clause, zone)
+		if err != nil {
+			return "", nil, err
+		}
+		sb.WriteString(fragment)
+		args = append(args, values...)
+	}
+	if len(args) > maxParameters {
+		return "", nil, fmt.Errorf("too many query parameters")
+	}
 	return sb.String(), args, nil
 }
 
