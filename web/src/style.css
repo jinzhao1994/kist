@@ -1599,7 +1599,8 @@ fieldset > label,
   min-block-size: 12rem;
   border-radius: 8px;
 }
-.file-dropzone.drag-active {
+.file-dropzone.drag-active,
+main.upload-drag-active {
   outline: 2px dashed var(--accent);
   background: var(--drop-active);
 }

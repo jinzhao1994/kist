@@ -1,3 +1,4 @@
+import { UploadPasteDialog } from "./UploadPasteDialog";
 import { UploadPanel } from "./UploadPanel";
 import { Button } from "@mantine/core";
 import {
@@ -8,7 +9,7 @@ import {
   type Ref,
   type ReactNode,
 } from "react";
-import { useDropzone } from "react-dropzone";
+import { useUploadDropzone } from "./useUploadDropzone";
 import { useQueryClient } from "@tanstack/react-query";
 import { api, APIError, createUpload } from "./api";
 import { formatBytes, formatNumber, useI18n } from "./i18n";
@@ -124,7 +125,7 @@ function LegacyUpload({
       );
     }
   }
-  const drop = useDropzone({
+  const drop = useUploadDropzone({
     noClick: true,
     noKeyboard: true,
     multiple: true,
@@ -248,6 +249,11 @@ function LegacyUpload({
           </p>
         )}
       </UploadPanel>
+      <UploadPasteDialog
+        files={drop.pasteFiles}
+        confirm={drop.confirmPaste}
+        cancel={drop.cancelPaste}
+      />
       {children}
     </section>
   );

@@ -638,3 +638,48 @@ it.each(["Overwrite", "Keep both"])(
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   },
 );
+
+it.each([false, true])(
+  "confirms clipboard intake before validating or uploading (resumable: %s)",
+  async (resumable) => {
+    render(
+      <main>
+        <Upload
+          compact
+          box="paste"
+          folder="folder"
+          maxFiles={1}
+          maxBytes={4}
+          resumableVersion={resumable ? 1 : undefined}
+          chunkBytes={resumable ? 4 : undefined}
+          onComplete={async () => {}}
+        >
+          <input aria-label="Rename" />
+        </Upload>
+      </main>,
+      { wrapper },
+    );
+    const user = userEvent.setup();
+    const clipboardData = droppedFiles([
+      new File(["12345"], "screenshot.png", { type: "image/png" }),
+    ]).dataTransfer;
+    fireEvent.paste(screen.getByRole("textbox", { name: "Rename" }), {
+      clipboardData,
+    });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent.paste(document.body, { clipboardData });
+    expect(
+      await screen.findByRole("dialog", { name: "Upload pasted files?" }),
+    ).toBeVisible();
+    expect(screen.getByText("screenshot.png")).toBeVisible();
+    expect(screen.queryByRole("alert")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.paste(document.body, { clipboardData });
+    await user.click(
+      await screen.findByRole("button", { name: "Upload files" }),
+    );
+    expect(await screen.findByRole("alert")).toBeVisible();
+  },
+);

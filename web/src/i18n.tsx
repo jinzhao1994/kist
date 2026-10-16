@@ -185,6 +185,9 @@ export const en = {
   dateHint: "Year, month or date (for example, 2026 or 2026-10-01)",
   editBox: "Edit box",
   upload: "Add files",
+  pasteUploadTitle: "Upload pasted files?",
+  pasteUploadHint:
+    "These files came from your clipboard. Nothing is uploaded until you confirm.",
   search: "Search filenames",
   noFiles: "No files here yet",
   noResults: "No matching files",
@@ -496,6 +499,8 @@ export const zh: Record<MessageKey, string> = {
   dateHint: "填写年、年月或日期，例如 2026 或 2026-10-01",
   editBox: "编辑归档盒",
   upload: "添加文件",
+  pasteUploadTitle: "上传粘贴的文件？",
+  pasteUploadHint: "以下文件来自剪贴板，确认后才会上传。",
   search: "搜索文件名",
   noFiles: "这里还没有文件",
   noResults: "没有匹配的文件",

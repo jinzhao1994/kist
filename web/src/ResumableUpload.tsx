@@ -1,3 +1,4 @@
+import { UploadPasteDialog } from "./UploadPasteDialog";
 import { Dialog, DialogPresence } from "./Dialog";
 import { UploadPanel } from "./UploadPanel";
 import type { UploadHandle } from "./Upload";
@@ -11,7 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useDropzone } from "react-dropzone";
+import { useUploadDropzone } from "./useUploadDropzone";
 import { APIError } from "./api";
 import { formatBytes, formatNumber, useI18n } from "./i18n";
 import { errorMessage } from "./mutations";
@@ -248,7 +249,7 @@ export function ResumableUpload({
     };
   }, []);
 
-  const drop = useDropzone({
+  const drop = useUploadDropzone({
     noClick: true,
     noKeyboard: true,
     multiple: true,
@@ -498,6 +499,11 @@ export function ResumableUpload({
           </button>
         </div>
       )}
+      <UploadPasteDialog
+        files={drop.pasteFiles}
+        confirm={drop.confirmPaste}
+        cancel={drop.cancelPaste}
+      />
       {children}
     </section>
   );
