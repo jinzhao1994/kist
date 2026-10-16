@@ -1025,6 +1025,7 @@ fieldset > label,
 }
 .file-scroll.view-list .file-name {
   margin: 0;
+  font-size: 0.8rem;
 }
 .file-scroll.view-list .file-card > small {
   display: none;
@@ -1040,7 +1041,7 @@ fieldset > label,
 .file-list-size,
 .file-list-date {
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1314,10 +1315,21 @@ fieldset > label,
   font-weight: 400;
 }
 .folder-breadcrumbs {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
   margin-top: 0.5rem;
   flex-wrap: wrap;
   overflow-wrap: anywhere;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+}
+.folder-path-segments {
+  flex-wrap: wrap;
+  font-size: inherit;
+}
+.folder-path-segments .mantine-Breadcrumbs-separator {
+  color: var(--muted);
+  opacity: 0.55;
 }
 .folder-toolbar {
   display: flex;

@@ -30,26 +30,40 @@ export function FolderBreadcrumbs({
   choose: (id: string) => void;
 }) {
   const { t } = useI18n();
+  const chain = folderChain(folders, current);
+  const root = chain.find((folder) => !folder.parent_id);
   return (
-    <Breadcrumbs className="folder-breadcrumbs" aria-label={t("folderPath")}>
-      {folderChain(folders, current)
-        .filter((folder) => folder.parent_id)
-        .map((folder) =>
-          folder.id === current ? (
-            <span key={folder.id} aria-current="page">
-              <bdi>{folder.name || rootLabel || t("boxRoot")}</bdi>
-            </span>
-          ) : (
-            <Anchor
-              component="button"
-              key={folder.id}
-              onClick={() => choose(folder.id)}
-            >
-              <bdi>{folder.name || rootLabel || t("boxRoot")}</bdi>
-            </Anchor>
-          ),
-        )}
-    </Breadcrumbs>
+    <nav className="folder-breadcrumbs" aria-label={t("folderPath")}>
+      {root && (
+        <Anchor
+          component="button"
+          onClick={() => choose(root.id)}
+          aria-label={t("boxRoot")}
+          title={rootLabel || t("boxRoot")}
+        >
+          <span dir="ltr">./</span>
+        </Anchor>
+      )}
+      <Breadcrumbs separatorMargin="xs" className="folder-path-segments">
+        {chain
+          .filter((folder) => folder.parent_id)
+          .map((folder) =>
+            folder.id === current ? (
+              <span key={folder.id} aria-current="page">
+                <bdi>{folder.name || rootLabel || t("boxRoot")}</bdi>
+              </span>
+            ) : (
+              <Anchor
+                component="button"
+                key={folder.id}
+                onClick={() => choose(folder.id)}
+              >
+                <bdi>{folder.name || rootLabel || t("boxRoot")}</bdi>
+              </Anchor>
+            ),
+          )}
+      </Breadcrumbs>
+    </nav>
   );
 }
 export function FolderEditor({
