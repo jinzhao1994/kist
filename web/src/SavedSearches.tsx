@@ -13,7 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, createWrite, get, type Box, type Folder, type Tag } from "./api";
 import type { components } from "./api-schema";
 import { ContextMenu, useContextMenu } from "./ContextMenu";
-import { Dialog } from "./Dialog";
+import { Dialog, DialogPresence } from "./Dialog";
 import { useI18n } from "./i18n";
 import { errorMessage, useWrites, WriteFeedback } from "./mutations";
 import { flattenTags } from "./TagPath";
@@ -210,9 +210,11 @@ export function SaveSearchButton({
           <StarIcon />
         </ActionIcon>
       </Tooltip>
-      {draft && (
-        <SearchEditor definition={draft} close={() => setDraft(undefined)} />
-      )}
+      <DialogPresence>
+        {draft && (
+          <SearchEditor definition={draft} close={() => setDraft(undefined)} />
+        )}
+      </DialogPresence>
     </>
   );
 }
@@ -397,9 +399,11 @@ export function SavedSearches({
           {t("removeSavedSearch")}
         </Menu.Item>
       </ContextMenu>
-      {editor && (
-        <SearchEditor {...editor} close={() => setEditor(undefined)} />
-      )}
+      <DialogPresence>
+        {editor && (
+          <SearchEditor {...editor} close={() => setEditor(undefined)} />
+        )}
+      </DialogPresence>
     </>
   );
 }

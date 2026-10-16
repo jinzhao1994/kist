@@ -10,7 +10,7 @@ import {
   type Tag,
 } from "./api";
 import { Select } from "./Select";
-import { Dialog } from "./Dialog";
+import { Dialog, DialogPresence } from "./Dialog";
 import {
   en,
   formatInstant,
@@ -140,39 +140,45 @@ export function HistoryPage({
           {t(query.isFetchingNextPage ? "loading" : "loadMore")}
         </Button>
       )}
-      {selected !== undefined && (
-        <OperationDetail
-          key={selected}
-          id={selected}
-          close={() => setSelected(undefined)}
-          select={setSelected}
-          fileHistory={(file) => scope(undefined, file)}
-          viewBox={(box, op) => setSnapshot({ box, op })}
-          compare={(file, op) =>
-            setVersions({ file, from: Math.max(0, op - 1), to: op })
-          }
-        />
-      )}
-      {snapshot && (
-        <HistoricalBoxDialog
-          {...snapshot}
-          close={() => setSnapshot(undefined)}
-          compare={(file) =>
-            setVersions({
-              file,
-              from: Math.max(0, snapshot.op - 1),
-              to: snapshot.op,
-            })
-          }
-        />
-      )}
-      {versions && (
-        <VersionComparison
-          key={`${versions.file}:${versions.from}:${versions.to}`}
-          {...versions}
-          close={() => setVersions(undefined)}
-        />
-      )}
+      <DialogPresence>
+        {selected !== undefined && (
+          <OperationDetail
+            key={selected}
+            id={selected}
+            close={() => setSelected(undefined)}
+            select={setSelected}
+            fileHistory={(file) => scope(undefined, file)}
+            viewBox={(box, op) => setSnapshot({ box, op })}
+            compare={(file, op) =>
+              setVersions({ file, from: Math.max(0, op - 1), to: op })
+            }
+          />
+        )}
+      </DialogPresence>
+      <DialogPresence>
+        {snapshot && (
+          <HistoricalBoxDialog
+            {...snapshot}
+            close={() => setSnapshot(undefined)}
+            compare={(file) =>
+              setVersions({
+                file,
+                from: Math.max(0, snapshot.op - 1),
+                to: snapshot.op,
+              })
+            }
+          />
+        )}
+      </DialogPresence>
+      <DialogPresence>
+        {versions && (
+          <VersionComparison
+            key={`${versions.file}:${versions.from}:${versions.to}`}
+            {...versions}
+            close={() => setVersions(undefined)}
+          />
+        )}
+      </DialogPresence>
     </section>
   );
 }

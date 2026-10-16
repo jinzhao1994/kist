@@ -14,7 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createWrite, get, type Tag } from "./api";
 import { TagSelect } from "./TagSelect";
 import { flattenTags, tagOption } from "./TagPath";
-import { Dialog } from "./Dialog";
+import { Dialog, DialogPresence } from "./Dialog";
 import { formatNumber, useI18n } from "./i18n";
 import { useWrites, WriteFeedback } from "./mutations";
 import { TagActionDialog, TagRename, type TagAction } from "./TagActions";
@@ -217,15 +217,17 @@ export function TagTree({
           ),
         )}
       </ContextMenu>
-      {action && action.kind !== "rename" && (
-        <TagActionDialog
-          key={`${action.tag.id}:${action.kind}`}
-          tag={action.tag}
-          action={action.kind}
-          tags={tags}
-          close={() => setAction(null)}
-        />
-      )}
+      <DialogPresence>
+        {action && action.kind !== "rename" && (
+          <TagActionDialog
+            key={`${action.tag.id}:${action.kind}`}
+            tag={action.tag}
+            action={action.kind}
+            tags={tags}
+            close={() => setAction(null)}
+          />
+        )}
+      </DialogPresence>
     </>
   );
 }

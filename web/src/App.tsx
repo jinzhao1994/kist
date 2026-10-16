@@ -1,3 +1,4 @@
+import { DialogPresence } from "./Dialog";
 import {
   UnstyledButton,
   Button,
@@ -568,26 +569,32 @@ export function App() {
             </>
           )}
         </main>
-        {trashing && (
-          <BoxTrashDialog
-            box={trashing}
-            close={() => setTrashing(null)}
-            done={() => {
-              setTrashing(null);
-              navigate();
-            }}
-          />
-        )}
-        {settings && <Settings open={settings} onOpenChange={setSettings} />}{" "}
-        {editor && (
-          <BoxEditor
-            box={editor === "new" ? undefined : editor}
-            close={() => setEditor(null)}
-          />
-        )}{" "}
-        {manage && (
-          <TagManager tags={tree} close={() => setManage(false)} />
-        )}{" "}
+        <DialogPresence>
+          {trashing && (
+            <BoxTrashDialog
+              box={trashing}
+              close={() => setTrashing(null)}
+              done={() => {
+                setTrashing(null);
+                navigate();
+              }}
+            />
+          )}
+        </DialogPresence>
+        <DialogPresence>
+          {settings && <Settings open={settings} onOpenChange={setSettings} />}
+        </DialogPresence>{" "}
+        <DialogPresence>
+          {editor && (
+            <BoxEditor
+              box={editor === "new" ? undefined : editor}
+              close={() => setEditor(null)}
+            />
+          )}
+        </DialogPresence>{" "}
+        <DialogPresence>
+          {manage && <TagManager tags={tree} close={() => setManage(false)} />}
+        </DialogPresence>{" "}
       </div>
       {route.file && !route.section && (
         <Gallery

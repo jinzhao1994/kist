@@ -1,3 +1,4 @@
+import { DialogPresence } from "./Dialog";
 import { SidebarMenuButton } from "./SidebarMenuButton";
 import {
   EntryActions,
@@ -480,12 +481,14 @@ export function FileGrid({
           </>
         )}
       </ContextMenu>
-      {entryAction?.action === "trash" && (
-        <EntryActions
-          entry={entryAction}
-          close={() => setEntryAction(undefined)}
-        />
-      )}
+      <DialogPresence>
+        {entryAction?.action === "trash" && (
+          <EntryActions
+            entry={entryAction}
+            close={() => setEntryAction(undefined)}
+          />
+        )}
+      </DialogPresence>
     </>
   );
 }

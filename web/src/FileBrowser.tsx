@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Dialog } from "./Dialog";
+import { Dialog, DialogPresence } from "./Dialog";
 import { Button, ActionIcon, Menu } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { api, type Box, type Tag, type Folder, type ArchiveFile } from "./api";
@@ -76,18 +76,20 @@ export function FileBrowser({
   const content = (
     <>
       {searching && box && <p className="hint">{t("searchWholeBox")}</p>}
-      {(creating || contextParent) &&
-        box &&
-        (contextParent || uploadFolder) && (
-          <FolderEditor
-            box={box.id}
-            parent={contextParent || uploadFolder!}
-            close={() => {
-              setCreating(false);
-              setContextParent(undefined);
-            }}
-          />
-        )}
+      <DialogPresence>
+        {(creating || contextParent) &&
+          box &&
+          (contextParent || uploadFolder) && (
+            <FolderEditor
+              box={box.id}
+              parent={contextParent || uploadFolder!}
+              close={() => {
+                setCreating(false);
+                setContextParent(undefined);
+              }}
+            />
+          )}
+      </DialogPresence>
       {query.isPending && <p role="status">{t("loading")}</p>}
       {query.isError && !query.isFetchNextPageError && (
         <div role="alert">
@@ -201,11 +203,13 @@ export function FileBrowser({
     <>
       {actionsHost ? createPortal(actions, actionsHost) : actions}
       {infoHost ? createPortal(details, infoHost) : details}
-      {addingTag && box && (
-        <Dialog open onOpenChange={setAddingTag} title={t("addTag")}>
-          <BoxTags box={box.id} tags={tags} />
-        </Dialog>
-      )}
+      <DialogPresence>
+        {addingTag && box && (
+          <Dialog open onOpenChange={setAddingTag} title={t("addTag")}>
+            <BoxTags box={box.id} tags={tags} />
+          </Dialog>
+        )}
+      </DialogPresence>
       {box &&
       info.data &&
       (!info.data.resumable_upload_version || uploadFolder) ? (
