@@ -24,7 +24,7 @@ const tags: Tag[] = [
 ];
 const files: ArchiveFile[] = [
   ["山间清晨.jpg", "image", "image/jpeg"],
-  ["海边日落.jpg", "image", "image/jpeg"],
+  ["竖版证书.png", "image", "image/png"],
   ["旅行记录.pdf", "document", "application/pdf"],
   ["归途.mp4", "video", "video/mp4"],
 ].map(([name, kind, media_type], i) => ({
@@ -43,6 +43,9 @@ const files: ArchiveFile[] = [
   display_tags: i === 0 ? [{ id: "tag-1", name: "旅行" }] : undefined,
 }));
 const landscape = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600"><rect width="800" height="600" fill="#d7e4df"/><circle cx="620" cy="130" r="58" fill="#f5d99a"/><path d="M0 460L260 120 530 460Z" fill="#718c7c"/><path d="M250 520L560 220 800 460V600H0V460Z" fill="#a4b9a3"/><path d="M0 520Q400 450 800 520V600H0Z" fill="#577c83"/></svg>`;
+
+const portrait = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="800" viewBox="0 0 400 800"><rect width="400" height="800" fill="#194886"/><rect x="12" y="12" width="376" height="776" fill="none" stroke="#f5d99a" stroke-width="12"/><circle cx="200" cy="680" r="60" fill="#f5d99a"/><path d="M80 100H320M80 200H320M80 300H320" stroke="white" stroke-width="16"/></svg>`;
+const panorama = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="300" viewBox="0 0 800 300"><rect width="800" height="300" fill="#d7e4df"/><rect x="8" y="8" width="784" height="284" fill="none" stroke="#577c83" stroke-width="12"/><circle cx="650" cy="80" r="40" fill="#f5d99a"/><path d="M20 280L240 40 480 280Z" fill="#718c7c"/></svg>`;
 
 type Options = {
   primaryColor?: Appearance["primaryColor"];
@@ -233,7 +236,14 @@ async function prepare(page: Page, options: Options = {}) {
         path,
       )
     )
-      return route.fulfill({ contentType: "image/svg+xml", body: landscape });
+      return route.fulfill({
+        contentType: "image/svg+xml",
+        body: path.includes("/file-2/")
+          ? portrait
+          : path.includes("/file-4/")
+            ? panorama
+            : landscape,
+      });
     else if (
       /^\/files\/(?:file-[1-4]|visible-[0-9]+)\/derived\/[a-z0-9_]+$/.test(path)
     ) {
@@ -280,7 +290,8 @@ async function grid(page: Page, expectedImages = 3) {
           images.every(
             (image) =>
               (image as HTMLImageElement).complete &&
-              (image as HTMLImageElement).naturalWidth > 0,
+              (image as HTMLImageElement).naturalWidth > 0 &&
+              getComputedStyle(image).objectFit === "contain",
           ),
         ),
     )
@@ -924,7 +935,7 @@ test("gallery-navigation-and-return", async ({ page }, info) => {
   expect(new URL(page.url()).searchParams.get("filter")).toContain("旅行");
   await page.keyboard.press("ArrowRight");
   await expect(
-    gallery.getByRole("heading", { name: "海边日落.jpg", exact: true }),
+    gallery.getByRole("heading", { name: "竖版证书.png", exact: true }),
   ).toBeVisible();
   await page.keyboard.press("ArrowLeft");
   await expect(
@@ -1010,7 +1021,7 @@ test("gallery-mobile-swipe", async ({ page }, info) => {
     );
   });
   await expect(
-    gallery.getByRole("heading", { name: "海边日落.jpg", exact: true }),
+    gallery.getByRole("heading", { name: "竖版证书.png", exact: true }),
   ).toBeVisible();
   await expect
     .poll(() =>

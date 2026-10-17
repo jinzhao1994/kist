@@ -550,7 +550,7 @@ progress {
 .file-image {
   inline-size: 100%;
   block-size: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 .file-name,
 .file-card > small {
@@ -1083,7 +1083,7 @@ button.filter-token-segment:hover {
   padding: 0.25rem;
   font-size: 0.7rem;
 }
-.file-scroll.view-small .media-icon {
+.file-scroll.view-small .media-placeholder > span {
   font-size: 1.5rem;
 }
 .file-list-heading {
@@ -1132,11 +1132,15 @@ button.filter-token-segment:hover {
 .file-scroll.view-list .file-card > small {
   display: none;
 }
+.file-scroll.view-list .media-placeholder small,
+.file-scroll.view-list .media-placeholder p {
+  display: none;
+}
 .file-scroll.view-list .media-placeholder {
   padding: 0;
   font-size: 0;
 }
-.file-scroll.view-list .media-icon {
+.file-scroll.view-list .media-placeholder > span {
   font-size: 1.4rem;
 }
 .file-list-kind,
@@ -1329,7 +1333,7 @@ button.filter-token-segment:hover {
   position: fixed;
   z-index: 201;
   pointer-events: none;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 4px;
 }
 .gallery-frame {
