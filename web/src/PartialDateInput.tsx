@@ -172,7 +172,6 @@ export function PartialDateInput({
           <div className="partial-date-actions">
             <Button
               variant="subtle"
-              color="gray"
               size="xs"
               onClick={() => choose(date.slice(0, level === "month" ? 7 : 4))}
             >
@@ -185,7 +184,6 @@ export function PartialDateInput({
             </Button>
             <Button
               variant="subtle"
-              color="gray"
               size="xs"
               onClick={() => choose(dayjs().format("YYYY-MM-DD"))}
             >
