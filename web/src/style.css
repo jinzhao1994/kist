@@ -1411,7 +1411,7 @@ button.filter-token-segment:hover {
 .folder-breadcrumbs {
   display: flex;
   align-items: center;
-  margin-block: 0.625rem -0.375rem;
+  margin-block: 0.75rem 0;
   flex-wrap: wrap;
   overflow-wrap: anywhere;
   font-size: 0.8125rem;

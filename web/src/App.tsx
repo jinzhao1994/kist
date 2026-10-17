@@ -293,6 +293,7 @@ export function App() {
                     </span>
                   )}
               </div>
+              {route.files && <div ref={setInfoHost} />}
               {route.box &&
                 route.files &&
                 currentFolder &&
@@ -304,7 +305,6 @@ export function App() {
                     choose={chooseFolder}
                   />
                 )}
-              {route.files && <div ref={setInfoHost} />}
             </div>
             <div className="header-actions">
               {!route.section && !selected && !route.files && !route.tag && (

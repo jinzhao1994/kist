@@ -1136,6 +1136,15 @@ for (const mobile of [false, true]) {
       page.getByRole("button", { name: "第一天", exact: true }),
     ).toBeVisible();
     await expect(page.getByLabel("目录路径")).toContainText("照片");
+    const attachedTags = page.locator(".page-header .tag-chips");
+    await expect(attachedTags).toContainText("旅行");
+    const tagBounds = await attachedTags.boundingBox();
+    const breadcrumbBounds = await page.getByLabel("目录路径").boundingBox();
+    expect(tagBounds).not.toBeNull();
+    expect(breadcrumbBounds).not.toBeNull();
+    expect(breadcrumbBounds!.y).toBeGreaterThan(
+      tagBounds!.y + tagBounds!.height,
+    );
     await capture(page, errors, info.title);
     await page.reload();
     await expect(
