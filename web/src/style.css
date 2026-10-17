@@ -1996,3 +1996,11 @@ main.upload-drag-active {
     gap: 1rem;
   }
 }
+
+.partial-date-dropdown {
+  padding: 0.75rem;
+  max-inline-size: calc(100vw - 2rem);
+}
+.partial-date-confirm {
+  margin-block-start: 0.625rem;
+}

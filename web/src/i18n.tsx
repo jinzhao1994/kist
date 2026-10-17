@@ -185,6 +185,16 @@ export const en = {
   description: "Description",
   startAt: "Start date",
   endAt: "End date",
+  useDateYear: "Use {year}",
+  useDateMonth: "Use {year}-{month}",
+  nextMonth: "Next month",
+  previousMonth: "Previous month",
+  nextYear: "Next year",
+  previousYear: "Previous year",
+  nextDecade: "Next decade",
+  previousDecade: "Previous decade",
+  chooseMonth: "Choose month",
+  chooseYear: "Choose year",
   dateHint: "Year, month or date (for example, 2026 or 2026-10-01)",
   editBox: "Edit box",
   upload: "Add files",
@@ -507,6 +517,16 @@ export const zh: Record<MessageKey, string> = {
   description: "描述",
   startAt: "开始日期",
   endAt: "结束日期",
+  useDateYear: "使用 {year} 年",
+  useDateMonth: "使用 {year} 年 {month} 月",
+  nextMonth: "下个月",
+  previousMonth: "上个月",
+  nextYear: "下一年",
+  previousYear: "上一年",
+  nextDecade: "下十年",
+  previousDecade: "上十年",
+  chooseMonth: "选择月份",
+  chooseYear: "选择年份",
   dateHint: "填写年、年月或日期，例如 2026 或 2026-10-01",
   editBox: "编辑归档盒",
   upload: "添加文件",
@@ -737,6 +757,8 @@ interface Parameters {
   allEntriesShown: { folders: number; files: number };
   allBoxesShown: { count: number };
   fileCount: { count: number };
+  useDateYear: { year: string };
+  useDateMonth: { year: string; month: string };
   uploadLimit: { count: string; size: string };
   uploadProgress: { percent: string };
   uploadPaused: { percent: string };

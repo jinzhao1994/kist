@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { I18nProvider, initializeLanguage } from "./i18n";
 import { App } from "./App";
 import "@mantine/core/styles.css";
+import "@mantine/dates/styles.css";
 import "./style.css";
 import { ThemeProvider, initializeAppearance } from "./theme";
 initializeLanguage();

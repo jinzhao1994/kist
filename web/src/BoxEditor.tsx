@@ -1,6 +1,7 @@
 import { TextInput, Textarea, Button } from "@mantine/core";
 import { useId, useState } from "react";
 import { createWrite, type Box } from "./api";
+import { PartialDateInput } from "./PartialDateInput";
 import { Dialog } from "./Dialog";
 import { useI18n } from "./i18n";
 import { useWrites, WriteFeedback } from "./mutations";
@@ -55,21 +56,22 @@ export function BoxEditor({ box, close }: { box?: Box; close: () => void }) {
           <div className="box-editor-dates">
             <div className="field-pair">
               <div>
-                <TextInput
+                <PartialDateInput
                   label={t("startAt")}
                   id={`${id}-start`}
                   value={start}
-                  onChange={(e) => setStart(e.target.value)}
-                  aria-describedby={`${id}-hint`}
+                  onChange={setStart}
+                  describedBy={`${id}-hint`}
                 />
               </div>
               <div>
-                <TextInput
+                <PartialDateInput
                   label={t("endAt")}
                   id={`${id}-end`}
                   value={end}
-                  onChange={(e) => setEnd(e.target.value)}
-                  aria-describedby={`${id}-hint`}
+                  onChange={setEnd}
+                  referenceDate={start}
+                  describedBy={`${id}-hint`}
                 />
               </div>
             </div>
