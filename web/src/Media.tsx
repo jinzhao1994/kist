@@ -11,11 +11,16 @@ import {
 } from "./api";
 import { useI18n, type MessageKey } from "./i18n";
 
+function isSTL(file: ArchiveFile) {
+  return file.media_type === "model/stl" || /\.stl$/i.test(file.name);
+}
+
 export function hasDerivedMedia(file: ArchiveFile) {
   return (
     file.kind === "image" ||
     file.kind === "video" ||
-    file.media_type === "application/pdf"
+    file.media_type === "application/pdf" ||
+    isSTL(file)
   );
 }
 const audioTypes = new Set([
@@ -62,13 +67,17 @@ export function Media({
     player.current = node;
   }, []);
   const client = useQueryClient();
-  const recipe = detail
-    ? file.kind === "video"
-      ? "preview_1080p_v1"
-      : "preview_2048_v1"
-    : file.kind === "video"
-      ? "video_thumb_512_v2"
-      : "thumb_512_v1";
+  const recipe = isSTL(file)
+    ? detail
+      ? "stl_preview_2048_v1"
+      : "stl_thumb_512_v1"
+    : detail
+      ? file.kind === "video"
+        ? "preview_1080p_v1"
+        : "preview_2048_v1"
+      : file.kind === "video"
+        ? "video_thumb_512_v2"
+        : "thumb_512_v1";
   const path = mediaPath(file, recipe);
   const key = ["media", file.id, file.blob_key, recipe];
   const enabled = active && hasDerivedMedia(file);

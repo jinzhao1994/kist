@@ -18,6 +18,8 @@ import (
 )
 
 const (
+	STLThumbnail         = "stl_thumb_512_v1"
+	STLPreview           = "stl_preview_2048_v1"
 	Thumbnail            = "thumb_512_v1"
 	VideoThumbnail       = "video_thumb_512_v2"
 	Preview              = "preview_2048_v1"
@@ -37,9 +39,9 @@ type Recipe struct {
 // Lookup is the only registry of public recipes and their output types.
 func Lookup(name string) (Recipe, bool) {
 	switch name {
-	case Thumbnail, VideoThumbnail:
+	case Thumbnail, VideoThumbnail, STLThumbnail:
 		return Recipe{name, ".jpg", "image/jpeg", 512}, true
-	case Preview:
+	case Preview, STLPreview:
 		return Recipe{name, ".jpg", "image/jpeg", 2048}, true
 	case Video:
 		return Recipe{name, ".mp4", "video/mp4", 1080}, true
@@ -105,7 +107,12 @@ func (r Renderer) Render(ctx context.Context, input, output, recipe string) (res
 	}
 	defer f.Close()
 	cfg, format, decodeErr := image.DecodeConfig(io.LimitReader(contextReader{ctx, f}, MaxImageBytes+1))
-	if decodeErr == nil {
+	if recipe == STLThumbnail || recipe == STLPreview {
+		result, err = r.stl(ctx, input, output, spec)
+		if err != nil {
+			return result, err
+		}
+	} else if decodeErr == nil {
 		if recipe == Video {
 			return result, fail("unsupported", "video recipe requires a video")
 		}

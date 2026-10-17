@@ -7,7 +7,9 @@ require (
 	github.com/bep/imagemeta v1.0.1
 	github.com/danielgtaylor/huma/v2 v2.39.1
 	github.com/disintegration/imaging v1.6.2
+	github.com/fogleman/fauxgl v0.0.0-20250110135958-abf826acbbbd
 	github.com/google/uuid v1.6.0
+	github.com/hschendel/stl v1.0.4
 	github.com/pressly/goose/v3 v3.28.0
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/image v0.38.0
@@ -18,6 +20,7 @@ require (
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/fogleman/simplify v0.0.0-20170216171241-d32f302d5046 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect

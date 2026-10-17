@@ -44,7 +44,7 @@ docker run --rm --read-only --tmpfs /tmp --mount "type=volume,src=$volume,dst=/l
     decoder=$(command -v heif-dec || command -v heif-convert)
     "$decoder" /fixtures/tiled.heic /tmp/heif.png
     ffprobe -v error -show_entries stream=width,height -of csv=p=0 /tmp/heif.png | grep -qx "3072,2048"
-    kist --library /library import --box "Docker smoke" /tmp/sample.png /tmp/preview.mp4 /tmp/preview.mov /fixtures/tiled.heic /fixtures/two-pages.pdf
+    kist --library /library import --box "Docker smoke" /tmp/sample.png /tmp/preview.mp4 /tmp/preview.mov /fixtures/tiled.heic /fixtures/two-pages.pdf /fixtures/cube.stl
     kist --library /library extract --quiet
 '
 start_server() {

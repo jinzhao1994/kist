@@ -328,6 +328,13 @@ Jobs survive restart and share outputs for identical content. Stop the server
 before removing the disposable `derived/` directory; browsing regenerates
 requested outputs. This never changes originals or undo history.
 
+STL files (ASCII and binary) have static model thumbnails and detail previews,
+rendered in pure Go without additional tools. Existing `.stl` files can request
+previews directly; the backend validates the bytes. Limits are 32 MiB, 200,000
+triangles, a bounded raster workload and 90 seconds. Previews use a fixed view
+and uniform material; they do not provide interactive rotation or validate
+printability. Recipes are `stl_thumb_512_v1` and `stl_preview_2048_v1`.
+
 Video thumbnails prefer embedded cover art, then a valid QuickTime poster time.
 Otherwise, up to 100 small frames are sampled across the video; near-black frames
 are excluded and a representative color histogram selects the result. Sampling

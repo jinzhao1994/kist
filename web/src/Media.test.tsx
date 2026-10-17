@@ -207,3 +207,29 @@ it("renders a PDF first-page preview without embedding the original document", a
   );
   expect(document.querySelector("iframe, object, embed")).toBeNull();
 });
+
+for (const detail of [false, true]) {
+  it(`renders an existing STL file with detail=${detail}`, async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(Response.json(job("ready"))),
+    );
+    mount({
+      detail,
+      file: {
+        ...file,
+        name: "Model.STL",
+        kind: "other",
+        media_type: "application/octet-stream",
+      },
+    });
+    expect(
+      await screen.findByRole("img", { name: "Model.STL" }),
+    ).toHaveAttribute(
+      "src",
+      expect.stringContaining(
+        `/derived/${detail ? "stl_preview_2048_v1" : "stl_thumb_512_v1"}/content`,
+      ),
+    );
+  });
+}

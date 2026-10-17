@@ -12,3 +12,6 @@ It exercises an actual HEIC decode (including the display dimensions) rather
 than only metadata parsing. `tiled.heic` uses the same procedure with `testsrc=size=3072x2048`; it
 contains 24 tiles and must decode as one full image, never as one 512×512 tile.
 These samples are not a claim to support every HEIC variant.
+
+`cube.stl` is a generated unit cube with 12 triangles, authored for these tests.
+It contains no external model data and is covered by the repository license.

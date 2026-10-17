@@ -49,6 +49,8 @@ const documentPage = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height
 
 const panorama = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="300" viewBox="0 0 800 300"><rect width="800" height="300" fill="#d7e4df"/><rect x="8" y="8" width="784" height="284" fill="none" stroke="#577c83" stroke-width="12"/><circle cx="650" cy="80" r="40" fill="#f5d99a"/><path d="M20 280L240 40 480 280Z" fill="#718c7c"/></svg>`;
 
+const modelPage = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><rect width="512" height="512" fill="#f3f4f6"/><path d="M256 72L432 168 256 272 80 168Z" fill="#6796b5"/><path d="M80 168L256 272V440L80 336Z" fill="#355e7b"/><path d="M256 272L432 168V336L256 440Z" fill="#4f7c9c"/></svg>`;
+
 type Options = {
   primaryColor?: Appearance["primaryColor"];
   mode?: Appearance["mode"];
@@ -57,8 +59,21 @@ type Options = {
   empty?: boolean;
   mobile?: boolean;
   manyFiles?: boolean;
+  stl?: boolean;
 };
 async function prepare(page: Page, options: Options = {}) {
+  const mediaFiles = options.stl
+    ? files.map((file, i) =>
+        i === 2
+          ? {
+              ...file,
+              name: "模型.STL",
+              media_type: "application/octet-stream",
+              kind: "other",
+            }
+          : file,
+      )
+    : files;
   if (options.mobile) await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(
     ({ primaryColor, mode, language }) => {
@@ -156,7 +171,7 @@ async function prepare(page: Page, options: Options = {}) {
       };
     } else if (path === "/ops/12/summary" || path === "/ops/10/summary")
       body = {
-        name: files[0].name,
+        name: mediaFiles[0].name,
         count: 1,
         current_names: false,
       };
@@ -170,8 +185,10 @@ async function prepare(page: Page, options: Options = {}) {
         undone_by: null,
         undoable: true,
         boxes: [box.id],
-        files: [files[0].id],
-        payload: { files: [{ file_id: files[0].id, name: files[0].name }] },
+        files: [mediaFiles[0].id],
+        payload: {
+          files: [{ file_id: mediaFiles[0].id, name: mediaFiles[0].name }],
+        },
       };
     else if (path === "/history/11/boxes/box-1")
       body = { op: 11, box, files, folders: [], box_tags: ["tag-1"], tags };
@@ -179,7 +196,7 @@ async function prepare(page: Page, options: Options = {}) {
       body = {
         op: 11,
         file: {
-          file: files[0],
+          file: mediaFiles[0],
           tags: ["tag-2"],
           metadata: [
             { key: "file:size", value: "204800", type: "int", source: "file" },
@@ -217,16 +234,16 @@ async function prepare(page: Page, options: Options = {}) {
           ? []
           : options.manyFiles
             ? Array.from({ length: 100 }, (_, index) => ({
-                ...files[2],
+                ...mediaFiles[2],
                 media_type: "text/plain",
                 id: `scroll-${index}`,
                 name: `document-${index}.txt`,
               }))
-            : files,
+            : mediaFiles,
       };
     else if (/^\/files\/file-[1-4]$/.test(path))
       body = {
-        file: files[Number(path.at(-1)) - 1],
+        file: mediaFiles[Number(path.at(-1)) - 1],
         tags: ["tag-2"],
         extracted: ["file", "media"],
         metadata: [
@@ -244,7 +261,9 @@ async function prepare(page: Page, options: Options = {}) {
         body: path.includes("/file-2/")
           ? portrait
           : path.includes("/file-3/")
-            ? documentPage
+            ? options.stl
+              ? modelPage
+              : documentPage
             : path.includes("/file-4/")
               ? panorama
               : landscape,
@@ -253,6 +272,13 @@ async function prepare(page: Page, options: Options = {}) {
       /^\/files\/(?:file-[1-4]|visible-[0-9]+)\/derived\/[a-z0-9_]+$/.test(path)
     ) {
       const recipe = path.split("/").at(-1);
+      if (
+        options.stl &&
+        path.includes("/file-3/") &&
+        recipe !== "stl_thumb_512_v1" &&
+        recipe !== "stl_preview_2048_v1"
+      )
+        errors.push(`Unexpected STL recipe: ${recipe}`);
       if (
         path.includes("/file-4/") &&
         recipe !== "video_thumb_512_v2" &&
@@ -263,7 +289,7 @@ async function prepare(page: Page, options: Options = {}) {
       body = {
         state,
         generation: "fixture-generation",
-        blob_key: files[0].blob_key,
+        blob_key: mediaFiles[0].blob_key,
         recipe: path.split("/").at(-1),
         updated_at: time,
         reason: state === "blocked" ? "dependency_missing" : undefined,
@@ -1481,4 +1507,16 @@ test("tag-context-menu-pointer", async ({ page }, info) => {
   await page.getByRole("button", { name: "旅行的操作", exact: true }).click();
   await expect(menu).toBeVisible();
   await expect(row).toHaveAttribute("data-active", "true");
+});
+
+test("stl-preview", async ({ page }, info) => {
+  const errors = await prepare(page, { stl: true });
+  await page.goto("/files?file=file-3");
+  const gallery = page.getByRole("region", { name: "画廊", exact: true });
+  await expect(gallery).toBeVisible();
+  await expect(gallery.getByRole("img", { name: "模型.STL" })).toHaveAttribute(
+    "src",
+    /stl_preview_2048_v1/,
+  );
+  await capture(page, errors, info.title);
 });
