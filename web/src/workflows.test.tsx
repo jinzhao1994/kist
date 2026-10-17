@@ -741,6 +741,18 @@ it("groups preview metadata and opens tag selection only on request", async () =
             type: "int",
           },
           {
+            key: "file:mtime",
+            value: "1792113660563000000",
+            source: "file",
+            type: "int",
+          },
+          {
+            key: "media:kind",
+            value: "image",
+            source: "media",
+            type: "string",
+          },
+          {
             key: "custom:unknown",
             value: "original value",
             source: "custom",
@@ -758,6 +770,15 @@ it("groups preview metadata and opens tag selection only on request", async () =
     "title",
     "exif:ExifImageWidth",
   );
+  expect(screen.getByText("kind").closest("dt")).toHaveAttribute(
+    "title",
+    "media:kind",
+  );
+  expect(screen.getByText(/Oct 16, 2026/).closest("dd")).toHaveAttribute(
+    "title",
+    "1792113660563000000",
+  );
+  expect(screen.getByText(/Oct 16, 2026/)).toHaveTextContent(/1:21/);
   expect(screen.getByText("custom:unknown")).toBeVisible();
   expect(screen.getByText("original value")).toBeVisible();
   expect(

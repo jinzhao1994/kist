@@ -31,6 +31,21 @@ export function FileDetail({
     "exif:XResolution": t("horizontalResolution"),
     "exif:YResolution": t("verticalResolution"),
     "media:mime": t("kind"),
+    "media:kind": "kind",
+    "file:mtime": t("modified"),
+  };
+  const metadataValue = (key: string, value: string) => {
+    if (key === "file:mtime" && /^-?\d+$/.test(value)) {
+      // Import records file modification times as Unix nanoseconds.
+      const date = new Date(Number(BigInt(value) / 1_000_000n));
+      if (Number.isFinite(date.getTime())) {
+        return formatInstant(date.toISOString(), prefs);
+      }
+    }
+    if (key === "file:size" && Number.isSafeInteger(Number(value))) {
+      return formatBytes(Number(value), prefs);
+    }
+    return value || "—";
   };
   const groups = new Map<string, NonNullable<FileData["metadata"]>>();
   for (const row of data.metadata || []) {
@@ -108,13 +123,10 @@ export function FileDetail({
                     <dt title={row.key}>
                       <bdi>{labels[row.key] || row.key}</bdi>
                     </dt>
-                    <dd>
-                      <bdi>
-                        {row.key === "file:size" &&
-                        Number.isSafeInteger(Number(row.value))
-                          ? formatBytes(Number(row.value), prefs)
-                          : row.value || "—"}
-                      </bdi>
+                    <dd
+                      title={row.key === "file:mtime" ? row.value : undefined}
+                    >
+                      <bdi>{metadataValue(row.key, row.value)}</bdi>
                     </dd>
                   </div>
                 ))}
