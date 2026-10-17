@@ -169,3 +169,37 @@ it("retries status failures and keeps a failed browser preview as a placeholder"
   expect(await screen.findByText(/generation failed/i)).toBeVisible();
   expect(screen.queryByRole("img")).not.toBeInTheDocument();
 });
+
+for (const [name, kind, media_type] of [
+  ["Clip.MOV", "video", "video/quicktime"],
+  ["Report.pdf", "document", "application/pdf"],
+]) {
+  it(`requests a derived thumbnail for ${name}`, async () => {
+    const fetch = vi.fn().mockResolvedValue(Response.json(job("ready")));
+    vi.stubGlobal("fetch", fetch);
+    mount({ detail: false, file: { ...file, name, kind, media_type } });
+    expect(await screen.findByRole("img", { name })).toHaveAttribute(
+      "src",
+      expect.stringContaining("/derived/thumb_512_v1/content"),
+    );
+  });
+}
+it("renders a PDF first-page preview without embedding the original document", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(Response.json(job("ready"))),
+  );
+  mount({
+    file: {
+      ...file,
+      name: "Report.pdf",
+      kind: "document",
+      media_type: "application/pdf",
+    },
+  });
+  expect(await screen.findByRole("img")).toHaveAttribute(
+    "src",
+    expect.stringContaining("/derived/preview_2048_v1/content"),
+  );
+  expect(document.querySelector("iframe, object, embed")).toBeNull();
+});

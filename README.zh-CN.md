@@ -83,7 +83,7 @@ docker compose run --rm kist init /library --yes
 docker compose up -d
 ```
 
-打开 `http://127.0.0.1:8473`。镜像以 UID/GID `10001:10001` 运行，内置 FFmpeg、ffprobe、libheif 工具和时区数据。整个库保存在命名卷中，重建容器不会丢失；`docker compose down` 保留数据，`docker compose down -v` 会删除数据。已有库不要再次初始化。CLI 使用同一个库，例如：
+打开 `http://127.0.0.1:8473`。镜像以 UID/GID `10001:10001` 运行，内置 FFmpeg、ffprobe、libheif 工具、Poppler 和时区数据。整个库保存在命名卷中，重建容器不会丢失；`docker compose down` 保留数据，`docker compose down -v` 会删除数据。已有库不要再次初始化。CLI 使用同一个库，例如：
 
 ```sh
 docker compose exec kist kist --library /library verify --deep
@@ -200,7 +200,9 @@ kist 从不往远端写，也从不信任远端：取回来的内容边读边哈
 
 ## 派生媒体
 
-打开网格或文件详情才提交后台任务，导入不等待解码。普通 JPEG/PNG/GIF/WebP 等图片由 Go 生成预览；HEIC 需要 `heif-info` 和 `heif-dec`（或 `heif-convert`）及 HEVC 解码器；视频需要带 H.264/AAC 编码器的 `ffmpeg` 与 `ffprobe`。Docker 已内置这些工具。Ubuntu 原生部署安装 `ffmpeg libheif-examples libheif-plugin-libde265`；不装也能归档、检索、下载原文件。
+旧库中被旧版提取器识别为普通文件的 MOV，执行 `kist extract --extractor media` 或点击网页的提取元数据即可更新，无需重新上传。PDF 仅预览首页，完整内容仍通过原文件下载查看。
+
+打开网格或文件详情才提交后台任务，导入不等待解码。普通 JPEG/PNG/GIF/WebP 等图片由 Go 生成预览；HEIC 需要 `heif-info` 和 `heif-dec`（或 `heif-convert`）及 HEVC 解码器；PDF 首页缩略图和预览需要 Poppler（`pdftoppm`）；视频（包括 MOV）需要带 H.264/AAC 编码器的 `ffmpeg` 与 `ffprobe`。Docker 已内置这些工具。Ubuntu 原生部署安装 `poppler-utils ffmpeg libheif-examples libheif-plugin-libde265`；不装也能归档、检索、下载原文件。
 
 缺依赖任务每 30 秒重新检查，安装工具后无需重启服务。详情提供取消与重试，任务重启后恢复，相同内容共享派生结果。需要清空缓存时，先停服务再删除 `derived/`，下次浏览会按需重建，不影响原文件与撤销历史。
 

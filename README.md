@@ -103,7 +103,7 @@ docker compose up -d
 ```
 
 Open `http://127.0.0.1:8473`. The image runs as UID/GID `10001:10001` and
-includes FFmpeg, ffprobe, libheif tools and timezone data. The default named volume retains
+includes FFmpeg, ffprobe, libheif tools, Poppler and timezone data. The default named volume retains
 the whole library across container recreation. `docker compose down` keeps it;
 `docker compose down -v` deletes it. Do not run initialization again for an
 existing library. CLI operations use the same library, for example:
@@ -312,10 +312,15 @@ hashed on the way in and discarded if it is not what was asked for. Run
 Opening a grid or file requests background work: imports do not wait for image
 processing. JPEG/PNG/GIF/WebP and other supported raster images use the Go
 renderer; HEIC needs `heif-info` and `heif-dec` (or `heif-convert`) with an HEVC
-decoder. Video needs `ffmpeg` and `ffprobe` with H.264/AAC encoders. Docker
-includes these tools. On Ubuntu, install `ffmpeg libheif-examples
+decoder. PDF first-page thumbnails and previews need Poppler (`pdftoppm`).
+Video (including MOV) needs `ffmpeg` and `ffprobe` with H.264/AAC encoders. Docker
+includes these tools. On Ubuntu, install `poppler-utils ffmpeg libheif-examples
 libheif-plugin-libde265`; native deployments may omit them and still archive,
 search and download originals.
+
+Existing MOV files classified by the older media extractor need `kist extract
+--extractor media` or the UI metadata extraction action; no re-upload is needed.
+PDF previews show the first page only; download the original to read all pages.
 
 Missing tools are checked again every 30 seconds; installation takes effect
 without restarting the server. Details offer cancel and retry controls.
@@ -328,7 +333,7 @@ Recipes are `thumb_512_v1` (JPEG, longest edge 512), `preview_2048_v1`
 1920×1080). Images preserve aspect ratio and orientation, flatten alpha onto
 white, and show the first animation frame. Multi-image HEIF collections are
 currently unsupported. Limits include 64 million pixels, 256 MiB compressed
-still images, six-hour video inputs and 2 GiB output; unsupported or oversized
+still images and PDFs, six-hour video inputs and 2 GiB output; unsupported or oversized
 files remain downloadable. CLI-imported files need `kist extract` or the UI's
 **Read metadata** action to classify their media type.
 

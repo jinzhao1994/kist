@@ -86,6 +86,7 @@ type Renderer struct {
 	FFprobe  string
 	HeifDec  string
 	HeifInfo string
+	PDFToPPM string
 }
 
 func (r Renderer) Render(ctx context.Context, input, output, recipe string) (result Result, err error) {
@@ -163,7 +164,9 @@ func (r Renderer) Render(ctx context.Context, input, output, recipe string) (res
 		if !errors.Is(decodeErr, image.ErrFormat) {
 			return result, &Failure{"decode_failed", decodeErr}
 		}
-		if isHEIF(f) {
+		if isPDF(f) {
+			result, err = r.pdf(ctx, input, output, spec)
+		} else if isHEIF(f) {
 			result, err = r.heif(ctx, input, output, spec)
 		} else {
 			result, err = r.external(ctx, input, output, spec)

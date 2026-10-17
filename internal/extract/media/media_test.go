@@ -13,6 +13,7 @@ func TestContentClassification(t *testing.T) {
 		data       []byte
 		mime, kind string
 	}{
+		{"mov", []byte("\x00\x00\x00\x14ftypqt  0000qt  "), "video/quicktime", "video"},
 		{"pdf", []byte("%PDF-1.7\n"), "application/pdf", "document"},
 		{"jpeg", []byte{255, 216, 255, 0}, "image/jpeg", "image"},
 		{"heic", []byte("\x00\x00\x00\x18ftypheic0000"), "image/heic", "image"},

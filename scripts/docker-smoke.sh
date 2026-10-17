@@ -38,10 +38,14 @@ docker run --rm --read-only --tmpfs /tmp --mount "type=volume,src=$volume,dst=/l
     grep -qx h264 /tmp/codecs
     grep -qx aac /tmp/codecs
     test -s /tmp/thumb.webp
+    ffmpeg -v error -i /tmp/preview.mp4 -c copy /tmp/preview.mov
+    pdftoppm -f 1 -l 1 -singlefile -scale-to 512 -jpeg /fixtures/two-pages.pdf /tmp/pdf-page
+    test -s /tmp/pdf-page.jpg
     decoder=$(command -v heif-dec || command -v heif-convert)
     "$decoder" /fixtures/tiled.heic /tmp/heif.png
     ffprobe -v error -show_entries stream=width,height -of csv=p=0 /tmp/heif.png | grep -qx "3072,2048"
-    kist --library /library import --box "Docker smoke" /tmp/sample.png /tmp/preview.mp4 /fixtures/tiled.heic
+    kist --library /library import --box "Docker smoke" /tmp/sample.png /tmp/preview.mp4 /tmp/preview.mov /fixtures/tiled.heic /fixtures/two-pages.pdf
+    kist --library /library extract --quiet
 '
 start_server() {
     docker run -d --name "$name" --cap-drop ALL \

@@ -12,7 +12,11 @@ import {
 import { useI18n, type MessageKey } from "./i18n";
 
 export function hasDerivedMedia(file: ArchiveFile) {
-  return file.kind === "image" || file.kind === "video";
+  return (
+    file.kind === "image" ||
+    file.kind === "video" ||
+    file.media_type === "application/pdf"
+  );
 }
 const audioTypes = new Set([
   "audio/mpeg",

@@ -10,7 +10,7 @@ import (
 )
 
 const ID = "media"
-const Version = 1
+const Version = 2
 
 type extractor struct{}
 

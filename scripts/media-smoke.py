@@ -16,9 +16,13 @@ def request(path, body=None, headers=None):
 with request('/files') as response:
     files = json.load(response)['files']
 for file in files:
-    if file['name'] not in ('sample.png', 'tiled.heic', 'preview.mp4'):
+    if file['name'] not in ('sample.png', 'tiled.heic', 'preview.mp4', 'preview.mov', 'two-pages.pdf'):
         continue
-    recipes = ['thumb_512_v1', 'preview_1080p_v1' if file['name'].endswith('.mp4') else 'preview_2048_v1']
+    if file['name'] == 'preview.mov':
+        assert file['kind'] == 'video' and file['media_type'] == 'video/quicktime', file
+    if file['name'] == 'two-pages.pdf':
+        assert file['media_type'] == 'application/pdf', file
+    recipes = ['thumb_512_v1', 'preview_1080p_v1' if file['name'].endswith(('.mp4', '.mov')) else 'preview_2048_v1']
     for recipe in recipes:
         path = '/files/' + file['id'] + '/derived/' + recipe
         with request(path, {}) as response:
@@ -29,6 +33,9 @@ for file in files:
             with request(path) as response:
                 state = json.load(response)
         assert state['state'] == 'ready', state
+        if file['name'] == 'two-pages.pdf':
+            expected = (256, 512) if recipe == 'thumb_512_v1' else (1024, 2048)
+            assert (state['result']['width'], state['result']['height']) == expected, state
         if file['name'] == 'tiled.heic' and recipe == 'preview_2048_v1':
             assert (state['result']['width'], state['result']['height']) == (2048, 1365), state
         with request(path + '/content', headers={'Range': 'bytes=0-7'}) as response:
@@ -36,4 +43,4 @@ for file in files:
             assert len(response.read()) == 8
             assert response.headers['Content-Type'] == ('video/mp4' if recipe == 'preview_1080p_v1' else 'image/jpeg')
         print(file['name'], recipe, state['result']['width'], state['result']['height'], flush=True)
-assert {'sample.png', 'tiled.heic', 'preview.mp4'} <= {file['name'] for file in files}
+assert {'sample.png', 'tiled.heic', 'preview.mp4', 'preview.mov', 'two-pages.pdf'} <= {file['name'] for file in files}

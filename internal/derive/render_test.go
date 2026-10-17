@@ -191,19 +191,21 @@ func TestRealFFmpegVideo(t *testing.T) {
 	if _, e = exec.LookPath("ffprobe"); e != nil {
 		t.Skip("ffprobe not installed")
 	}
-	input := filepath.Join(t.TempDir(), "original.mp4")
-	cmd := exec.Command(ffmpeg, "-v", "error", "-f", "lavfi", "-i", "color=c=blue:s=640x360:r=10", "-f", "lavfi", "-i", "sine=frequency=440", "-t", "0.5", "-c:v", "libx264", "-threads", "1", "-pix_fmt", "yuv420p", "-c:a", "aac", input)
-	if output, e := cmd.CombinedOutput(); e != nil {
-		t.Fatalf("fixture: %v %s", e, output)
-	}
-	for _, recipe := range []string{Thumbnail, Video} {
-		out := filepath.Join(t.TempDir(), "result")
-		result, e := (Renderer{}).Render(t.Context(), input, out, recipe)
-		if e != nil {
-			t.Fatal(e)
+	for _, extension := range []string{".mp4", ".mov"} {
+		input := filepath.Join(t.TempDir(), "original"+extension)
+		cmd := exec.Command(ffmpeg, "-v", "error", "-f", "lavfi", "-i", "color=c=blue:s=640x360:r=10", "-f", "lavfi", "-i", "sine=frequency=440", "-t", "0.5", "-c:v", "libx264", "-threads", "1", "-pix_fmt", "yuv420p", "-c:a", "aac", input)
+		if output, e := cmd.CombinedOutput(); e != nil {
+			t.Fatalf("fixture: %v %s", e, output)
 		}
-		if result.Bytes == 0 || result.Width > 640 || result.Height > 360 || result.Engine != "ffmpeg" {
-			t.Fatal(result)
+		for _, recipe := range []string{Thumbnail, Video} {
+			out := filepath.Join(t.TempDir(), "result")
+			result, e := (Renderer{}).Render(t.Context(), input, out, recipe)
+			if e != nil {
+				t.Fatal(e)
+			}
+			if result.Bytes == 0 || result.Width > 640 || result.Height > 360 || result.Engine != "ffmpeg" {
+				t.Fatal(result)
+			}
 		}
 	}
 	// A playlist must not be dereferenced, even when ffmpeg supports HLS.

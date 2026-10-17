@@ -50,7 +50,7 @@ The Go standard library is also covered below. Build/test-only tools are not
 part of this inventory. kist's own code is licensed under Apache-2.0; third-party
 components retain their respective licenses.
 
-Container images additionally include Debian packages such as FFmpeg and libheif.
+Container images additionally include Debian packages such as FFmpeg, libheif and Poppler.
 Their copyright and license notices are retained under `/usr/share/doc/` in the
 image. These runtime packages are separate programs, not covered by kist's license.
 For the exact installed versions, use `dpkg-query -W` inside the image.

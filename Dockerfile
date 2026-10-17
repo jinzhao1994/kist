@@ -19,7 +19,7 @@ RUN CGO_ENABLED=0 go build -trimpath \
 
 FROM debian:trixie-slim AS runtime
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg ca-certificates tzdata \
+    && apt-get install -y --no-install-recommends poppler-utils ffmpeg ca-certificates tzdata \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 kist \
     && useradd --uid 10001 --gid kist --no-create-home --home-dir /library kist \

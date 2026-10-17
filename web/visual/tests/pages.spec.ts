@@ -26,7 +26,7 @@ const files: ArchiveFile[] = [
   ["山间清晨.jpg", "image", "image/jpeg"],
   ["竖版证书.png", "image", "image/png"],
   ["旅行记录.pdf", "document", "application/pdf"],
-  ["归途.mp4", "video", "video/mp4"],
+  ["归途.mov", "video", "video/quicktime"],
 ].map(([name, kind, media_type], i) => ({
   id: `file-${i + 1}`,
   box_id: box.id,
@@ -45,6 +45,8 @@ const files: ArchiveFile[] = [
 const landscape = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600"><rect width="800" height="600" fill="#d7e4df"/><circle cx="620" cy="130" r="58" fill="#f5d99a"/><path d="M0 460L260 120 530 460Z" fill="#718c7c"/><path d="M250 520L560 220 800 460V600H0V460Z" fill="#a4b9a3"/><path d="M0 520Q400 450 800 520V600H0Z" fill="#577c83"/></svg>`;
 
 const portrait = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="800" viewBox="0 0 400 800"><rect width="400" height="800" fill="#194886"/><rect x="12" y="12" width="376" height="776" fill="none" stroke="#f5d99a" stroke-width="12"/><circle cx="200" cy="680" r="60" fill="#f5d99a"/><path d="M80 100H320M80 200H320M80 300H320" stroke="white" stroke-width="16"/></svg>`;
+const documentPage = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800"><rect width="600" height="800" fill="#faf6ed"/><rect x="10" y="10" width="580" height="780" fill="none" stroke="#718c7c" stroke-width="8"/><path d="M60 100H540M60 200H540M60 300H540M60 400H400" stroke="#577c83" stroke-width="16"/><rect x="60" y="600" width="150" height="100" fill="#a4b9a3"/></svg>`;
+
 const panorama = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="300" viewBox="0 0 800 300"><rect width="800" height="300" fill="#d7e4df"/><rect x="8" y="8" width="784" height="284" fill="none" stroke="#577c83" stroke-width="12"/><circle cx="650" cy="80" r="40" fill="#f5d99a"/><path d="M20 280L240 40 480 280Z" fill="#718c7c"/></svg>`;
 
 type Options = {
@@ -216,8 +218,9 @@ async function prepare(page: Page, options: Options = {}) {
           : options.manyFiles
             ? Array.from({ length: 100 }, (_, index) => ({
                 ...files[2],
+                media_type: "text/plain",
                 id: `scroll-${index}`,
-                name: `document-${index}.pdf`,
+                name: `document-${index}.txt`,
               }))
             : files,
       };
@@ -240,9 +243,11 @@ async function prepare(page: Page, options: Options = {}) {
         contentType: "image/svg+xml",
         body: path.includes("/file-2/")
           ? portrait
-          : path.includes("/file-4/")
-            ? panorama
-            : landscape,
+          : path.includes("/file-3/")
+            ? documentPage
+            : path.includes("/file-4/")
+              ? panorama
+              : landscape,
       });
     else if (
       /^\/files\/(?:file-[1-4]|visible-[0-9]+)\/derived\/[a-z0-9_]+$/.test(path)
@@ -279,7 +284,7 @@ async function capture(page: Page, errors: string[], name: string) {
   });
   expect(errors).toEqual([]);
 }
-async function grid(page: Page, expectedImages = 3) {
+async function grid(page: Page, expectedImages = 4) {
   await expect(page.locator(".file-count")).toContainText("4");
   await expect(page.locator(".file-image")).toHaveCount(expectedImages);
   await expect
@@ -486,7 +491,7 @@ test("independent-scroll", async ({ page }, info) => {
     element.scrollTop = element.scrollHeight;
   });
   await expect(
-    page.getByRole("button", { name: /document-99.pdf/ }),
+    page.getByRole("button", { name: /document-99.txt/ }),
   ).toBeVisible();
   expect(await sidebar.evaluate((element) => element.scrollTop)).toBe(
     sidebarTop,
@@ -505,8 +510,9 @@ test("automatic-pagination", async ({ page }, info) => {
   const errors = await prepare(page);
   const firstPage = Array.from({ length: 100 }, (_, index) => ({
     ...files[2],
+    media_type: "text/plain",
     id: `auto-${index}`,
-    name: `document-${index}.pdf`,
+    name: `document-${index}.txt`,
   }));
   let nextRequests = 0;
   let release: () => void = () => {};
@@ -521,7 +527,16 @@ test("automatic-pagination", async ({ page }, info) => {
     nextRequests++;
     await responseReady;
     await route.fulfill({
-      json: { files: [{ ...files[2], id: "last", name: "last.pdf" }] },
+      json: {
+        files: [
+          {
+            ...files[2],
+            media_type: "text/plain",
+            id: "last",
+            name: "last.txt",
+          },
+        ],
+      },
     });
   });
   await page.goto("/files");
@@ -536,7 +551,7 @@ test("automatic-pagination", async ({ page }, info) => {
   await page.locator("main").evaluate((element) => {
     element.scrollTop = element.scrollHeight;
   });
-  await expect(page.getByRole("button", { name: /last.pdf/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /last.txt/ })).toBeVisible();
   expect(nextRequests).toBe(1);
   await page.evaluate(() => document.fonts.ready);
   // The appended virtual row can settle after the total-count text updates.
@@ -847,12 +862,12 @@ for (const kind of ["boxes", "files"] as const) {
         await expect(root.locator(".entry-tags")).toContainText("旅行");
         await expect(root.locator(".entry-tags .tag-chip")).toHaveCount(2);
       }
-      if (kind === "files") await grid(page, mode === "list" ? 0 : 3);
+      if (kind === "files") await grid(page, mode === "list" ? 0 : 4);
       if (kind === "files" && mode === "list")
         await expect(root.locator(".entry-tags")).toContainText("旅行");
       await page.reload();
       await expect(root).toHaveClass(new RegExp(`view-${mode}`));
-      if (kind === "files") await grid(page, mode === "list" ? 0 : 3);
+      if (kind === "files") await grid(page, mode === "list" ? 0 : 4);
       await capture(page, errors, info.title);
     });
   }
@@ -1049,7 +1064,7 @@ test("gallery-restores-scroll", async ({ page }, info) => {
     const id = new URL(route.request().url()).pathname.split("/").at(-1)!;
     return route.fulfill({
       json: {
-        file: { ...files[2], id, name: `${id}.pdf` },
+        file: { ...files[2], media_type: "text/plain", id, name: `${id}.txt` },
         tags: [],
         metadata: [],
       },
@@ -1064,7 +1079,7 @@ test("gallery-restores-scroll", async ({ page }, info) => {
   const scroll = await main.evaluate((e) => e.scrollTop);
   await page
     .locator(".file-card")
-    .filter({ hasText: "document-12.pdf" })
+    .filter({ hasText: "document-12.txt" })
     .click();
   const gallery = page.getByRole("region", { name: "画廊", exact: true });
   await expect(gallery).toBeVisible();
@@ -1406,7 +1421,7 @@ for (const [mode, mobile] of [
       }),
     );
     await page.goto("/boxes/box-1");
-    await grid(page, mode === "list" ? 0 : 3);
+    await grid(page, mode === "list" ? 0 : 4);
     const entries = page.locator(".file-card");
     await expect(entries.first()).toHaveAccessibleName("旅行文档");
     await expect(entries).toHaveCount(5);
