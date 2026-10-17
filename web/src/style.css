@@ -427,6 +427,9 @@ summary {
   background: transparent;
   padding: 0.2rem 0.6rem;
 }
+.tag-chips button:hover {
+  background: transparent;
+}
 .inline-form {
   max-inline-size: 28rem;
 }
