@@ -1,6 +1,7 @@
 import { Select as MantineSelect } from "@mantine/core";
 export function Select({
   id,
+  "aria-label": ariaLabel,
   value,
   onValueChange,
   options,
@@ -9,6 +10,7 @@ export function Select({
   searchable = false,
 }: {
   id?: string;
+  "aria-label"?: string;
   value: string;
   onValueChange: (value: string) => void;
   options: { value: string; label: string }[];
@@ -19,6 +21,7 @@ export function Select({
   return (
     <MantineSelect
       id={id}
+      aria-label={ariaLabel}
       label={label}
       value={value}
       onChange={(next) => {

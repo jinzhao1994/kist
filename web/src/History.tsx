@@ -9,6 +9,7 @@ import {
   type HistoricalFile,
   type Tag,
 } from "./api";
+import { NavigationIcon } from "./NavigationIcon";
 import { Select } from "./Select";
 import { Dialog, DialogPresence } from "./Dialog";
 import {
@@ -55,6 +56,7 @@ export function HistoryPage({
 }) {
   const { t, prefs } = useI18n();
   const [selected, setSelected] = useState<number>();
+  const [restoreRequested, setRestoreRequested] = useState(false);
   const [snapshot, setSnapshot] = useState<{ box: string; op: number }>();
   const [versions, setVersions] = useState<{
     file: string;
@@ -70,21 +72,24 @@ export function HistoryPage({
   });
   const ops = query.data?.pages.flatMap((page) => page.ops || []) || [];
   return (
-    <section className="history-page">
-      {trash && <p className="notice">{t("trashHint")}</p>}
+    <section className={`history-page${trash ? " trash-page" : ""}`}>
       <div className="history-toolbar">
         <Select
-          label={t("historyScope")}
+          label={trash ? undefined : t("historyScope")}
+          aria-label={t("historyScope")}
           value={box || ""}
           onValueChange={(value) => scope(value || undefined)}
           options={[
-            { value: "", label: t("allHistory") },
+            { value: "", label: t(trash ? "trashAllScopes" : "allHistory") },
             ...(box && !boxes.some((item) => item.id === box)
               ? [{ value: box, label: box }]
               : []),
             ...boxes.map((item) => ({ value: item.id, label: item.name })),
           ]}
         />
+        {trash && (
+          <p className="supporting-text trash-hint">{t("trashHint")}</p>
+        )}
         {file && (
           <p>
             {t("versionHistory")} · <bdi>{file}</bdi>
@@ -97,19 +102,37 @@ export function HistoryPage({
         <QueryError error={query.error} retry={query.refetch} />
       )}
       {query.isSuccess && !ops.length && (
-        <p className="empty-state">{t("historyEmpty")}</p>
+        <div className={trash ? "trash-empty" : "empty-state"}>
+          {trash && <NavigationIcon kind="trash" />}
+          <p>{t(trash ? "trashEmpty" : "historyEmpty")}</p>
+        </div>
       )}
       <ol className="history-list">
         {ops.map((op) => (
           <li key={op.id}>
             <UnstyledButton
               className="history-entry"
-              onClick={() => setSelected(op.id)}
+              onClick={() => {
+                setRestoreRequested(false);
+                setSelected(op.id);
+              }}
             >
-              <span className="history-number">#{op.id}</span>
+              {trash ? (
+                <NavigationIcon kind="trash" />
+              ) : (
+                <span className="history-number">#{op.id}</span>
+              )}
               <span>
                 <strong>{actionLabel(op.action, t)}</strong>
-                <small>{formatInstant(op.ts, prefs)}</small>
+                <small>
+                  {formatInstant(op.ts, prefs)}
+                  {trash && (
+                    <>
+                      {" "}
+                      · <span>#{op.id}</span>
+                    </>
+                  )}
+                </small>
               </span>
               <span className="history-status">
                 {op.undone_by
@@ -119,6 +142,18 @@ export function HistoryPage({
                     : ""}
               </span>
             </UnstyledButton>
+            {trash && (
+              <Button
+                variant="subtle"
+                disabled={!op.undoable || !!op.undone_by}
+                onClick={() => {
+                  setRestoreRequested(true);
+                  setSelected(op.id);
+                }}
+              >
+                {t("restore")}
+              </Button>
+            )}
             {file && (
               <UnstyledButton
                 className="text-button"
@@ -145,6 +180,7 @@ export function HistoryPage({
           <OperationDetail
             key={selected}
             id={selected}
+            initialConfirm={restoreRequested}
             close={() => setSelected(undefined)}
             select={setSelected}
             fileHistory={(file) => scope(undefined, file)}
@@ -189,8 +225,10 @@ function OperationDetail({
   viewBox,
   compare,
   fileHistory,
+  initialConfirm = false,
 }: {
   id: number;
+  initialConfirm?: boolean;
   close: () => void;
   select: (id: number) => void;
   viewBox: (box: string, op: number) => void;
@@ -202,7 +240,7 @@ function OperationDetail({
     queryKey: ["operation", id],
     queryFn: ({ signal }) => api.operation(id, signal),
   });
-  const [confirm, setConfirm] = useState(false);
+  const [confirm, setConfirm] = useState(initialConfirm);
   const writes = useWrites(() => setConfirm(false));
   const op = query.data;
   const deleting = op?.action.startsWith("delete_");
@@ -251,7 +289,7 @@ function OperationDetail({
           </div>
           {confirm && (
             <div className="notice">
-              <p>{t("undoConfirm")}</p>
+              <p>{t(deleting ? "restoreConfirm" : "undoConfirm")}</p>
               <div className="actions">
                 <Button
                   variant="filled"

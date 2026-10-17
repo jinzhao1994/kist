@@ -1,6 +1,6 @@
 import { ThemeProvider } from "./theme";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HistoryPage, comparisonFields } from "./History";
@@ -93,7 +93,11 @@ it("pages deletion history and reuses the restore request key after a lost respo
     ),
   ).toBe(true);
   await user.click(screen.getAllByRole("button", { name: /Delete files/ })[0]);
-  await user.click(await screen.findByRole("button", { name: "Restore" }));
+  await user.click(
+    within(await screen.findByRole("dialog")).getByRole("button", {
+      name: "Restore",
+    }),
+  );
   await user.click(
     screen
       .getAllByRole("button", { name: "Restore" })
@@ -210,4 +214,24 @@ it("uses tag paths from each historical state and preserves exact metadata strin
   );
   expect(fields.Tags).toBe("Old tag");
   expect(fields["file:mtime"]).toContain("1791586856333712820");
+});
+
+it("opens restore confirmation from the trash row without writing", async () => {
+  const fetch = vi.fn(async (path: string) =>
+    json(path === "/api/v1/ops/5" ? detail : { ops: [op], before: 0 }),
+  );
+  vi.stubGlobal("fetch", fetch);
+  mount(undefined, true);
+  await userEvent
+    .setup()
+    .click(await screen.findByRole("button", { name: "Restore" }));
+  const dialog = await screen.findByRole("dialog");
+  expect(
+    await within(dialog).findByText(
+      "Restore all items from this deletion? Later changes may prevent restoration.",
+    ),
+  ).toBeVisible();
+  expect(fetch.mock.calls.every(([path]) => !path.endsWith("/undo"))).toBe(
+    true,
+  );
 });

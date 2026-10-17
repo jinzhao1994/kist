@@ -38,8 +38,11 @@ export const en = {
   history: "History",
   trash: "Recycle bin",
   historyEmpty: "No operations here yet.",
-  trashHint:
-    "Deleted items are retained. Restore an entire operation; later changes may prevent restoration.",
+  trashHint: "Deleted items are retained and can be restored.",
+  trashAllScopes: "All boxes and global deletions",
+  trashEmpty: "No deleted items in this scope",
+  restoreConfirm:
+    "Restore all items from this deletion? Later changes may prevent restoration.",
   historyScope: "History scope",
   allHistory: "All operations",
   operation: "Operation #{id}",
@@ -371,8 +374,10 @@ export const zh: Record<MessageKey, string> = {
   history: "操作历史",
   trash: "回收站",
   historyEmpty: "暂无操作记录。",
-  trashHint:
-    "已删除内容会永久保留。恢复以整条操作为单位，后续更改可能阻止恢复。",
+  trashHint: "已删除内容会保留，可恢复。",
+  trashAllScopes: "全部归档盒及全局删除",
+  trashEmpty: "此范围内暂无已删除内容",
+  restoreConfirm: "恢复本次删除的所有内容？若与后续更改冲突，将无法恢复。",
   historyScope: "历史范围",
   allHistory: "全部操作",
   operation: "操作 #{id}",

@@ -2012,3 +2012,69 @@ main.upload-drag-active {
   color: var(--mantine-primary-color-light-color);
   font-weight: 400;
 }
+
+.trash-page .history-toolbar {
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  margin-block: 0 20px;
+}
+.trash-page .history-toolbar input {
+  max-width: none;
+  font-size: 13px;
+}
+.trash-hint {
+  margin: 0;
+}
+.trash-page .history-list {
+  gap: 0;
+  margin: 0;
+  border-top: 1px solid var(--border);
+}
+.trash-page .history-list > li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-inline-end: 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+}
+.trash-page .history-list > li:hover {
+  background: var(--surface-hover);
+}
+.trash-page .history-entry {
+  flex: 1;
+  min-width: 0;
+  gap: 14px;
+  padding: 16px 12px;
+}
+.trash-page .history-entry > .navigation-icon {
+  flex-shrink: 0;
+  color: var(--muted);
+  width: 20px;
+  height: 20px;
+}
+.trash-page .history-entry strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+.trash-page .history-entry small {
+  font-size: 12px;
+  margin-top: 4px;
+}
+.trash-page .history-list > li > button:last-child {
+  flex-shrink: 0;
+  font-size: 13px;
+}
+.trash-empty {
+  padding: 64px 16px;
+  text-align: center;
+  font-size: 14px;
+}
+.trash-empty > .navigation-icon {
+  width: 28px;
+  height: 28px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
