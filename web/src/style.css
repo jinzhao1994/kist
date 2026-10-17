@@ -2365,3 +2365,9 @@ main.upload-drag-active {
   color: var(--mantine-primary-color-filled);
   font-size: 11px;
 }
+
+.metadata-tooltip {
+  background: rgb(33 37 41 / 85%);
+  color: #fff;
+  font-size: 12px;
+}

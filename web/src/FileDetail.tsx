@@ -130,6 +130,9 @@ export function FileDetail({
                   <div key={row.key}>
                     <Tooltip
                       label={row.key}
+                      position="right"
+                      offset={8}
+                      classNames={{ tooltip: "metadata-tooltip" }}
                       openDelay={0}
                       transitionProps={{ duration: 0 }}
                       events={{ hover: true, focus: true, touch: false }}
@@ -142,6 +145,9 @@ export function FileDetail({
                       {row.key === "file:mtime" ? (
                         <Tooltip
                           label={row.value}
+                          position="top-end"
+                          offset={6}
+                          classNames={{ tooltip: "metadata-tooltip" }}
                           openDelay={0}
                           transitionProps={{ duration: 0 }}
                           events={{ hover: true, focus: true, touch: false }}
