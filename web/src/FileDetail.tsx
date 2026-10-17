@@ -1,4 +1,4 @@
-import { Button, CopyButton } from "@mantine/core";
+import { Button, CopyButton, Tooltip } from "@mantine/core";
 import type { FileDetail as FileData, Tag } from "./api";
 import { TagAssignment } from "./Tags";
 import { ExtractionStatus, useExtraction } from "./Extraction";
@@ -114,19 +114,45 @@ export function FileDetail({
             <section className="file-metadata-group" key={source}>
               {source && (
                 <h4>
-                  <bdi>{source === "exif" ? "EXIF" : source}</bdi>
+                  <bdi>
+                    {source === "exif"
+                      ? "EXIF"
+                      : source === "file"
+                        ? "File"
+                        : source === "media"
+                          ? "Media"
+                          : source}
+                  </bdi>
                 </h4>
               )}
               <dl className="metadata-list">
                 {rows.map((row) => (
                   <div key={row.key}>
-                    <dt title={row.key}>
-                      <bdi>{labels[row.key] || row.key}</bdi>
-                    </dt>
-                    <dd
-                      title={row.key === "file:mtime" ? row.value : undefined}
+                    <Tooltip
+                      label={row.key}
+                      openDelay={0}
+                      transitionProps={{ duration: 0 }}
+                      events={{ hover: true, focus: true, touch: false }}
                     >
-                      <bdi>{metadataValue(row.key, row.value)}</bdi>
+                      <dt tabIndex={0}>
+                        <bdi>{labels[row.key] || row.key}</bdi>
+                      </dt>
+                    </Tooltip>
+                    <dd>
+                      {row.key === "file:mtime" ? (
+                        <Tooltip
+                          label={row.value}
+                          openDelay={0}
+                          transitionProps={{ duration: 0 }}
+                          events={{ hover: true, focus: true, touch: false }}
+                        >
+                          <bdi tabIndex={0}>
+                            {metadataValue(row.key, row.value)}
+                          </bdi>
+                        </Tooltip>
+                      ) : (
+                        <bdi>{metadataValue(row.key, row.value)}</bdi>
+                      )}
                     </dd>
                   </div>
                 ))}

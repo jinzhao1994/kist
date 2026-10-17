@@ -766,18 +766,21 @@ it("groups preview metadata and opens tag selection only on request", async () =
     { wrapper },
   );
   expect(screen.getAllByRole("heading", { name: "EXIF" })).toHaveLength(1);
-  expect(screen.getByText("Image width").closest("dt")).toHaveAttribute(
-    "title",
+  expect(screen.getByRole("heading", { name: "File" })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Media" })).toBeVisible();
+  await user.hover(screen.getByText("Image width"));
+  expect(await screen.findByRole("tooltip")).toHaveTextContent(
     "exif:ExifImageWidth",
   );
-  expect(screen.getByText("kind").closest("dt")).toHaveAttribute(
-    "title",
-    "media:kind",
-  );
-  expect(screen.getByText(/Oct 16, 2026/).closest("dd")).toHaveAttribute(
-    "title",
+  await user.unhover(screen.getByText("Image width"));
+  await user.hover(screen.getByText("kind"));
+  expect(await screen.findByRole("tooltip")).toHaveTextContent("media:kind");
+  await user.unhover(screen.getByText("kind"));
+  await user.hover(screen.getByText(/Oct 16, 2026/));
+  expect(await screen.findByRole("tooltip")).toHaveTextContent(
     "1792113660563000000",
   );
+  await user.unhover(screen.getByText(/Oct 16, 2026/));
   expect(screen.getByText(/Oct 16, 2026/)).toHaveTextContent(/1:21/);
   expect(screen.getByText("custom:unknown")).toBeVisible();
   expect(screen.getByText("original value")).toBeVisible();
