@@ -2339,7 +2339,7 @@ main.upload-drag-active {
 }
 .file-info-panel .metadata-list > div {
   border: 0;
-  padding-block: 5px;
+  padding-block: 2px;
 }
 .file-id-copy {
   display: flex;
