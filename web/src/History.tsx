@@ -84,7 +84,10 @@ export function HistoryPage({
             ...(box && !boxes.some((item) => item.id === box)
               ? [{ value: box, label: box }]
               : []),
-            ...boxes.map((item) => ({ value: item.id, label: item.name })),
+            ...boxes.map((item) => ({
+              value: item.id,
+              label: `${item.name} · ${item.start_at ? formatLocalDate(item.start_at, prefs) : t("noStartDate")}`,
+            })),
           ]}
         />
         {trash && (
