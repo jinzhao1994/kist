@@ -419,9 +419,10 @@ summary {
   display: flex;
   align-items: center;
   border-radius: 6px;
-  padding: 0.35rem 0.6rem;
+  padding: 0.15rem 0.6rem;
   padding-inline-start: 1rem;
   font-size: 0.85rem;
+  line-height: 1.4;
   overflow-wrap: anywhere;
 }
 .tag-chips li::before {
@@ -431,9 +432,15 @@ summary {
   z-index: -1;
   border-radius: inherit;
   background: var(--tag);
+  mask-image: radial-gradient(circle at 8px 50%, transparent 2px, #000 2.5px);
   clip-path: polygon(8px 0, 100% 0, 100% 100%, 8px 100%, 0 50%);
 }
 [dir="rtl"] .tag-chips li::before {
+  mask-image: radial-gradient(
+    circle at calc(100% - 8px) 50%,
+    transparent 2px,
+    #000 2.5px
+  );
   clip-path: polygon(
     0 0,
     calc(100% - 8px) 0,
