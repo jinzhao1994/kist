@@ -177,13 +177,9 @@ export function Gallery({
         </h1>
         <div className="gallery-actions">
           {data && (
-            <a
-              className="button-link"
-              href={contentURL(data.file, true)}
-              download
-            >
+            <Button component="a" href={contentURL(data.file, true)} download>
               {t("download")}
-            </a>
+            </Button>
           )}
         </div>
       </header>
