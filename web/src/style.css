@@ -2243,3 +2243,16 @@ main.upload-drag-active {
 .history-page .history-entry > span:not(.history-number):not(.history-status) {
   flex: 1;
 }
+
+.select-special-option {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.mantine-Combobox-option:has(.select-special-option),
+.mantine-Select-option:has(.select-special-option) {
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  margin-bottom: 4px;
+  padding-block: 10px;
+}

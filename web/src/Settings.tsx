@@ -56,7 +56,7 @@ export function Settings({
             setAppearance({ ...appearance, mode: mode as Appearance["mode"] })
           }
           options={[
-            { value: "system", label: t("modeSystem") },
+            { value: "system", label: t("modeSystem"), special: true },
             { value: "light", label: t("modeLight") },
             { value: "dark", label: t("modeDark") },
           ]}
@@ -105,7 +105,7 @@ export function Settings({
             field("direction", direction as Preferences["direction"])
           }
           options={[
-            { value: "auto", label: t("auto") },
+            { value: "auto", label: t("auto"), special: true },
             { value: "ltr", label: t("ltr") },
             { value: "rtl", label: t("rtl") },
           ]}

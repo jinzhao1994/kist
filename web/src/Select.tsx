@@ -1,4 +1,8 @@
-import { Select as MantineSelect, type SelectProps } from "@mantine/core";
+import {
+  Select as MantineSelect,
+  CheckIcon,
+  type SelectProps,
+} from "@mantine/core";
 export function Select({
   id,
   "aria-label": ariaLabel,
@@ -15,7 +19,7 @@ export function Select({
   "aria-label"?: string;
   value: string;
   onValueChange: (value: string) => void;
-  options: { value: string; label: string }[];
+  options: { value: string; label: string; special?: boolean }[];
   disabled?: boolean;
   label?: string;
   searchable?: boolean;
@@ -34,7 +38,28 @@ export function Select({
       data={options}
       disabled={disabled}
       searchable={searchable}
-      renderOption={renderOption}
+      renderOption={(item) => (
+        <>
+          {!renderOption && item.checked && (
+            <CheckIcon
+              size={12}
+              aria-hidden="true"
+              style={{ flexShrink: 0, opacity: 0.4 }}
+            />
+          )}
+          <span
+            className={
+              item.option.value === "" ||
+              options.find((option) => option.value === item.option.value)
+                ?.special
+                ? "select-special-option"
+                : undefined
+            }
+          >
+            {renderOption ? renderOption(item) : item.option.label}
+          </span>
+        </>
+      )}
       nothingFoundMessage={nothingFoundMessage}
       allowDeselect={false}
     />

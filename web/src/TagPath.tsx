@@ -14,7 +14,10 @@ export function tagOption(tag: FlatTag): TagOption {
 }
 export function TagPath({ option }: { option: TagOption }) {
   return (
-    <bdi className="tag-path" title={option.label}>
+    <bdi
+      className={`tag-path${option.value === "" ? " select-special-option" : ""}`}
+      title={option.label}
+    >
       {option.prefix && (
         <>
           <span className="tag-path-prefix">
