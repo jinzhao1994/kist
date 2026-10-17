@@ -252,6 +252,13 @@ async function prepare(page: Page, options: Options = {}) {
     else if (
       /^\/files\/(?:file-[1-4]|visible-[0-9]+)\/derived\/[a-z0-9_]+$/.test(path)
     ) {
+      const recipe = path.split("/").at(-1);
+      if (
+        path.includes("/file-4/") &&
+        recipe !== "video_thumb_512_v2" &&
+        recipe !== "preview_1080p_v1"
+      )
+        errors.push(`Unexpected video recipe: ${recipe}`);
       const state = options.state || "ready";
       body = {
         state,

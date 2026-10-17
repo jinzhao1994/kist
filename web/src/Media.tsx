@@ -66,7 +66,9 @@ export function Media({
     ? file.kind === "video"
       ? "preview_1080p_v1"
       : "preview_2048_v1"
-    : "thumb_512_v1";
+    : file.kind === "video"
+      ? "video_thumb_512_v2"
+      : "thumb_512_v1";
   const path = mediaPath(file, recipe);
   const key = ["media", file.id, file.blob_key, recipe];
   const enabled = active && hasDerivedMedia(file);

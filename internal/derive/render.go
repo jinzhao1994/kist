@@ -19,6 +19,7 @@ import (
 
 const (
 	Thumbnail            = "thumb_512_v1"
+	VideoThumbnail       = "video_thumb_512_v2"
 	Preview              = "preview_2048_v1"
 	Video                = "preview_1080p_v1"
 	MaxPixels      int64 = 64_000_000
@@ -36,7 +37,7 @@ type Recipe struct {
 // Lookup is the only registry of public recipes and their output types.
 func Lookup(name string) (Recipe, bool) {
 	switch name {
-	case Thumbnail:
+	case Thumbnail, VideoThumbnail:
 		return Recipe{name, ".jpg", "image/jpeg", 512}, true
 	case Preview:
 		return Recipe{name, ".jpg", "image/jpeg", 2048}, true

@@ -22,7 +22,7 @@ for file in files:
         assert file['kind'] == 'video' and file['media_type'] == 'video/quicktime', file
     if file['name'] == 'two-pages.pdf':
         assert file['media_type'] == 'application/pdf', file
-    recipes = ['thumb_512_v1', 'preview_1080p_v1' if file['name'].endswith(('.mp4', '.mov')) else 'preview_2048_v1']
+    recipes = ['video_thumb_512_v2' if file['name'].endswith(('.mp4', '.mov')) else 'thumb_512_v1', 'preview_1080p_v1' if file['name'].endswith(('.mp4', '.mov')) else 'preview_2048_v1']
     for recipe in recipes:
         path = '/files/' + file['id'] + '/derived/' + recipe
         with request(path, {}) as response:

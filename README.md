@@ -328,7 +328,19 @@ Jobs survive restart and share outputs for identical content. Stop the server
 before removing the disposable `derived/` directory; browsing regenerates
 requested outputs. This never changes originals or undo history.
 
-Recipes are `thumb_512_v1` (JPEG, longest edge 512), `preview_2048_v1`
+Video thumbnails prefer embedded cover art, then a valid QuickTime poster time.
+Otherwise, up to 100 small frames are sampled across the video; near-black frames
+are excluded and a representative color histogram selects the result. Sampling
+has a 60-second budget and uses fewer frames for short clips. This does not
+identify the best scene semantically.
+
+After upgrading, refresh the browser. Visible videos request `video_thumb_512_v2`,
+which generates a new cached result even when an older thumbnail exists. Images
+and PDFs keep `thumb_512_v1` because their rendering algorithm is unchanged;
+uncropped display is a browser layout change. No re-upload, rebuild or wholesale
+cache deletion is needed. Old cache files remain on disk without automatic cleanup.
+
+Recipes are `video_thumb_512_v2` (video cover JPEG, longest edge 512), `thumb_512_v1` (JPEG, longest edge 512), `preview_2048_v1`
 (JPEG, longest edge 2048), and `preview_1080p_v1` (H.264/AAC MP4, up to
 1920×1080). Images preserve aspect ratio and orientation, flatten alpha onto
 white, and show the first animation frame. Multi-image HEIF collections are

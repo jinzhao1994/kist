@@ -19,13 +19,27 @@ import (
 // uploaded HLS manifest must not become an HTTP client on the archive's behalf.
 const containers = "mov,matroska,webm,avi,mpeg,mpegts,ogg,flv,asf"
 
+type probeStream struct {
+	Index       int    `json:"index"`
+	CodecType   string `json:"codec_type"`
+	Width       int    `json:"width"`
+	Height      int    `json:"height"`
+	Disposition struct {
+		AttachedPic     int `json:"attached_pic"`
+		TimedThumbnails int `json:"timed_thumbnails"`
+	} `json:"disposition"`
+	Tags struct {
+		Filename string `json:"filename"`
+	} `json:"tags"`
+}
+
+func (s probeStream) movingVideo() bool {
+	return s.CodecType == "video" && s.Disposition.AttachedPic == 0 && s.Disposition.TimedThumbnails == 0
+}
+
 type probeResult struct {
-	Streams []struct {
-		CodecType string `json:"codec_type"`
-		Width     int    `json:"width"`
-		Height    int    `json:"height"`
-	} `json:"streams"`
-	Format struct {
+	Streams []probeStream `json:"streams"`
+	Format  struct {
 		Duration string `json:"duration"`
 	} `json:"format"`
 }
@@ -87,7 +101,7 @@ func (r Renderer) probe(ctx context.Context, input string) (probeResult, error) 
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	out := &limitedBuffer{limit: 1 << 20}
-	err = run(ctx, path, []string{"-v", "error", "-max_alloc", "268435456", "-protocol_whitelist", "file,pipe", "-format_whitelist", containers, "-show_entries", "stream=codec_type,width,height:format=duration", "-of", "json", input}, out)
+	err = run(ctx, path, []string{"-v", "error", "-max_alloc", "268435456", "-protocol_whitelist", "file,pipe", "-format_whitelist", containers, "-show_entries", "stream=index,codec_type,width,height:stream_disposition=attached_pic,timed_thumbnails:stream_tags=filename:format=duration", "-of", "json", input}, out)
 	if err != nil {
 		return info, err
 	}
@@ -104,6 +118,9 @@ func (r Renderer) external(ctx context.Context, input, output string, spec Recip
 	info, err := r.probe(ctx, input)
 	if err != nil {
 		return result, err
+	}
+	if spec.Name == VideoThumbnail {
+		return r.videoThumbnail(ctx, path, input, output, spec, info)
 	}
 	width, height := 0, 0
 	for _, stream := range info.Streams {

@@ -294,3 +294,51 @@ func TestMediaRecoveryCleansOnlyRendererTemps(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestMediaRecipeUpgradeDoesNotReuseOldCache(t *testing.T) {
+	l, id, _ := mediaFixture(t)
+	m, ctx := l.Media(), t.Context()
+	old, err := m.Request(ctx, id, derive.Thumbnail, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = m.work(ctx); err != nil {
+		t.Fatal(err)
+	}
+	old, err = m.Status(ctx, id, derive.Thumbnail)
+	if err != nil || old.State != "ready" {
+		t.Fatalf("old: %+v %v", old, err)
+	}
+	missing, err := m.Status(ctx, id, derive.VideoThumbnail)
+	if err != nil || missing.State != "missing" {
+		t.Fatalf("new reused old cache: %+v %v", missing, err)
+	}
+	fresh, err := m.Request(ctx, id, derive.VideoThumbnail, false)
+	if err != nil || fresh.State != "queued" {
+		t.Fatalf("new: %+v %v", fresh, err)
+	}
+	if err = m.work(ctx); err != nil {
+		t.Fatal(err)
+	}
+	fresh, f, err := m.Open(ctx, id, derive.VideoThumbnail)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	_, oldPath, _ := m.paths(old)
+	_, newPath, _ := m.paths(fresh)
+	if oldPath == newPath {
+		t.Fatal("recipe paths collide")
+	}
+	if _, err = os.Stat(oldPath); err != nil {
+		t.Fatal("old cache removed", err)
+	}
+	again, err := m.Request(ctx, id, derive.VideoThumbnail, false)
+	if err != nil || again.State != "ready" || again.Generation != fresh.Generation {
+		t.Fatalf("new cache not reused: %+v %v", again, err)
+	}
+	retained, err := m.Status(ctx, id, derive.Thumbnail)
+	if err != nil || retained.Generation != old.Generation || retained.State != "ready" {
+		t.Fatalf("unchanged recipe invalidated: %+v %v", retained, err)
+	}
+}

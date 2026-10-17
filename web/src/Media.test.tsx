@@ -180,7 +180,11 @@ for (const [name, kind, media_type] of [
     mount({ detail: false, file: { ...file, name, kind, media_type } });
     expect(await screen.findByRole("img", { name })).toHaveAttribute(
       "src",
-      expect.stringContaining("/derived/thumb_512_v1/content"),
+      expect.stringContaining(
+        kind === "video"
+          ? "/derived/video_thumb_512_v2/content"
+          : "/derived/thumb_512_v1/content",
+      ),
     );
   });
 }
