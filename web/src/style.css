@@ -414,20 +414,33 @@ summary {
   margin-block-end: 0.6rem;
 }
 .tag-chips li {
+  position: relative;
+  isolation: isolate;
   display: flex;
   align-items: center;
-  gap: 0.35rem;
   border-radius: 6px;
-  background: var(--tag);
   padding: 0.35rem 0.6rem;
+  padding-inline-start: 1rem;
   font-size: 0.85rem;
   overflow-wrap: anywhere;
 }
-.tag-chip-icon {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  opacity: 0.6;
+.tag-chips li::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--tag);
+  clip-path: polygon(8px 0, 100% 0, 100% 100%, 8px 100%, 0 50%);
+}
+[dir="rtl"] .tag-chips li::before {
+  clip-path: polygon(
+    0 0,
+    calc(100% - 8px) 0,
+    100% 50%,
+    calc(100% - 8px) 100%,
+    0 100%
+  );
 }
 .inline-form {
   max-inline-size: 28rem;
