@@ -860,6 +860,8 @@ test("gallery-navigation-and-return", async ({ page }, info) => {
   await expect(
     gallery.getByRole("heading", { name: "山间清晨.jpg", exact: true }),
   ).toBeVisible();
+  await expect(gallery.locator("aside")).toHaveCount(0);
+  await gallery.getByRole("button", { name: "文件详情", exact: true }).click();
   await expect(gallery.locator("aside")).toBeVisible();
   await gallery.getByRole("button", { name: "文件详情", exact: true }).click();
   await expect(gallery.locator("aside")).toHaveCount(0);
@@ -873,7 +875,7 @@ test("gallery-navigation-and-return", async ({ page }, info) => {
   await page.goBack();
   await expect(gallery).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: "文件名: 旅行", exact: true }),
+    page.getByRole("button", { name: "旅行", exact: true }),
   ).toBeVisible();
   await page.goForward();
   await expect(
