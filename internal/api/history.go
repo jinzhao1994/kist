@@ -47,6 +47,11 @@ func renderHistory(entry library.HistoryEntry) HistoryOp {
 	return HistoryOp{Op: wire.Op{ID: entry.ID, TS: entry.TS, Action: string(entry.Action), Origin: string(entry.Origin), RevertsID: entry.RevertsID, RootOpID: entry.RootOpID, UndoneBy: entry.UndoneBy}, Undoable: entry.Undoable}
 }
 func (s *Server) historyRoutes() {
+	huma.Get(s.contract, Prefix+"/ops/{id}/summary", func(ctx context.Context, in *opInput) (*output[library.HistorySummary], error) {
+		summary, err := s.library.HistorySummary(ctx, in.ID)
+		return response(summary, err)
+	})
+
 	huma.Get(s.contract, Prefix+"/ops", func(ctx context.Context, in *historyInput) (*output[historyList], error) {
 		opt := library.ListOpsOptions{Action: in.Action, Before: in.Before, Limit: in.Limit}
 		if in.Trash {

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { HistoryPage, comparisonFields } from "./History";
+import { HistoryPage, comparisonFields, describeHistory } from "./History";
 import { I18nProvider, storageKey, translator } from "./i18n";
 import type { Box, HistoricalFile } from "./api";
 const preferences = {
@@ -176,7 +176,10 @@ it("compares deletion to the historical file without requesting current media or
   ).toHaveAttribute("href", "/api/v1/files/file/content?at=4&download=true");
   expect(
     fetch.mock.calls.every(
-      ([path]) => path.includes("/ops?") || path.includes("/history/"),
+      ([path]) =>
+        path.includes("/ops?") ||
+        path.includes("/history/") ||
+        path.endsWith("/summary"),
     ),
   ).toBe(true);
 });
@@ -300,4 +303,46 @@ it("searches scope options while keeping optional start dates secondary", async 
   expect(screen.getAllByRole("option")).toHaveLength(1);
   await user.click(screen.getByRole("option"));
   expect(scope).toHaveBeenCalledWith("a");
+});
+
+it("describes named targets, tags, batches and renames without opening details", () => {
+  const t = translator({ ...preferences, language: "zh" });
+  expect(
+    describeHistory(
+      "tag_boxes",
+      { name: "旅行", tag: "照片", count: 1, current_names: true },
+      t,
+    ),
+  ).toBe("为归档盒「旅行」添加标签「照片」");
+  expect(
+    describeHistory(
+      "delete_files",
+      { name: "合同.pdf", count: 3, current_names: false },
+      t,
+    ),
+  ).toContain("「合同.pdf」等 3 项");
+  expect(
+    describeHistory(
+      "rename_entry",
+      { name: "旧", before: "旧", after: "新", count: 1, current_names: false },
+      t,
+    ),
+  ).toContain("「旧」→「新」");
+});
+
+it("loads a readable summary in the list without fetching the operation payload", async () => {
+  const fetch = vi.fn(async (path: string) =>
+    json(
+      path.endsWith("/summary")
+        ? { name: "contract.pdf", count: 3, current_names: false }
+        : { ops: [op] },
+    ),
+  );
+  vi.stubGlobal("fetch", fetch);
+  mount();
+  expect(await screen.findByText(/contract.pdf.*3 items/)).toBeVisible();
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(fetch.mock.calls.some(([path]) => path === "/api/v1/ops/5")).toBe(
+    false,
+  );
 });

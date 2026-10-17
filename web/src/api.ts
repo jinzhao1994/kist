@@ -6,6 +6,7 @@ export type ArchiveFile = components["schemas"]["File"];
 export type FileDetail = components["schemas"]["FileDetail"];
 export type Tag = components["schemas"]["Tag"];
 export type Receipt = components["schemas"]["RequestResult"];
+export type HistorySummary = components["schemas"]["HistorySummary"];
 export type HistoryOp = components["schemas"]["HistoryOp"];
 export type HistoryDetail = components["schemas"]["HistoryDetail"];
 export type HistoricalFile = components["schemas"]["HistoricalFile"];
@@ -58,6 +59,8 @@ export const api = {
       if (value !== undefined && value !== "") params.set(key, String(value));
     return get<components["schemas"]["HistoryList"]>(`/ops?${params}`, signal);
   },
+  historySummary: (id: number, signal?: AbortSignal) =>
+    get<HistorySummary>(`/ops/${id}/summary`, signal),
   operation: (id: number, signal?: AbortSignal) =>
     get<HistoryDetail>(`/ops/${id}`, signal),
   historicalBox: (op: number, box: string, cursor = "", signal?: AbortSignal) =>

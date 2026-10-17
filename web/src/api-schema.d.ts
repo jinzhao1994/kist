@@ -368,6 +368,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ops/{id}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 ops by ID summary */
+        get: operations["get-api-v1-ops-by-id-summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ops/{id}/undo": {
         parameters: {
             query?: never;
@@ -821,6 +838,16 @@ export interface components {
             undoable: boolean;
             /** Format: int64 */
             undone_by: number | null;
+        };
+        HistorySummary: {
+            after?: string;
+            before?: string;
+            context?: string;
+            /** Format: int64 */
+            count: number;
+            current_names: boolean;
+            name: string;
+            tag?: string;
         };
         LibraryInfo: {
             /** Format: int64 */
@@ -2045,6 +2072,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HistoryDetail"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-ops-by-id-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistorySummary"];
                 };
             };
             /** @description Error */

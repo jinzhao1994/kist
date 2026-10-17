@@ -1,5 +1,5 @@
 import { Button, UnstyledButton, TextInput } from "@mantine/core";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import {
   api,
@@ -7,6 +7,7 @@ import {
   createWrite,
   type Box,
   type HistoricalFile,
+  type HistorySummary,
   type Tag,
 } from "./api";
 import { NavigationIcon } from "./NavigationIcon";
@@ -142,7 +143,7 @@ export function HistoryPage({
                 <span className="history-number">#{op.id}</span>
               )}
               <span>
-                <strong>{actionLabel(op.action, t)}</strong>
+                <HistoryDescription id={op.id} action={op.action} />
                 <small>
                   {formatInstant(op.ts, prefs)}
                   {trash && (
@@ -238,6 +239,82 @@ export function HistoryPage({
     </section>
   );
 }
+export function describeHistory(
+  action: string,
+  summary: HistorySummary | undefined,
+  t: Translate,
+) {
+  const label = actionLabel(action, t);
+  if (!summary?.name) return label;
+  const target =
+    summary.count > 1
+      ? t("historyBatch", { name: summary.name, count: summary.count })
+      : t("historyNamed", { name: summary.name });
+  if (
+    ["tag_boxes", "tag_files", "untag_boxes", "untag_files"].includes(action)
+  ) {
+    const namedTarget = t(
+      action.endsWith("boxes") ? "historyBoxTarget" : "historyFileTarget",
+      { target },
+    );
+    return t(
+      action.startsWith("untag") ? "historyTagRemoved" : "historyTagAdded",
+      { target: namedTarget, tag: summary.tag || "" },
+    );
+  }
+  if (summary.before && summary.after)
+    return `${label}：${t("historyRenamed", { before: summary.before, after: summary.after })}`;
+  if (action === "move_tag")
+    return `${label}：${target} → ${summary.after ? t("historyNamed", { name: summary.after }) : t("rootTag")}`;
+  return `${label}：${target}${summary.context ? ` · ${summary.context}` : ""}`;
+}
+
+function HistoryDescription({ id, action }: { id: number; action: string }) {
+  const { t } = useI18n();
+  const ref = useRef<HTMLElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    if (!ref.current) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setVisible(entry.isIntersecting);
+      },
+      { rootMargin: "100px" },
+    );
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+  const query = useQuery({
+    queryKey: ["history-summary", id],
+    queryFn: ({ signal }) => api.historySummary(id, signal),
+    enabled: visible,
+    retry: 1,
+  });
+  const description = describeHistory(action, query.data, t);
+  return (
+    <strong ref={ref} className="history-description" title={description}>
+      <span>{description}</span>
+      {query.data?.current_names && (
+        <span
+          className="history-name-source"
+          title={t("historyCurrentNamesHint")}
+        >
+          {t("historyCurrentNames")}
+        </span>
+      )}
+      {query.isError && (
+        <span className="history-name-source">
+          {t("historySummaryUnavailable")}
+        </span>
+      )}
+    </strong>
+  );
+}
+
 function OperationDetail({
   id,
   close,

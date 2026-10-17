@@ -35,6 +35,17 @@ export const en = {
   boxRoot: "Box root",
   returnToBoxRoot: "Return to box root",
   searchWholeBox: "Search scope: current folder and subfolders",
+  historyBoxTarget: "box {target}",
+  historyFileTarget: "file {target}",
+  historyNamed: "“{name}”",
+  historyBatch: "“{name}” and others ({count} items)",
+  historyTagAdded: "Add tag “{tag}” to {target}",
+  historyTagRemoved: "Remove tag “{tag}” from {target}",
+  historyRenamed: "“{before}” → “{after}”",
+  historyCurrentNames: "Current names",
+  historyCurrentNamesHint:
+    "This older operation stores object IDs; referenced objects are shown using their current names, or IDs if unavailable.",
+  historySummaryUnavailable: "Summary unavailable",
   history: "History",
   trash: "Recycle bin",
   historyEmpty: "No operations here yet.",
@@ -371,6 +382,17 @@ export const zh: Record<MessageKey, string> = {
   boxRoot: "根目录",
   returnToBoxRoot: "返回归档盒根目录",
   searchWholeBox: "搜索范围：当前目录及子目录",
+  historyBoxTarget: "归档盒{target}",
+  historyFileTarget: "文件{target}",
+  historyNamed: "「{name}」",
+  historyBatch: "「{name}」等 {count} 项",
+  historyTagAdded: "为{target}添加标签「{tag}」",
+  historyTagRemoved: "从{target}移除标签「{tag}」",
+  historyRenamed: "「{before}」→「{after}」",
+  historyCurrentNames: "按当前名称",
+  historyCurrentNamesHint:
+    "此操作只记录了对象 ID，引用的对象使用当前名称展示；名称不可用时保留 ID。",
+  historySummaryUnavailable: "摘要暂不可用",
   history: "操作历史",
   trash: "回收站",
   historyEmpty: "暂无操作记录。",
@@ -741,6 +763,13 @@ export function initializeLanguage() {
   applyDocumentLanguage(initialPreferences());
 }
 interface Parameters {
+  historyBoxTarget: { target: string };
+  historyFileTarget: { target: string };
+  historyNamed: { name: string };
+  historyBatch: { name: string; count: number };
+  historyTagAdded: { target: string; tag: string };
+  historyTagRemoved: { target: string; tag: string };
+  historyRenamed: { before: string; after: string };
   trashEntryConfirm: { name: string };
   trashFolderContents: { files: number; folders: number };
   deleteNamedTagConfirm: { name: string };

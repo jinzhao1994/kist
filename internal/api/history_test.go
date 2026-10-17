@@ -30,6 +30,14 @@ func TestHistoryAPIAndIdempotentUndo(t *testing.T) {
 	if strings.Contains(listing.Body.String(), "payload") {
 		t.Fatal("history list exposed payload")
 	}
+	summaryResponse := call(s, "GET", Prefix+"/ops/2/summary", "", "")
+	var summary library.HistorySummary
+	if err := json.Unmarshal(summaryResponse.Body.Bytes(), &summary); err != nil || summaryResponse.Code != 200 || summary.Before != "original" || summary.After != "renamed" || summary.CurrentNames {
+		t.Fatalf("summary %d %s %v", summaryResponse.Code, summaryResponse.Body, err)
+	}
+	if missing := call(s, "GET", Prefix+"/ops/9999/summary", "", ""); missing.Code != 404 {
+		t.Fatalf("missing summary: %d", missing.Code)
+	}
 	detail := call(s, "GET", Prefix+"/ops/2", "", "")
 	if detail.Code != 200 || !strings.Contains(detail.Body.String(), "renamed") {
 		t.Fatalf("%d %s", detail.Code, detail.Body)
