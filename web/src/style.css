@@ -1621,9 +1621,16 @@ button.filter-token-segment:hover {
   gap: 1.2rem;
   overflow: hidden;
 }
-.box-grid.view-list .box-summary h2 {
-  flex-shrink: 1;
+.box-grid.view-list .box-summary-text {
+  display: flex;
+  align-items: baseline;
+  gap: 1.2rem;
+  flex: 1;
   min-inline-size: 0;
+  overflow: hidden;
+}
+.box-grid.view-list .box-summary h2 {
+  flex-shrink: 0;
   max-inline-size: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1634,7 +1641,6 @@ button.filter-token-segment:hover {
   font-size: 0.8rem;
 }
 .box-grid.view-list .box-summary-description {
-  flex-shrink: 999;
   min-inline-size: 0;
   overflow: hidden;
   text-overflow: ellipsis;

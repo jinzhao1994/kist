@@ -125,17 +125,19 @@ export function BoxGrid({
               ▤
             </span>
             <span className="box-summary">
-              <h2>
-                <bdi>{box.name}</bdi>
-              </h2>
-              {box.description && (
-                <span
-                  className="box-summary-description"
-                  title={box.description}
-                >
-                  <bdi>{box.description}</bdi>
-                </span>
-              )}
+              <span className="box-summary-text">
+                <h2>
+                  <bdi>{box.name}</bdi>
+                </h2>
+                {box.description && (
+                  <span
+                    className="box-summary-description"
+                    title={box.description}
+                  >
+                    <bdi>{box.description}</bdi>
+                  </span>
+                )}
+              </span>
               <TagLabels tags={box.tags} />
             </span>
             <span

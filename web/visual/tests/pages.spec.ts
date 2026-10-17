@@ -887,6 +887,11 @@ test("box-list-long-description-preserves-tags", async ({ page }, info) => {
   await page.goto("/");
   await page.getByRole("button", { name: "显示方式", exact: true }).click();
   await page.getByText("列表", { exact: true }).click();
+  const title = page.locator(".box-summary h2");
+  await expect(title).toHaveText(box.name);
+  expect(
+    await title.evaluate((node) => node.scrollWidth <= node.clientWidth),
+  ).toBe(true);
   const description = page.locator(".box-summary-description");
   await expect(description).toBeVisible();
   expect(
