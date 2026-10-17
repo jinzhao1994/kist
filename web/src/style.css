@@ -622,13 +622,6 @@ progress {
 .detail-preview audio {
   max-inline-size: 100%;
 }
-.button-link {
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  padding: 0.6rem 1rem;
-  background: var(--surface);
-  text-align: center;
-}
 dt {
   font-size: 0.75rem;
   color: var(--muted);

@@ -589,13 +589,13 @@ function HistoricalBoxDialog({
                   <Button onClick={() => compare(file.id)}>
                     <bdi>{file.path || file.name}</bdi>
                   </Button>
-                  <a
-                    className="button-link"
+                  <Button
+                    component="a"
                     href={historicalContent(file.id, op)}
                     download
                   >
                     {t("download")}
-                  </a>
+                  </Button>
                 </li>
               ))}
           </ul>
