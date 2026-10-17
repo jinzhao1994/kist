@@ -5,10 +5,16 @@ Do not create or push a version tag until the maintainer explicitly authorizes
 publication. A tag triggers publication of a GitHub Release; workflow dispatch on
 `main` only tests and uploads development artifacts.
 
-1. Run `make check`, commit, push, and inspect CI and Visual on that exact SHA.
-2. Dispatch `Release` on the same commit's branch. All four artifact smoke jobs
-   must pass; inspect the `dist` artifact and its `SHA256SUMS`.
-3. Review `docs/releases/vX.Y.Z.md`, installation instructions and known limits.
+1. Finish release notes (`docs/releases/vX.Y.Z.md`), installation/upgrade guidance,
+   code and visual fixtures first. Use the existing three-part version format;
+   do not introduce a VERSION/CHANGELOG file or a PR solely to fit a generic tool.
+2. Run `make check`, commit and push. Review CI and Visual on that exact SHA.
+   Resolve capture failures and accept intentional visual changes through the
+   [visual procedure](../testing/visual.md). Wait for CI and Visual on the final
+   acceptance commit; that commit becomes the frozen release candidate.
+3. Dispatch `Release` on the candidate's branch. Confirm the run's `headSha`
+   equals the candidate SHA. All four artifact smoke jobs must pass; download
+   `dist`, verify its `SHA256SUMS`, and exercise the local matching package.
 4. After publication authorization, create and push the annotated `vX.Y.Z` tag
    at the reviewed commit. Do not move an existing release tag.
 5. The workflow reruns checks, packages and tests the tagged binaries before
@@ -21,6 +27,46 @@ publication. A tag triggers publication of a GitHub Release; workflow dispatch o
 If a pre-publication job fails, fix forward and repeat the rehearsal. If the
 publication job fails, inspect the tag and existing Release/assets before
 retrying; do not silently overwrite already-published files.
+
+## Avoid repeated rehearsals
+
+Record the candidate SHA and run IDs rather than repeatedly consulting the most
+recent workflow of any branch. A workflow dispatch resolves the branch at start;
+confirm its SHA before using the result. If source, fixtures, release notes or the
+baseline commit change, finalize them before rehearsing the new candidate.
+Keep the working tree and remote main aligned before tagging. Do not cancel or
+restart unrelated release jobs just because a development CI run was superseded.
+
+The tag-triggered check/build/smoke pass is intentional: it verifies binaries
+with the real release version embedded. Do not remove it to save time. The
+avoidable cost is starting a rehearsal while tests, notes and visual review are
+still changing. Pure documentation edits require `git diff --check` locally;
+code changes still require `make check`. Do not rerun unchanged local suites
+solely while waiting for remote jobs.
+
+Use the current workflows and scripts as the source of truth for jobs and
+platforms. Poll active runs at a measured interval, reporting stage transitions,
+failures and what remains; do not treat queued/in-progress as passed. Existing
+explicit publication authorization covers the normal tag and downstream release
+chain. If the maintainer pauses publication, stop before the next publishing step
+and wait for a new instruction. Repository visibility and credential expansion
+are separate actions, not implied by a version release.
+
+## Completion evidence
+
+| Stage | Evidence before claiming completion |
+|---|---|
+| Candidate | Exact SHA, clean tree, local check, CI and Visual results |
+| Rehearsal | Same SHA, four smoke results, downloaded archive checksums |
+| Binary release | Tag resolves to candidate, non-draft Release URL, all assets, published checksums, embedded version/commit and local artifact smoke |
+| GHCR version | Both native builds and anonymous pull/verify jobs, published index digest |
+| Stable channels and mirror | Container Latest and both relevant Docker Hub runs, including promotion and both architectures |
+| User deployment | User's actual running version after pull/recreate; a successful registry publication alone does not establish this |
+
+Record evidence in the stage's plan/retrospective when needed, not as a growing
+log in AGENTS.md. Final reports should separate a completed binary release from
+any still-pending registry job and link to the release. Update notices on NAS
+clients are outside the publication pipeline; see the [Synology guide](../synology.zh-CN.md#后续更新).
 
 ## Container images
 

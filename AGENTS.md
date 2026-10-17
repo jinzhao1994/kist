@@ -24,7 +24,7 @@ Go 单二进制 + SQLite，Apache-2.0。SQLite 是唯一数据库后端。
 
 ## 当前状态
 
-M0–M7 已完成，v0.1.0 已发布。包括存储内核、op log、导入与投影、完整性检查与修复、查询与 metadata、HTTP API、中英文 Web UI、派生媒体与 Docker、操作历史、只读回溯、版本对比、严格撤销和回收站恢复，以及四平台安装包。op log 位于 `ops/YYYY/MM/YYYY-MM-DD_ops.jsonl`。M7 验收与发布证据见 `docs/plans/2026-10-10-m7-release.md`。v0.1 永久保留历史内容，不实现 GC。下一阶段尚未立项，新增功能先对照设计文档及待决问题，不把远期方向视为已批准的实现任务。
+M0–M7 已完成，当前已发布 v0.1.4。包含可校验续传、同名上传处理、目录操作、收藏与分段搜索、操作历史与恢复、文件画廊，以及四平台安装包和 GHCR / Docker Hub 双架构正式镜像。op log 位于 `ops/YYYY/MM/YYYY-MM-DD_ops.jsonl`。M7 基础验收见 `docs/plans/2026-10-10-m7-release.md`，版本差异与升级边界见 `docs/releases/`。v0.1 永久保留历史内容，不实现 GC。下一阶段尚未立项，新增功能先对照设计文档及待决问题，不把远期方向视为已批准的实现任务。
 
 更新这个状态时替换旧文字，不要在下面继续追加历史。
 
@@ -52,6 +52,9 @@ M0–M7 已完成，v0.1.0 已发布。包括存储内核、op log、导入与�
 - 一个阶段的工作完成、相关检查通过后，及时 commit 并 push，利用 GitHub Actions 尽早发现跨平台问题。不要把多个已经可独立验证的阶段长期积在工作树里。
 - commit message 使用中文，说明这一阶段交付了什么。push 后检查对应的 GitHub Actions；失败时继续修到通过。不要自行创建 PR 或修改发布状态，除非用户明确要求。
 - 不要在子目录创建 `AGENTS.md` 或 `AGENTS.override.md`。包括未来 `web/` 的重要 agent 规则都维护在根目录这一个 `AGENTS.md` 中，并保持精简。
+- UI 修改先读 `docs/design/ui-guidelines.md`，从共享组件和语义样式修正，并检查同类入口；不在不同页面复制另一套控件外观。交互、默认状态或请求变化时，同步视觉场景的断言和 API fixtures。
+- `make check` 不执行真实浏览器截图。UI 阶段完成后按 `docs/testing/visual.md` 区分采集失败与预期差异，审阅完整候选后更新基准；不能以“CI 还在跑”长期跳过失败。
+- 发布按 `docs/releases/README.md`：先收齐文档、测试及视觉基准，再固定候选 SHA 做四平台预演；发布、镜像可拉取、NAS 已升级是不同状态。通用技能不得替换项目的三段版本号、授权范围及验收流程。
 
 ## 语言
 

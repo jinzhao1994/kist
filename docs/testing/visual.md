@@ -33,4 +33,34 @@ Add cases to `web/visual/tests/`. Each test has a unique lowercase hyphenated ti
 
 `make check` validates TypeScript and the artifact guards without launching a browser. Visual capture runs in Actions. Update `web/visual/environment.json` together with the exact `@playwright/test` dependency when changing browser versions, then review the new captures. An environment fingerprint change requires explicit acceptance even if both newly generated sets match. Comparison uses pixelmatch's 0.1 color threshold and default antialias filtering, with zero differing pixels allowed after filtering. Missing, removed and resized images fail too.
 
+Treat UI behavior changes and their visual fixtures as one change:
+
+- New API requests need explicit synthetic responses. In v0.1.4, adding history
+  summaries without `/ops/{id}/summary` fixtures failed five capture scenarios.
+  Keep the unexpected-request guard; do not silence it or fall through to a real library.
+- Default-state changes need explicit setup. Detail screenshots must open the
+  now-closed details panel; navigation tests must verify the closed default and
+  then exercise the toggle. Do not restore old product behavior to satisfy stale tests.
+- Update accessible-name locators when semantics change. A free keyword is no
+  longer a filename-field token. Prefer roles and exact names scoped to the
+  relevant region; do not weaken assertions to arbitrary first matches.
+- Wait for observable readiness (loaded data, decoded images, stable layout),
+  not fixed sleeps or extra retries. Include empty, loading and error states deliberately.
+
+Triage by the failed step, not by the red workflow badge:
+
+| Failure | Required action |
+|---|---|
+| Build, capture, unexpected request or assertion | Fix code or fixture; rerun a complete capture. A partial set is not a baseline. |
+| Complete captures, unintentional pixel/layout difference | Fix the regression and capture again. |
+| Complete captures, intentional reviewed difference | Accept that exact current-main run, then verify CI and Visual on the acceptance commit. |
+| Canceled/superseded run | Follow the new SHA; cancellation provides no passing evidence. |
+
+Review representative pages together during design iteration; include hover,
+keyboard focus, disabled controls, long values and narrow screens where affected.
+Do not advance the baseline after every pixel experiment, but do not defer broken
+capture scenarios until release day. Finish the review and acceptance commit
+before starting a release rehearsal. Contact sheets help scan the complete set;
+inspect changed dense or clipped regions at full size before accepting.
+
 The acceptance workflow only accepts a completed Visual push/manual run from this repository's current main commit, checks the latest attempt, approved baseline SHA and exact artifact contents, and verifies PNG hashes. Both captures must complete before an acceptable candidate is published. If the approved revision no longer builds or its scenarios cannot run with the current driver, fix the compatibility problem explicitly; there is no fallback that compares the current revision to itself. It never automatically decides that a visual change is correct.

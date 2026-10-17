@@ -199,6 +199,21 @@ Docker Hub `latest` 若在「映像」页显示更新，选中 kist 后使用「
 更新提示不一定立即出现。没有入口时，可以把项目 YAML 改为已发布的新版本标签，再构建、启动；
 固定版本不会自动跟进后续正式版。
 
+**如何判断是发布延迟还是 NAS 尚未检测到：**
+
+1. 核对完整镜像名是 `jinzhao1994/kist:latest`，而不只是看到 `latest` 字样。
+   固定的 `v0.1.x` 标签不会被下一版本覆盖，`edge` 已停止发布。
+2. 确认目标版本的 Docker Hub 同步及 `latest` 验收完成。GitHub Release 创建成功不等于
+   两个注册表与通道任务已经全部完成；具体阶段见[发布流程](releases/README.md#completion-evidence)。
+3. 若镜像已发布而 NAS 没有按钮，可稍后再看，或按上面的明确版本标签方式更新。
+   群晖[官方发布说明](https://www.synology.com/en-eu/releaseNote/ContainerManager)
+   明确支持 `latest` 自动更新检测，但没有在此说明固定检测时限。
+   网上“约 12 小时”的说法不能当作保证；[群晖社区](https://community.synology.com/enu/forum/1/post/187926)
+   也有等待 24 小时仍未出现按钮的报告（2026-10-17 查阅）。持续没有提示时检查 NAS 的
+   Container Manager 版本、访问 Docker Hub 的网络及镜像代理缓存，而不是无限延长等待。
+4. 拉取后重建使用新镜像的容器，最后检查 kist 的实际运行版本。标签相同、镜像下载成功
+   或单纯重启旧容器，都不能单独证明已经升级。
+
 群晖对非 Docker Hub 仓库可能不显示更新入口，不能据此判断 GHCR 没有新版本。
 不要删除项目或共享文件夹来强制更新，旧 `edge` 标签已停止更新，请使用正式版或 `latest`。
 
