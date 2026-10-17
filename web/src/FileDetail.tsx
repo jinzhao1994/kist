@@ -30,8 +30,8 @@ export function FileDetail({
     "file:size": t("fileSize"),
     "exif:XResolution": t("horizontalResolution"),
     "exif:YResolution": t("verticalResolution"),
-    "media:mime": t("kind"),
-    "media:kind": "kind",
+    "media:mime": t("mimeType"),
+    "media:kind": t("mediaKind"),
     "file:mtime": t("modified"),
   };
   const metadataValue = (key: string, value: string) => {

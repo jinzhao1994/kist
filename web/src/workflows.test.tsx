@@ -773,9 +773,9 @@ it("groups preview metadata and opens tag selection only on request", async () =
     "exif:ExifImageWidth",
   );
   await user.unhover(screen.getByText("Image width"));
-  await user.hover(screen.getByText("kind"));
+  await user.hover(screen.getByText("Type"));
   expect(await screen.findByRole("tooltip")).toHaveTextContent("media:kind");
-  await user.unhover(screen.getByText("kind"));
+  await user.unhover(screen.getByText("Type"));
   await user.hover(screen.getByText(/Oct 16, 2026/));
   expect(await screen.findByRole("tooltip")).toHaveTextContent(
     "1792113660563000000",
