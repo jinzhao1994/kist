@@ -77,6 +77,19 @@ export function HistoryPage({
         <Select
           label={trash ? undefined : t("historyScope")}
           aria-label={t("historyScope")}
+          searchable
+          nothingFoundMessage={t("noMatchingBoxes")}
+          renderOption={({ option }) => {
+            const item = boxes.find((box) => box.id === option.value);
+            return (
+              <span className="history-scope-option">
+                <bdi>{item?.name || option.label}</bdi>
+                {item?.start_at && (
+                  <small>{formatLocalDate(item.start_at, prefs)}</small>
+                )}
+              </span>
+            );
+          }}
           value={box || ""}
           onValueChange={(value) => scope(value || undefined)}
           options={[
@@ -86,7 +99,9 @@ export function HistoryPage({
               : []),
             ...boxes.map((item) => ({
               value: item.id,
-              label: `${item.name} · ${item.start_at ? formatLocalDate(item.start_at, prefs) : t("noStartDate")}`,
+              label: item.start_at
+                ? `${item.name} · ${formatLocalDate(item.start_at, prefs)}`
+                : item.name,
             })),
           ]}
         />

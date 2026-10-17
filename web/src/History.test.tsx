@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HistoryPage, comparisonFields } from "./History";
 import { I18nProvider, storageKey, translator } from "./i18n";
-import type { HistoricalFile } from "./api";
+import type { Box, HistoricalFile } from "./api";
 const preferences = {
   language: "en",
   formatLocale: "en-US",
@@ -41,7 +41,12 @@ const historical: HistoricalFile = {
   },
   tags: [{ id: "tag", name: "Old tag", count: 1, parent_id: null }],
 };
-function mount(file?: string, trash = false) {
+function mount(
+  file?: string,
+  trash = false,
+  boxes: Box[] = [],
+  scope = (_box?: string) => {},
+) {
   return render(
     <QueryClientProvider
       client={
@@ -50,7 +55,7 @@ function mount(file?: string, trash = false) {
     >
       <ThemeProvider env="test">
         <I18nProvider>
-          <HistoryPage file={file} trash={trash} boxes={[]} scope={() => {}} />
+          <HistoryPage file={file} trash={trash} boxes={boxes} scope={scope} />
         </I18nProvider>
       </ThemeProvider>
     </QueryClientProvider>,
@@ -263,4 +268,36 @@ it("shows a deleted file name once and only one restore confirmation action", as
   const dialog = within(await screen.findByRole("dialog"));
   expect(await dialog.findAllByText("deleted.txt")).toHaveLength(1);
   expect(dialog.getAllByRole("button", { name: "Restore" })).toHaveLength(1);
+});
+
+it("searches scope options while keeping optional start dates secondary", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => json({ ops: [] })),
+  );
+  const box = {
+    id: "a",
+    name: "Trip",
+    description: "",
+    start_at: "2026",
+    end_at: "",
+    created_at: "",
+    updated_at: "",
+  };
+  const scope = vi.fn();
+  mount(undefined, true, [box, { ...box, id: "b", start_at: "" }], scope);
+  const user = userEvent.setup();
+  const input = screen.getByRole("combobox", { name: "History scope" });
+  await user.click(input);
+  await user.clear(input);
+  await user.type(input, "Trip");
+  const options = screen.getAllByRole("option");
+  expect(options).toHaveLength(2);
+  expect(within(options[0]).getByText("2026").tagName).toBe("SMALL");
+  expect(options[1]).toHaveTextContent(/^Trip$/);
+  await user.clear(input);
+  await user.type(input, "2026");
+  expect(screen.getAllByRole("option")).toHaveLength(1);
+  await user.click(screen.getByRole("option"));
+  expect(scope).toHaveBeenCalledWith("a");
 });

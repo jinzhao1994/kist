@@ -1,4 +1,4 @@
-import { Select as MantineSelect } from "@mantine/core";
+import { Select as MantineSelect, type SelectProps } from "@mantine/core";
 export function Select({
   id,
   "aria-label": ariaLabel,
@@ -8,6 +8,8 @@ export function Select({
   disabled,
   label,
   searchable = false,
+  renderOption,
+  nothingFoundMessage,
 }: {
   id?: string;
   "aria-label"?: string;
@@ -17,6 +19,8 @@ export function Select({
   disabled?: boolean;
   label?: string;
   searchable?: boolean;
+  renderOption?: SelectProps["renderOption"];
+  nothingFoundMessage?: string;
 }) {
   return (
     <MantineSelect
@@ -30,6 +34,8 @@ export function Select({
       data={options}
       disabled={disabled}
       searchable={searchable}
+      renderOption={renderOption}
+      nothingFoundMessage={nothingFoundMessage}
       allowDeselect={false}
     />
   );

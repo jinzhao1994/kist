@@ -2184,3 +2184,17 @@ main.upload-drag-active {
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   font-size: 11px;
 }
+
+.history-scope-option {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.history-scope-option small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
