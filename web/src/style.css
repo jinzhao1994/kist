@@ -2001,6 +2001,14 @@ main.upload-drag-active {
   padding: 0.75rem;
   max-inline-size: calc(100vw - 2rem);
 }
-.partial-date-confirm {
+.partial-date-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   margin-block-start: 0.625rem;
+}
+.partial-date-actions .mantine-Button-root {
+  color: var(--muted);
+  font-weight: 400;
 }

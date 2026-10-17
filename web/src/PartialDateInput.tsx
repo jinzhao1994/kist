@@ -169,20 +169,29 @@ export function PartialDateInput({
           aria-labelledby={undefined}
         >
           <DatePicker {...pickerProps} />
-          <Button
-            fullWidth
-            variant="light"
-            size="xs"
-            className="partial-date-confirm"
-            onClick={() => choose(date.slice(0, level === "month" ? 7 : 4))}
-          >
-            {level === "month"
-              ? t("useDateMonth", {
-                  year: date.slice(0, 4),
-                  month: String(Number(date.slice(5, 7))),
-                })
-              : t("useDateYear", { year: date.slice(0, 4) })}
-          </Button>
+          <div className="partial-date-actions">
+            <Button
+              variant="subtle"
+              color="gray"
+              size="xs"
+              onClick={() => choose(date.slice(0, level === "month" ? 7 : 4))}
+            >
+              {level === "month"
+                ? t("useDateMonth", {
+                    year: date.slice(0, 4),
+                    month: String(Number(date.slice(5, 7))),
+                  })
+                : t("useDateYear", { year: date.slice(0, 4) })}
+            </Button>
+            <Button
+              variant="subtle"
+              color="gray"
+              size="xs"
+              onClick={() => choose(dayjs().format("YYYY-MM-DD"))}
+            >
+              {t("today")}
+            </Button>
+          </div>
         </Popover.Dropdown>
       </Popover>
     </div>

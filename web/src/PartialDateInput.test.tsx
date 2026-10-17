@@ -110,3 +110,20 @@ it("does not highlight an invented day for a month-only value", async () => {
     screen.getByRole("button", { name: "1 October 2026" }),
   ).not.toHaveAttribute("data-selected", "true");
 });
+
+it("selects today as a complete date regardless of the displayed year", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date(2026, 9, 17, 12));
+  try {
+    const user = userEvent.setup();
+    render(<Example initial="1999" />);
+    const input = screen.getByRole("textbox", { name: "Date" });
+    await user.click(input);
+    await user.click(screen.getByRole("button", { name: "Today" }));
+    expect(input).toHaveValue("2026-10-17");
+    expect(input).toHaveFocus();
+    expect(input).toHaveAttribute("aria-expanded", "false");
+  } finally {
+    vi.useRealTimers();
+  }
+});
