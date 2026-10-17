@@ -1376,6 +1376,7 @@ button.filter-token-segment:hover {
   align-items: center;
   justify-content: center;
   color: var(--muted);
+  border: 1px solid var(--border);
   border-radius: 8px 0 0 8px;
   background: var(--surface);
   opacity: 0;
