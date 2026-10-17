@@ -88,8 +88,7 @@ it("renders an empty archive and persists independent language, locale and RTL c
   await user.click(await screen.findByRole("option", { name: "中文" }));
   const locale = screen.getByRole("combobox", { name: "地区格式" });
   await user.click(locale);
-  await user.clear(locale);
-  await user.type(locale, "de-DE", { skipClick: true });
+  await user.type(screen.getByRole("textbox", { name: "搜索选项" }), "de-DE");
   await user.click(screen.getByRole("option", { name: /de-DE/ }));
   await user.click(screen.getByRole("combobox", { name: "阅读方向" }));
   await user.click(screen.getByRole("option", { name: "从右到左" }));

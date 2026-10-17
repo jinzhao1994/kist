@@ -2256,3 +2256,11 @@ main.upload-drag-active {
   margin-bottom: 4px;
   padding-block: 10px;
 }
+
+.history-page .history-toolbar .searchable-select {
+  width: 194px;
+  max-width: 100%;
+}
+.history-page .history-toolbar .tag-select-input {
+  font-size: 13px;
+}

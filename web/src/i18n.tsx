@@ -18,6 +18,7 @@ export const en = {
   uploadOverwrite: "Overwrite",
   uploadKeepBoth: "Keep both",
   searchTags: "Search tags",
+  searchOptions: "Search options",
   tagResultCounts:
     "{boxes, plural, one {# box} other {# boxes}} · {files, plural, one {# file} other {# files}}",
   noMatchingBoxes: "No matching boxes",
@@ -640,6 +641,7 @@ export const zh: Record<MessageKey, string> = {
   removeTag: "移除标签",
   selectTag: "选择标签",
   searchTags: "搜索标签",
+  searchOptions: "搜索选项",
   tagResultCounts: "{boxes, number} 个归档盒 · {files, number} 个文件",
   noMatchingBoxes: "没有匹配的归档盒",
   noTaggedFilesHint: "给文件添加此标签或子标签后，就会显示在这里。",

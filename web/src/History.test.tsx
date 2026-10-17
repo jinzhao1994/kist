@@ -292,17 +292,23 @@ it("searches scope options while keeping optional start dates secondary", async 
   const user = userEvent.setup();
   const input = screen.getByRole("combobox", { name: "History scope" });
   await user.click(input);
-  await user.clear(input);
-  await user.type(input, "Trip");
+  const search = screen.getByRole("textbox", { name: "Search options" });
+  expect(search).toHaveValue("");
+  expect(search).toHaveFocus();
+  await user.type(search, "Trip");
   const options = screen.getAllByRole("option");
   expect(options).toHaveLength(2);
   expect(within(options[0]).getByText("2026").tagName).toBe("SMALL");
   expect(options[1]).toHaveTextContent(/^Trip$/);
-  await user.clear(input);
-  await user.type(input, "2026");
+  await user.clear(search);
+  await user.type(search, "2026");
   expect(screen.getAllByRole("option")).toHaveLength(1);
   await user.click(screen.getByRole("option"));
   expect(scope).toHaveBeenCalledWith("a");
+  await user.click(input);
+  expect(screen.getByRole("textbox", { name: "Search options" })).toHaveValue(
+    "",
+  );
 });
 
 it("describes named targets, tags, batches and renames without opening details", () => {

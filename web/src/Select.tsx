@@ -1,8 +1,15 @@
 import {
   Select as MantineSelect,
   CheckIcon,
+  Combobox,
+  InputBase,
+  ScrollArea,
+  useCombobox,
   type SelectProps,
 } from "@mantine/core";
+import { useState } from "react";
+import { useI18n } from "./i18n";
+
 export function Select({
   id,
   "aria-label": ariaLabel,
@@ -26,6 +33,115 @@ export function Select({
   renderOption?: SelectProps["renderOption"];
   nothingFoundMessage?: string;
 }) {
+  const { t } = useI18n();
+  const [search, setSearch] = useState("");
+  const store = useCombobox({
+    onDropdownOpen: () => store.focusSearchInput(),
+    onDropdownClose: () => {
+      setSearch("");
+      store.resetSelectedOption();
+    },
+  });
+  const renderItem: NonNullable<SelectProps["renderOption"]> = (item) => (
+    <>
+      {!renderOption && item.checked && (
+        <CheckIcon
+          size={12}
+          aria-hidden="true"
+          style={{ flexShrink: 0, opacity: 0.4 }}
+        />
+      )}
+      <span
+        className={
+          item.option.value === "" ||
+          options.find((option) => option.value === item.option.value)?.special
+            ? "select-special-option"
+            : undefined
+        }
+      >
+        {renderOption ? renderOption(item) : item.option.label}
+      </span>
+    </>
+  );
+  if (searchable) {
+    const selected = options.find((option) => option.value === value);
+    const visible = options.filter((option) =>
+      option.label
+        .toLocaleLowerCase()
+        .includes(search.trim().toLocaleLowerCase()),
+    );
+    return (
+      <Combobox
+        store={store}
+        withinPortal
+        returnFocus
+        onOptionSubmit={(next) => {
+          onValueChange(next);
+          store.closeDropdown();
+          store.focusTarget();
+        }}
+      >
+        <Combobox.Target targetType="button" withExpandedAttribute>
+          <InputBase
+            id={id}
+            aria-label={ariaLabel}
+            label={label}
+            component="button"
+            type="button"
+            role="combobox"
+            disabled={disabled}
+            pointer
+            rightSection={<Combobox.Chevron />}
+            rightSectionPointerEvents="none"
+            classNames={{
+              root: "searchable-select",
+              input: "tag-select-input",
+            }}
+            onClick={() => store.toggleDropdown()}
+          >
+            {selected?.label}
+          </InputBase>
+        </Combobox.Target>
+        <Combobox.Dropdown>
+          <Combobox.Search
+            value={search}
+            onChange={(event) => {
+              setSearch(event.currentTarget.value);
+              store.updateSelectedOptionIndex();
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Tab") {
+                store.closeDropdown();
+                store.focusTarget();
+              }
+            }}
+            placeholder={t("searchOptions")}
+            aria-label={t("searchOptions")}
+          />
+          <Combobox.Options>
+            <ScrollArea.Autosize mah={240} type="scroll">
+              {visible.length ? (
+                visible.map((option) => (
+                  <Combobox.Option
+                    key={option.value}
+                    value={option.value}
+                    aria-label={option.label}
+                    active={option.value === value}
+                  >
+                    {renderItem({ option, checked: option.value === value })}
+                  </Combobox.Option>
+                ))
+              ) : (
+                <Combobox.Empty>
+                  {nothingFoundMessage || t("noFilterOptions")}
+                </Combobox.Empty>
+              )}
+            </ScrollArea.Autosize>
+          </Combobox.Options>
+        </Combobox.Dropdown>
+      </Combobox>
+    );
+  }
   return (
     <MantineSelect
       id={id}
@@ -38,28 +154,7 @@ export function Select({
       data={options}
       disabled={disabled}
       searchable={searchable}
-      renderOption={(item) => (
-        <>
-          {!renderOption && item.checked && (
-            <CheckIcon
-              size={12}
-              aria-hidden="true"
-              style={{ flexShrink: 0, opacity: 0.4 }}
-            />
-          )}
-          <span
-            className={
-              item.option.value === "" ||
-              options.find((option) => option.value === item.option.value)
-                ?.special
-                ? "select-special-option"
-                : undefined
-            }
-          >
-            {renderOption ? renderOption(item) : item.option.label}
-          </span>
-        </>
-      )}
+      renderOption={renderItem}
       nothingFoundMessage={nothingFoundMessage}
       allowDeselect={false}
     />

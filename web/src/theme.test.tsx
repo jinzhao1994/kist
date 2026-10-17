@@ -91,8 +91,10 @@ it("searches regional formats and time zones and persists only selected options"
   const first = mount();
   const locale = screen.getByRole("combobox", { name: "Regional format" });
   await user.click(locale);
-  await user.clear(locale);
-  await user.type(locale, "ja-JP", { skipClick: true });
+  await user.type(
+    screen.getByRole("textbox", { name: "Search options" }),
+    "ja-JP",
+  );
   expect(JSON.parse(localStorage.getItem(storageKey)!).formatLocale).toBe(
     "de-DE",
   );
@@ -102,8 +104,10 @@ it("searches regional formats and time zones and persists only selected options"
   );
   const zone = screen.getByRole("combobox", { name: "Time zone" });
   await user.click(zone);
-  await user.clear(zone);
-  await user.type(zone, "Asia/Tokyo", { skipClick: true });
+  await user.type(
+    screen.getByRole("textbox", { name: "Search options" }),
+    "Asia/Tokyo",
+  );
   await user.click(screen.getByRole("option", { name: "Asia/Tokyo" }));
   expect(JSON.parse(localStorage.getItem(storageKey)!).timezone).toBe(
     "Asia/Tokyo",
@@ -113,10 +117,10 @@ it("searches regional formats and time zones and persists only selected options"
   expect(document.documentElement.dir).toBe("ltr");
   first.unmount();
   mount();
-  expect(screen.getByRole("combobox", { name: "Regional format" })).toHaveValue(
-    "Japanese (Japan) · ja-JP",
-  );
-  expect(screen.getByRole("combobox", { name: "Time zone" })).toHaveValue(
+  expect(
+    screen.getByRole("combobox", { name: "Regional format" }),
+  ).toHaveTextContent("Japanese (Japan) · ja-JP");
+  expect(screen.getByRole("combobox", { name: "Time zone" })).toHaveTextContent(
     "Asia/Tokyo",
   );
 });
