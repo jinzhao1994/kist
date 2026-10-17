@@ -416,11 +416,18 @@ summary {
 .tag-chips li {
   display: flex;
   align-items: center;
+  gap: 0.35rem;
   border-radius: 6px;
   background: var(--tag);
   padding: 0.35rem 0.6rem;
   font-size: 0.85rem;
   overflow-wrap: anywhere;
+}
+.tag-chip-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  opacity: 0.6;
 }
 .inline-form {
   max-inline-size: 28rem;

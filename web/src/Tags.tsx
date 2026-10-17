@@ -414,6 +414,20 @@ export function TagAssignment({
             aria-haspopup="menu"
             {...context.bindings(tagID)}
           >
+            <svg
+              className="tag-chip-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M3 3h7l11 11-7 7L3 10V3Z" />
+              <circle cx="7.5" cy="7.5" r="1" />
+            </svg>
             <bdi>{flat.find((tag) => tag.id === tagID)?.name || tagID}</bdi>
           </li>
         ))}
