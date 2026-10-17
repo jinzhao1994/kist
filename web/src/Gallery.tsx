@@ -39,9 +39,22 @@ export function Gallery({
   const alive = useRef(true);
   const currentID = useRef(id);
   currentID.current = id;
-  const [details, setDetails] = useState(
-    () => !window.matchMedia("(max-width: 680px)").matches,
-  );
+  const [details, setDetails] = useState(() => {
+    try {
+      return localStorage.getItem("kist.gallery.details.v1") === "open";
+    } catch {
+      return false;
+    }
+  });
+  function toggleDetails() {
+    const next = !details;
+    setDetails(next);
+    try {
+      localStorage.setItem("kist.gallery.details.v1", next ? "open" : "closed");
+    } catch {
+      // Keep the panel usable when browser storage is unavailable.
+    }
+  }
   const [advancing, setAdvancing] = useState(false);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const results = useFileResults(box, filters, folder);
@@ -172,7 +185,7 @@ export function Gallery({
             aria-label={t("details")}
             aria-expanded={details}
             aria-controls="gallery-details"
-            onClick={() => setDetails(!details)}
+            onClick={toggleDetails}
           >
             <svg
               width="20"

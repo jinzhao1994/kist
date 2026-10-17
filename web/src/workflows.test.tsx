@@ -20,6 +20,8 @@ import {
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { Gallery } from "./Gallery";
+import { emptyFilters } from "./Filters";
 import { FileDetail } from "./FileDetail";
 import { BoxEditor } from "./BoxEditor";
 import { TagManager, TagAssignment } from "./Tags";
@@ -799,4 +801,66 @@ it("groups preview metadata and opens tag selection only on request", async () =
   expect(await navigator.clipboard.readText()).toBe("file-1");
   await user.click(screen.getByRole("button", { name: "File versions" }));
   expect(history).toHaveBeenCalledOnce();
+});
+
+it("starts gallery details closed and remembers both panel states after remount", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) =>
+      Response.json(
+        url.includes("/files/file-1")
+          ? {
+              file: {
+                ...file("file-1", "application/octet-stream"),
+                kind: "file",
+              },
+              tags: [],
+              metadata: [],
+              extracted: [],
+            }
+          : { files: [], cursor: "" },
+      ),
+    ),
+  );
+  const user = userEvent.setup();
+  const mount = () =>
+    render(
+      <Gallery
+        id="file-1"
+        filters={emptyFilters}
+        tags={[]}
+        change={vi.fn()}
+        close={vi.fn()}
+        history={vi.fn()}
+      />,
+      { wrapper },
+    );
+  let view = mount();
+  expect(screen.getByRole("button", { name: "File details" })).toHaveAttribute(
+    "aria-expanded",
+    "false",
+  );
+  expect(
+    screen.queryByRole("complementary", { name: "File details" }),
+  ).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "File details" }));
+  expect(
+    screen.getByRole("complementary", { name: "File details" }),
+  ).toBeVisible();
+  view.unmount();
+  view = mount();
+  expect(screen.getByRole("button", { name: "File details" })).toHaveAttribute(
+    "aria-expanded",
+    "true",
+  );
+  await user.click(screen.getByRole("button", { name: "File details" }));
+  view.unmount();
+  view = mount();
+  expect(screen.getByRole("button", { name: "File details" })).toHaveAttribute(
+    "aria-expanded",
+    "false",
+  );
+  expect(
+    screen.queryByRole("complementary", { name: "File details" }),
+  ).not.toBeInTheDocument();
 });
