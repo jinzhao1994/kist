@@ -2274,3 +2274,94 @@ main.upload-drag-active {
 .history-page .history-toolbar .tag-select-input {
   font-size: 13px;
 }
+
+.file-info-panel {
+  font-size: 13px;
+}
+.file-info-heading,
+.file-info-panel .tag-assignment-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-block-end: 12px;
+}
+.file-info-panel h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.file-info-panel .detail-facts,
+.file-info-panel .metadata-list > div {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 10px 12px;
+  align-items: baseline;
+}
+.file-info-panel .detail-facts {
+  margin: 0;
+}
+.file-info-panel dt,
+.file-info-panel dd {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.file-info-panel dt {
+  color: var(--muted);
+}
+.file-info-panel dd {
+  font-size: 13px;
+  min-width: 0;
+}
+.file-info-panel .tag-assignment,
+.file-info-panel .file-metadata {
+  margin-block-start: 24px;
+  padding-block-start: 16px;
+  border-block-start: 1px solid var(--border);
+}
+.file-info-panel .tag-chips:empty {
+  display: none;
+}
+.file-info-panel .inline-form {
+  margin-block-start: 10px;
+}
+.file-info-panel .file-metadata-group h4 {
+  margin: 16px 0 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+.file-info-panel .metadata-list {
+  margin: 0;
+}
+.file-info-panel .metadata-list > div {
+  border: 0;
+  padding-block: 5px;
+}
+.file-id-copy {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: start;
+  color: inherit;
+  cursor: pointer;
+}
+.file-id-copy bdi {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: monospace;
+  font-size: 11px;
+}
+.file-id-copy span {
+  flex-shrink: 0;
+  color: var(--mantine-primary-color-filled);
+  font-size: 11px;
+}

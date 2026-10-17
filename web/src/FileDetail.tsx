@@ -1,4 +1,4 @@
-import { Button } from "@mantine/core";
+import { Button, CopyButton } from "@mantine/core";
 import type { FileDetail as FileData, Tag } from "./api";
 import { TagAssignment } from "./Tags";
 import { ExtractionStatus, useExtraction } from "./Extraction";
@@ -17,8 +17,38 @@ export function FileDetail({
   const { t, prefs } = useI18n();
   const extraction = useExtraction();
   const file = data.file;
+  const labels: Record<string, string> = {
+    "exif:ExifImageHeight": t("imageHeight"),
+    "exif:ExifImageWidth": t("imageWidth"),
+    "exif:ImageHeight": t("imageHeight"),
+    "exif:ImageWidth": t("imageWidth"),
+    "exif:ResolutionUnit": t("resolutionUnit"),
+    "exif:UserComment": t("userComment"),
+    "exif:Make": t("cameraMake"),
+    "exif:Model": t("cameraModel"),
+    "exif:Software": t("software"),
+    "file:size": t("fileSize"),
+    "exif:XResolution": t("horizontalResolution"),
+    "exif:YResolution": t("verticalResolution"),
+    "media:mime": t("kind"),
+  };
+  const groups = new Map<string, NonNullable<FileData["metadata"]>>();
+  for (const row of data.metadata || []) {
+    const source = row.source || "";
+    const rows = groups.get(source) || [];
+    rows.push(row);
+    groups.set(source, rows);
+  }
   return (
-    <>
+    <div className="file-info-panel">
+      <div className="file-info-heading">
+        <h3>{t("basicInfo")}</h3>
+        {history && (
+          <Button variant="subtle" size="compact-xs" onClick={history}>
+            {t("versionHistory")}
+          </Button>
+        )}
+      </div>
       <dl className="detail-facts">
         <dt>{t("path")}</dt>
         <dd>
@@ -38,38 +68,61 @@ export function FileDetail({
         <dd>{formatInstant(file.created_at, prefs)}</dd>
         <dt>{t("fileId")}</dt>
         <dd>
-          <bdi>{file.id}</bdi>
+          <CopyButton value={file.id}>
+            {({ copied, copy }) => (
+              <button
+                type="button"
+                className="file-id-copy"
+                onClick={copy}
+                title={file.id}
+                aria-label={t(copied ? "copied" : "copyFileId")}
+              >
+                <bdi>{file.id}</bdi>
+                <span>{t(copied ? "copied" : "copy")}</span>
+              </button>
+            )}
+          </CopyButton>
         </dd>
       </dl>
-      {history && <Button onClick={history}>{t("versionHistory")}</Button>}
       <TagAssignment
+        collapsible
         target={file.id}
         kind="files"
         tags={tags}
         assigned={data.tags || []}
       />
       <ExtractionStatus files={[file]} state={extraction} />
-      <h3>{t("metadata")}</h3>
-      <dl className="metadata-list">
-        {data.metadata?.map((row) => (
-          <div key={row.key}>
-            <dt>
-              <bdi>{row.key}</bdi>
-            </dt>
-            <dd>
-              <bdi>
-                {row.key === "file:size" &&
-                Number.isSafeInteger(Number(row.value))
-                  ? formatBytes(Number(row.value), prefs)
-                  : row.value}
-              </bdi>
-              <small>
-                <bdi>{row.source}</bdi>
-              </small>
-            </dd>
-          </div>
-        ))}
-      </dl>
-    </>
+      {!!data.metadata?.length && (
+        <section className="file-metadata">
+          <h3>{t("metadata")}</h3>
+          {Array.from(groups, ([source, rows]) => (
+            <section className="file-metadata-group" key={source}>
+              {source && (
+                <h4>
+                  <bdi>{source === "exif" ? "EXIF" : source}</bdi>
+                </h4>
+              )}
+              <dl className="metadata-list">
+                {rows.map((row) => (
+                  <div key={row.key}>
+                    <dt title={row.key}>
+                      <bdi>{labels[row.key] || row.key}</bdi>
+                    </dt>
+                    <dd>
+                      <bdi>
+                        {row.key === "file:size" &&
+                        Number.isSafeInteger(Number(row.value))
+                          ? formatBytes(Number(row.value), prefs)
+                          : row.value || "—"}
+                      </bdi>
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          ))}
+        </section>
+      )}
+    </div>
   );
 }

@@ -20,6 +20,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { FileDetail } from "./FileDetail";
 import { BoxEditor } from "./BoxEditor";
 import { TagManager, TagAssignment } from "./Tags";
 import { activeImages } from "./FileGrid";
@@ -715,4 +716,61 @@ it("retries immediate tag assignment with the same request key", async () => {
   await user.click(screen.getByRole("button", { name: "Try again" }));
   await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
   expect(fetch.mock.calls[1]).toEqual(fetch.mock.calls[0]);
+});
+
+it("groups preview metadata and opens tag selection only on request", async () => {
+  const user = userEvent.setup();
+  const history = vi.fn();
+  render(
+    <FileDetail
+      data={{
+        file: file("file-1"),
+        tags: [],
+        extracted: [],
+        metadata: [
+          {
+            key: "exif:ExifImageWidth",
+            value: "2244",
+            source: "exif",
+            type: "int",
+          },
+          {
+            key: "exif:ExifImageHeight",
+            value: "1102",
+            source: "exif",
+            type: "int",
+          },
+          {
+            key: "custom:unknown",
+            value: "original value",
+            source: "custom",
+            type: "string",
+          },
+        ],
+      }}
+      tags={tags}
+      history={history}
+    />,
+    { wrapper },
+  );
+  expect(screen.getAllByRole("heading", { name: "EXIF" })).toHaveLength(1);
+  expect(screen.getByText("Image width").closest("dt")).toHaveAttribute(
+    "title",
+    "exif:ExifImageWidth",
+  );
+  expect(screen.getByText("custom:unknown")).toBeVisible();
+  expect(screen.getByText("original value")).toBeVisible();
+  expect(
+    screen.queryByRole("combobox", { name: "Select a tag" }),
+  ).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Add tag" }));
+  expect(screen.getByRole("combobox", { name: "Select a tag" })).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(
+    screen.queryByRole("combobox", { name: "Select a tag" }),
+  ).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Copy file ID" }));
+  expect(await navigator.clipboard.readText()).toBe("file-1");
+  await user.click(screen.getByRole("button", { name: "File versions" }));
+  expect(history).toHaveBeenCalledOnce();
 });

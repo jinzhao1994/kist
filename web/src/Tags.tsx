@@ -385,6 +385,7 @@ export function TagManager({
 export function TagAssignment({
   compact = false,
   editing = true,
+  collapsible = false,
   target,
   kind,
   tags,
@@ -392,6 +393,7 @@ export function TagAssignment({
 }: {
   compact?: boolean;
   editing?: boolean;
+  collapsible?: boolean;
   target: string;
   kind: "files" | "boxes";
   tags: Tag[];
@@ -402,10 +404,29 @@ export function TagAssignment({
   const flat = flattenTags(tags);
   const context = useContextMenu<string>();
   const [selected, setSelected] = useState("");
-  const state = useWrites(() => setSelected(""));
+  const [adding, setAdding] = useState(false);
+  const state = useWrites(() => {
+    setSelected("");
+    setAdding(false);
+  });
   return (
     <section className={`tag-assignment ${compact ? "compact-tags" : ""}`}>
-      {!compact && <h3>{t("tags")}</h3>}
+      {!compact && (
+        <div className="tag-assignment-heading">
+          <h3>{t("tags")}</h3>
+          {collapsible && editing && (
+            <Button
+              variant="subtle"
+              size="compact-xs"
+              aria-expanded={adding}
+              aria-controls={id + "-picker"}
+              onClick={() => setAdding(!adding)}
+            >
+              {t(adding ? "cancel" : "addTag")}
+            </Button>
+          )}
+        </div>
+      )}
       <ul className="tag-chips">
         {assigned.map((tagID) => (
           <li
@@ -435,8 +456,8 @@ export function TagAssignment({
           {t("removeTag")}
         </Menu.Item>
       </ContextMenu>
-      {editing && (
-        <div className="inline-form">
+      {editing && (!collapsible || adding) && (
+        <div className="inline-form" id={id + "-picker"}>
           <label className="sr-only" htmlFor={id}>
             {t("selectTag")}
           </label>
