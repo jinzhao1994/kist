@@ -836,6 +836,14 @@ it("starts gallery details closed and remembers both panel states after remount"
       { wrapper },
     );
   let view = mount();
+  await waitFor(() =>
+    expect(view.container.querySelector(".gallery-header")).toHaveFocus(),
+  );
+  expect(
+    screen.getByRole("button", { name: "Back to results" }),
+  ).not.toHaveFocus();
+  await user.tab();
+  expect(screen.getByRole("button", { name: "kist" })).toHaveFocus();
   expect(screen.getByRole("button", { name: "File details" })).toHaveAttribute(
     "aria-expanded",
     "false",
@@ -847,6 +855,10 @@ it("starts gallery details closed and remembers both panel states after remount"
   expect(
     screen.getByRole("complementary", { name: "File details" }),
   ).toBeVisible();
+  expect(
+    await screen.findByRole("heading", { name: "Basic information" }),
+  ).toBeVisible();
+  expect(screen.getByRole("button", { name: "File details" })).toHaveFocus();
   view.unmount();
   view = mount();
   expect(screen.getByRole("button", { name: "File details" })).toHaveAttribute(

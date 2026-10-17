@@ -2372,3 +2372,7 @@ main.upload-drag-active {
   color: #fff;
   font-size: 12px;
 }
+
+.gallery-header:focus {
+  outline: none;
+}

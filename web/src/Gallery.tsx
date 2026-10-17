@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, UnstyledButton } from "@mantine/core";
 import { useFocusTrap } from "@mantine/hooks";
 import { useQuery } from "@tanstack/react-query";
@@ -36,6 +36,13 @@ export function Gallery({
   );
   const focusTrap = useFocusTrap();
   const motion = useGalleryMotion(id, close);
+  const setGalleryRoot = useCallback(
+    (node: HTMLElement | null) => {
+      motion.root.current = node;
+      focusTrap(node);
+    },
+    [focusTrap, motion.root],
+  );
   const alive = useRef(true);
   const currentID = useRef(id);
   currentID.current = id;
@@ -118,10 +125,7 @@ export function Gallery({
     <section
       className={`gallery ${details ? "gallery-with-details" : ""}`}
       aria-label={t("gallery")}
-      ref={(node) => {
-        motion.root.current = node;
-        focusTrap(node);
-      }}
+      ref={setGalleryRoot}
       onKeyDown={(event) => {
         if (
           event.defaultPrevented ||
@@ -151,7 +155,12 @@ export function Gallery({
         }
       }}
     >
-      <header className="gallery-header">
+      <header
+        className="gallery-header"
+        tabIndex={-1}
+        data-autofocus
+        aria-label={t("gallery")}
+      >
         <UnstyledButton
           className="wordmark gallery-logo"
           aria-label="kist"
@@ -160,7 +169,7 @@ export function Gallery({
           kist
           <span className="brand-dot" />
         </UnstyledButton>
-        <Button data-autofocus onClick={() => void motion.dismiss()}>
+        <Button onClick={() => void motion.dismiss()}>
           {t("backToResults")}
         </Button>
         <h1>
