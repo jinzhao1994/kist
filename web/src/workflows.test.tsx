@@ -134,7 +134,9 @@ it("adds and removes associations through explicit target IDs", async () => {
   await user.click(
     await screen.findByRole("option", { name: "Travel / Japan" }),
   );
-  await user.click(screen.getByRole("button", { name: "Add tag" }));
+  expect(
+    screen.queryByRole("button", { name: "Add tag" }),
+  ).not.toBeInTheDocument();
   await waitFor(() => expect(fetch).toHaveBeenCalledOnce());
   expect(fetch.mock.calls[0][0]).toBe("/api/v1/tags/child/files");
   expect(fetch.mock.calls[0][1]).toMatchObject({
@@ -683,3 +685,26 @@ it.each([false, true])(
     expect(await screen.findByRole("alert")).toBeVisible();
   },
 );
+
+it("retries immediate tag assignment with the same request key", async () => {
+  const fetch = vi.fn(async (_path: string, _init: RequestInit) => {
+    if (fetch.mock.calls.length === 1) throw new TypeError("connection lost");
+    return new Response('{"op_id":3}');
+  });
+  vi.stubGlobal("fetch", fetch);
+  render(
+    <TagAssignment target="box-1" kind="boxes" tags={tags} assigned={[]} />,
+    { wrapper },
+  );
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("combobox", { name: "Select a tag" }));
+  await user.click(screen.getByRole("option", { name: "Select a tag" }));
+  expect(fetch).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("combobox", { name: "Select a tag" }));
+  await user.click(screen.getByRole("option", { name: "Travel / Japan" }));
+  await screen.findByRole("alert");
+  expect(screen.getByRole("combobox", { name: "Select a tag" })).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "Try again" }));
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+  expect(fetch.mock.calls[1]).toEqual(fetch.mock.calls[0]);
+});

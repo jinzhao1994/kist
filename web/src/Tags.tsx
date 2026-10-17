@@ -434,7 +434,19 @@ export function TagAssignment({
             id={id}
             disabled={state.busy || state.locked}
             value={selected}
-            onValueChange={setSelected}
+            onValueChange={(tagID) => {
+              if (
+                !tagID ||
+                state.busy ||
+                state.locked ||
+                assigned.includes(tagID)
+              )
+                return;
+              setSelected(tagID);
+              state.run([
+                createWrite("PUT", `/tags/${tagID}/${kind}`, { ids: [target] }),
+              ]);
+            }}
             options={[
               { value: "", label: t("selectTag") },
               ...flat
@@ -442,18 +454,6 @@ export function TagAssignment({
                 .map(tagOption),
             ]}
           />
-          <Button
-            disabled={!selected || state.busy || state.locked}
-            onClick={() =>
-              state.run([
-                createWrite("PUT", `/tags/${selected}/${kind}`, {
-                  ids: [target],
-                }),
-              ])
-            }
-          >
-            {t("addTag")}
-          </Button>
         </div>
       )}
       <WriteFeedback state={state} />
