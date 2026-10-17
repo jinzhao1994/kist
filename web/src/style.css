@@ -2013,25 +2013,25 @@ main.upload-drag-active {
   font-weight: 400;
 }
 
-.trash-page .history-toolbar {
+.history-page .history-toolbar {
   align-items: center;
   justify-content: space-between;
   gap: 12px 24px;
   margin-block: 0 20px;
 }
-.trash-page .history-toolbar input {
+.history-page .history-toolbar input {
   max-width: none;
   font-size: 13px;
 }
 .trash-hint {
   margin: 0;
 }
-.trash-page .history-list {
+.history-page .history-list {
   gap: 0;
   margin: 0;
   border-top: 1px solid var(--border);
 }
-.trash-page .history-list > li {
+.history-page .history-list > li {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -2040,39 +2040,39 @@ main.upload-drag-active {
   border-bottom: 1px solid var(--border);
   border-radius: 0;
 }
-.trash-page .history-list > li:hover {
+.history-page .history-list > li:hover {
   background: var(--surface-hover);
 }
-.trash-page .history-entry {
+.history-page .history-entry {
   flex: 1;
   min-width: 0;
   gap: 14px;
   padding: 16px 12px;
 }
-.trash-page .history-entry > .navigation-icon {
+.history-page .history-entry > .navigation-icon {
   flex-shrink: 0;
   color: var(--muted);
   width: 20px;
   height: 20px;
 }
-.trash-page .history-entry strong {
+.history-page .history-entry strong {
   font-size: 14px;
   font-weight: 500;
 }
-.trash-page .history-entry small {
+.history-page .history-entry small {
   font-size: 12px;
   margin-top: 4px;
 }
-.trash-page .history-list > li > button:last-child {
+.history-page .history-list > li > button:not(.history-entry) {
   flex-shrink: 0;
   font-size: 13px;
 }
-.trash-empty {
+.history-empty {
   padding: 64px 16px;
   text-align: center;
   font-size: 14px;
 }
-.trash-empty > .navigation-icon {
+.history-empty > .navigation-icon {
   width: 28px;
   height: 28px;
   color: var(--muted);
@@ -2197,4 +2197,28 @@ main.upload-drag-active {
   color: var(--muted);
   font-size: 12px;
   font-weight: 400;
+}
+
+.history-page .history-number {
+  min-width: 36px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.history-page .history-entry > span:not(.history-number):not(.history-status) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.history-page .history-status {
+  font-size: 12px;
+}
+.history-file-scope {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.history-page .history-compare {
+  padding: 6px 8px;
+  color: var(--mantine-primary-color-filled);
+}
+.history-page > .mantine-Button-root {
+  margin-top: 16px;
 }

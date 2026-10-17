@@ -75,7 +75,6 @@ export function HistoryPage({
     <section className={`history-page${trash ? " trash-page" : ""}`}>
       <div className="history-toolbar">
         <Select
-          label={trash ? undefined : t("historyScope")}
           aria-label={t("historyScope")}
           searchable
           nothingFoundMessage={t("noMatchingBoxes")}
@@ -93,7 +92,7 @@ export function HistoryPage({
           value={box || ""}
           onValueChange={(value) => scope(value || undefined)}
           options={[
-            { value: "", label: t(trash ? "trashAllScopes" : "allHistory") },
+            { value: "", label: t("trashAllScopes") },
             ...(box && !boxes.some((item) => item.id === box)
               ? [{ value: box, label: box }]
               : []),
@@ -109,9 +108,11 @@ export function HistoryPage({
           <p className="supporting-text trash-hint">{t("trashHint")}</p>
         )}
         {file && (
-          <p>
+          <p className="supporting-text history-file-scope">
             {t("versionHistory")} · <bdi>{file}</bdi>
-            <Button onClick={() => scope()}>{t("allHistory")}</Button>
+            <Button variant="subtle" onClick={() => scope()}>
+              {t("allHistory")}
+            </Button>
           </p>
         )}
       </div>
@@ -120,8 +121,8 @@ export function HistoryPage({
         <QueryError error={query.error} retry={query.refetch} />
       )}
       {query.isSuccess && !ops.length && (
-        <div className={trash ? "trash-empty" : "empty-state"}>
-          {trash && <NavigationIcon kind="trash" />}
+        <div className="history-empty">
+          <NavigationIcon kind={trash ? "trash" : "history"} />
           <p>{t(trash ? "trashEmpty" : "historyEmpty")}</p>
         </div>
       )}
@@ -174,7 +175,7 @@ export function HistoryPage({
             )}
             {file && (
               <UnstyledButton
-                className="text-button"
+                className="text-button history-compare"
                 onClick={() =>
                   setVersions({ file, from: Math.max(0, op.id - 1), to: op.id })
                 }
