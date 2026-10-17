@@ -418,17 +418,9 @@ summary {
   align-items: center;
   border-radius: 6px;
   background: var(--tag);
-  padding-inline-start: 0.6rem;
+  padding: 0.35rem 0.6rem;
   font-size: 0.85rem;
   overflow-wrap: anywhere;
-}
-.tag-chips button {
-  border: 0;
-  background: transparent;
-  padding: 0.2rem 0.6rem;
-}
-.tag-chips button:hover {
-  background: transparent;
 }
 .inline-form {
   max-inline-size: 28rem;
@@ -1689,18 +1681,6 @@ button.filter-token-segment:hover {
 }
 .compact-tags .tag-chips:empty {
   display: none;
-}
-.compact-tags .tag-chips button {
-  opacity: 0;
-}
-.compact-tags .tag-chips li:hover button,
-.compact-tags .tag-chips li:focus-within button {
-  opacity: 1;
-}
-@media (hover: none) {
-  .compact-tags .tag-chips button {
-    opacity: 1;
-  }
 }
 .file-dropzone {
   min-block-size: 12rem;

@@ -153,7 +153,15 @@ it("adds and removes associations through explicit target IDs", async () => {
     />,
     { wrapper },
   );
-  await user.click(screen.getByRole("button", { name: "Remove tag: Japan" }));
+  expect(
+    screen.queryByRole("button", { name: "Remove tag: Japan" }),
+  ).not.toBeInTheDocument();
+  await user.pointer({
+    target: screen.getByText("Japan", { exact: true }),
+    keys: "[MouseRight]",
+  });
+  expect(fetch).toHaveBeenCalledOnce();
+  await user.click(screen.getByRole("menuitem", { name: "Remove tag" }));
   expect(fetch.mock.calls[1][0]).toBe("/api/v1/tags/child/boxes");
   expect(fetch.mock.calls[1][1]).toMatchObject({
     method: "DELETE",

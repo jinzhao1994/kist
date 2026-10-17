@@ -1,4 +1,4 @@
-import { ContextMenu } from "./ContextMenu";
+import { ContextMenu, useContextMenu } from "./ContextMenu";
 import { SidebarMenuButton } from "./SidebarMenuButton";
 import {
   Menu,
@@ -400,6 +400,7 @@ export function TagAssignment({
   const { t } = useI18n();
   const id = useId();
   const flat = flattenTags(tags);
+  const context = useContextMenu<string>();
   const [selected, setSelected] = useState("");
   const state = useWrites(() => setSelected(""));
   return (
@@ -407,24 +408,33 @@ export function TagAssignment({
       {!compact && <h3>{t("tags")}</h3>}
       <ul className="tag-chips">
         {assigned.map((tagID) => (
-          <li key={tagID}>
+          <li
+            key={tagID}
+            tabIndex={0}
+            aria-haspopup="menu"
+            {...context.bindings(tagID)}
+          >
             <bdi>{flat.find((tag) => tag.id === tagID)?.name || tagID}</bdi>
-            <Button
-              disabled={state.busy || state.locked}
-              aria-label={`${t("removeTag")}: ${flat.find((tag) => tag.id === tagID)?.name || tagID}`}
-              onClick={() =>
-                state.run([
-                  createWrite("DELETE", `/tags/${tagID}/${kind}`, {
-                    ids: [target],
-                  }),
-                ])
-              }
-            >
-              ×
-            </Button>
           </li>
         ))}
       </ul>
+      <ContextMenu anchor={context.menu} close={context.close}>
+        <Menu.Item
+          disabled={state.busy || state.locked}
+          onClick={() => {
+            const tagID = context.menu?.item;
+            if (!tagID || state.busy || state.locked) return;
+            context.close();
+            state.run([
+              createWrite("DELETE", `/tags/${tagID}/${kind}`, {
+                ids: [target],
+              }),
+            ]);
+          }}
+        >
+          {t("removeTag")}
+        </Menu.Item>
+      </ContextMenu>
       {editing && (
         <div className="inline-form">
           <label className="sr-only" htmlFor={id}>
