@@ -2078,3 +2078,56 @@ main.upload-drag-active {
   color: var(--muted);
   margin-bottom: 12px;
 }
+
+.operation-detail {
+  font-size: 14px;
+}
+.operation-detail h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 20px 0 8px;
+}
+.operation-detail > h3:first-child {
+  margin-top: 4px;
+  font-weight: 500;
+}
+.operation-time {
+  margin: 4px 0 24px;
+}
+.operation-detail .history-targets {
+  margin: 0;
+}
+.operation-detail .history-targets li {
+  gap: 8px;
+  padding-block: 10px;
+}
+.operation-detail .history-targets li > bdi {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+.operation-file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.operation-detail .history-targets button {
+  font-size: 12px;
+  font-weight: 400;
+  padding-inline: 8px;
+}
+.operation-footer {
+  margin-top: 24px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.operation-footer .actions {
+  margin: 0;
+}
+.operation-confirm > p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0 0 16px;
+}
+.operation-detail .history-targets li:last-child {
+  border-bottom: 0;
+}

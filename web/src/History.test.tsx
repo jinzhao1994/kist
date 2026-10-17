@@ -235,3 +235,29 @@ it("opens restore confirmation from the trash row without writing", async () => 
     true,
   );
 });
+
+it("shows a deleted file name once and only one restore confirmation action", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string) =>
+      json(
+        path === "/api/v1/ops/5"
+          ? {
+              ...detail,
+              payload: {
+                name: "deleted.txt",
+                files: [{ file_id: "file", name: "deleted.txt" }],
+              },
+            }
+          : { ops: [op], before: 0 },
+      ),
+    ),
+  );
+  mount(undefined, true);
+  await userEvent
+    .setup()
+    .click(await screen.findByRole("button", { name: "Restore" }));
+  const dialog = within(await screen.findByRole("dialog"));
+  expect(await dialog.findAllByText("deleted.txt")).toHaveLength(1);
+  expect(dialog.getAllByRole("button", { name: "Restore" })).toHaveLength(1);
+});

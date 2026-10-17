@@ -181,6 +181,7 @@ export function HistoryPage({
             key={selected}
             id={selected}
             initialConfirm={restoreRequested}
+            boxes={boxes}
             close={() => setSelected(undefined)}
             select={setSelected}
             fileHistory={(file) => scope(undefined, file)}
@@ -226,9 +227,11 @@ function OperationDetail({
   compare,
   fileHistory,
   initialConfirm = false,
+  boxes,
 }: {
   id: number;
   initialConfirm?: boolean;
+  boxes: Box[];
   close: () => void;
   select: (id: number) => void;
   viewBox: (box: string, op: number) => void;
@@ -255,16 +258,16 @@ function OperationDetail({
         if (!open && !writes.busy) close();
       }}
       title={t("operation", { id })}
-      className="detail-dialog"
+      size="md"
     >
       {query.isPending && <p role="status">{t("loading")}</p>}
       {query.isError && (
         <QueryError error={query.error} retry={query.refetch} />
       )}
       {op && (
-        <>
+        <div className="operation-detail">
           <h3>{actionLabel(op.action, t)}</h3>
-          <p>
+          <p className="supporting-text operation-time">
             <time>{formatInstant(op.ts, prefs)}</time>
           </p>
           {op.reverts_id && (
@@ -277,52 +280,17 @@ function OperationDetail({
               {t("undoneBy", { id: op.undone_by })}
             </Button>
           )}
-          <div className="actions">
-            <Button
-              disabled={
-                !op.undoable || !!op.undone_by || writes.busy || writes.locked
-              }
-              onClick={() => setConfirm(true)}
-            >
-              {t(deleting ? "restore" : "undo")}
-            </Button>
-          </div>
-          {confirm && (
-            <div className="notice">
-              <p>{t(deleting ? "restoreConfirm" : "undoConfirm")}</p>
-              <div className="actions">
-                <Button
-                  variant="filled"
-                  disabled={writes.busy || writes.locked}
-                  onClick={() =>
-                    writes.run([createWrite("POST", `/ops/${id}/undo`, {})])
-                  }
-                >
-                  {t(writes.busy ? "saving" : deleting ? "restore" : "undo")}
-                </Button>
-                <Button
-                  disabled={writes.busy}
-                  onClick={() => setConfirm(false)}
-                >
-                  {t("cancel")}
-                </Button>
-              </div>
-            </div>
-          )}
-          <WriteFeedback state={writes} />
-          {blocking && (
-            <Button onClick={() => select(blocking)}>
-              {t("blockedBy", { id: blocking })} · {t("viewOperation")}
-            </Button>
-          )}
           {!!op.boxes?.length && (
             <>
               <h3>{t("affectedBoxes")}</h3>
               <ul className="history-targets">
                 {op.boxes.map((box) => (
                   <li key={box}>
-                    <bdi>{box}</bdi>{" "}
+                    <bdi>
+                      {boxes.find((item) => item.id === box)?.name || box}
+                    </bdi>{" "}
                     <Button
+                      variant="subtle"
                       onClick={() => viewBox(box, deleting ? id - 1 : id)}
                     >
                       {t(deleting ? "viewBeforeDeletion" : "viewHistoricalBox")}
@@ -339,12 +307,20 @@ function OperationDetail({
                 {op.files.map((file) => (
                   <li key={file}>
                     <bdi>{fileName(op.payload, file)}</bdi>{" "}
-                    <Button onClick={() => fileHistory(file)}>
-                      {t("versionHistory")}
-                    </Button>
-                    <Button onClick={() => compare(file, id)}>
-                      {t("compareVersions")}
-                    </Button>
+                    <span className="operation-file-actions">
+                      <Button
+                        variant="subtle"
+                        onClick={() => fileHistory(file)}
+                      >
+                        {t("versionHistory")}
+                      </Button>
+                      <Button
+                        variant="subtle"
+                        onClick={() => compare(file, id)}
+                      >
+                        {t("compareVersions")}
+                      </Button>
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -358,12 +334,60 @@ function OperationDetail({
               <bdi>{op.payload.box.Name}</bdi>
             </p>
           ) : null}
-          {typeof op.payload.name === "string" && (
-            <p>
-              <bdi>{op.payload.name}</bdi>
-            </p>
-          )}
-        </>
+          {typeof op.payload.name === "string" &&
+            !op.files?.some(
+              (file) => fileName(op.payload, file) === op.payload.name,
+            ) && (
+              <p>
+                <bdi>{op.payload.name}</bdi>
+              </p>
+            )}
+          <footer className="operation-footer">
+            {!confirm && (
+              <div className="actions">
+                <Button
+                  disabled={
+                    !op.undoable ||
+                    !!op.undone_by ||
+                    writes.busy ||
+                    writes.locked
+                  }
+                  onClick={() => setConfirm(true)}
+                >
+                  {t(deleting ? "restore" : "undo")}
+                </Button>
+              </div>
+            )}
+            {confirm && (
+              <div className="operation-confirm">
+                <p>{t(deleting ? "restoreConfirm" : "undoConfirm")}</p>
+                <div className="actions">
+                  <Button
+                    variant="filled"
+                    disabled={writes.busy || writes.locked}
+                    onClick={() =>
+                      writes.run([createWrite("POST", `/ops/${id}/undo`, {})])
+                    }
+                  >
+                    {t(writes.busy ? "saving" : deleting ? "restore" : "undo")}
+                  </Button>
+                  <Button
+                    disabled={writes.busy}
+                    onClick={() => setConfirm(false)}
+                  >
+                    {t("cancel")}
+                  </Button>
+                </div>
+              </div>
+            )}
+            <WriteFeedback state={writes} />
+            {blocking && (
+              <Button onClick={() => select(blocking)}>
+                {t("blockedBy", { id: blocking })} · {t("viewOperation")}
+              </Button>
+            )}
+          </footer>
+        </div>
       )}
     </Dialog>
   );
