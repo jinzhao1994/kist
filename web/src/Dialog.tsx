@@ -44,7 +44,7 @@ export function Dialog({
   description?: string;
   children: ReactNode;
   className?: string;
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
 }) {
   const { t } = useI18n();
   const presence = useContext(Presence);

@@ -572,7 +572,7 @@ function VersionComparison({
   to: number;
   close: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, prefs } = useI18n();
   const [draftFrom, setDraftFrom] = useState(String(from));
   const [draftTo, setDraftTo] = useState(String(to));
   const [range, setRange] = useState({ from, to });
@@ -601,104 +601,132 @@ function VersionComparison({
         if (!open) close();
       }}
       title={t("compareVersions")}
-      className="detail-dialog"
+      size="lg"
     >
-      <form
-        className="history-toolbar"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (valid) setRange({ from: Number(draftFrom), to: Number(draftTo) });
-        }}
-      >
-        <label>
-          {t("beforeVersion")}
-          <TextInput
-            type="number"
-            min="0"
-            value={draftFrom}
-            onChange={(event) => setDraftFrom(event.target.value)}
-          />
-        </label>
-        <label>
-          {t("afterVersion")}
-          <TextInput
-            type="number"
-            min="1"
-            value={draftTo}
-            onChange={(event) => setDraftTo(event.target.value)}
-          />
-        </label>
-        <Button type="submit" disabled={!valid || pending}>
-          {t("compare")}
-        </Button>
-      </form>
-      {pending && <p role="status">{t("loading")}</p>}
-      {before.isError && (
-        <QueryError error={before.error} retry={before.refetch} />
-      )}
-      {after.isError && (
-        <QueryError error={after.error} retry={after.refetch} />
-      )}
-      {before.isSuccess && after.isSuccess && (
-        <>
-          <p className="notice">
-            {keys.some((key) => a[key] !== b[key]) ||
-            !!before.data !== !!after.data
-              ? t("changedFields")
-              : t("noDifferences")}
-          </p>
-          <div className="comparison-scroll">
-            <table className="comparison-table">
-              <thead>
-                <tr>
-                  <th>{t("field")}</th>
-                  <th>#{range.from}</th>
-                  <th>#{range.to}</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <th>{t("files")}</th>
-                  {[before.data, after.data].map((data, i) => (
-                    <td key={i}>
-                      {data ? (
-                        <>
-                          <bdi>{data.file.file.name}</bdi>
-                          <br />
-                          <a
-                            href={historicalContent(
-                              file,
-                              i ? range.to : range.from,
-                            )}
-                            download
-                          >
-                            {t("download")}
-                          </a>
-                        </>
-                      ) : (
-                        t("notPresent")
-                      )}
-                    </td>
-                  ))}
-                </tr>
-                {keys.map((key) => (
-                  <tr key={key} className={a[key] !== b[key] ? "changed" : ""}>
-                    <th>
-                      <bdi>{key}</bdi>
-                    </th>
-                    <td>
-                      <bdi>{a[key] ?? "—"}</bdi>
-                    </td>
-                    <td>
-                      <bdi>{b[key] ?? "—"}</bdi>
-                    </td>
+      <div className="version-comparison">
+        <form
+          className="comparison-toolbar"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (valid)
+              setRange({ from: Number(draftFrom), to: Number(draftTo) });
+          }}
+        >
+          <label>
+            {t("beforeVersion")}
+            <TextInput
+              type="number"
+              min="0"
+              value={draftFrom}
+              onChange={(event) => setDraftFrom(event.target.value)}
+            />
+          </label>
+          <label>
+            {t("afterVersion")}
+            <TextInput
+              type="number"
+              min="1"
+              value={draftTo}
+              onChange={(event) => setDraftTo(event.target.value)}
+            />
+          </label>
+          <Button type="submit" disabled={!valid || pending}>
+            {t("compare")}
+          </Button>
+        </form>
+        {pending && <p role="status">{t("loading")}</p>}
+        {before.isError && (
+          <QueryError error={before.error} retry={before.refetch} />
+        )}
+        {after.isError && (
+          <QueryError error={after.error} retry={after.refetch} />
+        )}
+        {before.isSuccess && after.isSuccess && (
+          <>
+            <p className="supporting-text comparison-hint">
+              {keys.some((key) => a[key] !== b[key]) ||
+              !!before.data !== !!after.data
+                ? t("changedFields")
+                : t("noDifferences")}
+            </p>
+            <div className="comparison-scroll">
+              <table className="comparison-table">
+                <thead>
+                  <tr>
+                    <th scope="col">{t("field")}</th>
+                    <th scope="col">#{range.from}</th>
+                    <th scope="col">#{range.to}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
+                </thead>
+                <tbody>
+                  <tr
+                    className={
+                      before.data?.file.file.name !== after.data?.file.file.name
+                        ? "changed"
+                        : ""
+                    }
+                  >
+                    <th scope="row">{t("files")}</th>
+                    {[before.data, after.data].map((data, i) => (
+                      <td key={i}>
+                        {data ? (
+                          <>
+                            <bdi>{data.file.file.name}</bdi>
+                            <br />
+                            <a
+                              href={historicalContent(
+                                file,
+                                i ? range.to : range.from,
+                              )}
+                              download
+                            >
+                              {t("download")}
+                            </a>
+                          </>
+                        ) : (
+                          t("notPresent")
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                  {keys.map((key) => (
+                    <tr
+                      key={key}
+                      className={a[key] !== b[key] ? "changed" : ""}
+                    >
+                      <th scope="row">
+                        <bdi>{key}</bdi>
+                      </th>
+                      {[a[key], b[key]].map((value, index) => (
+                        <td
+                          key={index}
+                          className={
+                            key === t("blobKey")
+                              ? "comparison-fingerprint"
+                              : undefined
+                          }
+                        >
+                          <bdi title={value}>
+                            {value
+                              ? [
+                                  t("capturedAt"),
+                                  t("created"),
+                                  t("updated"),
+                                ].includes(key) && value !== "—"
+                                ? formatInstant(value, prefs)
+                                : value
+                              : "—"}
+                          </bdi>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
     </Dialog>
   );
 }

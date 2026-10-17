@@ -163,6 +163,9 @@ it("compares deletion to the historical file without requesting current media or
   );
   expect(await screen.findByText("Not present at this point")).toBeVisible();
   expect(screen.getByText("Old tag")).toBeVisible();
+  const created = screen.getAllByTitle(historical.file.file.created_at)[0];
+  expect(created).toBeVisible();
+  expect(created.textContent).not.toBe(historical.file.file.created_at);
   expect(
     screen.getByRole("link", { name: "Download original" }),
   ).toHaveAttribute("href", "/api/v1/files/file/content?at=4&download=true");
