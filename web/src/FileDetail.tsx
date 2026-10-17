@@ -130,30 +130,46 @@ export function FileDetail({
                   <div key={row.key}>
                     <Tooltip
                       label={row.key}
-                      position="right"
+                      position="bottom-start"
                       offset={8}
                       classNames={{ tooltip: "metadata-tooltip" }}
                       openDelay={0}
                       transitionProps={{ duration: 0 }}
-                      events={{ hover: true, focus: true, touch: false }}
+                      events={{ hover: false, focus: true, touch: false }}
                     >
                       <dt tabIndex={0}>
-                        <bdi>{labels[row.key] || row.key}</bdi>
+                        <Tooltip.Floating
+                          label={row.key}
+                          position="bottom-start"
+                          offset={16}
+                          role="tooltip"
+                          classNames={{ tooltip: "metadata-tooltip" }}
+                        >
+                          <bdi>{labels[row.key] || row.key}</bdi>
+                        </Tooltip.Floating>
                       </dt>
                     </Tooltip>
                     <dd>
                       {row.key === "file:mtime" ? (
                         <Tooltip
                           label={row.value}
-                          position="top-end"
+                          position="bottom-end"
                           offset={6}
                           classNames={{ tooltip: "metadata-tooltip" }}
                           openDelay={0}
                           transitionProps={{ duration: 0 }}
-                          events={{ hover: true, focus: true, touch: false }}
+                          events={{ hover: false, focus: true, touch: false }}
                         >
                           <bdi tabIndex={0}>
-                            {metadataValue(row.key, row.value)}
+                            <Tooltip.Floating
+                              label={row.value}
+                              position="bottom-start"
+                              offset={16}
+                              role="tooltip"
+                              classNames={{ tooltip: "metadata-tooltip" }}
+                            >
+                              <span>{metadataValue(row.key, row.value)}</span>
+                            </Tooltip.Floating>
                           </bdi>
                         </Tooltip>
                       ) : (

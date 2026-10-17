@@ -782,7 +782,9 @@ it("groups preview metadata and opens tag selection only on request", async () =
   );
   await user.unhover(screen.getByText(/Oct 16, 2026/));
   expect(screen.getByText(/Oct 16, 2026/)).toHaveTextContent(/1:21/);
-  expect(screen.getByText("custom:unknown")).toBeVisible();
+  expect(
+    screen.getByText("custom:unknown", { selector: "dt bdi" }),
+  ).toBeVisible();
   expect(screen.getByText("original value")).toBeVisible();
   expect(
     screen.queryByRole("combobox", { name: "Select a tag" }),
