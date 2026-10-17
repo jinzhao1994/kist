@@ -431,6 +431,7 @@ export function TagAssignment({
         {assigned.map((tagID) => (
           <li
             key={tagID}
+            className="tag-chip"
             tabIndex={0}
             aria-haspopup="menu"
             {...context.bindings(tagID)}

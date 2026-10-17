@@ -56,6 +56,17 @@ func TestBoxSearch(t *testing.T) {
 	}
 	check := func() {
 		t.Helper()
+		page := decodeBody[boxSearchResult](t, s, "/boxes/search?sort=name&asc=true")
+		wantTags := map[string][]displayTag{
+			a.ID.String(): {{ID: child.ID.String(), Name: "child"}},
+			b.ID.String(): {{ID: child.ID.String(), Name: "child"}, {ID: other.ID.String(), Name: "other"}},
+			c.ID.String(): {{ID: other.ID.String(), Name: "other"}},
+		}
+		for _, box := range page.Boxes {
+			if !reflect.DeepEqual(box.Tags, wantTags[box.ID]) {
+				t.Fatalf("box %s tags = %+v, want %+v", box.ID, box.Tags, wantTags[box.ID])
+			}
+		}
 		for _, tc := range []struct {
 			query string
 			ids   []string
@@ -107,6 +118,9 @@ func TestBoxSearch(t *testing.T) {
 					page := decodeBody[boxSearchResult](t, s, base+"&limit=1&cursor="+url.QueryEscape(cursor))
 					for _, box := range page.Boxes {
 						ids = append(ids, box.ID)
+						if !reflect.DeepEqual(box.Tags, wantTags[box.ID]) {
+							t.Fatalf("paged box %s tags = %+v", box.ID, box.Tags)
+						}
 					}
 					cursor = page.Cursor
 					if cursor == "" {

@@ -29,6 +29,34 @@ func (l *Library) Files(ctx context.Context, q query.Query) ([]domain.File, stri
 	return store.ListFiles(l.db, q, l.zone())
 }
 
+// FileSearchItem includes direct tags from the same read snapshot as the file.
+type FileSearchItem struct {
+	domain.File
+	Tags []domain.Tag
+}
+
+// FilesWithTags loads a page and its tag labels without per-file tag queries.
+func (l *Library) FilesWithTags(ctx context.Context, q query.Query) ([]FileSearchItem, string, error) {
+	var items []FileSearchItem
+	var cursor string
+	err := l.readTx(ctx, func(tx *store.ViewTx) error {
+		files, next, err := store.ListFiles(tx.Queryer(), q, l.zone())
+		if err != nil {
+			return err
+		}
+		cursor = next
+		tags, err := store.TagsOfFiles(tx.Queryer(), files)
+		if err != nil {
+			return err
+		}
+		for _, file := range files {
+			items = append(items, FileSearchItem{File: file, Tags: tags[file.ID]})
+		}
+		return nil
+	})
+	return items, cursor, err
+}
+
 // TagCondition turns tag names into "carries all of these, each including its
 // descendants" — the shape v0.1's UI and CLI expose (spec 4.3).
 //

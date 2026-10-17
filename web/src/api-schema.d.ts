@@ -693,8 +693,20 @@ export interface components {
         BoxList: {
             boxes: components["schemas"]["Box"][] | null;
         };
+        BoxSearchItem: {
+            /** Format: date-time */
+            created_at: string;
+            description?: string;
+            end_at?: string;
+            id: string;
+            name: string;
+            start_at?: string;
+            tags?: components["schemas"]["DisplayTag"][] | null;
+            /** Format: date-time */
+            updated_at: string;
+        };
         BoxSearchResult: {
-            boxes: components["schemas"]["Box"][] | null;
+            boxes: components["schemas"]["BoxSearchItem"][] | null;
             cursor?: string;
         };
         CreateTagInputBody: {
@@ -704,6 +716,10 @@ export interface components {
         "Delete-api-v1-boxes-by-idRequest": {
             /** Format: int64 */
             revision: number;
+        };
+        DisplayTag: {
+            id: string;
+            name: string;
         };
         EntryDeleteInputBody: {
             /** Format: int64 */
@@ -751,9 +767,30 @@ export interface components {
             metadata: components["schemas"]["Metadata"][] | null;
             tags: string[] | null;
         };
-        FileList: {
+        FileSearchItem: {
+            blob_key: string;
+            box_id?: string;
+            /** Format: date-time */
+            captured_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+            display_tags?: components["schemas"]["DisplayTag"][] | null;
+            extraction_pending?: string[] | null;
+            folder_id: string;
+            id: string;
+            kind?: string;
+            media_type?: string;
+            name: string;
+            path?: string;
+            /** Format: int64 */
+            size?: number;
+            type_label?: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        FileSearchResult: {
             cursor?: string;
-            files: components["schemas"]["File"][] | null;
+            files: components["schemas"]["FileSearchItem"][] | null;
         };
         Folder: {
             /** Format: date-time */
@@ -1580,7 +1617,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FileList"];
+                    "application/json": components["schemas"]["FileSearchResult"];
                 };
             };
             /** @description Error */

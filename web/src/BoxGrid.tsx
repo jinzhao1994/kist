@@ -1,9 +1,10 @@
 import { iconGridStyle } from "./icon-grid";
+import { TagLabels } from "./TagLabels";
 import { UnstyledButton } from "@mantine/core";
 import { useLayoutEffect, useRef } from "react";
 import { DisplayModeControl, useDisplayMode } from "./DisplayMode";
 import type { BoxFilters } from "./Filters";
-import type { Box } from "./api";
+import type { Box, BoxSearchItem } from "./api";
 import { formatInstant, formatLocalDate, useI18n } from "./i18n";
 
 export function BoxGrid({
@@ -12,7 +13,7 @@ export function BoxGrid({
   filters,
   onSort,
 }: {
-  boxes: Box[];
+  boxes: BoxSearchItem[];
   open: (box: Box) => void;
   filters?: BoxFilters;
   onSort?: (sort: NonNullable<BoxFilters["sort"]>) => void;
@@ -135,6 +136,7 @@ export function BoxGrid({
                   <bdi>{box.description}</bdi>
                 </span>
               )}
+              <TagLabels tags={box.tags} />
             </span>
             <span
               className="box-activity"

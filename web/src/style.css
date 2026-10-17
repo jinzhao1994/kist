@@ -413,7 +413,7 @@ summary {
   gap: 0.4rem;
   margin-block-end: 0.6rem;
 }
-.tag-chips li {
+.tag-chip {
   position: relative;
   isolation: isolate;
   display: flex;
@@ -425,7 +425,7 @@ summary {
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
-.tag-chips li::before {
+.tag-chip::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -435,7 +435,7 @@ summary {
   mask-image: radial-gradient(circle at 8px 50%, transparent 2px, #000 2.5px);
   clip-path: polygon(8px 0, 100% 0, 100% 100%, 8px 100%, 0 50%);
 }
-[dir="rtl"] .tag-chips li::before {
+[dir="rtl"] .tag-chip::before {
   mask-image: radial-gradient(
     circle at calc(100% - 8px) 50%,
     transparent 2px,
@@ -1116,7 +1116,16 @@ button.filter-token-segment:hover {
   block-size: 24px;
   background: transparent;
 }
+.file-name-cell {
+  min-inline-size: 0;
+}
+.file-scroll.view-list .file-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
 .file-scroll.view-list .file-name {
+  min-inline-size: 0;
   margin: 0;
   font-size: 0.8rem;
 }
@@ -1567,6 +1576,30 @@ button.filter-token-segment:hover {
 .box-date-measure > span {
   display: block;
 }
+
+.entry-tags {
+  margin-block: 0.5rem 0;
+}
+.box-grid.view-list .entry-tags,
+.file-scroll.view-list .entry-tags {
+  flex: 0 0 auto;
+  max-inline-size: 60%;
+  min-inline-size: 0;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  margin: 0;
+  margin-inline-start: auto;
+  align-self: center;
+}
+.entry-tags .tag-chip {
+  min-inline-size: 0;
+}
+.entry-tags .tag-chip bdi {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .box-summary {
   min-inline-size: 0;
 }
@@ -1589,7 +1622,8 @@ button.filter-token-segment:hover {
   overflow: hidden;
 }
 .box-grid.view-list .box-summary h2 {
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-inline-size: 0;
   max-inline-size: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1600,6 +1634,8 @@ button.filter-token-segment:hover {
   font-size: 0.8rem;
 }
 .box-grid.view-list .box-summary-description {
+  flex-shrink: 999;
+  min-inline-size: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

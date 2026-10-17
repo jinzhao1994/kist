@@ -40,6 +40,7 @@ const files: ArchiveFile[] = [
   updated_at: time,
   captured_at: time,
   size: 123456,
+  display_tags: i === 0 ? [{ id: "tag-1", name: "旅行" }] : undefined,
 }));
 const landscape = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600"><rect width="800" height="600" fill="#d7e4df"/><circle cx="620" cy="130" r="58" fill="#f5d99a"/><path d="M0 460L260 120 530 460Z" fill="#718c7c"/><path d="M250 520L560 220 800 460V600H0V460Z" fill="#a4b9a3"/><path d="M0 520Q400 450 800 520V600H0Z" fill="#577c83"/></svg>`;
 
@@ -93,7 +94,13 @@ async function prepare(page: Page, options: Options = {}) {
         boxes: options.empty
           ? []
           : [
-              box,
+              {
+                ...box,
+                tags: [
+                  { id: "tag-1", name: "旅行" },
+                  { id: "tag-2", name: "山野" },
+                ],
+              },
               {
                 ...box,
                 id: "box-2",
@@ -825,7 +832,13 @@ for (const kind of ["boxes", "files"] as const) {
         kind === "boxes" ? ".box-grid" : ".file-scroll",
       );
       await expect(root).toHaveClass(new RegExp(`view-${mode}`));
+      if (kind === "boxes") {
+        await expect(root.locator(".entry-tags")).toContainText("旅行");
+        await expect(root.locator(".entry-tags .tag-chip")).toHaveCount(2);
+      }
       if (kind === "files") await grid(page, mode === "list" ? 0 : 3);
+      if (kind === "files" && mode === "list")
+        await expect(root.locator(".entry-tags")).toContainText("旅行");
       await page.reload();
       await expect(root).toHaveClass(new RegExp(`view-${mode}`));
       if (kind === "files") await grid(page, mode === "list" ? 0 : 3);
@@ -840,12 +853,57 @@ for (const kind of ["boxes", "files"] as const) {
     await expect(
       page.locator(kind === "boxes" ? ".box-grid" : ".file-scroll"),
     ).toHaveClass(/view-list/);
+    if (kind === "boxes")
+      await expect(page.locator(".entry-tags")).toContainText("旅行");
+    if (kind === "files")
+      await expect(page.locator(".file-scroll .entry-tags")).toContainText(
+        "旅行",
+      );
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth),
     ).toBe(390);
     await capture(page, errors, info.title);
   });
 }
+
+test("box-list-long-description-preserves-tags", async ({ page }, info) => {
+  const errors = await prepare(page);
+  await page.route("**/api/v1/boxes/search?**", (route) =>
+    route.fulfill({
+      json: {
+        boxes: [
+          {
+            ...box,
+            description: "旅途中的照片、票据和行程记录，".repeat(20),
+            tags: [
+              { id: "tag-1", name: "旅行" },
+              { id: "tag-2", name: "山野" },
+            ],
+          },
+        ],
+      },
+    }),
+  );
+  await page.goto("/");
+  await page.getByRole("button", { name: "显示方式", exact: true }).click();
+  await page.getByText("列表", { exact: true }).click();
+  const description = page.locator(".box-summary-description");
+  await expect(description).toBeVisible();
+  expect(
+    await description.evaluate((node) => node.scrollWidth > node.clientWidth),
+  ).toBe(true);
+  const tags = page.locator(".entry-tags");
+  await expect(tags).toContainText("旅行山野");
+  expect(
+    await tags.evaluate((node) => node.scrollWidth <= node.clientWidth),
+  ).toBe(true);
+  const bounds = await tags.boundingBox();
+  const summary = await page.locator(".box-summary").boundingBox();
+  expect(
+    Math.abs(bounds!.x + bounds!.width - summary!.x - summary!.width),
+  ).toBeLessThan(1);
+  await capture(page, errors, info.title);
+});
 
 test("gallery-navigation-and-return", async ({ page }, info) => {
   const errors = await prepare(page);

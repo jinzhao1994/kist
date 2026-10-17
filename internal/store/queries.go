@@ -82,6 +82,62 @@ func ListTags(q Queryer) ([]domain.Tag, error) {
 	return out, rows.Err()
 }
 
+// TagsOfBoxes loads direct tag names for a bounded page in one query.
+func TagsOfBoxes(q Queryer, boxes []domain.Box) (map[domain.BoxID][]domain.Tag, error) {
+	out := make(map[domain.BoxID][]domain.Tag)
+	if len(boxes) == 0 {
+		return out, nil
+	}
+	args := make([]any, len(boxes))
+	for i, box := range boxes {
+		args[i] = box.ID
+	}
+	rows, err := q.Query(`SELECT bt.box_id, t.id, t.name FROM box_tags bt
+		JOIN tags t ON t.id = bt.tag_id WHERE bt.box_id IN (`+placeholders(len(args))+`)
+		ORDER BY t.name, t.id`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("read box page tags: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var box domain.BoxID
+		var tag domain.Tag
+		if err := rows.Scan(&box, &tag.ID, &tag.Name); err != nil {
+			return nil, err
+		}
+		out[box] = append(out[box], tag)
+	}
+	return out, rows.Err()
+}
+
+// TagsOfFiles loads direct tag names for a bounded page in one query.
+func TagsOfFiles(q Queryer, files []domain.File) (map[domain.FileID][]domain.Tag, error) {
+	out := make(map[domain.FileID][]domain.Tag)
+	if len(files) == 0 {
+		return out, nil
+	}
+	args := make([]any, len(files))
+	for i, file := range files {
+		args[i] = file.ID
+	}
+	rows, err := q.Query(`SELECT ft.file_id, t.id, t.name FROM file_tags ft
+		JOIN tags t ON t.id = ft.tag_id WHERE ft.file_id IN (`+placeholders(len(args))+`)
+		ORDER BY t.name, t.id`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("read file page tags: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var file domain.FileID
+		var tag domain.Tag
+		if err := rows.Scan(&file, &tag.ID, &tag.Name); err != nil {
+			return nil, err
+		}
+		out[file] = append(out[file], tag)
+	}
+	return out, rows.Err()
+}
+
 // BoxTags returns the tags attached directly to a box.
 func BoxTags(q Queryer, box domain.BoxID) ([]domain.TagID, error) {
 	rows, err := q.Query(`SELECT tag_id FROM box_tags WHERE box_id = ? ORDER BY tag_id`, box)

@@ -2,7 +2,8 @@ import { calculateIntegrity, type FileIntegrity } from "./upload-integrity";
 import type { components, operations } from "./api-schema";
 export type Folder = components["schemas"]["Folder"];
 export type Box = components["schemas"]["Box"];
-export type ArchiveFile = components["schemas"]["File"];
+export type BoxSearchItem = components["schemas"]["BoxSearchItem"];
+export type ArchiveFile = components["schemas"]["FileSearchItem"];
 export type FileDetail = components["schemas"]["FileDetail"];
 export type Tag = components["schemas"]["Tag"];
 export type Receipt = components["schemas"]["RequestResult"];
@@ -115,7 +116,10 @@ export const api = {
             key,
             Array.isArray(value) ? value.join(",") : String(value),
           );
-    return get<components["schemas"]["FileList"]>(`/files?${params}`, signal);
+    return get<components["schemas"]["FileSearchResult"]>(
+      `/files?${params}`,
+      signal,
+    );
   },
   receipt: (key: string) =>
     get<Receipt>(`/requests/${encodeURIComponent(key)}`),

@@ -87,6 +87,14 @@ func TestFileQueryAndTagMutations(t *testing.T) {
 		t.Fatalf("retry wrote %d operations", after-before)
 	}
 	mustWrite(t, s, "PUT", "/tags/"+other+"/files", "attach-file-02", `{"ids":["`+all.Files[1].ID+`"]}`)
+	labels := decodeBody[fileSearchResult](t, s, "/files?sort=name&asc=true&limit=1")
+	if len(labels.Files) != 1 || len(labels.Files[0].DisplayTags) != 1 || labels.Files[0].DisplayTags[0] != (displayTag{ID: child, Name: "child"}) {
+		t.Fatalf("first page labels: %+v", labels)
+	}
+	nextLabels := decodeBody[fileSearchResult](t, s, "/files?sort=name&asc=true&limit=1&cursor="+url.QueryEscape(labels.Cursor))
+	if len(nextLabels.Files) != 1 || len(nextLabels.Files[0].DisplayTags) != 1 || nextLabels.Files[0].DisplayTags[0] != (displayTag{ID: other, Name: "other"}) {
+		t.Fatalf("next page labels: %+v", nextLabels)
+	}
 	for _, tc := range []struct {
 		filter string
 		count  int

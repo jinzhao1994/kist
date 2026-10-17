@@ -24,8 +24,16 @@ type boxQueryInput struct {
 	Limit        int      `query:"limit" minimum:"0" maximum:"1000"`
 }
 type boxSearchResult struct {
-	Boxes  []wire.Box `json:"boxes"`
-	Cursor string     `json:"cursor,omitempty"`
+	Boxes  []boxSearchItem `json:"boxes"`
+	Cursor string          `json:"cursor,omitempty"`
+}
+type boxSearchItem struct {
+	wire.Box
+	Tags []displayTag `json:"tags,omitempty"`
+}
+type displayTag struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 func (s *Server) boxSearchRoute() {
@@ -52,6 +60,14 @@ func (s *Server) boxSearchRoute() {
 			}
 		}
 		boxes, cursor, err := s.library.SearchBoxes(ctx, q)
-		return response(boxSearchResult{Boxes: wire.NewBoxes(boxes), Cursor: cursor}, err)
+		items := make([]boxSearchItem, 0, len(boxes))
+		for _, box := range boxes {
+			item := boxSearchItem{Box: wire.NewBox(box.Box)}
+			for _, tag := range box.Tags {
+				item.Tags = append(item.Tags, displayTag{ID: tag.ID.String(), Name: tag.Name})
+			}
+			items = append(items, item)
+		}
+		return response(boxSearchResult{Boxes: items, Cursor: cursor}, err)
 	})
 }

@@ -1,4 +1,5 @@
 import { iconGridColumns, iconGridStyle } from "./icon-grid";
+import { TagLabels } from "./TagLabels";
 import { DialogPresence } from "./Dialog";
 import { SidebarMenuButton } from "./SidebarMenuButton";
 import {
@@ -386,16 +387,21 @@ export function FileGrid({
                             <FileIcon folder={!!folder} />
                           )}
                         </div>
-                        {editing ? (
-                          <div className="file-name file-name-edit">
-                            <EntryRename
-                              entry={entryAction}
-                              close={() => setEntryAction(undefined)}
-                            />
-                          </div>
-                        ) : (
-                          <bdi className="file-name">{item.name}</bdi>
-                        )}
+                        <div className="file-name-cell">
+                          {editing ? (
+                            <div className="file-name file-name-edit">
+                              <EntryRename
+                                entry={entryAction}
+                                close={() => setEntryAction(undefined)}
+                              />
+                            </div>
+                          ) : (
+                            <bdi className="file-name">{item.name}</bdi>
+                          )}
+                          {mode === "list" && (
+                            <TagLabels tags={file?.display_tags} />
+                          )}
+                        </div>
                         {mode === "list" && (
                           <>
                             <span className="file-list-kind">

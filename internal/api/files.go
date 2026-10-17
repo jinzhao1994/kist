@@ -37,6 +37,14 @@ type fileDetail struct {
 	wire.FileDetail
 	Tags []string `json:"tags"`
 }
+type fileSearchItem struct {
+	wire.File
+	DisplayTags []displayTag `json:"display_tags,omitempty"`
+}
+type fileSearchResult struct {
+	Files  []fileSearchItem `json:"files"`
+	Cursor string           `json:"cursor,omitempty"`
+}
 type folderList struct {
 	Folders []wire.Folder `json:"folders"`
 }
@@ -197,22 +205,26 @@ func tagStrings(tags []domain.TagID) []string {
 	return out
 }
 func (s *Server) fileRoutes() {
-	huma.Get(s.contract, Prefix+"/files", func(ctx context.Context, in *fileQueryInput) (*output[wire.FileList], error) {
+	huma.Get(s.contract, Prefix+"/files", func(ctx context.Context, in *fileQueryInput) (*output[fileSearchResult], error) {
 		q, err := s.fileQuery(in)
 		if err != nil {
 			return nil, err
 		}
-		files, cursor, err := s.library.Files(ctx, q)
+		files, cursor, err := s.library.FilesWithTags(ctx, q)
 		if err != nil {
 			return nil, failure(err)
 		}
-		out := wire.FileList{Files: make([]wire.File, 0, len(files)), Cursor: cursor}
+		out := fileSearchResult{Files: make([]fileSearchItem, 0, len(files)), Cursor: cursor}
 		for _, f := range files {
-			item, err := renderFile(ctx, s.library, f)
+			item, err := renderFile(ctx, s.library, f.File)
 			if err != nil {
 				return nil, failure(err)
 			}
-			out.Files = append(out.Files, item)
+			result := fileSearchItem{File: item}
+			for _, tag := range f.Tags {
+				result.DisplayTags = append(result.DisplayTags, displayTag{ID: tag.ID.String(), Name: tag.Name})
+			}
+			out.Files = append(out.Files, result)
 		}
 		return response(out, nil)
 	})
