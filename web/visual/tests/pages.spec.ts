@@ -142,7 +142,13 @@ async function prepare(page: Page, options: Options = {}) {
                 },
               ],
       };
-    } else if (path === "/ops/12")
+    } else if (path === "/ops/12/summary" || path === "/ops/10/summary")
+      body = {
+        name: files[0].name,
+        count: 1,
+        current_names: false,
+      };
+    else if (path === "/ops/12")
       body = {
         id: 12,
         action: "delete_files",
@@ -361,6 +367,7 @@ for (const state of [
     await expect(
       page.getByRole("region", { name: "画廊", exact: true }),
     ).toBeVisible();
+    await page.getByRole("button", { name: "文件详情", exact: true }).click();
     await expect(
       page
         .getByRole("region", { name: "画廊", exact: true })
@@ -1019,7 +1026,7 @@ for (const reduced of [false, true]) {
     const gallery = page.getByRole("region", { name: "画廊", exact: true });
     await expect(gallery).toBeVisible();
     expect(await thumbnail!.evaluate((node) => node.isConnected)).toBe(true);
-    await expect(gallery.locator("aside")).toBeVisible();
+    await expect(gallery.locator("aside")).toHaveCount(0);
     await expect(page.locator(".gallery-flight")).toHaveCount(0);
     expect(
       await page.evaluate(
