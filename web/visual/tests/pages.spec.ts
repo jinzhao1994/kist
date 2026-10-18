@@ -437,10 +437,19 @@ async function prepare(page: Page, options: Options = {}) {
   return errors;
 }
 async function capture(page: Page, errors: string[], name: string) {
+  if (await page.getByRole("link", { name: "在新标签页打开 PDF" }).count()) {
+    await expect(page.locator(".pdf-reader")).toBeVisible();
+    await expect(
+      page.locator(".pdf-reader").getByText("正在加载…", { exact: true }),
+    ).toHaveCount(0);
+  }
   if (await page.locator(".pdf-viewport-wrap:not([hidden])").count()) {
     await expect(
       page.locator('.pdfViewer .page[data-page-number="1"] canvas').first(),
     ).toBeVisible();
+    await expect(
+      page.locator('.pdfViewer .page[data-page-number="1"] .textLayer'),
+    ).toContainText("Kist PDF first page");
     await expect(
       page.getByRole("link", { name: "在新标签页打开 PDF" }),
     ).toHaveAttribute("target", "_blank");
