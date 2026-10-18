@@ -1623,6 +1623,10 @@ for (const mobile of [false, true]) {
         gallery.getByRole("heading", { name: "山间路线.GPX" }),
       ).toBeVisible();
       await gallery.getByRole("button", { name: "返回列表" }).click();
+      await page
+        .locator(".file-card")
+        .filter({ hasText: "山间路线.GPX" })
+        .scrollIntoViewIfNeeded();
       await expect(
         page.getByRole("img", { name: "山间路线.GPX" }),
       ).toBeVisible();
