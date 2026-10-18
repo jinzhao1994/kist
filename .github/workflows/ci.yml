@@ -110,7 +110,7 @@ jobs:
           esac
           test "$actual" = "$EXPECTED_PLATFORM"
       - name: Build the native runtime image
-        run: docker build --platform "$EXPECTED_PLATFORM" -t kist:ci .
+        run: docker buildx build --load --pull --no-cache-filter runtime --platform "$EXPECTED_PLATFORM" -t kist:ci .
       - name: Exercise media, access checks and persistence
         run: sh scripts/docker-smoke.sh kist:ci "$EXPECTED_PLATFORM"
       - run: python3 scripts/check-compose.py

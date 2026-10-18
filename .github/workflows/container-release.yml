@@ -97,7 +97,8 @@ jobs:
           test "$actual" = "$EXPECTED_PLATFORM"
       - name: Build the release image
         run: |
-          docker build --platform "$EXPECTED_PLATFORM" --provenance=false \
+          docker buildx build --load --pull --no-cache-filter runtime \
+            --platform "$EXPECTED_PLATFORM" --provenance=false \
             --build-arg "VERSION=$VERSION" \
             --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
             --label "org.opencontainers.image.version=$VERSION" \

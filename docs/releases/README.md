@@ -77,6 +77,15 @@ does not publish images. Package visibility is configured once
 by its owner; the workflow does not change visibility. Post-publication verification
 uses an empty Docker credential configuration to prove anonymous access.
 
+Every container release pulls the latest image for each Dockerfile base tag and
+rebuilds the `runtime` stage without cache. Its APT steps refresh package indexes,
+upgrade installed system packages and install current runtime dependencies from
+the configured Debian repositories. CI uses the same freshness options. Build
+stages may still reuse cache. This does not move to a new Debian distribution or
+change pinned toolchain versions, and does not mutate existing published images.
+The same source can produce a different image when upstream packages change;
+published versions remain immutable and deployments are identified by digest.
+
 For an already published stable release, rehearse on `main`:
 
 ```sh
