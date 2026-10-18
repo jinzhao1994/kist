@@ -67,7 +67,7 @@ func (s *Server) mediaRoutes() {
 	})
 	for _, method := range []string{http.MethodGet, http.MethodHead} {
 		huma.Register(s.contract, huma.Operation{OperationID: method + "-derived-content", Method: method, Path: path + "/content", Summary: "Read completed derived media; supports HTTP ranges", Responses: map[string]*huma.Response{
-			"200": {Description: "Derived image, video or geographic data", Content: map[string]*huma.MediaType{"application/geo+json": {Schema: &huma.Schema{Type: "object"}}, "image/jpeg": {Schema: &huma.Schema{Type: "string", Format: "binary"}}, "video/mp4": {Schema: &huma.Schema{Type: "string", Format: "binary"}}}},
+			"200": {Description: "Derived image, PDF, video or geographic data", Content: map[string]*huma.MediaType{"application/pdf": {Schema: &huma.Schema{Type: "string", Format: "binary"}}, "application/geo+json": {Schema: &huma.Schema{Type: "object"}}, "image/jpeg": {Schema: &huma.Schema{Type: "string", Format: "binary"}}, "video/mp4": {Schema: &huma.Schema{Type: "string", Format: "binary"}}}},
 			"206": {Description: "Requested byte range"}, "416": {Description: "Unsatisfiable byte range"},
 		}}, func(ctx context.Context, in *mediaInput) (*huma.StreamResponse, error) {
 			id, err := mediaID(*in)

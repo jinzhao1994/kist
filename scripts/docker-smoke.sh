@@ -44,7 +44,7 @@ docker run --rm --read-only --tmpfs /tmp --mount "type=volume,src=$volume,dst=/l
     decoder=$(command -v heif-dec || command -v heif-convert)
     "$decoder" /fixtures/tiled.heic /tmp/heif.png
     ffprobe -v error -show_entries stream=width,height -of csv=p=0 /tmp/heif.png | grep -qx "3072,2048"
-    kist --library /library import --box "Docker smoke" /tmp/sample.png /tmp/preview.mp4 /tmp/preview.mov /fixtures/tiled.heic /fixtures/two-pages.pdf /fixtures/cube.stl
+    kist --library /library import --box "Docker smoke" /tmp/sample.png /tmp/preview.mp4 /tmp/preview.mov /fixtures/tiled.heic /fixtures/two-pages.pdf /fixtures/cube.stl /fixtures/two-pages.doc /fixtures/two-pages.docx
     kist --library /library extract --quiet
 '
 start_server() {
@@ -80,6 +80,16 @@ until curl -fsS -H 'Host: localhost:8473' "$url/api/v1/boxes" | grep -q 'Docker 
 done
 curl -fsS -H 'Host: localhost:8473' "$url/api/v1/files" | grep -q sample.png
 python3 "$(dirname -- "$0")/media-smoke.py" "$url" localhost:8473
+# Inspect the actual cached PDFs, not a separate direct CLI conversion.
+docker exec "$name" sh -ec '
+    count=0
+    for pdf in $(find /library/derived -name office_pdf_v1.pdf); do
+        pdfinfo "$pdf" | grep -Eq "^Pages:[[:space:]]+2$"
+        pdftotext "$pdf" - | grep -q "Kist Word second page"
+        count=$((count + 1))
+    done
+    test "$count" -eq 2
+'
 docker exec "$name" kist --library /library verify --deep
 docker exec "$name" kist --library /library scrub
 printf '%s\n' 'Docker smoke passed.'

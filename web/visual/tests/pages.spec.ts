@@ -89,6 +89,7 @@ type Options = {
   empty?: boolean;
   mobile?: boolean;
   manyFiles?: boolean;
+  word?: "doc" | "docx";
   stl?: boolean;
   gpx?: boolean;
   mapFailure?: boolean;
@@ -96,12 +97,16 @@ type Options = {
 };
 async function prepare(page: Page, options: Options = {}) {
   const mediaFiles =
-    options.stl || options.gpx
+    options.stl || options.gpx || options.word
       ? files.map((file, i) =>
           i === 2
             ? {
                 ...file,
-                name: options.gpx ? "山间路线.GPX" : "模型.STL",
+                name: options.word
+                  ? `归档报告.${options.word}`
+                  : options.gpx
+                    ? "山间路线.GPX"
+                    : "模型.STL",
                 media_type: "application/octet-stream",
                 kind: "other",
               }
@@ -142,6 +147,11 @@ async function prepare(page: Page, options: Options = {}) {
       return route.abort();
     }
     let body: unknown;
+    if (options.word && path === "/files/file-3/derived/office_pdf_v1/content")
+      return route.fulfill({
+        contentType: "application/pdf",
+        body: pdfFixture(),
+      });
     if (path === "/files/file-3/content")
       return route.fulfill({
         contentType: "application/pdf",
@@ -412,6 +422,13 @@ async function prepare(page: Page, options: Options = {}) {
         recipe !== "preview_1080p_v1"
       )
         errors.push(`Unexpected video recipe: ${recipe}`);
+      if (
+        options.word &&
+        path.includes("/file-3/") &&
+        recipe !== "office_pdf_v1" &&
+        recipe !== "office_thumb_512_v1"
+      )
+        errors.push(`Unexpected Word recipe: ${recipe}`);
       const state = options.state || "ready";
       body = {
         state,
@@ -1838,6 +1855,32 @@ for (const mobile of [false, true]) {
     await page.locator(".pdf-viewport").focus();
     await page.keyboard.press("ArrowRight");
     await expect(page).toHaveURL(/file=file-3/);
+    await capture(page, errors, info.title);
+  });
+}
+
+for (const word of ["doc", "docx"] as const) {
+  test(`word-reader-${word}`, async ({ page }, info) => {
+    const errors = await prepare(page, {
+      word,
+      mode: word === "doc" ? "dark" : "light",
+    });
+    await page.goto("/boxes/box-1?file=file-3");
+    const reader = page.locator(".pdf-reader");
+    await expect(reader).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "在新标签页打开 PDF" }),
+    ).toHaveAttribute("href", /office_pdf_v1\/content/);
+    await expect(
+      page.getByRole("link", { name: "下载原文件" }),
+    ).toHaveAttribute("href", /file-3\/content.*download/);
+    await expect(
+      page.locator('.pdfViewer .page[data-page-number="1"] .textLayer'),
+    ).toContainText("Kist PDF first page");
+    await page.getByRole("button", { name: "下一页", exact: true }).click();
+    await expect(page.getByRole("spinbutton", { name: "页码" })).toHaveValue(
+      "2",
+    );
     await capture(page, errors, info.title);
   });
 }

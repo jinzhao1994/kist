@@ -26,7 +26,8 @@ RUN apt-get update \
     && useradd --uid 10001 --gid kist --no-create-home --home-dir /library kist \
     && mkdir /library && chown kist:kist /library
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libheif-examples \
+    && apt-get install -y --no-install-recommends libheif-examples libreoffice-writer \
+        fonts-noto-cjk fonts-crosextra-carlito fonts-crosextra-caladea \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=build /out/kist /usr/local/bin/kist
 COPY LICENSE THIRD_PARTY_NOTICES.md SECURITY.md /usr/share/doc/kist/

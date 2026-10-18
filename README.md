@@ -313,17 +313,31 @@ Opening a grid or file requests background work: imports do not wait for image
 processing. JPEG/PNG/GIF/WebP and other supported raster images use the Go
 renderer; HEIC needs `heif-info` and `heif-dec` (or `heif-convert`) with an HEVC
 decoder. PDF first-page thumbnails need Poppler (`pdftoppm`).
+DOC/DOCX previews need LibreOffice Writer (`libreoffice` or `soffice` on PATH),
+plus Poppler for thumbnails. Docker includes Writer and Noto CJK, Carlito and
+Caladea fonts; native installations should provide fonts for their documents.
 Video (including MOV) needs `ffmpeg` and `ffprobe` with H.264/AAC encoders. Docker
 includes these tools. On Ubuntu, install `poppler-utils ffmpeg libheif-examples
-libheif-plugin-libde265`; native deployments may omit them and still archive,
+libheif-plugin-libde265 libreoffice-writer fonts-noto-cjk fonts-crosextra-carlito
+fonts-crosextra-caladea`; native deployments may omit them and still archive,
 search and download originals.
 
 Existing MOV files classified by the older media extractor need `kist extract
 --extractor media` or the UI metadata extraction action; no re-upload is needed.
-PDF grids show first-page thumbnails. Details use the browser’s native PDF reader
-for paging, zooming and text selection, with an option to open a new tab. Desktop
-Chrome can recognize scanned text locally; availability depends on the browser.
-Recognized text is not written back to the archive.
+PDF grids show first-page thumbnails. Details use PDF.js for paging, zooming,
+search and text selection. Open a new tab to use the browser's native PDF reader,
+including desktop Chrome's OCR where available. Recognized text is not written
+back to the archive.
+
+DOC/DOCX grids show a converted first page; details read a derived PDF with the
+same reader. Once ready, the new-tab action opens that PDF, while download always
+returns the original Word file. Existing files work without re-import or metadata
+extraction. Conversion is local and cached by content and recipe. Complex layouts
+and substituted fonts may differ from Microsoft Word. Inputs and generated PDFs
+are limited to 128 MiB, conversion to 120 seconds and scratch files to 512 MiB.
+Macro-enabled DOCX and external resource relationships are unsupported; ordinary
+hyperlinks are retained. Conversion disables macros and automatic link updates.
+
 
 Missing tools are checked again every 30 seconds; installation takes effect
 without restarting the server. Details offer cancel and retry controls.

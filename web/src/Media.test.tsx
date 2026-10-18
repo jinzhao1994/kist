@@ -261,3 +261,35 @@ for (const detail of [false, true]) {
     expect(screen.queryByRole("img")).toBeNull();
   });
 }
+
+for (const name of ["Report.DOC", "Report.docx"]) {
+  it(`renders ${name} through a derived PDF and keeps the original untouched`, async () => {
+    const fetch = vi
+      .fn()
+      .mockImplementation(async () => Response.json(job("ready")));
+    vi.stubGlobal("fetch", fetch);
+    const word = {
+      ...file,
+      name,
+      kind: "other",
+      media_type: "application/octet-stream",
+    };
+    const view = mount({ file: word });
+    expect(await screen.findByLabelText(name)).toHaveAttribute(
+      "data-src",
+      "/api/v1/files/photo/derived/office_pdf_v1/content?v=v1",
+    );
+    expect(fetch.mock.calls[0][0]).toBe(
+      "/api/v1/files/photo/derived/office_pdf_v1",
+    );
+    expect(
+      fetch.mock.calls.some(([url]) => url === "/api/v1/files/photo/content"),
+    ).toBe(false);
+    view.unmount();
+    mount({ file: word, detail: false });
+    expect(await screen.findByRole("img", { name })).toHaveAttribute(
+      "src",
+      "/api/v1/files/photo/derived/office_thumb_512_v1/content?v=v1",
+    );
+  });
+}

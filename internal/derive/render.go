@@ -39,9 +39,11 @@ type Recipe struct {
 // Lookup is the only registry of public recipes and their output types.
 func Lookup(name string) (Recipe, bool) {
 	switch name {
+	case OfficePDF:
+		return Recipe{name, ".pdf", "application/pdf", 0}, true
 	case GPXMap:
 		return Recipe{name, ".geojson", "application/geo+json", 0}, true
-	case Thumbnail, VideoThumbnail, STLThumbnail:
+	case Thumbnail, VideoThumbnail, STLThumbnail, OfficeThumbnail:
 		return Recipe{name, ".jpg", "image/jpeg", 512}, true
 	case Preview, STLPreview:
 		return Recipe{name, ".jpg", "image/jpeg", 2048}, true
@@ -87,11 +89,12 @@ type Result struct {
 type Renderer struct {
 	// Empty paths use PATH at each invocation, so installing a tool takes effect
 	// without restarting serve. Explicit paths also make missing-tool tests portable.
-	FFmpeg   string
-	FFprobe  string
-	HeifDec  string
-	HeifInfo string
-	PDFToPPM string
+	FFmpeg      string
+	FFprobe     string
+	HeifDec     string
+	HeifInfo    string
+	PDFToPPM    string
+	LibreOffice string
 }
 
 func (r Renderer) Render(ctx context.Context, input, output, recipe string) (result Result, err error) {
@@ -109,7 +112,12 @@ func (r Renderer) Render(ctx context.Context, input, output, recipe string) (res
 	}
 	defer f.Close()
 	cfg, format, decodeErr := image.DecodeConfig(io.LimitReader(contextReader{ctx, f}, MaxImageBytes+1))
-	if recipe == GPXMap {
+	if recipe == OfficePDF || recipe == OfficeThumbnail {
+		result, err = r.office(ctx, input, output, spec)
+		if err != nil {
+			return result, err
+		}
+	} else if recipe == GPXMap {
 		result, err = renderGPX(ctx, input, output)
 		if err != nil {
 			return result, err

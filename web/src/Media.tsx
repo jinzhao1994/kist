@@ -21,13 +21,47 @@ function isSTL(file: ArchiveFile) {
   return file.media_type === "model/stl" || /\.stl$/i.test(file.name);
 }
 
+export function isWord(file: ArchiveFile) {
+  return (
+    /\.docx?$/i.test(file.name) ||
+    file.media_type === "application/msword" ||
+    file.media_type ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  );
+}
+
+const officePDF = "office_pdf_v1";
+function mediaKey(file: ArchiveFile, recipe: string) {
+  return ["media", file.id, file.blob_key, recipe];
+}
+
+export function OpenPDFButton({ file }: { file: ArchiveFile }) {
+  const { t } = useI18n();
+  // Media owns requests and polling. This observer follows the same cache entry.
+  const { data: job } = useQuery<MediaJob>({
+    queryKey: mediaKey(file, officePDF),
+    enabled: false,
+  });
+  const original = file.media_type === "application/pdf";
+  if (!original && !(isWord(file) && job?.state === "ready")) return null;
+  const href = original
+    ? contentURL(file)
+    : `/api/v1${mediaPath(file, officePDF)}/content?v=${encodeURIComponent(job!.generation)}`;
+  return (
+    <Button component="a" href={href} target="_blank" rel="noopener noreferrer">
+      {t("openPDF")}
+    </Button>
+  );
+}
+
 export function hasDerivedMedia(file: ArchiveFile) {
   return (
     file.kind === "image" ||
     file.kind === "video" ||
     file.media_type === "application/pdf" ||
     isSTL(file) ||
-    isGPX(file)
+    isGPX(file) ||
+    isWord(file)
   );
 }
 const audioTypes = new Set([
@@ -74,21 +108,25 @@ export function Media({
     player.current = node;
   }, []);
   const client = useQueryClient();
-  const recipe = isGPX(file)
-    ? "gpx_map_v1"
-    : isSTL(file)
-      ? detail
-        ? "stl_preview_2048_v1"
-        : "stl_thumb_512_v1"
-      : detail
-        ? file.kind === "video"
-          ? "preview_1080p_v1"
-          : "preview_2048_v1"
-        : file.kind === "video"
-          ? "video_thumb_512_v2"
-          : "thumb_512_v1";
+  const recipe = isWord(file)
+    ? detail
+      ? officePDF
+      : "office_thumb_512_v1"
+    : isGPX(file)
+      ? "gpx_map_v1"
+      : isSTL(file)
+        ? detail
+          ? "stl_preview_2048_v1"
+          : "stl_thumb_512_v1"
+        : detail
+          ? file.kind === "video"
+            ? "preview_1080p_v1"
+            : "preview_2048_v1"
+          : file.kind === "video"
+            ? "video_thumb_512_v2"
+            : "thumb_512_v1";
   const path = mediaPath(file, recipe);
-  const key = ["media", file.id, file.blob_key, recipe];
+  const key = mediaKey(file, recipe);
   const readerPDF = detail && file.media_type === "application/pdf";
   const enabled = active && hasDerivedMedia(file) && !readerPDF;
   const [failedGeneration, setFailedGeneration] = useState("");
@@ -135,6 +173,14 @@ export function Media({
       setFailedGeneration(job.generation);
       void query.refetch();
     };
+    if (detail && isWord(file))
+      return (
+        <Suspense
+          fallback={<div className="media-placeholder">{t("loading")}</div>}
+        >
+          <PDFReader key={src} src={src} name={file.name} />
+        </Suspense>
+      );
     if (isGPX(file))
       return (
         <Suspense

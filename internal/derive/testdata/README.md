@@ -15,3 +15,9 @@ These samples are not a claim to support every HEIC variant.
 
 `cube.stl` is a generated unit cube with 12 triangles, authored for these tests.
 It contains no external model data and is covered by the repository license.
+
+`two-pages.docx` is a synthetic OOXML package with two paragraphs separated by an
+explicit page break, including Chinese text. `two-pages.doc` is its LibreOffice
+Word 97 export. Both were authored for this project and contain no personal data,
+macros or external resources. They exercise actual conversion, pagination and
+selectable text, including extensionless blob inputs.

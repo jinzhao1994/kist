@@ -6,7 +6,7 @@ import { api, contentURL, type Tag } from "./api";
 import type { Filters } from "./Filters";
 import { useFileResults, resultFiles } from "./fileResults";
 import { FileDetail } from "./FileDetail";
-import { Media } from "./Media";
+import { Media, OpenPDFButton } from "./Media";
 import { useI18n } from "./i18n";
 import { useGalleryMotion } from "./galleryMotion";
 import { errorMessage } from "./mutations";
@@ -176,16 +176,7 @@ export function Gallery({
           <bdi>{data?.file.name || t("gallery")}</bdi>
         </h1>
         <div className="gallery-actions">
-          {data?.file.media_type === "application/pdf" && (
-            <Button
-              component="a"
-              href={contentURL(data.file)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {t("openPDF")}
-            </Button>
-          )}
+          {data && <OpenPDFButton file={data.file} />}
           {data && (
             <Button component="a" href={contentURL(data.file, true)} download>
               {t("download")}

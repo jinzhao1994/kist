@@ -1879,13 +1879,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Derived image, video or geographic data */
+            /** @description Derived image, PDF, video or geographic data */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/geo+json": Record<string, never>;
+                    "application/pdf": string;
                     "image/jpeg": string;
                     "video/mp4": string;
                 };
@@ -1918,13 +1919,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Derived image, video or geographic data */
+            /** @description Derived image, PDF, video or geographic data */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/geo+json": Record<string, never>;
+                    "application/pdf": string;
                     "image/jpeg": string;
                     "video/mp4": string;
                 };
