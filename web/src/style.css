@@ -2422,3 +2422,7 @@ main.upload-drag-active {
   min-height: 0;
   border: 0;
 }
+
+.pdf-reader .media-placeholder {
+  padding-inline: 2.5rem;
+}

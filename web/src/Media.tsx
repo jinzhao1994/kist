@@ -130,7 +130,9 @@ export function Media({
           </Button>
         </div>
         {navigator.pdfViewerEnabled === false ? (
-          <p className="media-placeholder">{t("pdfBrowserUnavailable")}</p>
+          <div className="media-placeholder">
+            <p>{t("pdfBrowserUnavailable")}</p>
+          </div>
         ) : (
           <iframe
             key={file.blob_key}
