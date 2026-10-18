@@ -2,6 +2,36 @@ import { test, expect, type Page } from "@playwright/test";
 import { colors, type Appearance } from "../../src/theme";
 import type { ArchiveFile, Box, MediaJob, Tag } from "../../src/api";
 
+// A real, deterministic two-page PDF exercises rendering, text and navigation.
+function pdfFixture() {
+  const stream = (text: string) => `BT /F1 24 Tf 40 700 Td (${text}) Tj ET`;
+  const first = stream("Kist PDF first page");
+  const second = stream("Kist PDF second page");
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 800] /Resources << /Font << /F1 5 0 R >> >> /Contents 6 0 R >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 800] /Resources << /Font << /F1 5 0 R >> >> /Contents 7 0 R >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    `<< /Length ${first.length} >>\nstream\n${first}\nendstream`,
+    `<< /Length ${second.length} >>\nstream\n${second}\nendstream`,
+  ];
+  let pdf = "%PDF-1.7\n";
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+  const xref = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const offset of offsets.slice(1))
+    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  return Buffer.from(
+    pdf +
+      `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`,
+  );
+}
+
 const time = "2026-01-02T10:30:00Z";
 const box: Box = {
   id: "box-1",
@@ -101,14 +131,6 @@ async function prepare(page: Page, options: Options = {}) {
       language: options.language || "zh",
     },
   );
-  // Native PDF chrome is browser-owned; capture our container with a stable
-  // frame fixture. Real PDF rendering is verified separately in desktop Chrome.
-  await page.addInitScript(() => {
-    Object.defineProperty(navigator, "pdfViewerEnabled", {
-      value: true,
-      configurable: true,
-    });
-  });
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.route("**/api/v1/**", async (route) => {
@@ -122,8 +144,8 @@ async function prepare(page: Page, options: Options = {}) {
     let body: unknown;
     if (path === "/files/file-3/content")
       return route.fulfill({
-        contentType: "text/html",
-        body: '<!doctype html><html><body style="margin:0;background:#282828;color:white;font:16px sans-serif;display:grid;place-items:center;height:100vh"><p>Browser PDF reader · synthetic fixture</p></body></html>',
+        contentType: "application/pdf",
+        body: pdfFixture(),
       });
     if (options.gpx && path === "/map-provider")
       body = {
@@ -415,15 +437,9 @@ async function prepare(page: Page, options: Options = {}) {
   return errors;
 }
 async function capture(page: Page, errors: string[], name: string) {
-  if (await page.locator(".pdf-reader iframe").count()) {
-    await expect(page.locator(".pdf-reader iframe")).toHaveAttribute(
-      "src",
-      "/api/v1/files/file-3/content",
-    );
+  if (await page.locator(".pdf-viewport-wrap:not([hidden])").count()) {
     await expect(
-      page
-        .frameLocator(".pdf-reader iframe")
-        .getByText("Browser PDF reader · synthetic fixture"),
+      page.locator('.pdfViewer .page[data-page-number="1"] canvas').first(),
     ).toBeVisible();
     await expect(
       page.getByRole("link", { name: "在新标签页打开 PDF" }),
@@ -1715,19 +1731,16 @@ test("gpx-map-unavailable", async ({ page }, info) => {
 
 test("pdf-reader-unavailable", async ({ page }, info) => {
   const errors = await prepare(page, { mobile: true });
-  await page.addInitScript(() => {
-    Object.defineProperty(navigator, "pdfViewerEnabled", {
-      value: false,
-      configurable: true,
-    });
-  });
+  await page.route("**/api/v1/files/file-3/content", (route) =>
+    route.fulfill({ contentType: "application/pdf", body: "invalid PDF" }),
+  );
   await page.goto("/files?file=file-3");
   await expect(
     page.getByText(
-      "此浏览器无法在这里显示 PDF，请在新标签页打开或下载原文件。",
+      "无法读取此 PDF，文件可能已损坏或需要密码。请在新标签页打开或下载原文件。",
     ),
   ).toBeVisible();
-  await expect(page.locator(".pdf-reader iframe")).toHaveCount(0);
+  await expect(page.locator(".pdf-viewport")).toBeHidden();
   await expect(
     page.getByRole("link", { name: "在新标签页打开 PDF" }),
   ).toBeVisible();
@@ -1740,11 +1753,13 @@ for (const mode of ["light", "dark"] as const) {
     await page.goto("/files?file=file-3");
     const toggle = page.getByRole("button", { name: "文件详情", exact: true });
     const rail = page.locator(".gallery-details-rail");
-    await expect(page.locator(".pdf-reader iframe")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "下一页", exact: true }),
+    ).toBeEnabled();
     await page.mouse.move(200, 100);
     await expect(toggle).toHaveCSS("opacity", "0");
     const edge = (await rail.boundingBox())!;
-    const reader = (await page.locator(".pdf-reader iframe").boundingBox())!;
+    const reader = (await page.locator(".pdf-viewport").boundingBox())!;
     expect(reader.x + reader.width).toBeLessThanOrEqual(edge.x);
     // The top of the rail is far from the centered button.
     await page.mouse.move(edge.x + edge.width / 2, edge.y + 24);
@@ -1760,5 +1775,46 @@ for (const mode of ["light", "dark"] as const) {
     await page.keyboard.press("Tab");
     await expect(toggle).toBeFocused();
     await expect(toggle).toHaveCSS("opacity", "1");
+  });
+}
+
+for (const mobile of [false, true]) {
+  test(`pdf-reader-${mobile ? "mobile" : "desktop"}`, async ({
+    page,
+  }, info) => {
+    const errors = await prepare(page, { mobile });
+    await page.goto("/files?file=file-3");
+    const number = page.getByRole("spinbutton", { name: "页码" });
+    await expect(
+      page.getByRole("button", { name: "下一页", exact: true }),
+    ).toBeEnabled();
+    await page.getByRole("button", { name: "下一页", exact: true }).click();
+    await expect(number).toHaveValue("2");
+    await expect(
+      page.locator('.page[data-page-number="2"] .textLayer'),
+    ).toContainText("Kist PDF second page");
+    await page.getByRole("button", { name: "上一页", exact: true }).click();
+    await expect(number).toHaveValue("1");
+    await page.getByRole("textbox", { name: "搜索 PDF 文本" }).fill("second");
+    await expect(page.locator(".textLayer .highlight.selected")).toHaveText(
+      "second",
+    );
+    await expect(number).toHaveValue("2");
+    await page.getByRole("textbox", { name: "搜索 PDF 文本" }).fill("");
+    await page.getByRole("button", { name: "上一页", exact: true }).click();
+    const sheet = page.locator('.page[data-page-number="1"]');
+    const before = (await sheet.boundingBox())!.width;
+    await page.getByRole("button", { name: "放大", exact: true }).click();
+    await expect
+      .poll(async () => (await sheet.boundingBox())!.width)
+      .toBeGreaterThan(before);
+    await page.getByRole("button", { name: "适合宽度", exact: true }).click();
+    await expect
+      .poll(async () => Math.abs((await sheet.boundingBox())!.width - before))
+      .toBeLessThan(2);
+    await page.locator(".pdf-viewport").focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(page).toHaveURL(/file=file-3/);
+    await capture(page, errors, info.title);
   });
 }

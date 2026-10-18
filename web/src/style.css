@@ -2430,17 +2430,45 @@ main.upload-drag-active {
   flex-direction: column;
   gap: 0.5rem;
 }
-.pdf-reader-actions {
+/* Keep the document white while the reader chrome follows the app theme. */
+.pdf-toolbar {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.5rem;
+  background: var(--mantine-color-body);
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: var(--mantine-radius-default);
 }
-.pdf-reader iframe {
+.pdf-search {
   flex: 1;
-  width: 100%;
-  min-height: 0;
-  border: 0;
+  min-width: 9rem;
 }
-
+.pdf-page-number {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.pdf-page-number input {
+  width: 3.5rem;
+  padding: 0.35rem;
+  color: var(--mantine-color-text);
+  background: var(--mantine-color-body);
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: var(--mantine-radius-default);
+}
+.pdf-viewport-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.pdf-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  background: var(--mantine-color-default-hover);
+}
 .pdf-reader .media-placeholder {
   padding-inline: 2.5rem;
 }

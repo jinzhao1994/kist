@@ -11,6 +11,7 @@ import {
 } from "./api";
 import { useI18n, type MessageKey } from "./i18n";
 
+const PDFReader = lazy(() => import("./PDFReader"));
 const GPXPreview = lazy(() => import("./GPXPreview"));
 function isGPX(file: ArchiveFile) {
   return file.media_type === "application/gpx+xml" || /\.gpx$/i.test(file.name);
@@ -88,8 +89,8 @@ export function Media({
           : "thumb_512_v1";
   const path = mediaPath(file, recipe);
   const key = ["media", file.id, file.blob_key, recipe];
-  const nativePDF = detail && file.media_type === "application/pdf";
-  const enabled = active && hasDerivedMedia(file) && !nativePDF;
+  const readerPDF = detail && file.media_type === "application/pdf";
+  const enabled = active && hasDerivedMedia(file) && !readerPDF;
   const [failedGeneration, setFailedGeneration] = useState("");
   const query = useQuery({
     queryKey: key,
@@ -116,31 +117,17 @@ export function Media({
   });
   const job = query.data;
   const failed = failedGeneration === (job?.generation || file.id);
-  if (nativePDF && active)
+  if (readerPDF && active)
     return (
-      <div className="pdf-reader">
-        <div className="pdf-reader-actions">
-          <Button
-            component="a"
-            href={contentURL(file)}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {t("openPDF")}
-          </Button>
-        </div>
-        {navigator.pdfViewerEnabled === false ? (
-          <div className="media-placeholder">
-            <p>{t("pdfBrowserUnavailable")}</p>
-          </div>
-        ) : (
-          <iframe
-            key={file.blob_key}
-            title={file.name}
-            src={contentURL(file)}
-          />
-        )}
-      </div>
+      <Suspense
+        fallback={<div className="media-placeholder">{t("loading")}</div>}
+      >
+        <PDFReader
+          key={file.blob_key}
+          src={contentURL(file)}
+          name={file.name}
+        />
+      </Suspense>
     );
   if (enabled && job?.state === "ready" && !failed) {
     const src = `/api/v1${path}/content?v=${encodeURIComponent(job.generation)}`;

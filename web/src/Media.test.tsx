@@ -7,6 +7,12 @@ import { Media } from "./Media";
 import { I18nProvider } from "./i18n";
 import type { ArchiveFile, MediaJob } from "./api";
 
+vi.mock("./PDFReader", () => ({
+  default: ({ src, name }: { src: string; name: string }) => (
+    <div aria-label={name} data-src={src} />
+  ),
+}));
+
 const file: ArchiveFile = {
   id: "photo",
   folder_id: "folder",
@@ -188,7 +194,7 @@ for (const [name, kind, media_type] of [
     );
   });
 }
-it("opens PDF originals without requesting a derived preview", () => {
+it("opens PDF originals without requesting a derived preview", async () => {
   const fetch = vi.fn();
   vi.stubGlobal("fetch", fetch);
   mount({
@@ -199,13 +205,10 @@ it("opens PDF originals without requesting a derived preview", () => {
       media_type: "application/pdf",
     },
   });
-  expect(screen.getByTitle("Report.pdf")).toHaveAttribute(
-    "src",
+  expect(await screen.findByLabelText("Report.pdf")).toHaveAttribute(
+    "data-src",
     "/api/v1/files/photo/content",
   );
-  expect(
-    screen.getByRole("link", { name: "Open PDF in new tab" }),
-  ).toHaveAttribute("target", "_blank");
   expect(fetch).not.toHaveBeenCalled();
   expect(screen.queryByRole("img")).toBeNull();
 });

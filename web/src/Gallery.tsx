@@ -176,6 +176,16 @@ export function Gallery({
           <bdi>{data?.file.name || t("gallery")}</bdi>
         </h1>
         <div className="gallery-actions">
+          {data?.file.media_type === "application/pdf" && (
+            <Button
+              component="a"
+              href={contentURL(data.file)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {t("openPDF")}
+            </Button>
+          )}
           {data && (
             <Button component="a" href={contentURL(data.file, true)} download>
               {t("download")}

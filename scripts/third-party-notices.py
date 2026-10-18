@@ -36,6 +36,10 @@ def generate():
     for relative, package in lock["packages"].items():
         if not relative or package.get("dev"):
             continue
+        # PDF.js uses native canvas only in Node. The web build rejects these
+        # modules if they ever enter a shipped chunk; no native addon is shipped.
+        if relative == "node_modules/@napi-rs/canvas" or relative.startswith("node_modules/@napi-rs/canvas-"):
+            continue
         directory = ROOT / "web" / relative
         metadata = json.loads((directory / "package.json").read_text(encoding="utf-8"))
         if metadata["version"] != package["version"]:
