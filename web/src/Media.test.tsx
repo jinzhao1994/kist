@@ -262,12 +262,13 @@ for (const detail of [false, true]) {
   });
 }
 
-for (const name of ["Report.DOC", "Report.docx"]) {
+for (const name of ["Report.DOC", "Report.docx", "Slides.PPT", "Slides.pptx"]) {
   it(`renders ${name} through a derived PDF and keeps the original untouched`, async () => {
     const fetch = vi
       .fn()
       .mockImplementation(async () => Response.json(job("ready")));
     vi.stubGlobal("fetch", fetch);
+    const family = /\.pptx?$/i.test(name) ? "slides" : "office";
     const word = {
       ...file,
       name,
@@ -277,10 +278,10 @@ for (const name of ["Report.DOC", "Report.docx"]) {
     const view = mount({ file: word });
     expect(await screen.findByLabelText(name)).toHaveAttribute(
       "data-src",
-      "/api/v1/files/photo/derived/office_pdf_v1/content?v=v1",
+      `/api/v1/files/photo/derived/${family}_pdf_v1/content?v=v1`,
     );
     expect(fetch.mock.calls[0][0]).toBe(
-      "/api/v1/files/photo/derived/office_pdf_v1",
+      `/api/v1/files/photo/derived/${family}_pdf_v1`,
     );
     expect(
       fetch.mock.calls.some(([url]) => url === "/api/v1/files/photo/content"),
@@ -289,7 +290,7 @@ for (const name of ["Report.DOC", "Report.docx"]) {
     mount({ file: word, detail: false });
     expect(await screen.findByRole("img", { name })).toHaveAttribute(
       "src",
-      "/api/v1/files/photo/derived/office_thumb_512_v1/content?v=v1",
+      `/api/v1/files/photo/derived/${family}_thumb_512_v1/content?v=v1`,
     );
   });
 }

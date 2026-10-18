@@ -30,20 +30,34 @@ export function isWord(file: ArchiveFile) {
   );
 }
 
-const officePDF = "office_pdf_v1";
+function isPresentation(file: ArchiveFile) {
+  return (
+    /\.pptx?$/i.test(file.name) ||
+    file.media_type === "application/vnd.ms-powerpoint" ||
+    file.media_type ===
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+  );
+}
+function isOffice(file: ArchiveFile) {
+  return isWord(file) || isPresentation(file);
+}
+function officePDFRecipe(file: ArchiveFile) {
+  return isPresentation(file) ? "slides_pdf_v1" : "office_pdf_v1";
+}
 function mediaKey(file: ArchiveFile, recipe: string) {
   return ["media", file.id, file.blob_key, recipe];
 }
 
 export function OpenPDFButton({ file }: { file: ArchiveFile }) {
   const { t } = useI18n();
+  const officePDF = officePDFRecipe(file);
   // Media owns requests and polling. This observer follows the same cache entry.
   const { data: job } = useQuery<MediaJob>({
     queryKey: mediaKey(file, officePDF),
     enabled: false,
   });
   const original = file.media_type === "application/pdf";
-  if (!original && !(isWord(file) && job?.state === "ready")) return null;
+  if (!original && !(isOffice(file) && job?.state === "ready")) return null;
   const href = original
     ? contentURL(file)
     : `/api/v1${mediaPath(file, officePDF)}/content?v=${encodeURIComponent(job!.generation)}`;
@@ -61,7 +75,7 @@ export function hasDerivedMedia(file: ArchiveFile) {
     file.media_type === "application/pdf" ||
     isSTL(file) ||
     isGPX(file) ||
-    isWord(file)
+    isOffice(file)
   );
 }
 const audioTypes = new Set([
@@ -108,10 +122,12 @@ export function Media({
     player.current = node;
   }, []);
   const client = useQueryClient();
-  const recipe = isWord(file)
+  const recipe = isOffice(file)
     ? detail
-      ? officePDF
-      : "office_thumb_512_v1"
+      ? officePDFRecipe(file)
+      : isPresentation(file)
+        ? "slides_thumb_512_v1"
+        : "office_thumb_512_v1"
     : isGPX(file)
       ? "gpx_map_v1"
       : isSTL(file)
@@ -173,7 +189,7 @@ export function Media({
       setFailedGeneration(job.generation);
       void query.refetch();
     };
-    if (detail && isWord(file))
+    if (detail && isOffice(file))
       return (
         <Suspense
           fallback={<div className="media-placeholder">{t("loading")}</div>}

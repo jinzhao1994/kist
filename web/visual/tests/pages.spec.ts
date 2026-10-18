@@ -3,15 +3,17 @@ import { colors, type Appearance } from "../../src/theme";
 import type { ArchiveFile, Box, MediaJob, Tag } from "../../src/api";
 
 // A real, deterministic two-page PDF exercises rendering, text and navigation.
-function pdfFixture() {
-  const stream = (text: string) => `BT /F1 24 Tf 40 700 Td (${text}) Tj ET`;
+function pdfFixture(slides = false) {
+  const box = slides ? "800 450" : "600 800";
+  const stream = (text: string) =>
+    `BT /F1 24 Tf 40 ${slides ? 350 : 700} Td (${text}) Tj ET`;
   const first = stream("Kist PDF first page");
   const second = stream("Kist PDF second page");
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     "<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>",
-    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 800] /Resources << /Font << /F1 5 0 R >> >> /Contents 6 0 R >>",
-    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 800] /Resources << /Font << /F1 5 0 R >> >> /Contents 7 0 R >>",
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${box}] /Resources << /Font << /F1 5 0 R >> >> /Contents 6 0 R >>`,
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${box}] /Resources << /Font << /F1 5 0 R >> >> /Contents 7 0 R >>`,
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
     `<< /Length ${first.length} >>\nstream\n${first}\nendstream`,
     `<< /Length ${second.length} >>\nstream\n${second}\nendstream`,
@@ -89,13 +91,14 @@ type Options = {
   empty?: boolean;
   mobile?: boolean;
   manyFiles?: boolean;
-  word?: "doc" | "docx";
+  word?: "doc" | "docx" | "ppt" | "pptx";
   stl?: boolean;
   gpx?: boolean;
   mapFailure?: boolean;
   dateline?: boolean;
 };
 async function prepare(page: Page, options: Options = {}) {
+  const officeFamily = options.word?.startsWith("ppt") ? "slides" : "office";
   const mediaFiles =
     options.stl || options.gpx || options.word
       ? files.map((file, i) =>
@@ -147,10 +150,13 @@ async function prepare(page: Page, options: Options = {}) {
       return route.abort();
     }
     let body: unknown;
-    if (options.word && path === "/files/file-3/derived/office_pdf_v1/content")
+    if (
+      options.word &&
+      path === `/files/file-3/derived/${officeFamily}_pdf_v1/content`
+    )
       return route.fulfill({
         contentType: "application/pdf",
-        body: pdfFixture(),
+        body: pdfFixture(officeFamily === "slides"),
       });
     if (path === "/files/file-3/content")
       return route.fulfill({
@@ -425,10 +431,10 @@ async function prepare(page: Page, options: Options = {}) {
       if (
         options.word &&
         path.includes("/file-3/") &&
-        recipe !== "office_pdf_v1" &&
-        recipe !== "office_thumb_512_v1"
+        recipe !== `${officeFamily}_pdf_v1` &&
+        recipe !== `${officeFamily}_thumb_512_v1`
       )
-        errors.push(`Unexpected Word recipe: ${recipe}`);
+        errors.push(`Unexpected Office recipe: ${recipe}`);
       const state = options.state || "ready";
       body = {
         state,
@@ -1859,18 +1865,25 @@ for (const mobile of [false, true]) {
   });
 }
 
-for (const word of ["doc", "docx"] as const) {
-  test(`word-reader-${word}`, async ({ page }, info) => {
+for (const word of ["doc", "docx", "ppt", "pptx"] as const) {
+  test(`${word.startsWith("ppt") ? "slides" : "word"}-reader-${word}`, async ({
+    page,
+  }, info) => {
     const errors = await prepare(page, {
       word,
-      mode: word === "doc" ? "dark" : "light",
+      mode: word === "doc" || word === "ppt" ? "dark" : "light",
     });
     await page.goto("/boxes/box-1?file=file-3");
     const reader = page.locator(".pdf-reader");
     await expect(reader).toBeVisible();
     await expect(
       page.getByRole("link", { name: "在新标签页打开 PDF" }),
-    ).toHaveAttribute("href", /office_pdf_v1\/content/);
+    ).toHaveAttribute(
+      "href",
+      new RegExp(
+        `${word.startsWith("ppt") ? "slides" : "office"}_pdf_v1/content`,
+      ),
+    );
     await expect(
       page.getByRole("link", { name: "下载原文件" }),
     ).toHaveAttribute("href", /file-3\/content.*download/);

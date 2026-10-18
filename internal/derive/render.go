@@ -39,11 +39,11 @@ type Recipe struct {
 // Lookup is the only registry of public recipes and their output types.
 func Lookup(name string) (Recipe, bool) {
 	switch name {
-	case OfficePDF:
+	case OfficePDF, SlidesPDF:
 		return Recipe{name, ".pdf", "application/pdf", 0}, true
 	case GPXMap:
 		return Recipe{name, ".geojson", "application/geo+json", 0}, true
-	case Thumbnail, VideoThumbnail, STLThumbnail, OfficeThumbnail:
+	case Thumbnail, VideoThumbnail, STLThumbnail, OfficeThumbnail, SlidesThumbnail:
 		return Recipe{name, ".jpg", "image/jpeg", 512}, true
 	case Preview, STLPreview:
 		return Recipe{name, ".jpg", "image/jpeg", 2048}, true
@@ -112,7 +112,7 @@ func (r Renderer) Render(ctx context.Context, input, output, recipe string) (res
 	}
 	defer f.Close()
 	cfg, format, decodeErr := image.DecodeConfig(io.LimitReader(contextReader{ctx, f}, MaxImageBytes+1))
-	if recipe == OfficePDF || recipe == OfficeThumbnail {
+	if recipe == OfficePDF || recipe == OfficeThumbnail || recipe == SlidesPDF || recipe == SlidesThumbnail {
 		result, err = r.office(ctx, input, output, spec)
 		if err != nil {
 			return result, err

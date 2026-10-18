@@ -21,3 +21,9 @@ explicit page break, including Chinese text. `two-pages.doc` is its LibreOffice
 Word 97 export. Both were authored for this project and contain no personal data,
 macros or external resources. They exercise actual conversion, pagination and
 selectable text, including extensionless blob inputs.
+
+`two-slides.pptx` and `two-slides.ppt` are LibreOffice Impress exports of a
+project-authored two-slide OpenDocument presentation (16:9, English and Chinese
+text). They contain no personal data, macros or external resources. The real
+converter tests check both slides, searchable text, landscape thumbnail dimensions
+and unchanged originals.

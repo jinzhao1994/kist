@@ -16,7 +16,7 @@ def request(path, body=None, headers=None):
 with request('/files') as response:
     files = json.load(response)['files']
 for file in files:
-    if file['name'] not in ('sample.png', 'tiled.heic', 'preview.mp4', 'preview.mov', 'two-pages.pdf', 'cube.stl', 'two-pages.doc', 'two-pages.docx'):
+    if file['name'] not in ('sample.png', 'tiled.heic', 'preview.mp4', 'preview.mov', 'two-pages.pdf', 'cube.stl', 'two-pages.doc', 'two-pages.docx', 'two-slides.ppt', 'two-slides.pptx'):
         continue
     if file['name'] == 'preview.mov':
         assert file['kind'] == 'video' and file['media_type'] == 'video/quicktime', file
@@ -27,6 +27,8 @@ for file in files:
         recipes = ['stl_thumb_512_v1', 'stl_preview_2048_v1']
     if file['name'].endswith(('.doc', '.docx')):
         recipes = ['office_thumb_512_v1', 'office_pdf_v1']
+    if file['name'].endswith(('.ppt', '.pptx')):
+        recipes = ['slides_thumb_512_v1', 'slides_pdf_v1']
     for recipe in recipes:
         path = '/files/' + file['id'] + '/derived/' + recipe
         with request(path, {}) as response:
@@ -37,6 +39,8 @@ for file in files:
             with request(path) as response:
                 state = json.load(response)
         assert state['state'] == 'ready', state
+        if file['name'].endswith(('.ppt', '.pptx')) and recipe == 'slides_thumb_512_v1':
+            assert state['result']['width'] == 512 and 288 <= state['result']['height'] <= 289, state
         if file['name'] == 'cube.stl':
             size = 512 if recipe == 'stl_thumb_512_v1' else 2048
             assert (state['result']['width'], state['result']['height']) == (size, size), state
@@ -48,10 +52,10 @@ for file in files:
         with request(path + '/content', headers={'Range': 'bytes=0-7'}) as response:
             assert response.status == 206
             assert len(response.read()) == 8
-            assert response.headers['Content-Type'] == ('application/pdf' if recipe == 'office_pdf_v1' else 'video/mp4' if recipe == 'preview_1080p_v1' else 'image/jpeg')
-        if recipe == 'office_pdf_v1':
+            assert response.headers['Content-Type'] == ('application/pdf' if recipe in ('office_pdf_v1', 'slides_pdf_v1') else 'video/mp4' if recipe == 'preview_1080p_v1' else 'image/jpeg')
+        if recipe in ('office_pdf_v1', 'slides_pdf_v1'):
             with request(path + '/content') as response:
                 pdf = response.read()
                 assert pdf.startswith(b'%PDF-')
         print(file['name'], recipe, state['result']['width'], state['result']['height'], flush=True)
-assert {'sample.png', 'tiled.heic', 'preview.mp4', 'preview.mov', 'two-pages.pdf', 'cube.stl', 'two-pages.doc', 'two-pages.docx'} <= {file['name'] for file in files}
+assert {'sample.png', 'tiled.heic', 'preview.mp4', 'preview.mov', 'two-pages.pdf', 'cube.stl', 'two-pages.doc', 'two-pages.docx', 'two-slides.ppt', 'two-slides.pptx'} <= {file['name'] for file in files}

@@ -44,7 +44,7 @@ docker run --rm --read-only --tmpfs /tmp --mount "type=volume,src=$volume,dst=/l
     decoder=$(command -v heif-dec || command -v heif-convert)
     "$decoder" /fixtures/tiled.heic /tmp/heif.png
     ffprobe -v error -show_entries stream=width,height -of csv=p=0 /tmp/heif.png | grep -qx "3072,2048"
-    kist --library /library import --box "Docker smoke" /tmp/sample.png /tmp/preview.mp4 /tmp/preview.mov /fixtures/tiled.heic /fixtures/two-pages.pdf /fixtures/cube.stl /fixtures/two-pages.doc /fixtures/two-pages.docx
+    kist --library /library import --box "Docker smoke" /tmp/sample.png /tmp/preview.mp4 /tmp/preview.mov /fixtures/tiled.heic /fixtures/two-pages.pdf /fixtures/cube.stl /fixtures/two-pages.doc /fixtures/two-pages.docx /fixtures/two-slides.ppt /fixtures/two-slides.pptx
     kist --library /library extract --quiet
 '
 start_server() {
@@ -86,6 +86,13 @@ docker exec "$name" sh -ec '
     for pdf in $(find /library/derived -name office_pdf_v1.pdf); do
         pdfinfo "$pdf" | grep -Eq "^Pages:[[:space:]]+2$"
         pdftotext "$pdf" - | grep -q "Kist Word second page"
+        count=$((count + 1))
+    done
+    test "$count" -eq 2
+    count=0
+    for pdf in $(find /library/derived -name slides_pdf_v1.pdf); do
+        pdfinfo "$pdf" | grep -Eq "^Pages:[[:space:]]+2$"
+        pdftotext "$pdf" - | grep -q "Kist Slides second page"
         count=$((count + 1))
     done
     test "$count" -eq 2

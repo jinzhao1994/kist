@@ -15,8 +15,12 @@ import (
 
 func TestOfficeValidation(t *testing.T) {
 	missing := Renderer{LibreOffice: filepath.Join(t.TempDir(), "absent")}
-	for _, name := range []string{"two-pages.docx", "two-pages.doc"} {
-		_, err := missing.Render(t.Context(), "testdata/"+name, filepath.Join(t.TempDir(), "output"), OfficePDF)
+	for _, name := range []string{"two-pages.docx", "two-pages.doc", "two-slides.pptx", "two-slides.ppt"} {
+		recipe := OfficePDF
+		if strings.Contains(name, "slides") {
+			recipe = SlidesPDF
+		}
+		_, err := missing.Render(t.Context(), "testdata/"+name, filepath.Join(t.TempDir(), "output"), recipe)
 		if Code(err) != "dependency_missing" {
 			t.Fatalf("%s: %v", name, err)
 		}
@@ -34,7 +38,7 @@ func TestOfficeValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := officeFormat(t.Context(), large); Code(err) != "limit_exceeded" {
+	if _, _, err := officeFormat(t.Context(), large, false); Code(err) != "limit_exceeded" {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct{ kind, mode, want string }{
@@ -59,7 +63,7 @@ func TestOfficeValidation(t *testing.T) {
 	if err := os.WriteFile(path, data.Bytes(), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := officeFormat(t.Context(), path); Code(err) != "unsupported" {
+	if _, _, err := officeFormat(t.Context(), path, false); Code(err) != "unsupported" {
 		t.Fatal(err)
 	}
 }
@@ -97,7 +101,12 @@ func TestRealOfficePreview(t *testing.T) {
 			t.Skip("LibreOffice not installed")
 		}
 	}
-	for _, name := range []string{"two-pages.docx", "two-pages.doc"} {
+	for _, name := range []string{"two-pages.docx", "two-pages.doc", "two-slides.pptx", "two-slides.ppt"} {
+		recipe, thumbRecipe, label := OfficePDF, OfficeThumbnail, "Word"
+		slides := strings.Contains(name, "slides")
+		if slides {
+			recipe, thumbRecipe, label = SlidesPDF, SlidesThumbnail, "Slides"
+		}
 		t.Run(name, func(t *testing.T) {
 			dir := t.TempDir()
 			input := filepath.Join(dir, "blob")
@@ -109,7 +118,7 @@ func TestRealOfficePreview(t *testing.T) {
 				t.Fatal(err)
 			}
 			pdf := filepath.Join(dir, "output.pdf")
-			result, err := (Renderer{}).Render(t.Context(), input, pdf, OfficePDF)
+			result, err := (Renderer{}).Render(t.Context(), input, pdf, recipe)
 			if err != nil || result.Bytes == 0 || result.Engine != "libreoffice" {
 				t.Fatal(result, err)
 			}
@@ -118,12 +127,19 @@ func TestRealOfficePreview(t *testing.T) {
 				t.Fatal(string(info), err)
 			}
 			text, err := exec.Command("pdftotext", pdf, "-").Output()
-			if err != nil || !bytes.Contains(text, []byte("Kist Word first page")) || !bytes.Contains(text, []byte("Kist Word second page")) {
+			if err != nil || !bytes.Contains(text, []byte("Kist "+label+" first page")) || !bytes.Contains(text, []byte("Kist "+label+" second page")) {
 				t.Fatal(string(text), err)
 			}
 			thumb := filepath.Join(dir, "thumb.jpg")
-			result, err = (Renderer{}).Render(t.Context(), input, thumb, OfficeThumbnail)
-			if err != nil || result.Height != 512 || result.Width <= 0 || result.Width >= 512 {
+			result, err = (Renderer{}).Render(t.Context(), input, thumb, thumbRecipe)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// PDF page sizes can round upward by one pixel during rasterization.
+			if slides && (result.Width != 512 || result.Height < 288 || result.Height > 289) {
+				t.Fatal(result)
+			}
+			if !slides && (result.Height != 512 || result.Width <= 0 || result.Width >= 512) {
 				t.Fatal(result, err)
 			}
 			after, _ := os.ReadFile(input)
@@ -131,5 +147,34 @@ func TestRealOfficePreview(t *testing.T) {
 				t.Fatal("original was modified")
 			}
 		})
+	}
+}
+
+func TestOfficeFamilyValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		slides bool
+	}{
+		{"two-pages.docx", true}, {"two-slides.pptx", false},
+	} {
+		if _, _, err := officeFormat(t.Context(), "testdata/"+tc.name, tc.slides); Code(err) != "unsupported" {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+	}
+	for _, resource := range []string{"ppt/vbaProject.bin", "ppt/_rels/presentation.xml.rels"} {
+		var data bytes.Buffer
+		z := zip.NewWriter(&data)
+		for _, name := range []string{"[Content_Types].xml", "ppt/presentation.xml", resource} {
+			w, _ := z.Create(name)
+			_, _ = w.Write([]byte(`<Relationships><Relationship Type="http://example/image" TargetMode="External" Target="https://example.invalid/image.png"/></Relationships>`))
+		}
+		z.Close()
+		path := filepath.Join(t.TempDir(), "unsafe.pptx")
+		if err := os.WriteFile(path, data.Bytes(), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if _, _, err := officeFormat(t.Context(), path, true); Code(err) != "unsupported" {
+			t.Fatal(resource, err)
+		}
 	}
 }

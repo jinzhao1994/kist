@@ -140,7 +140,7 @@ export const en = {
   mediaQueued: "Waiting to generate preview…",
   mediaRunning: "Generating preview…",
   mediaDependency:
-    "Preview tools are missing. Video needs FFmpeg; HEIC needs libheif with an HEVC decoder; PDF needs Poppler; Word needs LibreOffice (and Poppler for thumbnails). Will retry automatically.",
+    "Preview tools are missing. Video needs FFmpeg; HEIC needs libheif with an HEVC decoder; PDF needs Poppler; Word/PowerPoint need LibreOffice Writer/Impress (and Poppler for thumbnails). Will retry automatically.",
   mediaFailed:
     "Preview generation failed. The original is still available to download.",
   mediaCancelled: "Preview generation cancelled.",
@@ -526,7 +526,7 @@ export const zh: Record<MessageKey, string> = {
   mediaQueued: "等待生成预览…",
   mediaRunning: "正在生成预览…",
   mediaDependency:
-    "缺少预览工具：视频需要 FFmpeg，HEIC 需要带 HEVC 解码器的 libheif，PDF 需要 Poppler，Word 需要 LibreOffice（缩略图还需 Poppler）。安装后会自动重试。",
+    "缺少预览工具：视频需要 FFmpeg，HEIC 需要带 HEVC 解码器的 libheif，PDF 需要 Poppler，Word/PowerPoint 需要 LibreOffice Writer/Impress（缩略图还需 Poppler）。安装后会自动重试。",
   mediaFailed: "预览生成失败，仍可下载原文件。",
   mediaCancelled: "已取消预览生成。",
   mediaLimit: "文件超出预览的尺寸或时长限制，请下载原文件查看。",

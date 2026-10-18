@@ -202,9 +202,9 @@ kist 从不往远端写，也从不信任远端：取回来的内容边读边哈
 
 旧库中被旧版提取器识别为普通文件的 MOV，执行 `kist extract --extractor media` 或点击网页的提取元数据即可更新，无需重新上传。PDF 网格显示首页缩略图，详情使用 PDF.js，可翻页、搜索、缩放和复制已有文本；新标签页使用浏览器原生阅读器。桌面 Chrome 可自动识别扫描件文字，具体能力由浏览器决定，识别结果不会写入归档。
 
-打开网格或文件详情才提交后台任务，导入不等待解码。普通 JPEG/PNG/GIF/WebP 等图片由 Go 生成预览；HEIC 需要 `heif-info` 和 `heif-dec`（或 `heif-convert`）及 HEVC 解码器；PDF 首页缩略图需要 Poppler（`pdftoppm`）；视频（包括 MOV）需要带 H.264/AAC 编码器的 `ffmpeg` 与 `ffprobe`。DOC/DOCX 需要 PATH 中的 LibreOffice Writer（`libreoffice` 或 `soffice`），缩略图还需 Poppler。Docker 已内置这些工具及 Noto CJK、Carlito、Caladea 字体。Ubuntu 原生部署安装 `poppler-utils ffmpeg libheif-examples libheif-plugin-libde265 libreoffice-writer fonts-noto-cjk fonts-crosextra-carlito fonts-crosextra-caladea`；不装也能归档、检索、下载原文件。
+打开网格或文件详情才提交后台任务，导入不等待解码。普通 JPEG/PNG/GIF/WebP 等图片由 Go 生成预览；HEIC 需要 `heif-info` 和 `heif-dec`（或 `heif-convert`）及 HEVC 解码器；PDF 首页缩略图需要 Poppler（`pdftoppm`）；视频（包括 MOV）需要带 H.264/AAC 编码器的 `ffmpeg` 与 `ffprobe`。DOC/DOCX 需要 PATH 中的 LibreOffice Writer（`libreoffice` 或 `soffice`），PPT/PPTX 需要 LibreOffice Impress，两者的缩略图还需 Poppler。Docker 已内置这些工具及 Noto CJK、Carlito、Caladea 字体。Ubuntu 原生部署安装 `poppler-utils ffmpeg libheif-examples libheif-plugin-libde265 libreoffice-writer libreoffice-impress fonts-noto-cjk fonts-crosextra-carlito fonts-crosextra-caladea`；不装也能归档、检索、下载原文件。
 
-DOC/DOCX 列表显示首页缩略图，详情读取本地转换并缓存的 PDF，可翻页、搜索、复制文本。转换就绪后可在新标签页打开 PDF；下载始终保留原始 Word。旧文件无需重新导入或提取元数据。复杂排版、字体替代可能与 Microsoft Word 不同。输入及转换 PDF 各限 128 MiB，转换最长 120 秒，临时目录限 512 MiB；禁用宏和自动链接更新，不支持含宏或外部资源关系的 DOCX（普通超链接可保留）。
+DOC/DOCX、PPT/PPTX 列表显示首页／首张幻灯片缩略图，详情读取本地转换并缓存的 PDF，可翻页、搜索、复制文本。转换就绪后可在新标签页打开 PDF；下载始终保留原始 Office 文件。旧文件无需重新导入或提取元数据。复杂排版、字体替代可能与 Microsoft Office 不同。幻灯片仅呈现静态页面，不播放动画、转场、内嵌音视频或交互内容。输入及转换 PDF 各限 128 MiB，转换最长 120 秒，临时目录限 512 MiB；禁用宏和 Writer 自动链接更新，不支持含宏或外部资源关系的 DOCX/PPTX（普通超链接可保留）。
 
 缺依赖任务每 30 秒重新检查，安装工具后无需重启服务。详情提供取消与重试，任务重启后恢复，相同内容共享派生结果。需要清空缓存时，先停服务再删除 `derived/`，下次浏览会按需重建，不影响原文件与撤销历史。
 
