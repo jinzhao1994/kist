@@ -1733,3 +1733,32 @@ test("pdf-reader-unavailable", async ({ page }, info) => {
   ).toBeVisible();
   await capture(page, errors, info.title);
 });
+
+for (const mode of ["light", "dark"] as const) {
+  test(`gallery-details-edge-${mode}`, async ({ page }, info) => {
+    const errors = await prepare(page, { mode });
+    await page.goto("/files?file=file-3");
+    const toggle = page.getByRole("button", { name: "文件详情", exact: true });
+    const rail = page.locator(".gallery-details-rail");
+    await expect(page.locator(".pdf-reader iframe")).toBeVisible();
+    await page.mouse.move(200, 100);
+    await expect(toggle).toHaveCSS("opacity", "0");
+    const edge = (await rail.boundingBox())!;
+    const reader = (await page.locator(".pdf-reader iframe").boundingBox())!;
+    expect(reader.x + reader.width).toBeLessThanOrEqual(edge.x);
+    // The top of the rail is far from the centered button.
+    await page.mouse.move(edge.x + edge.width / 2, edge.y + 24);
+    await expect(toggle).toHaveCSS("opacity", "1");
+    await capture(page, errors, info.title);
+    await toggle.click();
+    await expect(page.locator(".gallery-details")).toBeVisible();
+    await toggle.click();
+    await expect(page.locator(".gallery-details")).toHaveCount(0);
+    await page.mouse.move(200, 100);
+    await expect(toggle).toHaveCSS("opacity", "0");
+    await page.getByRole("link", { name: "下载原文件", exact: true }).focus();
+    await page.keyboard.press("Tab");
+    await expect(toggle).toBeFocused();
+    await expect(toggle).toHaveCSS("opacity", "1");
+  });
+}

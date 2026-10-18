@@ -185,25 +185,27 @@ export function Gallery({
       </header>
       <div className="gallery-body">
         <div className="gallery-stage">
-          <UnstyledButton
-            className="gallery-details-toggle"
-            aria-label={t("details")}
-            aria-expanded={details}
-            aria-controls="gallery-details"
-            onClick={toggleDetails}
-          >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              aria-hidden="true"
+          <div className="gallery-details-rail">
+            <UnstyledButton
+              className="gallery-details-toggle"
+              aria-label={t("details")}
+              aria-expanded={details}
+              aria-controls="gallery-details"
+              onClick={toggleDetails}
             >
-              <path d={details ? "m9 5 7 7-7 7" : "m15 5-7 7 7 7"} />
-            </svg>
-          </UnstyledButton>
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                aria-hidden="true"
+              >
+                <path d={details ? "m9 5 7 7-7 7" : "m15 5-7 7 7 7"} />
+              </svg>
+            </UnstyledButton>
+          </div>
           <div
             className="gallery-media"
             ref={motion.media}

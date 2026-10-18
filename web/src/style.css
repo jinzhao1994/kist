@@ -1370,7 +1370,24 @@ button.filter-token-segment:hover {
 .gallery-stage {
   position: relative;
 }
+.gallery-details-rail {
+  position: absolute;
+  z-index: 2;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: 48px;
+  pointer-events: none;
+}
+@media (hover: hover) and (min-width: 681px) {
+  .gallery-details-rail {
+    pointer-events: auto;
+  }
+  .gallery-media {
+    padding-inline-end: 48px;
+  }
+}
 .gallery-details-toggle {
+  pointer-events: auto;
   position: absolute;
   z-index: 2;
   inset-inline-end: 0;
@@ -1388,6 +1405,7 @@ button.filter-token-segment:hover {
   opacity: 0;
   transition: opacity 160ms ease;
 }
+.gallery-details-rail:hover .gallery-details-toggle,
 .gallery-details-toggle:hover,
 .gallery:has(.gallery-details:hover) .gallery-details-toggle,
 .gallery-details-toggle:focus-visible {
@@ -1400,7 +1418,7 @@ button.filter-token-segment:hover {
   .gallery-details-toggle {
     opacity: 1;
   }
-  .gallery-with-details .gallery-details-toggle {
+  .gallery-with-details .gallery-details-rail {
     inset-inline-end: min(88vw, 380px);
   }
 }
