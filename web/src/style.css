@@ -2403,3 +2403,22 @@ main.upload-drag-active {
 .gallery-header:focus {
   outline: none;
 }
+
+.pdf-reader {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.pdf-reader-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.pdf-reader iframe {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border: 0;
+}

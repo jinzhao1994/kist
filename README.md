@@ -312,7 +312,7 @@ hashed on the way in and discarded if it is not what was asked for. Run
 Opening a grid or file requests background work: imports do not wait for image
 processing. JPEG/PNG/GIF/WebP and other supported raster images use the Go
 renderer; HEIC needs `heif-info` and `heif-dec` (or `heif-convert`) with an HEVC
-decoder. PDF first-page thumbnails and previews need Poppler (`pdftoppm`).
+decoder. PDF first-page thumbnails need Poppler (`pdftoppm`).
 Video (including MOV) needs `ffmpeg` and `ffprobe` with H.264/AAC encoders. Docker
 includes these tools. On Ubuntu, install `poppler-utils ffmpeg libheif-examples
 libheif-plugin-libde265`; native deployments may omit them and still archive,
@@ -320,7 +320,10 @@ search and download originals.
 
 Existing MOV files classified by the older media extractor need `kist extract
 --extractor media` or the UI metadata extraction action; no re-upload is needed.
-PDF previews show the first page only; download the original to read all pages.
+PDF grids show first-page thumbnails. Details use the browser’s native PDF reader
+for paging, zooming and text selection, with an option to open a new tab. Desktop
+Chrome can recognize scanned text locally; availability depends on the browser.
+Recognized text is not written back to the archive.
 
 Missing tools are checked again every 30 seconds; installation takes effect
 without restarting the server. Details offer cancel and retry controls.

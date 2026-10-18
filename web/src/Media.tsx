@@ -88,7 +88,8 @@ export function Media({
           : "thumb_512_v1";
   const path = mediaPath(file, recipe);
   const key = ["media", file.id, file.blob_key, recipe];
-  const enabled = active && hasDerivedMedia(file);
+  const nativePDF = detail && file.media_type === "application/pdf";
+  const enabled = active && hasDerivedMedia(file) && !nativePDF;
   const [failedGeneration, setFailedGeneration] = useState("");
   const query = useQuery({
     queryKey: key,
@@ -115,6 +116,30 @@ export function Media({
   });
   const job = query.data;
   const failed = failedGeneration === (job?.generation || file.id);
+  if (nativePDF && active)
+    return (
+      <div className="pdf-reader">
+        <div className="pdf-reader-actions">
+          <Button
+            component="a"
+            href={contentURL(file)}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {t("openPDF")}
+          </Button>
+        </div>
+        {navigator.pdfViewerEnabled === false ? (
+          <p className="media-placeholder">{t("pdfBrowserUnavailable")}</p>
+        ) : (
+          <iframe
+            key={file.blob_key}
+            title={file.name}
+            src={contentURL(file)}
+          />
+        )}
+      </div>
+    );
   if (enabled && job?.state === "ready" && !failed) {
     const src = `/api/v1${path}/content?v=${encodeURIComponent(job.generation)}`;
     const fail = () => {

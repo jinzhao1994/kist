@@ -188,11 +188,9 @@ for (const [name, kind, media_type] of [
     );
   });
 }
-it("renders a PDF first-page preview without embedding the original document", async () => {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue(Response.json(job("ready"))),
-  );
+it("opens PDF originals without requesting a derived preview", () => {
+  const fetch = vi.fn();
+  vi.stubGlobal("fetch", fetch);
   mount({
     file: {
       ...file,
@@ -201,11 +199,15 @@ it("renders a PDF first-page preview without embedding the original document", a
       media_type: "application/pdf",
     },
   });
-  expect(await screen.findByRole("img")).toHaveAttribute(
+  expect(screen.getByTitle("Report.pdf")).toHaveAttribute(
     "src",
-    expect.stringContaining("/derived/preview_2048_v1/content"),
+    "/api/v1/files/photo/content",
   );
-  expect(document.querySelector("iframe, object, embed")).toBeNull();
+  expect(
+    screen.getByRole("link", { name: "Open PDF in new tab" }),
+  ).toHaveAttribute("target", "_blank");
+  expect(fetch).not.toHaveBeenCalled();
+  expect(screen.queryByRole("img")).toBeNull();
 });
 
 for (const detail of [false, true]) {

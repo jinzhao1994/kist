@@ -101,6 +101,14 @@ async function prepare(page: Page, options: Options = {}) {
       language: options.language || "zh",
     },
   );
+  // Native PDF chrome is browser-owned; capture our container with a stable
+  // frame fixture. Real PDF rendering is verified separately in desktop Chrome.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "pdfViewerEnabled", {
+      value: true,
+      configurable: true,
+    });
+  });
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.route("**/api/v1/**", async (route) => {
@@ -112,6 +120,11 @@ async function prepare(page: Page, options: Options = {}) {
       return route.abort();
     }
     let body: unknown;
+    if (path === "/files/file-3/content")
+      return route.fulfill({
+        contentType: "text/html",
+        body: '<!doctype html><html><body style="margin:0;background:#282828;color:white;font:16px sans-serif;display:grid;place-items:center;height:100vh"><p>Browser PDF reader · synthetic fixture</p></body></html>',
+      });
     if (options.gpx && path === "/map-provider")
       body = {
         style_url: "/api/v1/fixture-map-style",
@@ -402,6 +415,20 @@ async function prepare(page: Page, options: Options = {}) {
   return errors;
 }
 async function capture(page: Page, errors: string[], name: string) {
+  if (await page.locator(".pdf-reader iframe").count()) {
+    await expect(page.locator(".pdf-reader iframe")).toHaveAttribute(
+      "src",
+      "/api/v1/files/file-3/content",
+    );
+    await expect(
+      page
+        .frameLocator(".pdf-reader iframe")
+        .getByText("Browser PDF reader · synthetic fixture"),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "在新标签页打开 PDF" }),
+    ).toHaveAttribute("target", "_blank");
+  }
   await page.evaluate(() => document.fonts.ready);
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(page).toHaveScreenshot(`${name}.png`, {
@@ -1683,5 +1710,26 @@ test("gpx-map-unavailable", async ({ page }, info) => {
   await expect(gallery.getByText("地图背景暂不可用")).toBeVisible();
   await expect(gallery.locator(".gpx-fallback polyline")).toHaveCount(1);
   await expect(gallery.getByRole("button", { name: "重试" })).toBeVisible();
+  await capture(page, errors, info.title);
+});
+
+test("pdf-reader-unavailable", async ({ page }, info) => {
+  const errors = await prepare(page, { mobile: true });
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "pdfViewerEnabled", {
+      value: false,
+      configurable: true,
+    });
+  });
+  await page.goto("/files?file=file-3");
+  await expect(
+    page.getByText(
+      "此浏览器无法在这里显示 PDF，请在新标签页打开或下载原文件。",
+    ),
+  ).toBeVisible();
+  await expect(page.locator(".pdf-reader iframe")).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "在新标签页打开 PDF" }),
+  ).toBeVisible();
   await capture(page, errors, info.title);
 });

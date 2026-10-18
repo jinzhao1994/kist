@@ -19,11 +19,11 @@ type contentInput struct {
 	At       int64  `query:"at" minimum:"0"`
 }
 
-// Only inert browser media may render inline. File extensions and uploaded
-// Content-Type headers are untrusted; everything else is an attachment.
+// Browser media and PDFs may render inline. PDFs use the browser-isolated
+// reader. File extensions and uploaded Content-Type headers are untrusted.
 func inlineMedia(media string) bool {
 	switch media {
-	case "image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp", "image/x-icon",
+	case "application/pdf", "image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp", "image/x-icon",
 		"audio/mpeg", "audio/wave", "audio/aiff", "audio/midi", "audio/ogg", "video/ogg", "video/mp4", "video/webm":
 		return true
 	}
@@ -78,7 +78,7 @@ func (s *Server) contentRoutes() {
 				}
 				w.Header().Set("Content-Type", media)
 				w.Header().Set("Content-Disposition", mime.FormatMediaType(disposition, map[string]string{"filename": file.Name}))
-				w.Header().Set("Content-Security-Policy", "sandbox; default-src 'none'")
+				w.Header().Set("Content-Security-Policy", "sandbox; default-src 'none'; frame-ancestors 'self'")
 				http.ServeContent(w, req, file.Name, file.CreatedAt, handle)
 			}}, nil
 		})

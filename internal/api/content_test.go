@@ -26,6 +26,8 @@ func TestOriginalContentAndRanges(t *testing.T) {
 		"active.svg": []byte(`<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"></svg>`),
 		"image.jpg":  append([]byte{0xff, 0xd8, 0xff}, bytes.Repeat([]byte{0}, 600)...),
 		"empty.bin":  {},
+		"report.pdf": []byte("%PDF-1.7\nPDF test bytes"),
+		"fake.pdf":   []byte("<!DOCTYPE html><script>alert(1)</script>"),
 	}
 	for name, data := range fixtures {
 		if err := os.WriteFile(filepath.Join(src, name), data, 0600); err != nil {
@@ -48,7 +50,7 @@ func TestOriginalContentAndRanges(t *testing.T) {
 				t.Fatalf("disposition=%v %v", params, err)
 			}
 			expected := "attachment"
-			if file.Name == "image.jpg" {
+			if file.Name == "image.jpg" || file.Name == "report.pdf" {
 				expected = "inline"
 			}
 			if disposition != expected {

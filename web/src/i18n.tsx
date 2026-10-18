@@ -230,6 +230,9 @@ export const en = {
   uploadFiles: "Upload files",
   openItem: "Open",
   download: "Download original",
+  openPDF: "Open PDF in new tab",
+  pdfBrowserUnavailable:
+    "This browser cannot display PDFs here. Open in a new tab or download the original.",
   details: "File details",
   basicInfo: "Basic information",
   mediaKind: "Type",
@@ -595,6 +598,9 @@ export const zh: Record<MessageKey, string> = {
   uploadFiles: "上传文件",
   openItem: "打开",
   download: "下载原文件",
+  openPDF: "在新标签页打开 PDF",
+  pdfBrowserUnavailable:
+    "此浏览器无法在这里显示 PDF，请在新标签页打开或下载原文件。",
   details: "文件详情",
   basicInfo: "基本信息",
   mediaKind: "类型",

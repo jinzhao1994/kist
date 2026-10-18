@@ -200,9 +200,9 @@ kist 从不往远端写，也从不信任远端：取回来的内容边读边哈
 
 ## 派生媒体
 
-旧库中被旧版提取器识别为普通文件的 MOV，执行 `kist extract --extractor media` 或点击网页的提取元数据即可更新，无需重新上传。PDF 仅预览首页，完整内容仍通过原文件下载查看。
+旧库中被旧版提取器识别为普通文件的 MOV，执行 `kist extract --extractor media` 或点击网页的提取元数据即可更新，无需重新上传。PDF 网格显示首页缩略图，详情使用浏览器原生阅读器，可翻页、缩放和复制已有文本；也可在新标签页打开。桌面 Chrome 可自动识别扫描件文字，具体能力由浏览器决定，识别结果不会写入归档。
 
-打开网格或文件详情才提交后台任务，导入不等待解码。普通 JPEG/PNG/GIF/WebP 等图片由 Go 生成预览；HEIC 需要 `heif-info` 和 `heif-dec`（或 `heif-convert`）及 HEVC 解码器；PDF 首页缩略图和预览需要 Poppler（`pdftoppm`）；视频（包括 MOV）需要带 H.264/AAC 编码器的 `ffmpeg` 与 `ffprobe`。Docker 已内置这些工具。Ubuntu 原生部署安装 `poppler-utils ffmpeg libheif-examples libheif-plugin-libde265`；不装也能归档、检索、下载原文件。
+打开网格或文件详情才提交后台任务，导入不等待解码。普通 JPEG/PNG/GIF/WebP 等图片由 Go 生成预览；HEIC 需要 `heif-info` 和 `heif-dec`（或 `heif-convert`）及 HEVC 解码器；PDF 首页缩略图需要 Poppler（`pdftoppm`）；视频（包括 MOV）需要带 H.264/AAC 编码器的 `ffmpeg` 与 `ffprobe`。Docker 已内置这些工具。Ubuntu 原生部署安装 `poppler-utils ffmpeg libheif-examples libheif-plugin-libde265`；不装也能归档、检索、下载原文件。
 
 缺依赖任务每 30 秒重新检查，安装工具后无需重启服务。详情提供取消与重试，任务重启后恢复，相同内容共享派生结果。需要清空缓存时，先停服务再删除 `derived/`，下次浏览会按需重建，不影响原文件与撤销历史。
 

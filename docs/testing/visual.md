@@ -2,7 +2,7 @@
 
 `Visual` builds both the last approved commit and the current commit, serves each against its own isolated empty library, and captures deterministic UI fixtures in the same pinned Linux amd64 Playwright image. Each revision uses its own application, dependency lockfile and test scenarios; both use the current capture driver and browser settings. API responses and preview artwork are synthetic; this is a visual check, not a substitute for backend or media integration tests.
 
-The suite covers every built-in primary color in light/dark mode, boxes, box files/upload controls, settings, tags, an empty library, English, a mobile grid, six media detail states, operation history/details, the recycle bin, historical boxes, and file version comparison. Fixtures use fixed dates, locale, timezone and preview artwork. No personal archive is accessed.
+The suite covers every built-in primary color in light/dark mode, boxes, box files/upload controls, settings, tags, an empty library, English, a mobile grid, six media detail states, operation history/details, the recycle bin, historical boxes, and file version comparison. Fixtures use fixed dates, locale, timezone and preview artwork. No personal archive is accessed. Native PDF reader frames use an explicit synthetic HTML fixture to verify the application container and links; browser-owned rendering, paging and text selection are checked separately with a real multi-page PDF in desktop Chrome.
 
 ## Review a change
 
