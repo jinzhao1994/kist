@@ -61,8 +61,6 @@ export default function PDFReader({
     eventBus.on("pagesinit", () => {
       if (abort.signal.aborted) return;
       instance.currentScaleValue = "auto";
-      setPages(instance.pagesCount);
-      setStatus("ready");
     });
     eventBus.on("pagechanging", ({ pageNumber }: { pageNumber: number }) => {
       if (!abort.signal.aborted) setPage(pageNumber);
@@ -88,7 +86,12 @@ export default function PDFReader({
       },
     );
     eventBus.on("pagerendered", ({ error }: { error?: unknown }) => {
-      if (error && !abort.signal.aborted) setStatus("error");
+      if (abort.signal.aborted) return;
+      if (error) setStatus("error");
+      else {
+        setPages(instance.pagesCount);
+        setStatus((current) => (current === "error" ? current : "ready"));
+      }
     });
     const task = getDocument({
       url: src,
@@ -141,6 +144,8 @@ export default function PDFReader({
     <div
       className="pdf-reader"
       aria-label={name}
+      aria-busy={status === "loading"}
+      data-state={status}
       onKeyDown={(event) => {
         if (
           (event.ctrlKey || event.metaKey) &&
@@ -261,7 +266,6 @@ export default function PDFReader({
           </span>
         )}
       </div>
-      {status === "loading" && <p role="status">{t("loading")}</p>}
       {status === "error" && (
         <div className="media-placeholder">
           <p>{t("pdfUnavailable")}</p>
@@ -269,10 +273,16 @@ export default function PDFReader({
         </div>
       )}
       <div className="pdf-viewport-wrap" hidden={status === "error"}>
+        {status === "loading" && (
+          <p className="pdf-loading" role="status">
+            {t("loading")}
+          </p>
+        )}
         <div
           ref={container}
           className="pdf-viewport"
-          tabIndex={0}
+          tabIndex={status === "ready" ? 0 : -1}
+          aria-hidden={status !== "ready"}
           aria-label={t("pdfPages")}
         >
           <div className="pdfViewer" />

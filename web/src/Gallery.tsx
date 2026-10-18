@@ -6,7 +6,7 @@ import { api, contentURL, type Tag } from "./api";
 import type { Filters } from "./Filters";
 import { useFileResults, resultFiles } from "./fileResults";
 import { FileDetail } from "./FileDetail";
-import { Media, OpenPDFButton } from "./Media";
+import { Media, OpenPDFButton, usesPDFReader } from "./Media";
 import { useI18n } from "./i18n";
 import { useGalleryMotion } from "./galleryMotion";
 import { errorMessage } from "./mutations";
@@ -35,14 +35,6 @@ export function Gallery({
     () => document.activeElement as HTMLElement | null,
   );
   const focusTrap = useFocusTrap();
-  const motion = useGalleryMotion(id, close);
-  const setGalleryRoot = useCallback(
-    (node: HTMLElement | null) => {
-      motion.root.current = node;
-      focusTrap(node);
-    },
-    [focusTrap, motion.root],
-  );
   const alive = useRef(true);
   const currentID = useRef(id);
   currentID.current = id;
@@ -72,6 +64,20 @@ export function Gallery({
     queryFn: ({ signal }) => api.file(id, signal),
   });
   const data = query.data;
+  const previewFile = data?.file || files[index];
+  const motion = useGalleryMotion(
+    id,
+    close,
+    !!previewFile && !usesPDFReader(previewFile),
+  );
+  const setGalleryRoot = useCallback(
+    (node: HTMLElement | null) => {
+      motion.root.current = node;
+      focusTrap(node);
+    },
+    [focusTrap, motion.root],
+  );
+
   const hasPrevious = index > 0;
   const hasNext =
     index >= 0 && (index + 1 < files.length || !!results.hasNextPage);

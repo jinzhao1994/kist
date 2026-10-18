@@ -20,7 +20,11 @@ function thumbnail(id: string) {
 }
 
 // Capture the thumbnail geometry before the gallery takes focus.
-export function useGalleryMotion(id: string, close: () => void) {
+export function useGalleryMotion(
+  id: string,
+  close: () => void,
+  flyThumbnail: boolean,
+) {
   const [source] = useState(() => thumbnail(id));
   const root = useRef<HTMLElement>(null);
   const media = useRef<HTMLDivElement>(null);
@@ -55,7 +59,8 @@ export function useGalleryMotion(id: string, close: () => void) {
     const image =
       media.current.querySelector<HTMLImageElement>(".detail-image");
     const src = exiting ? image?.currentSrc : target?.src;
-    if (target && src) {
+    // Readers have their own page geometry and asynchronous paint lifecycle.
+    if (flyThumbnail && target && src) {
       const bounds = media.current.getBoundingClientRect();
       const styles = getComputedStyle(media.current);
       const availableWidth =

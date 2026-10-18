@@ -1815,7 +1815,7 @@ for (const mobile of [false, true]) {
     page,
   }, info) => {
     const errors = await prepare(page, { mobile });
-    await page.goto("/files?file=file-3");
+    await openReaderFromThumbnail(page, "/api/v1/files/file-3/content", mobile);
     const number = page.getByRole("spinbutton", { name: "页码" });
     await expect(
       page.getByRole("button", { name: "下一页", exact: true }),
@@ -1873,7 +1873,10 @@ for (const word of ["doc", "docx", "ppt", "pptx"] as const) {
       word,
       mode: word === "doc" || word === "ppt" ? "dark" : "light",
     });
-    await page.goto("/boxes/box-1?file=file-3");
+    await openReaderFromThumbnail(
+      page,
+      `/api/v1/files/file-3/derived/${word.startsWith("ppt") ? "slides" : "office"}_pdf_v1/content`,
+    );
     const reader = page.locator(".pdf-reader");
     await expect(reader).toBeVisible();
     await expect(
@@ -1896,4 +1899,61 @@ for (const word of ["doc", "docx", "ppt", "pptx"] as const) {
     );
     await capture(page, errors, info.title);
   });
+}
+
+// Hold PDF bytes to exercise the transition instead of only the settled page.
+async function openReaderFromThumbnail(
+  page: Page,
+  content: string,
+  reduced = false,
+) {
+  await page.emulateMedia({
+    reducedMotion: reduced ? "reduce" : "no-preference",
+  });
+  await page.addInitScript(() => {
+    const animate = Element.prototype.animate;
+    (window as unknown as { readerFlights: number }).readerFlights = 0;
+    Element.prototype.animate = function (...args) {
+      if (this.classList.contains("gallery-flight"))
+        (window as unknown as { readerFlights: number }).readerFlights++;
+      return animate.apply(this, args);
+    };
+  });
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route(`**${content}*`, async (route) => {
+    await pending;
+    await route.fallback();
+  });
+  await page.goto("/boxes/box-1");
+  await grid(page);
+  const card = page.locator('.file-card[data-item-id="file-3"]');
+  await card.click();
+  const reader = page.locator(".pdf-reader");
+  await expect(reader).toHaveAttribute("aria-busy", "true");
+  await expect(reader.getByRole("status")).toHaveText("正在加载…");
+  const viewport = page.locator(".pdf-viewport");
+  const before = (await viewport.boundingBox())!;
+  await expect(viewport).toHaveCSS("opacity", "0");
+  release();
+  await expect(reader).toHaveAttribute("aria-busy", "false");
+  await expect(viewport).toHaveCSS("opacity", "1");
+  expect(await viewport.boundingBox()).toEqual(before);
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { readerFlights: number }).readerFlights,
+    ),
+  ).toBe(0);
+  // Reopening with warm query/module caches must use the same transition.
+  await page.getByRole("button", { name: "返回列表", exact: true }).click();
+  await expect(reader).toHaveCount(0);
+  await card.click();
+  await expect(reader).toHaveAttribute("aria-busy", "false");
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { readerFlights: number }).readerFlights,
+    ),
+  ).toBe(0);
 }

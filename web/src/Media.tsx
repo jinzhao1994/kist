@@ -41,6 +41,9 @@ function isPresentation(file: ArchiveFile) {
 function isOffice(file: ArchiveFile) {
   return isWord(file) || isPresentation(file);
 }
+export function usesPDFReader(file: ArchiveFile) {
+  return file.media_type === "application/pdf" || isOffice(file);
+}
 function officePDFRecipe(file: ArchiveFile) {
   return isPresentation(file) ? "slides_pdf_v1" : "office_pdf_v1";
 }

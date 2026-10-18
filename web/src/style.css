@@ -2472,3 +2472,25 @@ main.upload-drag-active {
 .pdf-reader .media-placeholder {
   padding-inline: 2.5rem;
 }
+
+/* Loading must not resize the viewport and trigger another PDF canvas render. */
+.pdf-loading {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+.pdf-reader[data-state="loading"] .pdf-viewport {
+  opacity: 0;
+  pointer-events: none;
+}
+.pdf-viewport {
+  transition: opacity 120ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pdf-viewport {
+    transition: none;
+  }
+}
