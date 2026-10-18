@@ -1633,6 +1633,32 @@ for (const variant of ["desktop", "mobile", "dateline"] as const) {
       await expect(gallery.getByText("正在加载地图…")).toHaveCount(0);
       await expect(gallery.locator("canvas")).toBeVisible();
       await capture(page, errors, info.title);
+      if (variant === "mobile") {
+        await gallery.locator("canvas").evaluate((element) => {
+          const touch = (x: number) =>
+            new Touch({
+              identifier: 1,
+              target: element,
+              clientX: x,
+              clientY: 250,
+            });
+          element.dispatchEvent(
+            new TouchEvent("touchstart", {
+              bubbles: true,
+              cancelable: true,
+              touches: [touch(300)],
+            }),
+          );
+          element.dispatchEvent(
+            new TouchEvent("touchend", {
+              bubbles: true,
+              cancelable: true,
+              touches: [],
+              changedTouches: [touch(80)],
+            }),
+          );
+        });
+      }
       await gallery.getByRole("button", { name: "放大地图" }).click();
       await expect(
         gallery.getByRole("heading", { name: "山间路线.GPX" }),

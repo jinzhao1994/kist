@@ -211,7 +211,7 @@ export function Gallery({
               if (
                 event.touches.length !== 1 ||
                 (event.target as HTMLElement).closest(
-                  "video,audio,button,a,input",
+                  "video,audio,button,a,input,.gpx-detail",
                 )
               ) {
                 touch.current = null;
