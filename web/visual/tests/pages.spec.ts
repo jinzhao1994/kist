@@ -62,6 +62,7 @@ type Options = {
   stl?: boolean;
   gpx?: boolean;
   mapFailure?: boolean;
+  dateline?: boolean;
 };
 async function prepare(page: Page, options: Options = {}) {
   const mediaFiles =
@@ -178,14 +179,21 @@ async function prepare(page: Page, options: Options = {}) {
             properties: {},
             geometry: {
               type: "LineString",
-              coordinates: [
-                [6.8694, 45.9237],
-                [6.86, 45.9282],
-                [6.8552, 45.9324],
-                [6.8657, 45.9358],
-                [6.8751, 45.9295],
-                [6.872, 45.925],
-              ],
+              coordinates: options.dateline
+                ? [
+                    [179.6, 10],
+                    [179.9, 10.2],
+                    [-179.7, 10.1],
+                    [-179.5, 10.3],
+                  ]
+                : [
+                    [6.8694, 45.9237],
+                    [6.86, 45.9282],
+                    [6.8552, 45.9324],
+                    [6.8657, 45.9358],
+                    [6.8751, 45.9295],
+                    [6.872, 45.925],
+                  ],
             },
           },
         ],
@@ -1605,11 +1613,15 @@ test("stl-preview", async ({ page }, info) => {
   await capture(page, errors, info.title);
 });
 
-for (const mobile of [false, true]) {
+for (const variant of ["desktop", "mobile", "dateline"] as const) {
   test(
-    mobile ? "gpx-mobile-preview" : "gpx-preview",
+    variant === "desktop" ? "gpx-preview" : `gpx-${variant}-preview`,
     async ({ page }, info) => {
-      const errors = await prepare(page, { gpx: true, mobile });
+      const errors = await prepare(page, {
+        gpx: true,
+        mobile: variant === "mobile",
+        dateline: variant === "dateline",
+      });
       await page.goto("/files?file=file-3");
       const gallery = page.getByRole("region", { name: "画廊", exact: true });
       await expect(

@@ -102,7 +102,8 @@ export default function GPXPreview({
           attributionControl: { compact: detail },
           canvasContextAttributes: { preserveDrawingBuffer: !detail },
           fadeDuration: 0,
-          renderWorldCopies: false,
+          // Keep dateline-crossing routes and their basemap continuous.
+          renderWorldCopies: true,
           maxZoom: 18,
         });
         let stopped = false;
