@@ -167,7 +167,7 @@ func (r Renderer) office(ctx context.Context, input, output string, spec Recipe)
 	}
 	profileURL := (&url.URL{Scheme: "file", Path: profilePath}).String()
 	cmd := exec.CommandContext(ctx, executable, "-env:UserInstallation="+profileURL, "--headless", "--nologo", "--nodefault", "--norestore", "--infilter="+filter, "--convert-to", export, "--outdir", dir, source)
-	cmd.Env = append(os.Environ(), "SAL_USE_VCLPLUGIN=svp")
+	cmd.Env = append(os.Environ(), "SAL_USE_VCLPLUGIN=svp", "TMPDIR="+dir, "TMP="+dir, "TEMP="+dir)
 	cmd.Dir = dir
 	log := &limitedBuffer{limit: 16 << 10}
 	cmd.Stdout, cmd.Stderr = log, log
