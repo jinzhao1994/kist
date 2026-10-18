@@ -31,9 +31,11 @@ type Options struct {
 	MaxUploadFiles int
 	UploadTempDir  string
 	UI             http.Handler
+	MapProvider    *MapProvider
 }
 
 type Server struct {
+	mapConnect     string
 	library        *library.Library
 	media          *library.Media
 	mux            *http.ServeMux
@@ -61,6 +63,15 @@ func New(l *library.Library, opt Options) (*Server, error) {
 		return nil, fmt.Errorf("upload limits must be positive")
 	}
 	s := &Server{maxUploadBytes: opt.MaxUploadBytes, maxUploadFiles: opt.MaxUploadFiles, uploadTempDir: opt.UploadTempDir, library: l, mux: http.NewServeMux(), hosts: map[string]bool{}, origins: map[string]bool{}}
+	provider := DefaultMapProvider()
+	if opt.MapProvider != nil {
+		provider = *opt.MapProvider
+	}
+	connect, mapErr := provider.connectSources()
+	if mapErr != nil {
+		return nil, mapErr
+	}
+	s.mapConnect = connect
 	s.historySlots = make(chan struct{}, 2)
 	if l == nil || len(opt.AllowedHosts) == 0 {
 		return nil, fmt.Errorf("a library and explicit allowed hosts are required")
@@ -102,6 +113,7 @@ func New(l *library.Library, opt Options) (*Server, error) {
 	cfg.CreateHooks = nil
 	cfg.Transformers = nil // Keep wire JSON identical to the CLI: no injected $schema.
 	s.contract = humago.New(s.mux, cfg)
+	s.mapRoutes(provider)
 	s.readRoutes()
 	s.historyRoutes()
 	s.historicalRoutes()
@@ -129,7 +141,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Referrer-Policy", "no-referrer")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; worker-src 'self'; img-src 'self' blob: data:; connect-src "+s.mapConnect)
 	if !s.hosts[strings.ToLower(r.Host)] {
 		writeFailure(w, huma.Error403Forbidden("Host is not allowed"))
 		return

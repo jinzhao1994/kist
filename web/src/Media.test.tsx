@@ -233,3 +233,26 @@ for (const detail of [false, true]) {
     );
   });
 }
+
+for (const detail of [false, true]) {
+  it(`requests GPX coordinates for an existing unclassified file with detail=${detail}`, async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(Response.json(job("failed", "v1", "decode_failed")));
+    vi.stubGlobal("fetch", fetch);
+    mount({
+      detail,
+      file: {
+        ...file,
+        name: "Route.GPX",
+        kind: "other",
+        media_type: "application/octet-stream",
+      },
+    });
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    expect(fetch.mock.calls[0][0]).toBe(
+      "/api/v1/files/photo/derived/gpx_map_v1",
+    );
+    expect(screen.queryByRole("img")).toBeNull();
+  });
+}

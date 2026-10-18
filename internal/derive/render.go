@@ -39,6 +39,8 @@ type Recipe struct {
 // Lookup is the only registry of public recipes and their output types.
 func Lookup(name string) (Recipe, bool) {
 	switch name {
+	case GPXMap:
+		return Recipe{name, ".geojson", "application/geo+json", 0}, true
 	case Thumbnail, VideoThumbnail, STLThumbnail:
 		return Recipe{name, ".jpg", "image/jpeg", 512}, true
 	case Preview, STLPreview:
@@ -107,7 +109,12 @@ func (r Renderer) Render(ctx context.Context, input, output, recipe string) (res
 	}
 	defer f.Close()
 	cfg, format, decodeErr := image.DecodeConfig(io.LimitReader(contextReader{ctx, f}, MaxImageBytes+1))
-	if recipe == STLThumbnail || recipe == STLPreview {
+	if recipe == GPXMap {
+		result, err = renderGPX(ctx, input, output)
+		if err != nil {
+			return result, err
+		}
+	} else if recipe == STLThumbnail || recipe == STLPreview {
 		result, err = r.stl(ctx, input, output, spec)
 		if err != nil {
 			return result, err

@@ -60,20 +60,23 @@ type Options = {
   mobile?: boolean;
   manyFiles?: boolean;
   stl?: boolean;
+  gpx?: boolean;
+  mapFailure?: boolean;
 };
 async function prepare(page: Page, options: Options = {}) {
-  const mediaFiles = options.stl
-    ? files.map((file, i) =>
-        i === 2
-          ? {
-              ...file,
-              name: "模型.STL",
-              media_type: "application/octet-stream",
-              kind: "other",
-            }
-          : file,
-      )
-    : files;
+  const mediaFiles =
+    options.stl || options.gpx
+      ? files.map((file, i) =>
+          i === 2
+            ? {
+                ...file,
+                name: options.gpx ? "山间路线.GPX" : "模型.STL",
+                media_type: "application/octet-stream",
+                kind: "other",
+              }
+            : file,
+        )
+      : files;
   if (options.mobile) await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(
     ({ primaryColor, mode, language }) => {
@@ -108,7 +111,86 @@ async function prepare(page: Page, options: Options = {}) {
       return route.abort();
     }
     let body: unknown;
-    if (path === "/saved-searches") body = { searches: [] };
+    if (options.gpx && path === "/map-provider")
+      body = {
+        style_url: "/api/v1/fixture-map-style",
+        terrain_tiles: "",
+        terrain_attribution: "",
+        resource_origins: [],
+      };
+    else if (options.gpx && path === "/fixture-map-style") {
+      if (options.mapFailure)
+        return route.fulfill({ status: 503, body: "Map unavailable" });
+      body = {
+        version: 8,
+        sources: {
+          roads: {
+            type: "geojson",
+            attribution: '<a href="https://example.org/maps">Synthetic map</a>',
+            data: {
+              type: "FeatureCollection",
+              features: [
+                {
+                  type: "Feature",
+                  properties: {},
+                  geometry: {
+                    type: "LineString",
+                    coordinates: [
+                      [6.86, 45.92],
+                      [6.87, 45.93],
+                      [6.88, 45.94],
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        },
+        layers: [
+          {
+            id: "background",
+            type: "background",
+            paint: { "background-color": "#e5eadf" },
+          },
+          {
+            id: "road-edge",
+            type: "line",
+            source: "roads",
+            paint: { "line-color": "#d5c9a9", "line-width": 10 },
+          },
+          {
+            id: "road",
+            type: "line",
+            source: "roads",
+            paint: { "line-color": "#fff8dd", "line-width": 6 },
+          },
+        ],
+      };
+    } else if (
+      options.gpx &&
+      path.includes("/file-3/derived/gpx_map_v1/content")
+    )
+      body = {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            properties: {},
+            geometry: {
+              type: "LineString",
+              coordinates: [
+                [6.8694, 45.9237],
+                [6.86, 45.9282],
+                [6.8552, 45.9324],
+                [6.8657, 45.9358],
+                [6.8751, 45.9295],
+                [6.872, 45.925],
+              ],
+            },
+          },
+        ],
+      };
+    else if (path === "/saved-searches") body = { searches: [] };
     else if (path === "/boxes" || path === "/boxes/search")
       body = {
         boxes: options.empty
@@ -272,6 +354,8 @@ async function prepare(page: Page, options: Options = {}) {
       /^\/files\/(?:file-[1-4]|visible-[0-9]+)\/derived\/[a-z0-9_]+$/.test(path)
     ) {
       const recipe = path.split("/").at(-1);
+      if (options.gpx && path.includes("/file-3/") && recipe !== "gpx_map_v1")
+        errors.push(`Unexpected GPX recipe: ${recipe}`);
       if (
         options.stl &&
         path.includes("/file-3/") &&
@@ -1518,5 +1602,41 @@ test("stl-preview", async ({ page }, info) => {
     "src",
     /stl_preview_2048_v1/,
   );
+  await capture(page, errors, info.title);
+});
+
+for (const mobile of [false, true]) {
+  test(
+    mobile ? "gpx-mobile-preview" : "gpx-preview",
+    async ({ page }, info) => {
+      const errors = await prepare(page, { gpx: true, mobile });
+      await page.goto("/files?file=file-3");
+      const gallery = page.getByRole("region", { name: "画廊", exact: true });
+      await expect(
+        gallery.getByRole("button", { name: "放大地图" }),
+      ).toBeVisible();
+      await expect(gallery.getByText("正在加载地图…")).toHaveCount(0);
+      await expect(gallery.locator("canvas")).toBeVisible();
+      await capture(page, errors, info.title);
+      await gallery.getByRole("button", { name: "放大地图" }).click();
+      await expect(
+        gallery.getByRole("heading", { name: "山间路线.GPX" }),
+      ).toBeVisible();
+      await gallery.getByRole("button", { name: "返回列表" }).click();
+      await expect(
+        page.getByRole("img", { name: "山间路线.GPX" }),
+      ).toBeVisible();
+      await expect(page.locator(".gpx-preview canvas")).toHaveCount(0);
+    },
+  );
+}
+
+test("gpx-map-unavailable", async ({ page }, info) => {
+  const errors = await prepare(page, { gpx: true, mapFailure: true });
+  await page.goto("/files?file=file-3");
+  const gallery = page.getByRole("region", { name: "画廊", exact: true });
+  await expect(gallery.getByText("地图背景暂不可用")).toBeVisible();
+  await expect(gallery.locator(".gpx-fallback polyline")).toHaveCount(1);
+  await expect(gallery.getByRole("button", { name: "重试" })).toBeVisible();
   await capture(page, errors, info.title);
 });

@@ -334,6 +334,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/map-provider": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 map provider */
+        get: operations["get-api-v1-map-provider"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ops": {
         parameters: {
             query?: never;
@@ -898,6 +915,12 @@ export interface components {
             /** Format: int64 */
             upload_chunk_bytes?: number;
             version: string;
+        };
+        MapProvider: {
+            resource_origins: string[] | null;
+            style_url: string;
+            terrain_attribution: string;
+            terrain_tiles: string;
         };
         MediaJob: {
             blob_key: string;
@@ -1856,12 +1879,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Derived image or video */
+            /** @description Derived image, video or geographic data */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
+                    "application/geo+json": Record<string, never>;
                     "image/jpeg": string;
                     "video/mp4": string;
                 };
@@ -1894,12 +1918,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Derived image or video */
+            /** @description Derived image, video or geographic data */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
+                    "application/geo+json": Record<string, never>;
                     "image/jpeg": string;
                     "video/mp4": string;
                 };
@@ -2041,6 +2066,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LibraryInfo"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-map-provider": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MapProvider"];
                 };
             };
             /** @description Error */

@@ -18,6 +18,7 @@ import (
 )
 
 func newServeCmd() *cobra.Command {
+	maps := api.DefaultMapProvider()
 	var address string
 	var origins []string
 	var maxUploadBytes int64
@@ -34,6 +35,7 @@ func newServeCmd() *cobra.Command {
 		defer l.Close()
 		opt.MaxUploadBytes, opt.MaxUploadFiles = maxUploadBytes, maxUploadFiles
 		opt.UI = web.Handler()
+		opt.MapProvider = &maps
 		handler, err := api.New(l, opt)
 		if err != nil {
 			return err
@@ -57,6 +59,10 @@ func newServeCmd() *cobra.Command {
 		}
 		return serveHTTP(ctx, listener, handler)
 	}}
+	cmd.Flags().StringVar(&maps.StyleURL, "map-style", maps.StyleURL, "MapLibre style URL for GPX previews")
+	cmd.Flags().StringVar(&maps.TerrainTiles, "map-terrain-tiles", maps.TerrainTiles, "Terrarium elevation tile URL template; empty disables terrain")
+	cmd.Flags().StringVar(&maps.TerrainAttribution, "map-terrain-attribution", maps.TerrainAttribution, "attribution HTML for the configured elevation provider")
+	cmd.Flags().StringSliceVar(&maps.ResourceOrigins, "map-resource-origin", nil, "additional map resource origins (tiles, glyphs, sprites); repeat as needed")
 	cmd.Flags().StringVar(&address, "listen", "127.0.0.1:8473", "listen address; non-loopback requires --allow-origin")
 	cmd.Flags().StringSliceVar(&origins, "allow-origin", nil, "trusted origin including scheme and port; repeat for multiple origins")
 	cmd.Flags().Int64Var(&maxUploadBytes, "max-upload-bytes", api.DefaultMaxUploadBytes, "maximum upload batch bytes (including framing for multipart)")

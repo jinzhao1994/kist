@@ -241,3 +241,10 @@ Docker Hub `latest` 若在「映像」页显示更新，选中 kist 后使用「
 
 官方参考：[容器设置](https://kb.synology.com/index.php/th-th/DSM/help/ContainerManager/docker_container?version=7)、
 [挂载目录权限](https://kb.synology.com/tr-tr/DSM/tutorial/Docker_container_cant_access_the_folder_or_file)。
+
+
+### GPX 地图服务与缓存
+
+GPX 预览默认由浏览器访问 OpenFreeMap（道路、地名）和 Mapzen AWS 高程瓦片（地形阴影），无须注册或 key。NAS 只解析 GPX 并缓存 `gpx_map_v1.geojson`，不会向地图商发送原文件或完整坐标；地图商仍能从瓦片请求推知地区。浏览器最多同时绘制两个地图实例，缩略图完成后释放实例，保留最多 32 张本页快照。刷新会重绘地图，浏览器仍可复用 HTTP 瓦片缓存；网络不可用则显示轨迹轮廓和提示。
+
+要换服务，在容器启动命令的 `serve` 后配置 `--map-style`；若字体、精灵或瓦片来自额外域名，重复添加 `--map-resource-origin`。高程服务通过 `--map-terrain-tiles` 和 `--map-terrain-attribution` 单独替换，空模板关闭高程层。完整参数与格式限制见 README。容器重新创建／重启后刷新网页即可，既有 GPX 派生数据可继续使用，快照按新配置生成，无需清空 NAS 的旧图片、视频或 PDF 缓存。

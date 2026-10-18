@@ -210,6 +210,21 @@ STL（ASCII 和二进制）可生成完整模型缩略图与详情静态图，�
 
 视频缩略图优先使用文件内嵌封面，其次使用有效的 QuickTime 封面时间；没有时，跨视频分散抽取最多 100 张低分辨率候选，排除黑场并按画面颜色分布选代表帧。采样有 60 秒预算，慢设备可能少于 100 张；短片减少采样。此算法不保证识别电影内容或最佳镜头。
 
+GPX（轨迹、路线、航点）可显示带道路、地名和地形阴影的地图缩略图，详情可缩放。默认使用免账户／免 key 的 OpenFreeMap Liberty 与 Mapzen AWS 高程瓦片；浏览器需要访问这两个服务。GPX 在 NAS 本地解析，原文件与完整坐标不上传地图商，但瓦片请求会暴露浏览地区。支持旧库 `.gpx` 文件，无需重新导入；上限 32 MiB／10 万点，格式错误或超限保留下载入口。
+
+NAS 缓存 `gpx_map_v1.geojson`，浏览器按需绘制缩略图（完成后释放地图实例）并在本页保留最多 32 张成功快照；刷新后重绘，底图瓦片沿用浏览器 HTTP 缓存。底图断网时显示轨迹轮廓和提示，详情可重试。此功能不是离线地图包。
+
+可通过启动参数替换地图商或使用自托管服务：
+
+```sh
+kist serve --map-style https://maps.example/style.json \
+  --map-resource-origin https://tiles.example \
+  --map-terrain-tiles 'https://elevation.example/terrarium/{z}/{x}/{y}.png' \
+  --map-terrain-attribution 'Elevation provider attribution'
+```
+
+`--map-style` 接受 MapLibre 样式 URL（样式中也可以配置栅格底图），`--map-resource-origin` 可重复传入字体／精灵／瓦片的额外 origin；样式与高程 URL 本身的 origin 自动允许。相对本站根路径也受支持。高程模板须为 256 像素 Terrarium 编码，最高源级别 15；`--map-terrain-tiles ''` 可关闭高程层。跨域资源需支持 CORS，HTTPS 部署应使用 HTTPS 资源。替换服务后重启并刷新页面，无需删除 GPX 派生数据；快照键包含服务配置，旧背景不会复用。各源归属信息由地图样式和高程参数提供并保留。
+
 升级后刷新网页，可见视频请求 `video_thumb_512_v2`，即使已有旧版缩略图，也会按新版本生成并缓存。图片和 PDF 的生成算法未变，继续复用 `thumb_512_v1`；完整显示由网页布局控制。无需清空整个 `derived/`、重新上传或 rebuild。旧版缓存文件仍保留，不自动清理。
 
 当前 recipe：`video_thumb_512_v2`（视频封面 JPEG，最长边 512）、`thumb_512_v1`（JPEG，最长边 512）、`preview_2048_v1`（JPEG，最长边 2048）、`preview_1080p_v1`（H.264/AAC MP4，最高 1920×1080）。图片保持比例与方向，透明底铺白，动图取首帧；多顶层图片的 HEIF 集合暂不支持。限制包括 6400 万像素、256 MiB 压缩静态图、6 小时视频输入和 2 GiB 输出，超限仍可下载原文件。CLI 导入后需运行 `kist extract` 或点击「读取元数据」以分类媒体类型。

@@ -335,6 +335,37 @@ triangles, a bounded raster workload and 90 seconds. Previews use a fixed view
 and uniform material; they do not provide interactive rotation or validate
 printability. Recipes are `stl_thumb_512_v1` and `stl_preview_2048_v1`.
 
+GPX tracks, routes and waypoints have map thumbnails and zoomable detail maps.
+OpenFreeMap Liberty supplies roads and place names; Mapzen AWS Terrain Tiles add
+hillshade. Neither requires an account or API key. GPX is parsed locally (32 MiB,
+100,000 points maximum); coordinates and original files are never uploaded to
+map providers, but tile requests reveal the viewed area. Existing `.gpx` files
+work without reimporting. NAS stores `gpx_map_v1.geojson`; the browser renders
+512×384 thumbnails, releases WebGL contexts, and retains at most 32 successful
+snapshots per page. Reloading redraws maps using normal browser tile caching.
+Unavailable backgrounds leave a route outline and a retry/download option.
+This is not an offline map package.
+
+Map providers are replaceable at startup:
+
+```sh
+kist serve --map-style https://maps.example/style.json \
+  --map-resource-origin https://tiles.example \
+  --map-terrain-tiles 'https://elevation.example/terrarium/{z}/{x}/{y}.png' \
+  --map-terrain-attribution 'Elevation provider attribution'
+```
+
+The style URL accepts any compatible MapLibre style, including raster sources.
+Repeat `--map-resource-origin` for additional tile, glyph or sprite origins;
+style/elevation URL origins are allowed automatically. Same-origin absolute
+paths are also supported. Elevation tiles must use Terrarium encoding at 256 px
+with source maxzoom 15; `--map-terrain-tiles ''` disables elevation. External
+resources must permit CORS; use HTTPS resources for HTTPS deployments. Restart
+and refresh after changes. Parsed GPX data remains valid, while snapshot keys
+include the provider configuration. Keep correct source attribution in the
+style and elevation options.
+
+
 Video thumbnails prefer embedded cover art, then a valid QuickTime poster time.
 Otherwise, up to 100 small frames are sampled across the video; near-black frames
 are excluded and a representative color histogram selects the result. Sampling

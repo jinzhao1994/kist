@@ -1,5 +1,5 @@
 import { Button } from "@mantine/core";
-import { useCallback, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   contentURL,
@@ -11,6 +11,11 @@ import {
 } from "./api";
 import { useI18n, type MessageKey } from "./i18n";
 
+const GPXPreview = lazy(() => import("./GPXPreview"));
+function isGPX(file: ArchiveFile) {
+  return file.media_type === "application/gpx+xml" || /\.gpx$/i.test(file.name);
+}
+
 function isSTL(file: ArchiveFile) {
   return file.media_type === "model/stl" || /\.stl$/i.test(file.name);
 }
@@ -20,7 +25,8 @@ export function hasDerivedMedia(file: ArchiveFile) {
     file.kind === "image" ||
     file.kind === "video" ||
     file.media_type === "application/pdf" ||
-    isSTL(file)
+    isSTL(file) ||
+    isGPX(file)
   );
 }
 const audioTypes = new Set([
@@ -67,17 +73,19 @@ export function Media({
     player.current = node;
   }, []);
   const client = useQueryClient();
-  const recipe = isSTL(file)
-    ? detail
-      ? "stl_preview_2048_v1"
-      : "stl_thumb_512_v1"
-    : detail
-      ? file.kind === "video"
-        ? "preview_1080p_v1"
-        : "preview_2048_v1"
-      : file.kind === "video"
-        ? "video_thumb_512_v2"
-        : "thumb_512_v1";
+  const recipe = isGPX(file)
+    ? "gpx_map_v1"
+    : isSTL(file)
+      ? detail
+        ? "stl_preview_2048_v1"
+        : "stl_thumb_512_v1"
+      : detail
+        ? file.kind === "video"
+          ? "preview_1080p_v1"
+          : "preview_2048_v1"
+        : file.kind === "video"
+          ? "video_thumb_512_v2"
+          : "thumb_512_v1";
   const path = mediaPath(file, recipe);
   const key = ["media", file.id, file.blob_key, recipe];
   const enabled = active && hasDerivedMedia(file);
@@ -113,6 +121,14 @@ export function Media({
       setFailedGeneration(job.generation);
       void query.refetch();
     };
+    if (isGPX(file))
+      return (
+        <Suspense
+          fallback={<div className="media-placeholder">{t("mapLoading")}</div>}
+        >
+          <GPXPreview key={src} src={src} name={file.name} detail={detail} />
+        </Suspense>
+      );
     return detail && file.kind === "video" ? (
       <video
         ref={playerRef}

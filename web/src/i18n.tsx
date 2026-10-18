@@ -8,6 +8,11 @@ import {
 } from "react";
 
 export const en = {
+  mapZoomIn: "Zoom in",
+  mapZoomOut: "Zoom out",
+  mapAttribution: "Map attribution",
+  mapLoading: "Loading map…",
+  mapUnavailable: "Map background unavailable",
   action_upload_files: "Upload and replace files",
   action_undo_upload_files: "Undo file upload",
   uploadConflictTitle: "Files already exist",
@@ -388,6 +393,11 @@ export const en = {
 } as const;
 export type MessageKey = keyof typeof en;
 export const zh: Record<MessageKey, string> = {
+  mapZoomIn: "放大地图",
+  mapZoomOut: "缩小地图",
+  mapAttribution: "地图来源",
+  mapLoading: "正在加载地图…",
+  mapUnavailable: "地图背景暂不可用",
   folderType: "文件夹",
   folders: "文件夹",
   createFolder: "新建目录",
