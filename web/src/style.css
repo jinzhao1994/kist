@@ -2441,6 +2441,13 @@ main.upload-drag-active {
   border: 1px solid var(--mantine-color-default-border);
   border-radius: var(--mantine-radius-default);
 }
+.pdf-find {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1;
+  min-inline-size: min(100%, 16rem);
+}
 .pdf-search {
   flex: 1;
   min-width: 9rem;
@@ -2449,6 +2456,11 @@ main.upload-drag-active {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+}
+.pdf-page-number > span:last-child {
+  inline-size: 5ch;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 .pdf-page-number input {
   width: 3.5rem;

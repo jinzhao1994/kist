@@ -231,40 +231,42 @@ export default function PDFReader({
         >
           {t("pdfFitWidth")}
         </Button>
-        <TextInput
-          ref={searchInput}
-          className="pdf-search"
-          aria-label={t("pdfSearch")}
-          placeholder={t("pdfSearch")}
-          value={query}
-          disabled={!pages}
-          onChange={(event) => find(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              find(query, true, event.shiftKey);
-            }
-          }}
-        />
-        <Button
-          disabled={!query || !pages}
-          aria-label={t("pdfPreviousMatch")}
-          onClick={() => find(query, true, true)}
-        >
-          ↑
-        </Button>
-        <Button
-          disabled={!query || !pages}
-          aria-label={t("pdfNextMatch")}
-          onClick={() => find(query, true)}
-        >
-          ↓
-        </Button>
-        {query && (
-          <span role="status">
-            {matches.current} / {matches.total}
-          </span>
-        )}
+        <div className="pdf-find">
+          <TextInput
+            ref={searchInput}
+            className="pdf-search"
+            aria-label={t("pdfSearch")}
+            placeholder={t("pdfSearch")}
+            value={query}
+            disabled={!pages}
+            onChange={(event) => find(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                find(query, true, event.shiftKey);
+              }
+            }}
+          />
+          <Button
+            disabled={!query || !pages}
+            aria-label={t("pdfPreviousMatch")}
+            onClick={() => find(query, true, true)}
+          >
+            ↑
+          </Button>
+          <Button
+            disabled={!query || !pages}
+            aria-label={t("pdfNextMatch")}
+            onClick={() => find(query, true)}
+          >
+            ↓
+          </Button>
+          {query && (
+            <span role="status">
+              {matches.current} / {matches.total}
+            </span>
+          )}
+        </div>
       </div>
       {status === "error" && (
         <div className="media-placeholder">
