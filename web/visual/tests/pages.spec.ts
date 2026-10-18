@@ -659,7 +659,7 @@ for (const scenario of [
       await expect(
         page
           .getByRole("dialog")
-          .getByText("旅途/山间清晨.heic", { exact: true }),
+          .getByText("旅途/山间清晨.jpg", { exact: true }),
       ).toBeVisible();
     }
     if (scenario === "version-comparison") {
