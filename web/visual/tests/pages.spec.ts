@@ -1928,8 +1928,18 @@ async function openReaderFromThumbnail(
     await route.fallback();
   });
   await page.goto("/boxes/box-1");
-  await grid(page);
+  await expect(page.locator(".file-count")).toContainText("4");
   const card = page.locator('.file-card[data-item-id="file-3"]');
+  await card.scrollIntoViewIfNeeded();
+  const thumbnail = card.locator("img");
+  await expect(thumbnail).toBeVisible();
+  await expect
+    .poll(() =>
+      thumbnail.evaluate(
+        (image: HTMLImageElement) => image.complete && image.naturalWidth > 0,
+      ),
+    )
+    .toBe(true);
   await card.click();
   const reader = page.locator(".pdf-reader");
   await expect(reader).toHaveAttribute("aria-busy", "true");
