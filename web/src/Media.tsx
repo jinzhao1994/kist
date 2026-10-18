@@ -51,7 +51,38 @@ function mediaKey(file: ArchiveFile, recipe: string) {
   return ["media", file.id, file.blob_key, recipe];
 }
 
-export function OpenPDFButton({ file }: { file: ArchiveFile }) {
+// Keep this aligned with the content endpoint's passive image allowlist.
+const originalImageTypes = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/bmp",
+  "image/x-icon",
+]);
+function usesOriginalImage(file: ArchiveFile) {
+  return file.kind === "image" && originalImageTypes.has(file.media_type || "");
+}
+function OriginalImage({ file }: { file: ArchiveFile }) {
+  const { t } = useI18n();
+  const [failed, setFailed] = useState(false);
+  return failed ? (
+    <div className="media-placeholder">
+      <p role="status">{t("imageLoadFailed")}</p>
+      <Button onClick={() => setFailed(false)}>{t("retry")}</Button>
+    </div>
+  ) : (
+    <img
+      className="detail-image"
+      src={contentURL(file)}
+      alt={file.name}
+      decoding="async"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+export function OpenMediaButton({ file }: { file: ArchiveFile }) {
   const { t } = useI18n();
   const officePDF = officePDFRecipe(file);
   // Media owns requests and polling. This observer follows the same cache entry.
@@ -60,13 +91,16 @@ export function OpenPDFButton({ file }: { file: ArchiveFile }) {
     enabled: false,
   });
   const original = file.media_type === "application/pdf";
-  if (!original && !(isOffice(file) && job?.state === "ready")) return null;
-  const href = original
-    ? contentURL(file)
-    : `/api/v1${mediaPath(file, officePDF)}/content?v=${encodeURIComponent(job!.generation)}`;
+  const image = usesOriginalImage(file);
+  if (!image && !original && !(isOffice(file) && job?.state === "ready"))
+    return null;
+  const href =
+    original || image
+      ? contentURL(file)
+      : `/api/v1${mediaPath(file, officePDF)}/content?v=${encodeURIComponent(job!.generation)}`;
   return (
     <Button component="a" href={href} target="_blank" rel="noopener noreferrer">
-      {t("openPDF")}
+      {t(image ? "openImage" : "openPDF")}
     </Button>
   );
 }
@@ -147,7 +181,9 @@ export function Media({
   const path = mediaPath(file, recipe);
   const key = mediaKey(file, recipe);
   const readerPDF = detail && file.media_type === "application/pdf";
-  const enabled = active && hasDerivedMedia(file) && !readerPDF;
+  const originalImage = detail && usesOriginalImage(file);
+  const enabled =
+    active && hasDerivedMedia(file) && !readerPDF && !originalImage;
   const [failedGeneration, setFailedGeneration] = useState("");
   const query = useQuery({
     queryKey: key,
@@ -174,6 +210,8 @@ export function Media({
   });
   const job = query.data;
   const failed = failedGeneration === (job?.generation || file.id);
+  if (originalImage && active)
+    return <OriginalImage key={`${file.id}:${file.blob_key}`} file={file} />;
   if (readerPDF && active)
     return (
       <Suspense

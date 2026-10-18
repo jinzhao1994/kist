@@ -115,7 +115,18 @@ async function prepare(page: Page, options: Options = {}) {
               }
             : file,
         )
-      : files;
+      : options.state
+        ? files.map((file, i) =>
+            i === 0
+              ? {
+                  ...file,
+                  name: "山间清晨.heic",
+                  path: "旅途/山间清晨.heic",
+                  media_type: "image/heic",
+                }
+              : file,
+          )
+        : files;
   if (options.mobile) await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(
     ({ primaryColor, mode, language }) => {
@@ -157,6 +168,11 @@ async function prepare(page: Page, options: Options = {}) {
       return route.fulfill({
         contentType: "application/pdf",
         body: pdfFixture(officeFamily === "slides"),
+      });
+    if (/^\/files\/(?:file-[12]|visible-[0-9]+)\/content$/.test(path))
+      return route.fulfill({
+        contentType: "image/svg+xml",
+        body: path.includes("/file-2/") ? portrait : landscape,
       });
     if (path === "/files/file-3/content")
       return route.fulfill({
@@ -594,7 +610,7 @@ for (const state of [
     await expect(
       page
         .getByRole("region", { name: "画廊", exact: true })
-        .getByText("旅途/山间清晨.jpg", { exact: true }),
+        .getByText("旅途/山间清晨.heic", { exact: true }),
     ).toBeVisible();
     if (state === "ready")
       await expect
@@ -643,7 +659,7 @@ for (const scenario of [
       await expect(
         page
           .getByRole("dialog")
-          .getByText("旅途/山间清晨.jpg", { exact: true }),
+          .getByText("旅途/山间清晨.heic", { exact: true }),
       ).toBeVisible();
     }
     if (scenario === "version-comparison") {
@@ -1151,6 +1167,19 @@ test("gallery-navigation-and-return", async ({ page }, info) => {
   await expect(gallery).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   expect(new URL(page.url()).searchParams.get("filter")).toContain("旅行");
+  await expect(gallery.locator(".detail-image")).toHaveAttribute(
+    "src",
+    "/api/v1/files/file-1/content",
+  );
+  const openImage = gallery.getByRole("link", { name: "在新标签页打开图片" });
+  await expect(openImage).toHaveAttribute(
+    "href",
+    "/api/v1/files/file-1/content",
+  );
+  await expect(openImage).toHaveAttribute("target", "_blank");
+  await expect(
+    gallery.getByRole("link", { name: "下载原文件" }),
+  ).toHaveAttribute("href", "/api/v1/files/file-1/content?download=true");
   await page.keyboard.press("ArrowRight");
   await expect(
     gallery.getByRole("heading", { name: "竖版证书.png", exact: true }),

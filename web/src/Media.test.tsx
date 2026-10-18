@@ -294,3 +294,50 @@ for (const name of ["Report.DOC", "Report.docx", "Slides.PPT", "Slides.pptx"]) {
     );
   });
 }
+
+for (const media_type of [
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/bmp",
+  "image/x-icon",
+]) {
+  it(`loads ${media_type} originals only in active details`, async () => {
+    const fetch = vi.fn().mockResolvedValue(Response.json(job("ready")));
+    vi.stubGlobal("fetch", fetch);
+    const native = { ...file, name: "Image", media_type };
+    const view = mount({ file: native });
+    expect(screen.getByRole("img")).toHaveAttribute(
+      "src",
+      "/api/v1/files/photo/content",
+    );
+    expect(fetch).not.toHaveBeenCalled();
+    view.unmount();
+    const inactive = mount({ file: native, active: false });
+    expect(screen.queryByRole("img")).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+    inactive.unmount();
+    mount({ file: native, detail: false });
+    expect(await screen.findByRole("img")).toHaveAttribute(
+      "src",
+      expect.stringContaining("/derived/thumb_512_v1/content"),
+    );
+  });
+}
+it("shows and retries original image failures without generating a compressed substitute", async () => {
+  const fetch = vi.fn();
+  vi.stubGlobal("fetch", fetch);
+  mount({ file: { ...file, media_type: "image/png" } });
+  fireEvent.error(screen.getByRole("img"));
+  expect(screen.getByRole("status")).toHaveTextContent(
+    "Could not load the original image.",
+  );
+  expect(screen.queryByRole("img")).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+  expect(screen.getByRole("img")).toHaveAttribute(
+    "src",
+    "/api/v1/files/photo/content",
+  );
+  expect(fetch).not.toHaveBeenCalled();
+});
