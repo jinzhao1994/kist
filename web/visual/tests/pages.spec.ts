@@ -1813,14 +1813,28 @@ for (const mobile of [false, true]) {
     await page.getByRole("button", { name: "上一页", exact: true }).click();
     const sheet = page.locator('.page[data-page-number="1"]');
     const before = (await sheet.boundingBox())!.width;
+    const viewport = (await page.locator(".pdf-viewport").boundingBox())!;
+    if (!mobile) {
+      // The 600pt fixture stays at or below 125% on a wide screen.
+      expect(before).toBeLessThanOrEqual(1002);
+      expect(viewport.width - before).toBeGreaterThan(100);
+    } else {
+      expect(before).toBeLessThanOrEqual(viewport.width);
+    }
     await page.getByRole("button", { name: "放大", exact: true }).click();
     await expect
       .poll(async () => (await sheet.boundingBox())!.width)
       .toBeGreaterThan(before);
     await page.getByRole("button", { name: "适合宽度", exact: true }).click();
-    await expect
-      .poll(async () => Math.abs((await sheet.boundingBox())!.width - before))
-      .toBeLessThan(2);
+    if (mobile) {
+      await expect
+        .poll(async () => Math.abs((await sheet.boundingBox())!.width - before))
+        .toBeLessThan(2);
+    } else {
+      await expect
+        .poll(async () => (await sheet.boundingBox())!.width)
+        .toBeGreaterThan(before);
+    }
     await page.locator(".pdf-viewport").focus();
     await page.keyboard.press("ArrowRight");
     await expect(page).toHaveURL(/file=file-3/);

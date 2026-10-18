@@ -60,7 +60,7 @@ export default function PDFReader({
     setMatches({ current: 0, total: 0 });
     eventBus.on("pagesinit", () => {
       if (abort.signal.aborted) return;
-      instance.currentScaleValue = "page-width";
+      instance.currentScaleValue = "auto";
       setPages(instance.pagesCount);
       setStatus("ready");
     });
@@ -108,8 +108,9 @@ export default function PDFReader({
         if (!abort.signal.aborted) setStatus("error");
       });
     const resize = new ResizeObserver(() => {
-      if (instance.currentScaleValue === "page-width")
-        instance.currentScaleValue = "page-width";
+      const scale = instance.currentScaleValue;
+      if (scale === "auto" || scale === "page-width")
+        instance.currentScaleValue = scale;
     });
     resize.observe(element);
     return () => {
