@@ -1227,6 +1227,7 @@ button.filter-token-segment:hover {
   flex: 1;
   min-inline-size: 0;
   font-size: 1rem;
+  letter-spacing: normal;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
