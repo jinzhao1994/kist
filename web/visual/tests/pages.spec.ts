@@ -2375,6 +2375,15 @@ for (const kind of ["boxes", "files"] as const) {
       await expect(
         page.getByRole("menuitem", { name: "添加标签", exact: true }),
       ).toBeVisible();
+      await page
+        .getByRole("menuitem", { name: "添加标签", exact: true })
+        .click();
+      await expect(
+        page.getByRole("dialog").getByRole("combobox"),
+      ).toBeFocused();
+      await page.getByRole("button", { name: "关闭", exact: true }).click();
+      await expect(page.getByRole("dialog")).toBeHidden();
+      await main.click({ button: "right", position: background });
       await expect(
         page.getByRole("menuitem", { name: "操作历史", exact: true }),
       ).toBeVisible();

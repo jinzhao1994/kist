@@ -383,6 +383,7 @@ export function TagManager({
   );
 }
 export function TagAssignment({
+  autoFocus = false,
   compact = false,
   editing = true,
   collapsible = false,
@@ -391,6 +392,7 @@ export function TagAssignment({
   tags,
   assigned,
 }: {
+  autoFocus?: boolean;
   compact?: boolean;
   editing?: boolean;
   collapsible?: boolean;
@@ -463,6 +465,7 @@ export function TagAssignment({
             {t("selectTag")}
           </label>
           <TagSelect
+            autoFocus={autoFocus}
             id={id}
             disabled={state.busy || state.locked}
             value={selected}
@@ -495,11 +498,13 @@ export function TagAssignment({
 export function BoxTags({
   box,
   tags,
+  autoFocus = false,
   compact = false,
   editing = true,
 }: {
   box: string;
   tags: Tag[];
+  autoFocus?: boolean;
   compact?: boolean;
   editing?: boolean;
 }) {
@@ -512,6 +517,7 @@ export function BoxTags({
   if (query.isError) return <p role="alert">{t("error")}</p>;
   return query.data ? (
     <TagAssignment
+      autoFocus={autoFocus}
       compact={compact}
       editing={editing}
       target={box}

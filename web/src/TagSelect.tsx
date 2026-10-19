@@ -11,12 +11,14 @@ export function TagSelect({
   onValueChange,
   options,
   disabled,
+  autoFocus = false,
 }: {
   id: string;
   value: string;
   onValueChange: (value: string) => void;
   options: TagOption[];
   disabled?: boolean;
+  autoFocus?: boolean;
 }) {
   const { t } = useI18n();
   const [search, setSearch] = useState("");
@@ -47,6 +49,8 @@ export function TagSelect({
       <Combobox.Target targetType="button" withExpandedAttribute>
         <InputBase
           id={id}
+          autoFocus={autoFocus}
+          data-autofocus={autoFocus || undefined}
           component="button"
           type="button"
           role="combobox"

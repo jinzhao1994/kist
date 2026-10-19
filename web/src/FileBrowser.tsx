@@ -283,7 +283,7 @@ export function FileBrowser({
       <DialogPresence>
         {addingTag && box && (
           <Dialog open onOpenChange={setAddingTag} title={t("addTag")}>
-            <BoxTags box={box.id} tags={tags} />
+            <BoxTags box={box.id} tags={tags} autoFocus />
           </Dialog>
         )}
       </DialogPresence>
