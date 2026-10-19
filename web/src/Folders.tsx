@@ -1,3 +1,7 @@
+import { ContextMenu, useContextMenu } from "./ContextMenu";
+import { LinkMenuItems } from "./LinkMenuItems";
+import { routeURL } from "./navigation";
+import { SidebarMenuButton } from "./SidebarMenuButton";
 import { NavigationIcon } from "./NavigationIcon";
 import { Anchor, Breadcrumbs, Button, TextInput } from "@mantine/core";
 import { useState } from "react";
@@ -21,17 +25,20 @@ export function folderChain(folders: Folder[], id: string): Folder[] {
 }
 export function FolderBreadcrumbs({
   rootLabel,
+  box,
   folders,
   current,
   choose,
 }: {
   rootLabel?: string;
+  box?: string;
   folders: Folder[];
   current: string;
   choose: (id: string) => void;
 }) {
   const { t } = useI18n();
   const chain = folderChain(folders, current);
+  const context = useContextMenu<string>();
   return (
     <nav className="folder-breadcrumbs" aria-label={t("folderPath")}>
       <Breadcrumbs
@@ -53,37 +60,47 @@ export function FolderBreadcrumbs({
         separatorMargin="xs"
         className="folder-path-segments"
       >
-        {chain.map((folder) =>
-          !folder.parent_id ? (
+        {chain.map((folder) => (
+          <span className="breadcrumb-segment" key={folder.id}>
             <Anchor
               component="button"
-              className="breadcrumb-root"
-              key={folder.id}
+              className={!folder.parent_id ? "breadcrumb-root" : undefined}
+              {...(box ? context.bindings(folder.id) : {})}
               onClick={() => choose(folder.id)}
-              aria-label={t("boxRoot")}
+              aria-current={folder.id === current ? "page" : undefined}
+              aria-label={!folder.parent_id ? t("boxRoot") : undefined}
               title={
-                rootLabel
-                  ? `${t("returnToBoxRoot")} · ${rootLabel}`
-                  : t("returnToBoxRoot")
+                !folder.parent_id
+                  ? `${t("returnToBoxRoot")}${rootLabel ? ` · ${rootLabel}` : ""}`
+                  : undefined
               }
             >
-              <NavigationIcon kind="boxes" />
+              {!folder.parent_id ? (
+                <NavigationIcon kind="boxes" />
+              ) : (
+                <bdi>{folder.name}</bdi>
+              )}
             </Anchor>
-          ) : folder.id === current ? (
-            <span key={folder.id} aria-current="page">
-              <bdi>{folder.name}</bdi>
-            </span>
-          ) : (
-            <Anchor
-              component="button"
-              key={folder.id}
-              onClick={() => choose(folder.id)}
-            >
-              <bdi>{folder.name}</bdi>
-            </Anchor>
-          ),
-        )}
+            {box && (
+              <SidebarMenuButton
+                label={t("moreActions")}
+                expanded={context.menu?.item === folder.id}
+                onClick={(event) =>
+                  context.atElement(folder.id, event.currentTarget)
+                }
+              />
+            )}
+          </span>
+        ))}
       </Breadcrumbs>
+      <ContextMenu anchor={context.menu} close={context.close}>
+        {box && context.menu && (
+          <LinkMenuItems
+            key={context.menu.item}
+            href={routeURL({ files: true, box, folder: context.menu.item })}
+          />
+        )}
+      </ContextMenu>
     </nav>
   );
 }

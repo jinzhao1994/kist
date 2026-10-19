@@ -56,6 +56,7 @@ export function FileBrowser({
   const picker = useRef<UploadHandle>(null);
   const [addingTag, setAddingTag] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [uploadTarget, setUploadTarget] = useState<string>();
   const [contextParent, setContextParent] = useState<string>();
   const extraction = useExtraction();
   const info = useQuery({
@@ -135,6 +136,7 @@ export function FileBrowser({
               }
               chooseFolder={chooseFolder}
               createFolder={box ? setContextParent : undefined}
+              uploadToFolder={box && info.data ? setUploadTarget : undefined}
               filters={filters}
               onSort={onSort}
               open={open}
@@ -245,6 +247,29 @@ export function FileBrowser({
           </Menu.Item>
         </BackgroundMenu>
       )}
+      <DialogPresence>
+        {uploadTarget && box && info.data && (
+          <Dialog
+            open
+            title={`${t("uploadHere")} · ${folders.find((entry) => entry.id === uploadTarget)?.name || ""}`}
+            onOpenChange={(open) => {
+              if (!open) setUploadTarget(undefined);
+            }}
+          >
+            <Upload
+              box={box.id}
+              folder={uploadTarget}
+              maxFiles={info.data.max_upload_files}
+              maxBytes={info.data.max_upload_bytes}
+              resumableVersion={info.data.resumable_upload_version}
+              chunkBytes={info.data.upload_chunk_bytes}
+              onComplete={async () => {
+                await extraction.run(await pendingFiles(box.id));
+              }}
+            />
+          </Dialog>
+        )}
+      </DialogPresence>
       {actionsHost ? createPortal(actions, actionsHost) : actions}
       {infoHost ? createPortal(details, infoHost) : details}
       <DialogPresence>

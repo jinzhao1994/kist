@@ -299,6 +299,7 @@ export function App() {
                 currentFolder &&
                 folderChain(folderList, currentFolder).length > 1 && (
                   <FolderBreadcrumbs
+                    box={route.box}
                     rootLabel={selected?.name}
                     folders={folderList}
                     current={currentFolder}

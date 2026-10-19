@@ -2367,3 +2367,70 @@ for (const kind of ["boxes", "files"] as const) {
     await capture(page, errors, info.title);
   });
 }
+
+for (const kind of ["box", "file", "folder", "breadcrumb"] as const) {
+  test(`entry-menu-${kind}`, async ({ page }, info) => {
+    const errors = await prepare(page);
+    if (kind === "folder" || kind === "breadcrumb") {
+      await page.route("**/api/v1/boxes/box-1/folders", (route) =>
+        route.fulfill({
+          json: {
+            folders: [
+              {
+                id: "folder-1",
+                parent_id: null,
+                name: "",
+                created_at: time,
+                updated_at: time,
+              },
+              {
+                id: "folder-child",
+                parent_id: "folder-1",
+                name: "旅途",
+                created_at: time,
+                updated_at: time,
+              },
+            ],
+          },
+        }),
+      );
+    }
+    await page.goto(
+      kind === "box"
+        ? "/"
+        : kind === "breadcrumb"
+          ? "/boxes/box-1?folder=folder-child"
+          : "/boxes/box-1",
+    );
+    if (kind === "box") {
+      const card = page.locator('.box-card[data-item-id="box-1"]');
+      await card.press("Shift+F10");
+      await expect(
+        page.getByRole("menuitem", { name: "编辑归档盒", exact: true }),
+      ).toBeVisible();
+    } else if (kind === "breadcrumb") {
+      await page
+        .locator('.folder-breadcrumbs [aria-current="page"]')
+        .press("Shift+F10");
+      await expect(
+        page.getByRole("menuitem", { name: "复制链接", exact: true }),
+      ).toBeVisible();
+    } else {
+      await grid(page);
+      const card = page.locator(
+        `[data-item-id="${kind === "file" ? "file-1" : "folder-child"}"]`,
+      );
+      await card.click({ button: "right" });
+      if (kind === "folder") {
+        await page
+          .getByRole("menuitem", { name: "上传到此目录", exact: true })
+          .click();
+        await expect(page.getByRole("dialog")).toContainText("旅途");
+      } else
+        await expect(
+          page.getByRole("menuitem", { name: "在新标签页打开", exact: true }),
+        ).toHaveAttribute("href", "/files?file=file-1");
+    }
+    await capture(page, errors, info.title);
+  });
+}

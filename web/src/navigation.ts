@@ -44,6 +44,25 @@ function read(): Route {
     file: url.searchParams.get("file") || undefined,
   };
 }
+export function routeURL(next: Route): string {
+  const path = next.section
+    ? `/${next.section}`
+    : next.tag
+      ? `/tags/${encodeURIComponent(next.tag)}`
+      : next.box
+        ? `/boxes/${encodeURIComponent(next.box)}`
+        : next.files
+          ? "/files"
+          : "/";
+  const params = new URLSearchParams();
+  if (next.box && next.folder && !next.section)
+    params.set("folder", next.folder);
+  if (next.file) params.set("file", next.file);
+  if (next.section && next.box) params.set("box", next.box);
+  writeURLFilters(params, next.boxFilters, true);
+  writeURLFilters(params, next.filters);
+  return path + (params.size ? `?${params}` : "");
+}
 export function useNavigation() {
   const [route, setRoute] = useState(read);
   useEffect(() => {
@@ -54,22 +73,6 @@ export function useNavigation() {
   return {
     route,
     go: (next: Route, replace = false) => {
-      const path = next.section
-        ? `/${next.section}`
-        : next.tag
-          ? `/tags/${encodeURIComponent(next.tag)}`
-          : next.box
-            ? `/boxes/${encodeURIComponent(next.box)}`
-            : next.files
-              ? "/files"
-              : "/";
-      const params = new URLSearchParams();
-      if (next.box && next.folder && !next.section)
-        params.set("folder", next.folder);
-      if (next.file) params.set("file", next.file);
-      if (next.section && next.box) params.set("box", next.box);
-      writeURLFilters(params, next.boxFilters, true);
-      writeURLFilters(params, next.filters);
       const opening = !!next.file && !route.file && !next.section;
       const state = replace
         ? history.state
@@ -79,7 +82,7 @@ export function useNavigation() {
       history[replace ? "replaceState" : "pushState"](
         state,
         "",
-        path + (params.size ? `?${params}` : ""),
+        routeURL(next),
       );
       setRoute(next);
     },

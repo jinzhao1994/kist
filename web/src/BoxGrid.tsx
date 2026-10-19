@@ -1,7 +1,14 @@
+import { ContextMenu, useContextMenu } from "./ContextMenu";
+import { LinkMenuItems } from "./LinkMenuItems";
+import { routeURL } from "./navigation";
+import { BoxEditor } from "./BoxEditor";
+import { BoxTrashDialog } from "./BoxTrashDialog";
+import { DialogPresence } from "./Dialog";
+import { SidebarMenuButton } from "./SidebarMenuButton";
 import { iconGridStyle } from "./icon-grid";
 import { TagLabels } from "./TagLabels";
-import { UnstyledButton } from "@mantine/core";
-import { useLayoutEffect, useRef } from "react";
+import { UnstyledButton, Menu } from "@mantine/core";
+import { useLayoutEffect, useRef, useState } from "react";
 import { DisplayModeControl, useDisplayMode } from "./DisplayMode";
 import type { BoxFilters } from "./Filters";
 import type { Box, BoxSearchItem } from "./api";
@@ -19,6 +26,10 @@ export function BoxGrid({
   onSort?: (sort: NonNullable<BoxFilters["sort"]>) => void;
 }) {
   const { prefs, t } = useI18n();
+  const context = useContextMenu<Box>();
+  const selected = context.menu?.item;
+  const [editing, setEditing] = useState<Box | null>(null);
+  const [trashing, setTrashing] = useState<Box | null>(null);
   const [mode, setMode] = useDisplayMode("boxes");
   const root = useRef<HTMLDivElement>(null);
   const layout = useRef<HTMLDivElement>(null);
@@ -115,61 +126,112 @@ export function BoxGrid({
         style={iconGridStyle(mode)}
       >
         {boxes.map((box) => (
-          <UnstyledButton
-            className="box-card"
-            data-item-id={box.id}
-            key={box.id}
-            onClick={() => open(box)}
-          >
-            <span className="box-icon" aria-hidden="true">
-              ▤
-            </span>
-            <span className="box-summary">
-              <span className="box-summary-text">
-                <h2>
-                  <bdi>{box.name}</bdi>
-                </h2>
-                {box.description && (
-                  <span
-                    className="box-summary-description"
-                    title={box.description}
-                  >
-                    <bdi>{box.description}</bdi>
-                  </span>
+          <div className="box-entry" key={box.id}>
+            <UnstyledButton
+              {...context.bindings(box)}
+              data-active={selected?.id === box.id || undefined}
+              className="box-card"
+              data-item-id={box.id}
+              key={box.id}
+              onClick={() => open(box)}
+            >
+              <span className="box-icon" aria-hidden="true">
+                ▤
+              </span>
+              <span className="box-summary">
+                <span className="box-summary-text">
+                  <h2>
+                    <bdi>{box.name}</bdi>
+                  </h2>
+                  {box.description && (
+                    <span
+                      className="box-summary-description"
+                      title={box.description}
+                    >
+                      <bdi>{box.description}</bdi>
+                    </span>
+                  )}
+                </span>
+                <TagLabels tags={box.tags} />
+              </span>
+              <span
+                className="box-activity"
+                title={
+                  mode === "list" && box.end_at
+                    ? `${box.start_at ? formatLocalDate(box.start_at, prefs) : "—"} — ${formatLocalDate(box.end_at, prefs)}`
+                    : undefined
+                }
+              >
+                <time>
+                  {box.start_at
+                    ? formatLocalDate(box.start_at, prefs)
+                    : mode === "list"
+                      ? "—"
+                      : ""}
+                </time>
+                {mode !== "list" && box.end_at && (
+                  <>
+                    <span aria-hidden="true">—</span>
+                    <time>{formatLocalDate(box.end_at, prefs)}</time>
+                  </>
                 )}
               </span>
-              <TagLabels tags={box.tags} />
-            </span>
-            <span
-              className="box-activity"
-              title={
-                mode === "list" && box.end_at
-                  ? `${box.start_at ? formatLocalDate(box.start_at, prefs) : "—"} — ${formatLocalDate(box.end_at, prefs)}`
-                  : undefined
-              }
-            >
-              <time>
-                {box.start_at
-                  ? formatLocalDate(box.start_at, prefs)
-                  : mode === "list"
-                    ? "—"
-                    : ""}
-              </time>
-              {mode !== "list" && box.end_at && (
-                <>
-                  <span aria-hidden="true">—</span>
-                  <time>{formatLocalDate(box.end_at, prefs)}</time>
-                </>
+              {mode === "list" && (
+                <time className="box-updated">
+                  {formatInstant(box.updated_at, prefs)}
+                </time>
               )}
-            </span>
-            {mode === "list" && (
-              <time className="box-updated">
-                {formatInstant(box.updated_at, prefs)}
-              </time>
-            )}
-          </UnstyledButton>
+            </UnstyledButton>
+            <SidebarMenuButton
+              label={t("moreActions")}
+              expanded={selected?.id === box.id}
+              onClick={(event) => context.atElement(box, event.currentTarget)}
+            />
+          </div>
         ))}
       </div>
+      <ContextMenu anchor={context.menu} close={context.close}>
+        {selected && (
+          <>
+            <Menu.Item onClick={() => open(selected)}>
+              {t("openItem")}
+            </Menu.Item>
+            <LinkMenuItems
+              href={routeURL({ files: true, box: selected.id })}
+              copy={false}
+            />
+            <Menu.Item onClick={() => setEditing(selected)}>
+              {t("editBox")}
+            </Menu.Item>
+            <Menu.Item
+              component="a"
+              href={routeURL({
+                files: false,
+                section: "history",
+                box: selected.id,
+              })}
+            >
+              {t("history")}
+            </Menu.Item>
+            <Menu.Divider />
+            <Menu.Item color="red" onClick={() => setTrashing(selected)}>
+              {t("moveBoxToTrash")}
+            </Menu.Item>
+          </>
+        )}
+      </ContextMenu>
+      <DialogPresence>
+        {editing && <BoxEditor box={editing} close={() => setEditing(null)} />}
+      </DialogPresence>
+      <DialogPresence>
+        {trashing && (
+          <BoxTrashDialog
+            box={trashing}
+            close={() => setTrashing(null)}
+            done={() => setTrashing(null)}
+          />
+        )}
+      </DialogPresence>
     </div>
   );
 }

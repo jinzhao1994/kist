@@ -1,3 +1,5 @@
+import { LinkMenuItems } from "./LinkMenuItems";
+import { routeURL } from "./navigation";
 import { iconGridColumns, iconGridStyle } from "./icon-grid";
 import { TagLabels } from "./TagLabels";
 import { DialogPresence } from "./Dialog";
@@ -45,6 +47,7 @@ export function FileGrid({
   folders = [],
   chooseFolder,
   createFolder,
+  uploadToFolder,
   boxID,
   filters,
   onSort,
@@ -56,6 +59,7 @@ export function FileGrid({
   folders?: Folder[];
   chooseFolder?: (id: string) => void;
   createFolder?: (id: string) => void;
+  uploadToFolder?: (id: string) => void;
   boxID?: string;
   filters?: Filters;
   onSort?: (sort: NonNullable<Filters["sort"]>) => void;
@@ -454,6 +458,30 @@ export function FileGrid({
         >
           {t("openItem")}
         </Menu.Item>
+        {selected?.file && (
+          <>
+            <LinkMenuItems
+              key={selected.id}
+              href={routeURL({ files: true, file: selected.id })}
+            />
+            <Menu.Item
+              component="a"
+              href={routeURL({
+                files: false,
+                section: "history",
+                box: selectedBox,
+                file: selected.id,
+              })}
+            >
+              {t("history")}
+            </Menu.Item>
+          </>
+        )}
+        {selected?.folder && uploadToFolder && (
+          <Menu.Item onClick={() => uploadToFolder(selected.id)}>
+            {t("uploadHere")}
+          </Menu.Item>
+        )}
         {selected?.file && (
           <Menu.Item component="a" href={contentURL(selected.file, true)}>
             {t("download")}

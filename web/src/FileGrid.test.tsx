@@ -1,3 +1,4 @@
+import { FolderBreadcrumbs } from "./Folders";
 import { ThemeProvider } from "./theme";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
@@ -582,3 +583,123 @@ it.each([
     else expect(hint).not.toBeInTheDocument();
   },
 );
+
+it("exposes canonical file links and history from the keyboard menu", async () => {
+  const user = userEvent.setup();
+  render(
+    <ThemeProvider env="test">
+      <I18nProvider>
+        <FileGrid files={files.slice(0, 1)} open={vi.fn()} />
+      </I18nProvider>
+    </ThemeProvider>,
+    { wrapper: mediaWrapper },
+  );
+  fireEvent.keyDown(screen.getByRole("button", { name: /photo-0/ }), {
+    key: "F10",
+    shiftKey: true,
+  });
+  expect(
+    await screen.findByRole("menuitem", { name: "Open in new tab" }),
+  ).toHaveAttribute("href", "/files?file=0");
+  expect(screen.getByRole("menuitem", { name: "History" })).toHaveAttribute(
+    "href",
+    "/history?file=0",
+  );
+  await user.click(screen.getByRole("menuitem", { name: "Copy link" }));
+  expect(await navigator.clipboard.readText()).toBe(
+    `${window.location.origin}/files?file=0`,
+  );
+});
+
+it("uploads to the selected directory without opening it", async () => {
+  const upload = vi.fn(),
+    open = vi.fn();
+  render(
+    <ThemeProvider env="test">
+      <I18nProvider>
+        <FileGrid
+          files={[]}
+          folders={[
+            { id: "child", name: "Child", parent_id: "root" } as Folder,
+          ]}
+          chooseFolder={open}
+          uploadToFolder={upload}
+          boxID="box"
+          open={vi.fn()}
+        />
+      </I18nProvider>
+    </ThemeProvider>,
+    { wrapper: mediaWrapper },
+  );
+  fireEvent.contextMenu(screen.getByRole("button", { name: "Child" }));
+  fireEvent.click(
+    await screen.findByRole("menuitem", { name: "Upload to this folder" }),
+  );
+  expect(upload).toHaveBeenCalledWith("child");
+  expect(open).not.toHaveBeenCalled();
+});
+
+it("opens an upload window for the selected child folder", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      Response.json({
+        files: [],
+        max_upload_files: 10,
+        max_upload_bytes: 10000,
+      }),
+    ),
+  );
+  render(
+    <ThemeProvider env="test">
+      <I18nProvider>
+        <FileBrowser
+          box={{ id: "box" } as Box}
+          uploadFolder="root"
+          folders={[
+            { id: "child", name: "Child", parent_id: "root" } as Folder,
+          ]}
+          filters={emptyFilters}
+          tags={[]}
+          open={vi.fn()}
+        />
+      </I18nProvider>
+    </ThemeProvider>,
+    { wrapper: mediaWrapper },
+  );
+  fireEvent.contextMenu(await screen.findByRole("button", { name: "Child" }));
+  fireEvent.click(
+    await screen.findByRole("menuitem", { name: "Upload to this folder" }),
+  );
+  expect(
+    await screen.findByRole("dialog", {
+      name: "Upload to this folder · Child",
+    }),
+  ).toBeVisible();
+});
+it("links breadcrumb menus to their own folder with keyboard access", async () => {
+  render(
+    <ThemeProvider env="test">
+      <I18nProvider>
+        <FolderBreadcrumbs
+          box="box"
+          folders={
+            [
+              { id: "root", name: "", parent_id: null },
+              { id: "child", name: "Child", parent_id: "root" },
+            ] as Folder[]
+          }
+          current="child"
+          choose={vi.fn()}
+        />
+      </I18nProvider>
+    </ThemeProvider>,
+  );
+  fireEvent.keyDown(screen.getByRole("button", { name: "Child" }), {
+    key: "F10",
+    shiftKey: true,
+  });
+  expect(
+    await screen.findByRole("menuitem", { name: "Open in new tab" }),
+  ).toHaveAttribute("href", "/boxes/box?folder=child");
+});

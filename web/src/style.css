@@ -519,13 +519,16 @@ progress {
   display: grid;
   column-gap: var(--icon-grid-gap);
 }
+.box-entry,
 .file-entry {
   position: relative;
   min-inline-size: 0;
 }
+.box-entry > .box-card,
 .file-entry > .file-card {
   inline-size: 100%;
 }
+.box-entry > .sidebar-row-menu,
 .file-entry > .sidebar-row-menu {
   position: absolute;
   inset-inline-end: 0.75rem;
@@ -1525,6 +1528,10 @@ button.filter-token-segment:hover {
   }
   .tag-tree-row:hover .sidebar-row-menu,
   .tag-tree-row:focus-within .sidebar-row-menu,
+  .box-entry:hover .sidebar-row-menu,
+  .box-entry:focus-within .sidebar-row-menu,
+  .breadcrumb-segment:hover .sidebar-row-menu,
+  .breadcrumb-segment:focus-within .sidebar-row-menu,
   .file-entry:hover .sidebar-row-menu,
   .file-entry:focus-within .sidebar-row-menu,
   .saved-search-row:hover .sidebar-row-menu,
@@ -1999,6 +2006,7 @@ main.upload-drag-active {
 }
 
 .saved-search-row[data-active],
+.box-card[data-active],
 .file-card[data-active] {
   background: var(--mantine-primary-color-light);
 }
@@ -2834,4 +2842,19 @@ main.upload-drag-active {
   overflow: hidden;
   text-overflow: ellipsis;
   border-top: 1px solid var(--border);
+}
+
+.box-entry > .box-card {
+  block-size: 100%;
+  padding-inline-end: 2.5rem;
+}
+.box-grid:not(.view-list) .box-entry > .sidebar-row-menu {
+  inset-block-start: 1rem;
+  transform: none;
+}
+.breadcrumb-segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-inline-size: 0;
 }
