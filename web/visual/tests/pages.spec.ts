@@ -96,11 +96,25 @@ type Options = {
   gpx?: boolean;
   mapFailure?: boolean;
   dateline?: boolean;
+  text?: string;
+  textBody?: string;
+  textReason?: string;
+  textTruncated?: boolean;
 };
 async function prepare(page: Page, options: Options = {}) {
   const officeFamily = options.word?.startsWith("ppt") ? "slides" : "office";
-  const mediaFiles =
-    options.stl || options.gpx || options.word
+  const mediaFiles = options.text
+    ? files.map((file, i) =>
+        i === 2
+          ? {
+              ...file,
+              name: options.text!,
+              kind: "document",
+              media_type: "text/plain",
+            }
+          : file,
+      )
+    : options.stl || options.gpx || options.word
       ? files.map((file, i) =>
           i === 2
             ? {
@@ -161,6 +175,29 @@ async function prepare(page: Page, options: Options = {}) {
       return route.abort();
     }
     let body: unknown;
+    if (
+      (options.text && path === "/files/file-3/text-preview") ||
+      /^\/files\/(?:scroll-\d+|auto-\d+|last)\/text-preview$/.test(path)
+    ) {
+      const text =
+        options.textBody ?? "Archive note\nA small plain text preview.\n";
+      const detail =
+        new URL(route.request().url()).searchParams.get("detail") === "true";
+      return route.fulfill({
+        json: {
+          supported: !options.textReason,
+          reason: options.textReason || "",
+          encoding: "UTF-8",
+          text: options.textReason
+            ? ""
+            : detail
+              ? text
+              : text.split("\n").slice(0, 20).join("\n"),
+          truncated: !!options.textTruncated,
+        },
+      });
+    }
+
     if (
       options.word &&
       path === `/files/file-3/derived/${officeFamily}_pdf_v1/content`
@@ -1292,7 +1329,7 @@ test("gallery-mobile-swipe", async ({ page }, info) => {
 
 test("gallery-restores-scroll", async ({ page }, info) => {
   const errors = await prepare(page, { manyFiles: true });
-  await page.route("**/api/v1/files/scroll-*", (route) => {
+  await page.route(/\/api\/v1\/files\/scroll-\d+$/, (route) => {
     const id = new URL(route.request().url()).pathname.split("/").at(-1)!;
     return route.fulfill({
       json: {
@@ -1995,4 +2032,83 @@ async function openReaderFromThumbnail(
       () => (window as unknown as { readerFlights: number }).readerFlights,
     ),
   ).toBe(0);
+}
+
+for (const mode of ["light", "dark", "mobile"] as const) {
+  test(`text-source-${mode}`, async ({ page }, info) => {
+    const body =
+      '#include <iostream>\n// archive sample\nint main() {\n  const char* message = "' +
+      "long text ".repeat(18) +
+      '";\n  std::cout << message;\n  return 0;\n}\n';
+    const errors = await prepare(page, {
+      text: "sample.cpp",
+      textBody: body,
+      mode: mode === "dark" ? "dark" : "light",
+      mobile: mode === "mobile",
+    });
+    await page.goto("/files?file=file-3");
+    const reader = page.getByRole("region", { name: "文本阅读器" });
+    await expect(reader).toBeVisible();
+    await expect(reader.locator(".cm-lineNumbers")).toBeVisible();
+    await expect(
+      reader.getByRole("textbox", { name: "sample.cpp" }),
+    ).toHaveAttribute("aria-readonly", "true");
+    await expect(reader.locator(".text-language")).toContainText("C++");
+    await expect(reader.locator(".cm-line span").first()).toBeVisible();
+    const original = await reader.locator(".cm-content").innerText();
+    await reader.getByRole("textbox", { name: "sample.cpp" }).press("x");
+    expect(await reader.locator(".cm-content").innerText()).toBe(original);
+    await reader.getByRole("button", { name: "自动换行" }).click();
+    await expect(reader.locator(".cm-content")).toHaveClass(/cm-lineWrapping/);
+    await reader.getByRole("textbox", { name: "搜索文本" }).fill("return");
+    await reader.getByRole("button", { name: "下一个匹配" }).click();
+    await expect(reader.locator(".cm-searchMatch-selected")).toContainText(
+      "return",
+    );
+    await reader
+      .getByRole("textbox", { name: "sample.cpp" })
+      .press("ArrowRight");
+    await expect(
+      page.getByRole("heading", { name: "sample.cpp", exact: true }),
+    ).toBeVisible();
+    await capture(page, errors, info.title);
+    await page.getByRole("button", { name: "返回列表" }).click();
+    await expect(page.locator(".text-thumbnail")).toContainText("#include");
+    await expect(page.locator(".cm-editor")).toHaveCount(0);
+  });
+}
+for (const state of [
+  "plain",
+  "empty",
+  "truncated",
+  "binary",
+  "encoding",
+] as const) {
+  test(`text-reader-${state}`, async ({ page }, info) => {
+    const errors = await prepare(page, {
+      text: state === "plain" ? "README" : "archive.log",
+      textBody:
+        state === "empty"
+          ? ""
+          : "<script>window.bad = true</script>\n中文日志\n2026-10-19 INFO Archive opened\n",
+      textTruncated: state === "truncated",
+      textReason: ["binary", "encoding"].includes(state) ? state : undefined,
+    });
+    await page.goto("/files?file=file-3");
+    if (["binary", "encoding"].includes(state)) {
+      await expect(
+        page.locator(".media-placeholder [role=status]"),
+      ).toContainText(state === "binary" ? "暂不支持" : "无法按 Unicode");
+    } else {
+      await expect(page.locator(".cm-editor")).toBeVisible();
+      if (state === "empty")
+        await expect(
+          page.getByText("空文本文件", { exact: true }),
+        ).toBeVisible();
+      else await expect(page.locator(".cm-content")).toContainText("<script>");
+      if (state === "truncated")
+        await expect(page.getByRole("status")).toContainText("1 MiB");
+    }
+    await capture(page, errors, info.title);
+  });
 }

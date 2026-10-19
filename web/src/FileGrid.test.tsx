@@ -449,7 +449,19 @@ it.each(["list", "medium"])(
     localStorage.setItem("kist.display.files.v1", mode);
     const open = vi.fn();
     const chooseFolder = vi.fn();
-    const fetch = vi.fn(async () => Response.json({ op_id: 1 }));
+    const fetch = vi.fn(async (path: string, _options?: RequestInit) =>
+      Response.json(
+        path.includes("/text-preview")
+          ? {
+              supported: false,
+              text: "",
+              encoding: "",
+              truncated: false,
+              reason: "binary",
+            }
+          : { op_id: 1 },
+      ),
+    );
     vi.stubGlobal("fetch", fetch);
     render(
       <ThemeProvider env="test">
@@ -480,7 +492,9 @@ it.each(["list", "medium"])(
     await user.type(input, "changed.jpg");
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("textbox", { name: "Rename" })).toBeNull();
-    expect(fetch).not.toHaveBeenCalled();
+    expect(
+      fetch.mock.calls.filter(([, options]) => options?.method),
+    ).toHaveLength(0);
     fireEvent.contextMenu(screen.getByRole("button", { name: "Child" }));
     await user.click(await screen.findByRole("menuitem", { name: "Rename" }));
     input = screen.getByRole("textbox", { name: "Rename" });

@@ -11,6 +11,8 @@ import {
 } from "./api";
 import { useI18n, type MessageKey } from "./i18n";
 
+import { TextPreview } from "./TextPreview";
+
 const PDFReader = lazy(() => import("./PDFReader"));
 const GPXPreview = lazy(() => import("./GPXPreview"));
 function isGPX(file: ArchiveFile) {
@@ -121,6 +123,16 @@ const audioTypes = new Set([
   "audio/aiff",
   "audio/ogg",
 ]);
+export function usesTextPreview(file: ArchiveFile) {
+  return (
+    !hasDerivedMedia(file) &&
+    !["image", "video", "audio"].includes(file.kind || "") &&
+    !audioTypes.has(file.media_type || "")
+  );
+}
+export function hasPreview(file: ArchiveFile) {
+  return hasDerivedMedia(file) || usesTextPreview(file);
+}
 const reasons: Record<string, MessageKey> = {
   dependency_missing: "mediaDependency",
   unsupported: "previewUnavailable",
@@ -210,6 +222,16 @@ export function Media({
   });
   const job = query.data;
   const failed = failedGeneration === (job?.generation || file.id);
+  if (usesTextPreview(file))
+    return (
+      <TextPreview
+        key={`${file.id}:${file.blob_key}`}
+        file={file}
+        active={active}
+        detail={detail}
+        paused={paused}
+      />
+    );
   if (originalImage && active)
     return <OriginalImage key={`${file.id}:${file.blob_key}`} file={file} />;
   if (readerPDF && active)

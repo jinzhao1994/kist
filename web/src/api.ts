@@ -1,5 +1,6 @@
 import { calculateIntegrity, type FileIntegrity } from "./upload-integrity";
 import type { components, operations } from "./api-schema";
+export type TextPreviewResult = components["schemas"]["Preview"];
 export type Folder = components["schemas"]["Folder"];
 export type Box = components["schemas"]["Box"];
 export type BoxSearchItem = components["schemas"]["BoxSearchItem"];

@@ -21,7 +21,7 @@ import { ContextMenu, useContextMenu } from "./ContextMenu";
 import { FileIcon, fileType } from "./FileIcon";
 import type { Filters } from "./Filters";
 import { contentURL, type ArchiveFile, type Folder } from "./api";
-import { Media, hasDerivedMedia } from "./Media";
+import { Media, hasPreview } from "./Media";
 import {
   DisplayModeControl,
   useDisplayMode,
@@ -36,7 +36,7 @@ export function activeImages(
   return new Set(
     files
       .slice(first, last)
-      .filter(hasDerivedMedia)
+      .filter(hasPreview)
       .map((file) => file.id),
   );
 }
@@ -376,7 +376,7 @@ export function FileGrid({
                         }}
                       >
                         <div className="file-preview">
-                          {mode !== "list" && file && hasDerivedMedia(file) ? (
+                          {mode !== "list" && file && hasPreview(file) ? (
                             <Media
                               key={file.id}
                               file={file}

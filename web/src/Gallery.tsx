@@ -6,7 +6,12 @@ import { api, contentURL, type Tag } from "./api";
 import type { Filters } from "./Filters";
 import { useFileResults, resultFiles } from "./fileResults";
 import { FileDetail } from "./FileDetail";
-import { Media, OpenMediaButton, usesPDFReader } from "./Media";
+import {
+  Media,
+  OpenMediaButton,
+  usesPDFReader,
+  usesTextPreview,
+} from "./Media";
 import { useI18n } from "./i18n";
 import { useGalleryMotion } from "./galleryMotion";
 import { errorMessage } from "./mutations";
@@ -68,7 +73,9 @@ export function Gallery({
   const motion = useGalleryMotion(
     id,
     close,
-    !!previewFile && !usesPDFReader(previewFile),
+    !!previewFile &&
+      !usesPDFReader(previewFile) &&
+      !usesTextPreview(previewFile),
   );
   const setGalleryRoot = useCallback(
     (node: HTMLElement | null) => {
@@ -147,7 +154,7 @@ export function Gallery({
         }
         if (
           (event.target as HTMLElement).closest(
-            "input,textarea,select,video,audio,[role=combobox],[contenteditable=true]",
+            "input,textarea,select,video,audio,[role=combobox],[contenteditable=true],.text-reader",
           )
         )
           return;
@@ -220,7 +227,7 @@ export function Gallery({
               if (
                 event.touches.length !== 1 ||
                 (event.target as HTMLElement).closest(
-                  "video,audio,button,a,input,.gpx-detail,.pdf-reader",
+                  "video,audio,button,a,input,.gpx-detail,.pdf-reader,.text-reader",
                 )
               ) {
                 touch.current = null;

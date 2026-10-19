@@ -283,6 +283,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/files/{id}/text-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 files by ID text preview */
+        get: operations["get-api-v1-files-by-id-text-preview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/history/{op}/boxes/{id}": {
         parameters: {
             query?: never;
@@ -948,6 +965,13 @@ export interface components {
         "Post-api-v1-boxes-by-id-foldersRequest": {
             name: string;
             parent?: string;
+        };
+        Preview: {
+            encoding: string;
+            reason?: string;
+            supported: boolean;
+            text: string;
+            truncated: boolean;
         };
         Ref: {
             id: string;
@@ -1972,6 +1996,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RequestResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-files-by-id-text-preview": {
+        parameters: {
+            query?: {
+                /** @description Read up to 1 MiB instead of an 8 KiB, 20-line thumbnail */
+                detail?: boolean;
+                encoding?: "auto" | "gb18030";
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Preview"];
                 };
             };
             /** @description Error */
