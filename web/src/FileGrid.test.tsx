@@ -703,3 +703,35 @@ it("links breadcrumb menus to their own folder with keyboard access", async () =
     await screen.findByRole("menuitem", { name: "Open in new tab" }),
   ).toHaveAttribute("href", "/boxes/box?folder=child");
 });
+
+it("distinguishes the archive root from the current box root", async () => {
+  const goRoot = vi.fn(),
+    choose = vi.fn();
+  render(
+    <ThemeProvider env="test">
+      <I18nProvider>
+        <FolderBreadcrumbs
+          box="box"
+          rootLabel="Trip"
+          goRoot={goRoot}
+          folders={[{ id: "root", name: "", parent_id: null }] as Folder[]}
+          current="root"
+          choose={choose}
+        />
+      </I18nProvider>
+    </ThemeProvider>,
+  );
+  const root = screen.getByRole("link", { name: "Root" });
+  expect(root).toHaveAttribute("href", "/");
+  fireEvent.click(root);
+  expect(goRoot).toHaveBeenCalledOnce();
+  const box = screen.getByRole("button", { name: "Box" });
+  expect(box).toHaveAttribute("aria-current", "page");
+  expect(box).toHaveAttribute("title", "Return to box root · Trip");
+  fireEvent.click(box);
+  expect(choose).toHaveBeenCalledWith("root");
+  fireEvent.keyDown(root, { key: "F10", shiftKey: true });
+  expect(
+    await screen.findByRole("menuitem", { name: "Open in new tab" }),
+  ).toHaveAttribute("href", "/");
+});

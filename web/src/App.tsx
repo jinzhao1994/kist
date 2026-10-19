@@ -297,9 +297,10 @@ export function App() {
               {route.box &&
                 route.files &&
                 currentFolder &&
-                folderChain(folderList, currentFolder).length > 1 && (
+                folderChain(folderList, currentFolder).length > 0 && (
                   <FolderBreadcrumbs
                     box={route.box}
+                    goRoot={() => navigate()}
                     rootLabel={selected?.name}
                     folders={folderList}
                     current={currentFolder}

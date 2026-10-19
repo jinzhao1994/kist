@@ -1966,10 +1966,12 @@ main.upload-drag-active {
   text-decoration: underline;
   text-underline-offset: 0.15em;
 }
+.folder-breadcrumbs a,
 .folder-breadcrumbs button {
   font-size: inherit;
   color: var(--muted);
 }
+.folder-breadcrumbs a:hover,
 .folder-breadcrumbs button:hover {
   color: var(--accent);
 }

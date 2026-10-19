@@ -648,8 +648,16 @@ for (const scenario of [
           .evaluate((element) => element.scrollTop),
       ).toBe(0);
       expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
-    } else if (scenario === "box-files") await grid(page);
-    else if (scenario === "empty")
+    } else if (scenario === "box-files") {
+      await grid(page);
+      const path = page.getByLabel("目录路径");
+      await expect(
+        path.getByRole("link", { name: "根目录", exact: true }),
+      ).toHaveAttribute("href", "/");
+      await expect(
+        path.getByRole("button", { name: "归档盒", exact: true }),
+      ).toHaveAttribute("aria-current", "page");
+    } else if (scenario === "empty")
       await expect(page.locator(".empty-state")).toBeVisible();
     else await expect(page.locator(".box-card")).toHaveCount(2);
     if (scenario === "settings" || scenario === "tags") {
@@ -2409,6 +2417,12 @@ for (const kind of ["box", "file", "folder", "breadcrumb"] as const) {
         page.getByRole("menuitem", { name: "编辑归档盒", exact: true }),
       ).toBeVisible();
     } else if (kind === "breadcrumb") {
+      await expect(page.getByLabel("目录路径")).toContainText("根目录");
+      await expect(
+        page
+          .getByLabel("目录路径")
+          .getByRole("button", { name: "归档盒", exact: true }),
+      ).toHaveAttribute("title", /山海拾光/);
       await page
         .locator('.folder-breadcrumbs [aria-current="page"]')
         .press("Shift+F10");
