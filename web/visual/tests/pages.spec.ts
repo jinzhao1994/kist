@@ -1204,7 +1204,7 @@ test("gallery-navigation-and-return", async ({ page }, info) => {
   const gallery = page.getByRole("region", { name: "画廊", exact: true });
   await expect(gallery).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  expect(new URL(page.url()).searchParams.get("filter")).toContain("旅行");
+  expect(new URL(page.url()).searchParams.get("q")).toBe("旅行");
   await expect(gallery.locator(".detail-image")).toHaveAttribute(
     "src",
     "/api/v1/files/file-1/content",

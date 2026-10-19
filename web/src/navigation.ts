@@ -1,4 +1,5 @@
 import type { Filters, BoxFilters } from "./Filters";
+import { readURLFilters, writeURLFilters } from "./urlFilters";
 import { useEffect, useState } from "react";
 export interface Route {
   files: boolean;
@@ -9,52 +10,6 @@ export interface Route {
   tag?: string;
   file?: string;
   section?: "history" | "trash";
-}
-function readFilters(
-  raw: string | null,
-  boxes = false,
-): Filters | BoxFilters | undefined {
-  if (!raw) return;
-  try {
-    const input = JSON.parse(raw);
-    if (!input || typeof input !== "object" || Array.isArray(input)) return;
-    const out: Omit<Filters, "sort"> & {
-      sort?: Filters["sort"] | BoxFilters["sort"];
-    } = {};
-    for (const key of [
-      "name",
-      "name_contains",
-      "name_equals",
-      "from",
-      "to",
-    ] as const)
-      if (typeof input[key] === "string") out[key] = input[key];
-    for (const key of [
-      "keyword",
-      "condition",
-      "box",
-      "kind",
-      "tag_all",
-      "tag_any",
-      "tag_not",
-    ] as const)
-      if (
-        Array.isArray(input[key]) &&
-        input[key].every((v: unknown) => typeof v === "string")
-      )
-        out[key] = input[key];
-    if (
-      (boxes
-        ? ["updated", "activity", "name"]
-        : ["captured", "imported", "name", "updated", "type", "size"]
-      ).includes(input.sort)
-    )
-      out.sort = input.sort;
-    if (typeof input.asc === "boolean") out.asc = input.asc;
-    return out;
-  } catch {
-    return;
-  }
 }
 function read(): Route {
   const url = new URL(window.location.href);
@@ -74,8 +29,8 @@ function read(): Route {
   }
   return {
     folder: match ? url.searchParams.get("folder") || undefined : undefined,
-    filters: readFilters(url.searchParams.get("filter")) as Filters | undefined,
-    boxFilters: readFilters(url.searchParams.get("box_filter"), true) as
+    filters: readURLFilters(url.searchParams) as Filters | undefined,
+    boxFilters: readURLFilters(url.searchParams, true) as
       BoxFilters | undefined,
     tag,
     files: url.pathname === "/files" || !!match,
@@ -113,9 +68,8 @@ export function useNavigation() {
         params.set("folder", next.folder);
       if (next.file) params.set("file", next.file);
       if (next.section && next.box) params.set("box", next.box);
-      if (next.boxFilters)
-        params.set("box_filter", JSON.stringify(next.boxFilters));
-      if (next.filters) params.set("filter", JSON.stringify(next.filters));
+      writeURLFilters(params, next.boxFilters, true);
+      writeURLFilters(params, next.filters);
       const opening = !!next.file && !route.file && !next.section;
       const state = replace
         ? history.state

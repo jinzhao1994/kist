@@ -156,7 +156,7 @@ it("keeps box filters distinct and restores them from the URL", async () => {
   }
   const view = render(<Harness />);
   await userEvent.click(screen.getByText("Open"));
-  expect(window.location.search).toContain("box_filter=");
+  expect(window.location.search).toContain("b.q=");
   expect(screen.getByRole("status")).toHaveTextContent('"sort":"activity"');
   view.unmount();
   render(<Harness />);

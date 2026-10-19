@@ -57,7 +57,7 @@ it("keeps committed searches in the list URL and restores empty history entries"
     "travel{Enter}{Escape}",
   );
   const filteredURL = location.href;
-  expect(new URL(filteredURL).searchParams.get("filter")).toContain("travel");
+  expect(new URL(filteredURL).searchParams.get("q")).toBe("travel");
   await user.click(screen.getByRole("button", { name: "Boxes" }));
   history.back();
   await waitFor(() => expect(location.href).toBe(filteredURL));
@@ -362,25 +362,17 @@ it("sorts boxes from list headings and keeps the search when switching views", a
   ).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: /^Activity date:/ }));
   await waitFor(() =>
-    expect(new URL(location.href).searchParams.get("box_filter")).toContain(
-      '"sort":"activity"',
-    ),
+    expect(new URL(location.href).searchParams.get("b.sort")).toBe("activity"),
   );
   const descending = await screen.findByRole("button", {
     name: "Activity date: Descending",
   });
   await user.click(descending);
   await screen.findByRole("button", { name: "Activity date: Ascending" });
-  expect(
-    JSON.parse(new URL(location.href).searchParams.get("box_filter")!).asc,
-  ).toBe(true);
-  expect(new URL(location.href).searchParams.get("box_filter")).toContain(
-    "Archive",
-  );
+  expect(new URL(location.href).searchParams.get("b.asc")).toBe("1");
+  expect(new URL(location.href).searchParams.get("b.q")).toBe("Archive");
   await user.click(screen.getByRole("button", { name: "Display mode" }));
   await user.click(screen.getByRole("menuitem", { name: "Small icons" }));
   expect(screen.getByRole("button", { name: "Sort by" })).toBeVisible();
-  expect(new URL(location.href).searchParams.get("box_filter")).toContain(
-    '"sort":"activity"',
-  );
+  expect(new URL(location.href).searchParams.get("b.sort")).toBe("activity");
 });
