@@ -2553,18 +2553,19 @@ main.upload-drag-active {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  padding: 0.5rem;
+  gap: 0.75rem;
+  padding: 1rem;
   border-bottom: 1px solid var(--border);
 }
 .text-language {
   color: var(--muted);
   font-size: 0.8rem;
+  margin-inline-end: 0.5rem;
 }
 .text-search {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--toolbar-control-gap);
   flex: 1;
   min-width: min(100%, 15rem);
 }
@@ -2579,8 +2580,20 @@ main.upload-drag-active {
 }
 .text-notice {
   margin: 0;
-  padding: 0.5rem 0.75rem;
+  padding: 0.75rem 1rem;
   font-size: 0.8rem;
   color: var(--muted);
   border-bottom: 1px solid var(--border);
+}
+@media (max-width: 600px) {
+  .text-toolbar {
+    padding: 0.75rem;
+  }
+  .text-language {
+    flex-basis: 100%;
+    margin-inline-end: 0;
+  }
+  .text-search {
+    min-width: 100%;
+  }
 }

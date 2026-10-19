@@ -95,17 +95,17 @@ export default function TextReader({
             ".cm-scroller": {
               overflow: "auto",
               fontFamily: "var(--font-mono, monospace)",
-              fontSize: "13px",
-              lineHeight: "1.65",
+              fontSize: "14px",
+              lineHeight: "1.8",
             },
-            ".cm-content": { padding: "12px 0" },
-            ".cm-line": { padding: "0 16px" },
+            ".cm-content": { padding: "24px 0" },
+            ".cm-line": { padding: "0 24px" },
             ".cm-gutters": {
               backgroundColor: "var(--surface)",
               color: "var(--muted)",
               borderRight: "1px solid var(--border)",
             },
-            ".cm-gutterElement": { padding: "0 10px" },
+            ".cm-lineNumbers .cm-gutterElement": { padding: "0 14px" },
             ".cm-searchMatch": {
               backgroundColor: "var(--mantine-color-yellow-light)",
             },
