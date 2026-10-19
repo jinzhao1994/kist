@@ -5,6 +5,7 @@ import { get, type ArchiveFile, type TextPreviewResult } from "./api";
 import { useI18n } from "./i18n";
 
 const TextReader = lazy(() => import("./TextReader"));
+const MarkdownReader = lazy(() => import("./MarkdownReader"));
 
 export function TextPreview({
   file,
@@ -45,14 +46,25 @@ export function TextPreview({
       <Suspense
         fallback={<div className="media-placeholder">{t("loading")}</div>}
       >
-        <TextReader
-          key={`${file.id}:${file.blob_key}:${encoding}`}
-          text={data.text}
-          name={file.name}
-          encoding={data.encoding}
-          truncated={data.truncated}
-          encodingControl={choice}
-        />
+        {/\.(md|markdown|mdown|mkdn|mkd)$/i.test(file.name) ? (
+          <MarkdownReader
+            key={`${file.id}:${file.blob_key}:${encoding}`}
+            file={file}
+            text={data.text}
+            encoding={data.encoding}
+            truncated={data.truncated}
+            encodingControl={choice}
+          />
+        ) : (
+          <TextReader
+            key={`${file.id}:${file.blob_key}:${encoding}`}
+            text={data.text}
+            name={file.name}
+            encoding={data.encoding}
+            truncated={data.truncated}
+            encodingControl={choice}
+          />
+        )}
       </Suspense>
     );
   if (!detail && data?.supported)

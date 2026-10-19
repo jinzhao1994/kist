@@ -45,12 +45,14 @@ export default function TextReader({
   encoding,
   truncated,
   encodingControl,
+  toolbarControl,
 }: {
   text: string;
   name: string;
   encoding: string;
   truncated: boolean;
   encodingControl: ReactNode;
+  toolbarControl?: ReactNode;
 }) {
   const { t } = useI18n();
   const host = useRef<HTMLDivElement>(null);
@@ -202,6 +204,7 @@ export default function TextReader({
       }}
     >
       <div className="text-toolbar">
+        {toolbarControl}
         <span className="text-language">
           {language || t("plainText")} · {encoding}
         </span>

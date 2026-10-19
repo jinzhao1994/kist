@@ -2212,3 +2212,52 @@ for (const mode of ["light", "dark"] as const) {
     await expect(page).not.toHaveURL(/#L/);
   });
 }
+
+for (const mode of ["light", "dark", "mobile"] as const) {
+  test(`markdown-reader-${mode}`, async ({ page }, info) => {
+    const body = `# 旅行归档\n\n这份 **Markdown** 说明与照片一起保存，可在预览和源码之间切换。\n\n## 清单\n\n- [x] 整理照片\n- [ ] 补充旅行记录\n\n| 日期 | 地点 |\n| --- | --- |\n| 2026-10-19 | 山间步道 |\n\n> 保存原始文件，也保留阅读体验。\n\n\`\`\`yaml\narchive:\n  name: 山海拾光\n  read_only: true\n\`\`\`\n\n[本地照片](山间清晨.jpg) · [缺失附件](missing.pdf)\n\n![远程图片](https://example.org/private-tracker.png)\n\n<script>window.bad = true</script>\n`;
+    const errors = await prepare(page, {
+      text: "README.md",
+      textBody: body,
+      mode: mode === "dark" ? "dark" : "light",
+      mobile: mode === "mobile",
+    });
+    let remoteRequests = 0;
+    await page.route("https://example.org/**", (route) => {
+      remoteRequests++;
+      return route.abort();
+    });
+    await page.goto("/files?file=file-3");
+    await expect(
+      page.getByRole("heading", { name: "旅行归档", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole("table")).toBeVisible();
+    await expect(page.getByRole("link", { name: "本地照片" })).toHaveAttribute(
+      "href",
+      "/files?file=file-1",
+    );
+    await expect(page.getByText(/引用的文件暂时无法访问/)).toBeVisible();
+    expect(remoteRequests).toBe(0);
+    await expect(
+      page.locator(".markdown-body script, .markdown-body img"),
+    ).toHaveCount(0);
+    await page.getByRole("button", { name: "源码", exact: true }).click();
+    await expect(
+      page.getByRole("textbox", { name: "README.md" }),
+    ).toBeVisible();
+    await page
+      .locator(".cm-lineNumbers .cm-gutterElement")
+      .filter({ hasText: /^2$/ })
+      .click();
+    await expect(page).toHaveURL(/#L2$/);
+    await page.reload();
+    await expect(page.locator(".cm-selected-line")).toHaveCount(1);
+    await page.getByRole("button", { name: "预览", exact: true }).click();
+    await expect(page).not.toHaveURL(/#L/);
+    await expect(
+      page.getByRole("heading", { name: "旅行归档", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole("link", { name: "本地照片" })).toBeVisible();
+    await capture(page, errors, info.title);
+  });
+}

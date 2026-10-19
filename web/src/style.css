@@ -2598,3 +2598,112 @@ main.upload-drag-active {
     min-width: 100%;
   }
 }
+
+.markdown-modes {
+  display: flex;
+  gap: 0.5rem;
+}
+.markdown-modes [aria-pressed="true"] {
+  background: var(--mantine-primary-color-light);
+  color: var(--mantine-primary-color-light-color);
+}
+.markdown-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 2rem clamp(1rem, 4vw, 3rem);
+}
+.markdown-body {
+  max-width: 850px;
+  margin-inline: auto;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.markdown-body > * + * {
+  margin-block-start: 1rem;
+}
+.markdown-body :is(h1, h2, h3, h4, h5, h6) {
+  line-height: 1.35;
+  letter-spacing: normal;
+  font-weight: 600;
+  margin-block: 1.5em 0.6em;
+  scroll-margin-block: 1rem;
+}
+.markdown-body > :first-child {
+  margin-block-start: 0;
+}
+.markdown-body h1 {
+  font-size: 1.8rem;
+}
+.markdown-body h2 {
+  font-size: 1.45rem;
+}
+.markdown-body h3 {
+  font-size: 1.2rem;
+}
+.markdown-body a {
+  color: var(--mantine-primary-color-filled);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.markdown-body :is(ul, ol) {
+  padding-inline-start: 1.75rem;
+}
+.markdown-body li + li {
+  margin-block-start: 0.3rem;
+}
+.markdown-body blockquote {
+  margin-inline: 0;
+  border-inline-start: 3px solid var(--border);
+  padding-inline-start: 1rem;
+  color: var(--muted);
+}
+.markdown-body :is(pre, code) {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.9em;
+}
+.markdown-body code {
+  background: var(--canvas);
+  padding: 0.15em 0.35em;
+  border-radius: 3px;
+}
+.markdown-body pre {
+  overflow-x: auto;
+  padding: 1rem;
+  background: var(--canvas);
+  border-radius: var(--mantine-radius-default);
+}
+.markdown-body pre code {
+  padding: 0;
+}
+.markdown-body table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+.markdown-body :is(th, td) {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+}
+.markdown-body th {
+  background: var(--canvas);
+}
+.markdown-body img {
+  max-width: 100%;
+  height: auto;
+}
+.markdown-body .task-list-item {
+  list-style: none;
+}
+.markdown-body .task-list-item input {
+  margin-inline-end: 0.5rem;
+}
+.markdown-body hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+.markdown-unavailable {
+  color: var(--muted);
+  font-size: 0.9em;
+}
