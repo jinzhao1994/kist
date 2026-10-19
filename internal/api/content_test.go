@@ -28,6 +28,7 @@ func TestOriginalContentAndRanges(t *testing.T) {
 		"empty.bin":  {},
 		"report.pdf": []byte("%PDF-1.7\nPDF test bytes"),
 		"fake.pdf":   []byte("<!DOCTYPE html><script>alert(1)</script>"),
+		"fake.png":   []byte("<!DOCTYPE html><script>alert(1)</script>"),
 	}
 	for name, data := range fixtures {
 		if err := os.WriteFile(filepath.Join(src, name), data, 0600); err != nil {
@@ -59,11 +60,17 @@ func TestOriginalContentAndRanges(t *testing.T) {
 			if w.Header().Get("X-Content-Type-Options") != "nosniff" || !strings.Contains(w.Header().Get("Content-Security-Policy"), "sandbox") {
 				t.Fatal(w.Header())
 			}
+			if styles := strings.Contains(w.Header().Get("Content-Security-Policy"), "style-src 'unsafe-inline'"); styles != (file.Name == "image.jpg") {
+				t.Fatalf("native image styles: %s", w.Header().Get("Content-Security-Policy"))
+			}
 			head := call(s, "HEAD", path, "", "")
 			if head.Code != 200 || head.Body.Len() != 0 || head.Header().Get("Content-Length") != w.Header().Get("Content-Length") {
 				t.Fatalf("HEAD %d %s %v", head.Code, head.Body, head.Header())
 			}
 			forced := call(s, "GET", path+"?download=true", "", "")
+			if strings.Contains(forced.Header().Get("Content-Security-Policy"), "unsafe-inline") {
+				t.Fatal("downloads must retain the restrictive content policy")
+			}
 			if !strings.HasPrefix(forced.Header().Get("Content-Disposition"), "attachment") {
 				t.Fatal(forced.Header())
 			}

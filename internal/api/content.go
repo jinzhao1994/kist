@@ -6,6 +6,7 @@ import (
 	"mime"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
@@ -78,7 +79,13 @@ func (s *Server) contentRoutes() {
 				}
 				w.Header().Set("Content-Type", media)
 				w.Header().Set("Content-Disposition", mime.FormatMediaType(disposition, map[string]string{"filename": file.Name}))
-				w.Header().Set("Content-Security-Policy", "sandbox; default-src 'none'; frame-ancestors 'self'")
+				policy := "sandbox; default-src 'none'; frame-ancestors 'self'"
+				if disposition == "inline" && strings.HasPrefix(media, "image/") {
+					// Chrome's native image document uses inline styles for centering
+					// and zoom. Only sniffed, allowlisted passive images reach here.
+					policy += "; style-src 'unsafe-inline'"
+				}
+				w.Header().Set("Content-Security-Policy", policy)
 				http.ServeContent(w, req, file.Name, file.CreatedAt, handle)
 			}}, nil
 		})
