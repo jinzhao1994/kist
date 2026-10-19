@@ -2073,6 +2073,9 @@ for (const mode of ["light", "dark", "mobile"] as const) {
     ).toBeVisible();
     await capture(page, errors, info.title);
     await page.getByRole("button", { name: "返回列表" }).click();
+    await page
+      .locator('.file-card[data-item-id="file-3"]')
+      .scrollIntoViewIfNeeded();
     await expect(page.locator(".text-thumbnail")).toContainText("#include");
     await expect(page.locator(".cm-editor")).toHaveCount(0);
   });
@@ -2107,7 +2110,9 @@ for (const state of [
         ).toBeVisible();
       else await expect(page.locator(".cm-content")).toContainText("<script>");
       if (state === "truncated")
-        await expect(page.getByRole("status")).toContainText("1 MiB");
+        await expect(
+          page.locator(".text-reader").getByRole("status"),
+        ).toContainText("1 MiB");
     }
     await capture(page, errors, info.title);
   });
