@@ -2158,3 +2158,48 @@ for (const mode of ["light", "dark"] as const) {
     await capture(page, errors, info.title);
   });
 }
+
+for (const mode of ["light", "dark"] as const) {
+  test(`text-line-selection-${mode}`, async ({ page }, info) => {
+    const errors = await prepare(page, {
+      text: "lines.txt",
+      textBody: Array.from(
+        { length: 80 },
+        (_, i) => `Archive entry ${i + 1}`,
+      ).join("\n"),
+      mode,
+    });
+    await page.goto("/files?file=file-3");
+    const number = (n: number) =>
+      page
+        .locator(".cm-lineNumbers .cm-gutterElement")
+        .filter({ hasText: new RegExp(`^${n}$`) });
+    await number(2).click();
+    await expect(page).toHaveURL(/#L2$/);
+    await expect(page.locator(".cm-selected-line")).toHaveCount(1);
+    await number(6).click({ modifiers: ["Shift"] });
+    await expect(page).toHaveURL(/#L2-6$/);
+    await expect(page.locator(".cm-selected-line")).toHaveCount(5);
+    const from = (await number(6).boundingBox())!;
+    const to = (await number(3).boundingBox())!;
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, {
+      steps: 6,
+    });
+    await page.mouse.up();
+    await expect(page).toHaveURL(/#L3-6$/);
+    await expect(page.locator(".cm-selected-line")).toHaveCount(4);
+    await page.reload();
+    await expect(page.locator(".cm-selected-line")).toHaveCount(4);
+    await page.goto("/files?file=file-3#L45-48");
+    await expect(page.locator(".cm-selected-line")).toHaveCount(4);
+    await expect(number(45)).toBeInViewport();
+    await expect(page.locator(".cm-selected-line").first()).toHaveText(
+      "Archive entry 45",
+    );
+    await capture(page, errors, info.title);
+    await page.getByRole("button", { name: "下一个文件", exact: true }).click();
+    await expect(page).not.toHaveURL(/#L/);
+  });
+}

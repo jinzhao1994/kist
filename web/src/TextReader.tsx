@@ -1,7 +1,7 @@
 import { Button, TextInput } from "@mantine/core";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Compartment, EditorState } from "@codemirror/state";
-import { EditorView, lineNumbers } from "@codemirror/view";
+import { EditorView } from "@codemirror/view";
 import {
   HighlightStyle,
   LanguageDescription,
@@ -18,6 +18,7 @@ import {
 } from "@codemirror/search";
 import { tags } from "@lezer/highlight";
 import { useI18n } from "./i18n";
+import { textLineSelection } from "./textLineSelection";
 
 const highlight = HighlightStyle.define([
   { tag: tags.keyword, color: "var(--code-keyword)" },
@@ -75,7 +76,7 @@ export default function TextReader({
             "aria-readonly": "true",
             "aria-label": name,
           }),
-          lineNumbers(),
+          textLineSelection(),
           search({
             createPanel: () => {
               // React owns the toolbar; keep CodeMirror's match decorations.
