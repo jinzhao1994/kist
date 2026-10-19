@@ -1456,17 +1456,6 @@ button.filter-token-segment:hover {
   flex-wrap: wrap;
   font-size: inherit;
 }
-.folder-breadcrumbs .breadcrumb-root {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 20px;
-  min-height: 20px;
-}
-.folder-breadcrumbs .breadcrumb-root,
-.folder-breadcrumbs [aria-current="page"] {
-  color: color-mix(in srgb, var(--text) 78%, var(--canvas));
-}
 .folder-path-segments .mantine-Breadcrumbs-separator {
   display: inline-flex;
   align-items: center;
@@ -1530,8 +1519,6 @@ button.filter-token-segment:hover {
   .tag-tree-row:focus-within .sidebar-row-menu,
   .box-entry:hover .sidebar-row-menu,
   .box-entry:focus-within .sidebar-row-menu,
-  .breadcrumb-segment:hover .sidebar-row-menu,
-  .breadcrumb-segment:focus-within .sidebar-row-menu,
   .file-entry:hover .sidebar-row-menu,
   .file-entry:focus-within .sidebar-row-menu,
   .saved-search-row:hover .sidebar-row-menu,
@@ -1974,6 +1961,9 @@ main.upload-drag-active {
 .folder-breadcrumbs a:hover,
 .folder-breadcrumbs button:hover {
   color: var(--accent);
+}
+.folder-breadcrumbs [aria-current="page"] {
+  color: var(--text);
 }
 
 .browser-item-icon {

@@ -1,7 +1,6 @@
 import { ContextMenu, useContextMenu } from "./ContextMenu";
 import { LinkMenuItems } from "./LinkMenuItems";
 import { routeURL } from "./navigation";
-import { SidebarMenuButton } from "./SidebarMenuButton";
 import { Anchor, Breadcrumbs, Button, TextInput } from "@mantine/core";
 import { useState } from "react";
 import { createWrite, type Folder } from "./api";
@@ -82,17 +81,11 @@ export function FolderBreadcrumbs({
           >
             {t("archiveRoot")}
           </Anchor>
-          <SidebarMenuButton
-            label={t("moreActions")}
-            expanded={context.menu?.item === "/"}
-            onClick={(event) => context.atElement("/", event.currentTarget)}
-          />
         </span>
         {chain.map((folder) => (
           <span className="breadcrumb-segment" key={folder.id}>
             <Anchor
               component="button"
-              className={!folder.parent_id ? "breadcrumb-root" : undefined}
               {...(box ? context.bindings(folderURL(folder.id)) : {})}
               onClick={() => choose(folder.id)}
               aria-current={folder.id === current ? "page" : undefined}
@@ -105,15 +98,6 @@ export function FolderBreadcrumbs({
             >
               {!folder.parent_id ? t("boxRoot") : <bdi>{folder.name}</bdi>}
             </Anchor>
-            {box && (
-              <SidebarMenuButton
-                label={t("moreActions")}
-                expanded={context.menu?.item === folderURL(folder.id)}
-                onClick={(event) =>
-                  context.atElement(folderURL(folder.id), event.currentTarget)
-                }
-              />
-            )}
           </span>
         ))}
       </Breadcrumbs>

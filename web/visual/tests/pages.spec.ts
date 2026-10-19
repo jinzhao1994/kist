@@ -2417,6 +2417,11 @@ for (const kind of ["box", "file", "folder", "breadcrumb"] as const) {
         page.getByRole("menuitem", { name: "编辑归档盒", exact: true }),
       ).toBeVisible();
     } else if (kind === "breadcrumb") {
+      await expect(
+        page
+          .getByLabel("目录路径")
+          .getByRole("button", { name: "更多操作", exact: true }),
+      ).toHaveCount(0);
       await expect(page.getByLabel("目录路径")).toContainText("根目录");
       await expect(
         page
