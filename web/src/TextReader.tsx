@@ -101,7 +101,7 @@ export default function TextReader({
               lineHeight: "1.8",
             },
             ".cm-content": { padding: "12px 0" },
-            ".cm-line": { padding: "0 24px" },
+            ".cm-line": { padding: "0 12px" },
             ".cm-gutters": {
               backgroundColor: "var(--surface)",
               color: "var(--muted)",
