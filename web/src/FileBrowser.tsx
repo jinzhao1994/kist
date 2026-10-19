@@ -282,8 +282,13 @@ export function FileBrowser({
       {infoHost ? createPortal(details, infoHost) : details}
       <DialogPresence>
         {addingTag && box && (
-          <Dialog open onOpenChange={setAddingTag} title={t("addTag")}>
-            <BoxTags box={box.id} tags={tags} autoFocus />
+          <Dialog
+            open
+            onOpenChange={setAddingTag}
+            title={t("addTag")}
+            size="sm"
+          >
+            <BoxTags box={box.id} tags={tags} autoFocus inDialog />
           </Dialog>
         )}
       </DialogPresence>

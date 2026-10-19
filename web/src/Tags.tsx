@@ -385,6 +385,7 @@ export function TagManager({
   );
 }
 export function TagAssignment({
+  inDialog = false,
   autoFocus = false,
   compact = false,
   editing = true,
@@ -398,6 +399,7 @@ export function TagAssignment({
   compact?: boolean;
   editing?: boolean;
   collapsible?: boolean;
+  inDialog?: boolean;
   target: string;
   kind: "files" | "boxes";
   tags: Tag[];
@@ -414,8 +416,10 @@ export function TagAssignment({
     setAdding(false);
   });
   return (
-    <section className={`tag-assignment ${compact ? "compact-tags" : ""}`}>
-      {!compact && (
+    <section
+      className={`tag-assignment ${compact ? "compact-tags" : ""} ${inDialog ? "dialog-tags" : ""}`}
+    >
+      {!compact && !inDialog && (
         <div className="tag-assignment-heading">
           <h3>{t("tags")}</h3>
           {collapsible && editing && (
@@ -498,6 +502,7 @@ export function TagAssignment({
   );
 }
 export function BoxTags({
+  inDialog = false,
   box,
   tags,
   autoFocus = false,
@@ -506,6 +511,7 @@ export function BoxTags({
 }: {
   box: string;
   tags: Tag[];
+  inDialog?: boolean;
   autoFocus?: boolean;
   compact?: boolean;
   editing?: boolean;
@@ -519,6 +525,7 @@ export function BoxTags({
   if (query.isError) return <p role="alert">{t("error")}</p>;
   return query.data ? (
     <TagAssignment
+      inDialog={inDialog}
       autoFocus={autoFocus}
       compact={compact}
       editing={editing}

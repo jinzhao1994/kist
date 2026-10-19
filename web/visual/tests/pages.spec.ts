@@ -2393,6 +2393,12 @@ for (const kind of ["boxes", "files"] as const) {
       await expect(
         page.getByRole("dialog").getByRole("combobox"),
       ).toBeFocused();
+      await expect(
+        page
+          .getByRole("dialog")
+          .getByRole("heading", { name: "标签", exact: true }),
+      ).toHaveCount(0);
+      await capture(page, errors, `${info.title}-add-tag`);
       await page.getByRole("button", { name: "关闭", exact: true }).click();
       await expect(page.getByRole("dialog")).toBeHidden();
       await main.click({ button: "right", position: background });
