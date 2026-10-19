@@ -49,7 +49,7 @@ export function BoxTrashDialog({
       <WriteFeedback state={writes} />
       {!!writes.error && <p>{t("trashBoxChanged")}</p>}
       <div className="actions">
-        <Button disabled={writes.busy} onClick={close}>
+        <Button data-autofocus disabled={writes.busy} onClick={close}>
           {t("cancel")}
         </Button>
         <Button

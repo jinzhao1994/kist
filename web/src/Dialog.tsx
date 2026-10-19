@@ -1,5 +1,5 @@
 import { useReducedMotion } from "@mantine/hooks";
-import { Modal, useMantineEnv } from "@mantine/core";
+import { FocusTrap, Modal, useMantineEnv } from "@mantine/core";
 import {
   createContext,
   useContext,
@@ -97,6 +97,8 @@ export function Dialog({
     >
       {description && <p id={descriptionId}>{description}</p>}
       {children}
+      {/* Explicit form targets take precedence over this neutral fallback. */}
+      <FocusTrap.InitialFocus />
     </Modal>
   );
 }

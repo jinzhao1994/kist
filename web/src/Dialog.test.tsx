@@ -93,3 +93,36 @@ it("enters through a transition when an asynchronous result mounts an open dialo
     frames.mockRestore();
   }
 });
+
+it.each(["form", "confirmation", "information"])(
+  "keeps initial focus off the close button in a %s dialog",
+  async (kind) => {
+    render(
+      <ThemeProvider>
+        <I18nProvider>
+          <Dialog open title="Focus" onOpenChange={() => {}}>
+            {kind === "form" && <input aria-label="name" data-autofocus />}
+            {kind === "confirmation" && (
+              <>
+                <button data-autofocus>cancel</button>
+                <button>delete</button>
+              </>
+            )}
+            {kind === "information" && <p>Details</p>}
+          </Dialog>
+        </I18nProvider>
+      </ThemeProvider>,
+    );
+    const dialog = await screen.findByRole("dialog");
+    await waitFor(() => {
+      const target =
+        kind === "form"
+          ? screen.getByLabelText("name")
+          : kind === "confirmation"
+            ? screen.getByText("cancel")
+            : dialog.querySelector("[data-autofocus]");
+      expect(target).toHaveFocus();
+    });
+    expect(document.querySelector(".mantine-Modal-close")).not.toHaveFocus();
+  },
+);

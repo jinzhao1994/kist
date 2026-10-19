@@ -177,7 +177,11 @@ function SearchEditor({
         )}
         <WriteFeedback state={state} />
         <div className="actions">
-          <Button onClick={close} disabled={state.busy}>
+          <Button
+            data-autofocus={remove || undefined}
+            onClick={close}
+            disabled={state.busy}
+          >
             {t("cancel")}
           </Button>
           <Button

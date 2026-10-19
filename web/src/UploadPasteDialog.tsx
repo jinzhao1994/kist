@@ -32,7 +32,7 @@ export function UploadPasteDialog({
             ))}
           </ul>
           <div className="actions">
-            <Button variant="subtle" onClick={cancel}>
+            <Button data-autofocus variant="subtle" onClick={cancel}>
               {t("cancel")}
             </Button>
             <Button onClick={confirm}>{t("uploadFiles")}</Button>

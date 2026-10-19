@@ -332,6 +332,7 @@ export function ResumableUpload({
             <div className="actions">
               <Button
                 variant="subtle"
+                data-autofocus
                 onClick={() => {
                   setConflict(undefined);
                   void cancel();

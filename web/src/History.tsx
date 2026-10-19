@@ -713,6 +713,7 @@ function VersionComparison({
             <TextInput
               type="number"
               min="0"
+              data-autofocus
               value={draftFrom}
               onChange={(event) => setDraftFrom(event.target.value)}
             />

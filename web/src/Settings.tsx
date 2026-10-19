@@ -34,6 +34,7 @@ export function Settings({
               <Radio
                 key={color}
                 value={color}
+                data-autofocus={color === appearance.primaryColor || undefined}
                 color={color}
                 label={
                   <Group gap={6}>

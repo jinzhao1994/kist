@@ -45,6 +45,7 @@ export function BoxEditor({ box, close }: { box?: Box; close: () => void }) {
             withAsterisk={false}
             maxLength={255}
             autoFocus
+            data-autofocus
           />
           <Textarea
             label={t("description")}

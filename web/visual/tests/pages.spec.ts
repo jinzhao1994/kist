@@ -668,6 +668,13 @@ for (const scenario of [
         })
         .click();
       await expect(page.getByRole("dialog")).toBeVisible();
+      await expect(
+        scenario === "tags"
+          ? page
+              .getByRole("dialog")
+              .getByRole("textbox", { name: "名称", exact: true })
+          : page.getByRole("dialog").locator('input[type="radio"]:checked'),
+      ).toBeFocused();
     }
     await capture(page, errors, info.title);
   });
@@ -2364,6 +2371,11 @@ for (const kind of ["boxes", "files"] as const) {
     await expect(create).toBeVisible();
     await create.click();
     await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(
+      page
+        .getByRole("dialog")
+        .getByRole("textbox", { name: "名称", exact: true }),
+    ).toBeFocused();
     await page.getByRole("button", { name: "取消", exact: true }).click();
     await expect(page.getByRole("dialog")).toBeHidden();
     await main.click({ button: "right", position: background });

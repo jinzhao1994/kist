@@ -120,6 +120,7 @@ export function EntryActions({
           <Button
             variant="subtle"
             color="gray"
+            data-autofocus
             disabled={state.busy}
             onClick={close}
           >

@@ -145,6 +145,7 @@ export function FolderEditor({
           required
           maxLength={255}
           autoFocus
+          data-autofocus
           disabled={state.busy || state.locked}
         />
         <WriteFeedback state={state} />

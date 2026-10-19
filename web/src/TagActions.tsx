@@ -102,6 +102,7 @@ export function TagActionDialog({
         {action === "changeParentTag" && (
           <InputWrapper id={id} label={t("parentTag")}>
             <TagSelect
+              autoFocus
               id={id}
               value={parent}
               onValueChange={setParent}
@@ -120,6 +121,7 @@ export function TagActionDialog({
           <Button
             variant="subtle"
             color="gray"
+            data-autofocus={action === "remove" || undefined}
             onClick={close}
             disabled={state.busy}
           >

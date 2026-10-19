@@ -316,6 +316,8 @@ export function TagManager({
           <label htmlFor={`${id}-name`}>{t("name")}</label>
           <TextInput
             ref={nameInput}
+            autoFocus
+            data-autofocus
             id={`${id}-name`}
             value={name}
             onChange={(e) => setName(e.target.value)}
