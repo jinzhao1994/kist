@@ -1638,6 +1638,13 @@ button.filter-token-segment:hover {
 .box-summary {
   min-inline-size: 0;
 }
+.box-size {
+  display: block;
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
 .box-summary-description {
   color: var(--muted);
   font-size: 0.85rem;

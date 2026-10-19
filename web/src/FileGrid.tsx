@@ -75,6 +75,8 @@ export function FileGrid({
         sensitivity: "base",
         numeric: true,
       }) || a.id.localeCompare(b.id);
+    if (filters?.sort === "size")
+      return (a.total_size - b.total_size || byName) * (filters.asc ? 1 : -1);
     if (filters?.sort === "updated")
       return (
         ((a.updated_at || "").localeCompare(b.updated_at || "") || byName) *
@@ -414,9 +416,11 @@ export function FileGrid({
                                 : fileType(file!) || t("unknown")}
                             </span>
                             <span className="file-list-size">
-                              {file?.size == null
-                                ? "—"
-                                : formatBytes(file.size, prefs)}
+                              {folder
+                                ? formatBytes(folder.total_size, prefs)
+                                : file?.size == null
+                                  ? "—"
+                                  : formatBytes(file.size, prefs)}
                             </span>
                             <time className="file-list-date">
                               {timestamp
@@ -427,7 +431,9 @@ export function FileGrid({
                         )}
                         <small>
                           <bdi>
-                            {file ? file.path || file.name : t("folderType")}
+                            {file
+                              ? file.path || file.name
+                              : `${t("folderType")} · ${formatBytes(folder!.total_size, prefs)}`}
                           </bdi>
                         </small>
                       </UnstyledButton>

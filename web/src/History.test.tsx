@@ -282,6 +282,7 @@ it("searches scope options while keeping optional start dates secondary", async 
     id: "a",
     name: "Trip",
     description: "",
+    total_size: 0,
     start_at: "2026",
     end_at: "",
     created_at: "",

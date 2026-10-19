@@ -138,6 +138,10 @@ func TestUnknownBlobKeyIsFound(t *testing.T) {
 	key := insertBlob(t, db, "sha256:aa")
 	file := insertFile(t, db, root, "a.txt", key)
 
+	// Deliberately bypass both schema guards to simulate an externally damaged row.
+	if _, err := db.Exec(`DROP TRIGGER file_size_update`); err != nil {
+		t.Fatal(err)
+	}
 	forceUpdate(t, db, `UPDATE files SET blob_key = 'sha256:gone' WHERE id = ?`, file)
 
 	got, err := FilesWithUnknownBlob(db)

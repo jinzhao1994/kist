@@ -33,6 +33,13 @@ import (
 // its views rebuilt.
 func (l *Library) verifyDeep(ctx context.Context) (integrity.Report, error) {
 	var r integrity.Report
+	sizes, err := store.FolderSizeDrift(l.db)
+	if err != nil {
+		return r, err
+	}
+	for _, finding := range sizes {
+		r.Add(integrity.Finding{Kind: integrity.ViewDrift, Detail: "folder size: " + finding.Detail, Fix: "kist rebuild"})
+	}
 
 	scratch := filepath.Join(filepath.Dir(l.layout.DB()), fmt.Sprintf(".kist-verify-%d.db", os.Getpid()))
 	removeDatabase(scratch) // residue from a run that was killed

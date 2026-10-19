@@ -115,6 +115,7 @@ it("closes the dialog with Escape and restores keyboard focus", async () => {
 it("opens global tag results from a box and preserves the tag URL on back and reload", async () => {
   const time = "2026-01-01T00:00:00Z";
   const current = {
+    total_size: 0,
     id: "current",
     name: "Current box",
     description: "",
@@ -144,6 +145,7 @@ it("opens global tag results from a box and preserves the tag URL on back and re
               id: "root",
               parent_id: null,
               name: "",
+              total_size: 0,
               created_at: time,
               updated_at: time,
             },
@@ -195,7 +197,7 @@ it("opens global tag results from a box and preserves the tag URL on back and re
     await screen.findByRole("heading", { name: "Travel", level: 1 }),
   ).toBeVisible();
   const boxes = await screen.findByRole("region", { name: "Boxes" });
-  await within(boxes).findByRole("button", { name: "Tagged box" });
+  await within(boxes).findByRole("button", { name: /Tagged box/ });
   expect(within(boxes).queryByText("Current box")).not.toBeInTheDocument();
   await waitFor(() =>
     expect(
@@ -207,7 +209,7 @@ it("opens global tag results from a box and preserves the tag URL on back and re
       ),
     ).toBe(true),
   );
-  await user.click(within(boxes).getByRole("button", { name: "Tagged box" }));
+  await user.click(within(boxes).getByRole("button", { name: /Tagged box/ }));
   expect(location.pathname).toBe("/boxes/matching");
   history.back();
   await waitFor(() =>
@@ -229,6 +231,7 @@ it("opens global tag results from a box and preserves the tag URL on back and re
 
 it("replaces the box search bar when switching to all files and applies a box condition", async () => {
   const current = {
+    total_size: 0,
     id: "current",
     name: "Current box",
     description: "",
@@ -250,6 +253,7 @@ it("replaces the box search bar when switching to all files and applies a box co
                 id: "root",
                 parent_id: null,
                 name: "",
+                total_size: 0,
                 created_at: "",
                 updated_at: "",
               },
@@ -320,6 +324,7 @@ it("sorts boxes from list headings and keeps the search when switching views", a
                   {
                     id: "box-layout",
                     name: "Archive",
+                    total_size: 0,
                     description: "A short description",
                     start_at: "2025",
                     end_at: "2026",

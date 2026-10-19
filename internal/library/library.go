@@ -105,7 +105,14 @@ func Open(root string, opts ...Option) (*Library, error) {
 	if l.db, err = store.Open(layout.DB()); err != nil {
 		return nil, err
 	}
-	if err := store.Migrate(l.db); err != nil {
+	releaseMigration, err := l.lock.Acquire(context.Background())
+	if err != nil {
+		l.db.Close()
+		return nil, err
+	}
+	err = store.Migrate(l.db)
+	releaseMigration()
+	if err != nil {
 		l.db.Close()
 		return nil, err
 	}
@@ -180,7 +187,7 @@ func (l *Library) Box(ctx context.Context, id domain.BoxID) (domain.Box, bool, e
 	)
 	err := l.readTx(ctx, func(vtx *store.ViewTx) error {
 		var err error
-		b, found, err = vtx.GetBox(id)
+		b, found, err = store.DisplayBox(vtx.Queryer(), id)
 		return err
 	})
 	return b, found, err

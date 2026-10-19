@@ -12,7 +12,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { DisplayModeControl, useDisplayMode } from "./DisplayMode";
 import type { BoxFilters } from "./Filters";
 import type { Box, BoxSearchItem } from "./api";
-import { formatInstant, formatLocalDate, useI18n } from "./i18n";
+import { formatBytes, formatInstant, formatLocalDate, useI18n } from "./i18n";
 
 export function BoxGrid({
   boxes,
@@ -143,6 +143,12 @@ export function BoxGrid({
                   <h2>
                     <bdi>{box.name}</bdi>
                   </h2>
+                  <span
+                    className="box-size"
+                    aria-label={`${t("fileSize")}: ${formatBytes(box.total_size, prefs)}`}
+                  >
+                    {formatBytes(box.total_size, prefs)}
+                  </span>
                   {box.description && (
                     <span
                       className="box-summary-description"

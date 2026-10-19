@@ -259,7 +259,7 @@ const FoldersOfBoxSQL = `
 // order — which is creation order, so a parent always precedes its children.
 func FoldersOfBox(q Queryer, box domain.BoxID) ([]domain.Folder, error) {
 	rows, err := q.Query(
-		`SELECT `+folderColumns+` FROM folders WHERE id IN (`+FoldersOfBoxSQL+`)
+		`SELECT `+folderColumns+`, total_size FROM folders WHERE id IN (`+FoldersOfBoxSQL+`)
 		 ORDER BY (parent_id IS NOT NULL), id`, box)
 	if err != nil {
 		return nil, fmt.Errorf("list folders: %w", err)
@@ -268,7 +268,9 @@ func FoldersOfBox(q Queryer, box domain.BoxID) ([]domain.Folder, error) {
 
 	var out []domain.Folder
 	for rows.Next() {
-		f, err := scanFolder(rows.Scan)
+		var size int64
+		f, err := scanFolder(func(args ...any) error { return rows.Scan(append(args, &size)...) })
+		f.TotalSize = size
 		if err != nil {
 			return nil, fmt.Errorf("list folders: %w", err)
 		}

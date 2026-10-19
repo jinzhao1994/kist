@@ -315,6 +315,7 @@ it("browses folders and files together with compact types and modification dates
             {
               id: "subfolder",
               parent_id: "root",
+              total_size: 2048,
               name: "Documents",
               created_at: files[0].created_at,
               updated_at: files[0].updated_at,
@@ -334,6 +335,7 @@ it("browses folders and files together with compact types and modification dates
     directory.compareDocumentPosition(document) &
       Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
+  expect(directory).toHaveTextContent("2 kB");
   expect(document).toHaveTextContent("TXT");
   expect(document).not.toHaveTextContent("text/plain");
   expect(document).not.toHaveTextContent("2000");
@@ -357,7 +359,12 @@ it("opens file and folder context actions at the pointer without navigating", as
   const open = vi.fn(),
     chooseFolder = vi.fn(),
     createFolder = vi.fn();
-  const folder = { id: "child", name: "Child", parent_id: "root" } as Folder;
+  const folder = {
+    id: "child",
+    name: "Child",
+    parent_id: "root",
+    total_size: 0,
+  } as Folder;
   render(
     <ThemeProvider env="test">
       <I18nProvider>
@@ -419,7 +426,12 @@ it("opens the same context menu from the list row action without opening the fil
 
 it("places folders at opposite ends for ascending and descending type order", async () => {
   localStorage.setItem("kist.display.files.v1", "list");
-  const folder = { id: "child", name: "Child", parent_id: "root" } as Folder;
+  const folder = {
+    id: "child",
+    name: "Child",
+    parent_id: "root",
+    total_size: 0,
+  } as Folder;
   const page = (asc: boolean) => (
     <ThemeProvider env="test">
       <I18nProvider>
@@ -470,7 +482,12 @@ it.each(["list", "medium"])(
           <FileGrid
             files={[{ ...files[0], kind: "other" }]}
             folders={[
-              { id: "child", name: "Child", parent_id: "root" } as Folder,
+              {
+                id: "child",
+                name: "Child",
+                parent_id: "root",
+                total_size: 0,
+              } as Folder,
             ]}
             boxID="box"
             open={open}
@@ -536,7 +553,12 @@ it.each([
           <FileBrowser
             filters={emptyFilters}
             folders={[
-              { id: "child", name: "Child", parent_id: "root" } as Folder,
+              {
+                id: "child",
+                name: "Child",
+                parent_id: "root",
+                total_size: 0,
+              } as Folder,
             ]}
             tags={[]}
             open={vi.fn()}
@@ -620,7 +642,12 @@ it("uploads to the selected directory without opening it", async () => {
         <FileGrid
           files={[]}
           folders={[
-            { id: "child", name: "Child", parent_id: "root" } as Folder,
+            {
+              id: "child",
+              name: "Child",
+              parent_id: "root",
+              total_size: 0,
+            } as Folder,
           ]}
           chooseFolder={open}
           uploadToFolder={upload}
@@ -657,7 +684,12 @@ it("opens an upload window for the selected child folder", async () => {
           box={{ id: "box" } as Box}
           uploadFolder="root"
           folders={[
-            { id: "child", name: "Child", parent_id: "root" } as Folder,
+            {
+              id: "child",
+              name: "Child",
+              parent_id: "root",
+              total_size: 0,
+            } as Folder,
           ]}
           filters={emptyFilters}
           tags={[]}
@@ -685,8 +717,8 @@ it("links breadcrumb menus to their own folder with keyboard access", async () =
           box="box"
           folders={
             [
-              { id: "root", name: "", parent_id: null },
-              { id: "child", name: "Child", parent_id: "root" },
+              { id: "root", name: "", parent_id: null, total_size: 0 },
+              { id: "child", name: "Child", parent_id: "root", total_size: 0 },
             ] as Folder[]
           }
           current="child"
@@ -714,7 +746,11 @@ it("distinguishes the archive root from the current box root", async () => {
           box="box"
           rootLabel="Trip"
           goRoot={goRoot}
-          folders={[{ id: "root", name: "", parent_id: null }] as Folder[]}
+          folders={
+            [
+              { id: "root", name: "", parent_id: null, total_size: 0 },
+            ] as Folder[]
+          }
           current="root"
           choose={choose}
         />

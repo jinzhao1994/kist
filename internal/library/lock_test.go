@@ -117,3 +117,14 @@ func TestTheRelinkFallbackDoesNotDeadlockAgainstItself(t *testing.T) {
 			"which is what a write deadlocking against its own lock looks like")
 	}
 }
+
+func TestOpenSerializesSchemaMigration(t *testing.T) {
+	l := openTestLibrary(t)
+	blockedBy(t, l, func() error {
+		opened, err := Open(l.layout.Root)
+		if err == nil {
+			err = opened.Close()
+		}
+		return err
+	})
+}

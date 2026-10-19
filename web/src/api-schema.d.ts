@@ -725,6 +725,8 @@ export interface components {
             id: string;
             name: string;
             start_at?: string;
+            /** Format: int64 */
+            total_size: number;
             /** Format: date-time */
             updated_at: string;
         };
@@ -753,6 +755,8 @@ export interface components {
             name: string;
             start_at?: string;
             tags?: components["schemas"]["DisplayTag"][] | null;
+            /** Format: int64 */
+            total_size: number;
             /** Format: date-time */
             updated_at: string;
         };
@@ -853,6 +857,8 @@ export interface components {
             id: string;
             name: string;
             parent_id: string | null;
+            /** Format: int64 */
+            total_size: number;
             /** Format: date-time */
             updated_at: string;
         };

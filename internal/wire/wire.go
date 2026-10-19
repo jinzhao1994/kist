@@ -26,6 +26,7 @@ import (
 
 // Box is one activity, trip or batch of paperwork.
 type Box struct {
+	TotalSize   int64  `json:"total_size" minimum:"0"`
 	ID          string `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
@@ -39,6 +40,7 @@ type Box struct {
 
 func NewBox(b domain.Box) Box {
 	return Box{
+		TotalSize:   b.TotalSize,
 		ID:          b.ID.String(),
 		Name:        b.Name,
 		Description: b.Description,
@@ -107,6 +109,7 @@ func NewFile(f domain.File, box, path string, loc *time.Location) File {
 // Folder is a directory. ParentID is null for a box's root; the box itself is
 // named by the listing that carries the folder, not by the folder (spec 1.4).
 type Folder struct {
+	TotalSize int64     `json:"total_size" minimum:"0"`
 	ID        string    `json:"id"`
 	ParentID  *string   `json:"parent_id"`
 	Name      string    `json:"name"`
@@ -116,6 +119,7 @@ type Folder struct {
 
 func NewFolder(f domain.Folder) Folder {
 	out := Folder{
+		TotalSize: f.TotalSize,
 		ID:        f.ID.String(),
 		Name:      f.Name,
 		CreatedAt: f.CreatedAt,

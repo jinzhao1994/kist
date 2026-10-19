@@ -31,6 +31,7 @@ function Harness() {
               id: "trip",
               name: "Summer trip",
               description: "",
+              total_size: 0,
               start_at: "",
               end_at: "",
               created_at: "",

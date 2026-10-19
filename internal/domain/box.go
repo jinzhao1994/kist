@@ -9,6 +9,8 @@ import "time"
 // library with the moment it was rebuilt (spec 2.3.1). StartAt and EndAt are
 // human time with no timezone at all (spec 1.3).
 type Box struct {
+	// TotalSize is populated by display queries only, never stored in journal payloads.
+	TotalSize    int64 `json:"-"`
 	ID           BoxID
 	RootFolderID FolderID
 	Name         string

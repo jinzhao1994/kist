@@ -193,3 +193,21 @@ func FilesUsingBlobs(q Queryer, keys []string) (map[string][]string, error) {
 	}
 	return out, rows.Err()
 }
+
+// FolderSizeDrift independently recomputes logical bytes for deep verification.
+// UNION bounds recursion even if the folder graph is damaged.
+func FolderSizeDrift(q Queryer) ([]Inconsistency, error) {
+	return inconsistencies(q, "check folder sizes", `
+ WITH RECURSIVE ancestry(descendant, ancestor) AS (
+   SELECT id, id FROM folders
+   UNION
+   SELECT a.descendant, f.parent_id FROM ancestry a JOIN folders f ON f.id=a.ancestor
+   WHERE f.parent_id IS NOT NULL
+ ), direct AS (
+   SELECT f.folder_id, sum(b.size) AS size FROM files f JOIN blobs b ON b.key=f.blob_key GROUP BY f.folder_id
+ ), totals AS (
+   SELECT a.ancestor, sum(d.size) AS size FROM ancestry a JOIN direct d ON d.folder_id=a.descendant GROUP BY a.ancestor
+ )
+ SELECT hex(f.id) || ' ' || f.name || ': stored=' || f.total_size || ', expected=' || coalesce(t.size,0)
+ FROM folders f LEFT JOIN totals t ON t.ancestor=f.id WHERE f.total_size != coalesce(t.size,0) ORDER BY f.id`)
+}

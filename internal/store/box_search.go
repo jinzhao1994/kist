@@ -30,7 +30,7 @@ func SearchBoxes(db Queryer, q query.BoxQuery) ([]domain.Box, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	sql := `SELECT ` + boxColumns + ` FROM boxes WHERE 1=1` + fragment
+	sql := `SELECT ` + boxDisplayColumns + ` FROM boxes WHERE 1=1` + fragment
 	column := "updated_at"
 	switch q.Sort.KeyName() {
 	case "name":
@@ -68,7 +68,7 @@ func SearchBoxes(db Queryer, q query.BoxQuery) ([]domain.Box, string, error) {
 	defer rows.Close()
 	var out []domain.Box
 	for rows.Next() {
-		b, _, err := scanBox(rows.Scan)
+		b, _, err := scanDisplayBox(rows.Scan)
 		if err != nil {
 			return nil, "", err
 		}

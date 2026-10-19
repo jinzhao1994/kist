@@ -25,7 +25,7 @@ func ListBoxes(q Queryer, opt ListBoxesOptions) ([]domain.Box, error) {
 	if opt.SortByName {
 		order = `name, id`
 	}
-	query := `SELECT ` + boxColumns + ` FROM boxes`
+	query := `SELECT ` + boxDisplayColumns + ` FROM boxes`
 	args := []any{}
 	if opt.Tag != nil {
 		query = `WITH RECURSIVE sub(id) AS (
@@ -48,7 +48,7 @@ func ListBoxes(q Queryer, opt ListBoxesOptions) ([]domain.Box, error) {
 
 	var out []domain.Box
 	for rows.Next() {
-		b, _, err := scanBox(rows.Scan)
+		b, _, err := scanDisplayBox(rows.Scan)
 		if err != nil {
 			return nil, err
 		}

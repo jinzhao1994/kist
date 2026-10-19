@@ -118,3 +118,11 @@ in an attempt to make a newer library readable by an older binary.
   original blobs permanently; deleting from the UI does not reclaim disk space.
 
 Commands support `--help`; `--json` returns machine-readable results and errors.
+
+## Folder-size schema upgrade
+
+The folder-size feature adds schema migration 5. Stop all old writers, replace the binary (or recreate the container with the same library mount), and start kist normally. No separate upgrade command is required. Startup holds the library write lock and runs embedded migrations before serving requests. The first startup calculates existing folder totals from SQLite file/blob metadata, without reading original file contents. Large libraries may take longer; logs report the upgrade start and completion.
+
+The column, backfill and migration version commit together. If migration fails, startup stops; fix the reported cause and restart to retry. A failed lock acquisition is also retryable. Do not remove the database or edit its migration version to bypass an error. Retain the normal library backup before upgrading.
+
+Totals count current logical file bytes, including repeated references to identical content, and exclude deleted files, old versions and derived previews. Box totals use their root folder. Triggers maintain totals in the same write transaction, including legacy SQL paths. This does not make downgrades generally supported: old binaries cannot enforce the new schema-version guard and must not be used to rebuild the upgraded database. New binaries reject schemas newer than their embedded migrations. `kist verify --deep` checks totals independently; `kist rebuild` with the new binary restores them from the journal.

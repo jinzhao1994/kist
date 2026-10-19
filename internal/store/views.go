@@ -88,6 +88,21 @@ func (v *ViewTx) GetBox(id domain.BoxID) (domain.Box, bool, error) {
 	return scanBox(v.tx.QueryRow(`SELECT `+boxColumns+` FROM boxes WHERE id = ?`, id).Scan)
 }
 
+// boxDisplayColumns leaves semantic op snapshots independent of derived totals.
+const boxDisplayColumns = boxColumns + `, (SELECT total_size FROM folders WHERE id = boxes.root_folder_id)`
+
+func scanDisplayBox(scan func(...any) error) (domain.Box, bool, error) {
+	var size int64
+	b, found, err := scanBox(func(args ...any) error { return scan(append(args, &size)...) })
+	b.TotalSize = size
+	return b, found, err
+}
+
+// DisplayBox includes the root folder's materialized size in the same read.
+func DisplayBox(q Queryer, id domain.BoxID) (domain.Box, bool, error) {
+	return scanDisplayBox(q.QueryRow(`SELECT `+boxDisplayColumns+` FROM boxes WHERE id = ?`, id).Scan)
+}
+
 const boxColumns = `id, root_folder_id, name, name_fold, description, created_at, updated_at, start_at, end_at`
 
 func scanBox(scan func(...any) error) (domain.Box, bool, error) {

@@ -11,6 +11,8 @@ import "time"
 //
 // The root has no name and no parent; every other folder has both.
 type Folder struct {
+	// TotalSize is populated by display queries only, never stored in journal payloads.
+	TotalSize int64 `json:"-"`
 	ID        FolderID
 	ParentID  *FolderID
 	Name      string
