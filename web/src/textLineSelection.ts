@@ -69,9 +69,9 @@ export function textLineSelection() {
       ],
     });
   };
-  const writeHash = (range: LineRange) => {
+  const writeHash = (range: LineRange | null) => {
     const url = new URL(window.location.href);
-    url.hash = lineHash(range);
+    url.hash = range ? lineHash(range) : "";
     window.history.replaceState(window.history.state, "", url);
   };
   const choose = (view: EditorView, line: number) => {
@@ -134,6 +134,13 @@ export function textLineSelection() {
           event.preventDefault();
           stopDrag();
           const line = view.state.doc.lineAt(block.from).number;
+          const previous = view.state.field(selectedLines);
+          const toggleOff =
+            !pointer.shiftKey &&
+            previous !== null &&
+            line >= previous.from &&
+            line <= previous.to;
+          let dragged = false;
           if (!pointer.shiftKey || anchor === null) anchor = line;
           choose(view, line);
           writeHash(view.state.field(selectedLines)!);
@@ -161,13 +168,21 @@ export function textLineSelection() {
             if (event.pointerId !== pointer.pointerId) return;
             event.preventDefault();
             y = event.clientY;
+            if (
+              Math.abs(y - pointer.clientY) > 4 ||
+              Math.abs(event.clientX - pointer.clientX) > 4
+            )
+              dragged = true;
             cancelAnimationFrame(frame);
             moveToPointer();
           };
           const finish = (event: PointerEvent) => {
             if (event.pointerId === pointer.pointerId) {
-              const range = view.state.field(selectedLines);
-              if (range) writeHash(range);
+              if (event.type === "pointerup" && toggleOff && !dragged) {
+                anchor = null;
+                apply(view, null);
+              }
+              writeHash(view.state.field(selectedLines));
               stopDrag();
             }
           };

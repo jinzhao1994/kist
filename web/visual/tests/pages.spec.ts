@@ -2177,6 +2177,10 @@ for (const mode of ["light", "dark"] as const) {
     await number(2).click();
     await expect(page).toHaveURL(/#L2$/);
     await expect(page.locator(".cm-selected-line")).toHaveCount(1);
+    await number(2).click();
+    await expect(page).not.toHaveURL(/#L/);
+    await expect(page.locator(".cm-selected-line")).toHaveCount(0);
+    await number(2).click();
     await number(6).click({ modifiers: ["Shift"] });
     await expect(page).toHaveURL(/#L2-6$/);
     await expect(page.locator(".cm-selected-line")).toHaveCount(5);
@@ -2192,6 +2196,11 @@ for (const mode of ["light", "dark"] as const) {
     await expect(page.locator(".cm-selected-line")).toHaveCount(4);
     await page.reload();
     await expect(page.locator(".cm-selected-line")).toHaveCount(4);
+    await number(4).click();
+    await expect(page).not.toHaveURL(/#L/);
+    await expect(page.locator(".cm-selected-line")).toHaveCount(0);
+    await page.reload();
+    await expect(page.locator(".cm-selected-line")).toHaveCount(0);
     await page.goto("/files?file=file-3#L45-48");
     await expect(page.locator(".cm-selected-line")).toHaveCount(4);
     await expect(number(45)).toBeInViewport();
