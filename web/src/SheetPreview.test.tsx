@@ -1,11 +1,50 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "./theme";
 import { I18nProvider } from "./i18n";
 import SheetPreview, { columnName, selectedText } from "./SheetPreview";
 import type { ArchiveFile } from "./api";
+vi.mock("./UniverSheet", async () => {
+  const { useImperativeHandle } = await import("react");
+  return {
+    default: ({
+      data,
+      onSelection,
+      ref,
+    }: {
+      data: import("./sheetModel").SheetData;
+      onSelection: (s: import("./sheetModel").Selection | null) => void;
+      ref: import("react").Ref<import("./UniverSheet").SheetHandle>;
+    }) => {
+      useImperativeHandle(ref, () => ({
+        select(row: number, col: number) {
+          onSelection({ start: { row, col }, end: { row, col } });
+        },
+      }));
+      return (
+        <div>
+          {data.cells?.flatMap((row, r) =>
+            row?.map((cell, c) => (
+              <button
+                key={`${r}:${c}`}
+                onClick={() =>
+                  onSelection({
+                    start: { row: r, col: c },
+                    end: { row: r, col: c },
+                  })
+                }
+              >
+                {cell.text}
+              </button>
+            )),
+          )}
+        </div>
+      );
+    },
+  };
+});
 const data = {
   supported: true,
   sheets: ["Expenses", "Notes"],
@@ -76,24 +115,20 @@ it("reads pages and worksheets without requesting original files", async () => {
     expect(fetch.mock.calls.at(-1)?.[0]).toContain("sheet=1&row=0&column=0"),
   );
 });
-it("selects cells, searches and copies with keyboard clipboard", async () => {
+it("connects native selections and search to the copy toolbar", async () => {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (_url: string) => Response.json(data)),
+    vi.fn(async () => Response.json(data)),
   );
+  const user = userEvent.setup();
+  const write = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
   mount();
-  const cell = await screen.findByText("交通");
-  fireEvent.pointerDown(cell, { button: 0 });
-  const region = screen.getByRole("region", { name: "Table cells" });
-  fireEvent.keyDown(region, { key: "a", ctrlKey: true });
-  const setData = vi.fn();
-  fireEvent.copy(region, { clipboardData: { setData } });
-  expect(setData).toHaveBeenCalledWith(
-    "text/plain",
-    "项目\t金额\n交通\t1,280.00",
-  );
-  await userEvent.type(screen.getByLabelText("Search this page"), "交通");
-  expect(cell).toHaveClass("match");
+  await screen.findByText("交通");
+  await user.type(screen.getByLabelText("Search this page"), "交通");
+  await user.click(screen.getByRole("button", { name: "Next match" }));
+  expect(screen.getByRole("status")).toHaveTextContent("A2–A2 · 交通");
+  await user.click(screen.getByRole("button", { name: "Copy selection" }));
+  expect(write).toHaveBeenCalledWith("交通");
 });
 it("does not fetch inactive thumbnails", () => {
   const fetch = vi.fn();

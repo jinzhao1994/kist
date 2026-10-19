@@ -2306,12 +2306,32 @@ for (const mode of ["light", "dark", "mobile"] as const) {
     });
     await page.goto("/files?file=file-3");
     const reader = page.getByRole("region", { name: "表格阅读器" });
-    await expect(reader.getByText("1,280.00")).toBeVisible();
+    await expect(reader.locator(".univer-sheet")).toHaveAttribute(
+      "data-state",
+      "ready",
+    );
     await reader.getByLabel("工作表", { exact: true }).selectOption("1");
-    await expect(reader.getByText("山间步道")).toBeVisible();
+    await expect(reader.locator(".univer-sheet")).toHaveAttribute(
+      "data-state",
+      "ready",
+    );
+    await reader.getByLabel("搜索当前页", { exact: true }).fill("山间步道");
+    await reader
+      .getByRole("button", { name: "下一个匹配", exact: true })
+      .click();
+    await expect(reader.locator(".sheet-selection")).toContainText("山间步道");
     await reader.getByLabel("工作表", { exact: true }).selectOption("0");
-    await reader.getByText("交通", { exact: true }).click();
-    await expect(reader.locator("td.selected")).toHaveText("交通");
+    await expect(reader.locator(".univer-sheet")).toHaveAttribute(
+      "data-state",
+      "ready",
+    );
+    await reader.getByLabel("搜索当前页", { exact: true }).fill("交通");
+    await reader
+      .getByRole("button", { name: "下一个匹配", exact: true })
+      .click();
+    await expect(reader.locator(".sheet-selection")).toContainText(
+      "A3–A3 · 交通",
+    );
     await capture(page, errors, info.title);
   });
 }

@@ -2809,3 +2809,29 @@ main.upload-drag-active {
   white-space: nowrap;
   max-width: 70px;
 }
+
+.univer-sheet {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.univer-container {
+  position: absolute;
+  inset: 0;
+}
+.univer-status {
+  padding: 1rem;
+  color: var(--muted);
+}
+
+.sheet-selection {
+  padding: 0.35rem 1rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-top: 1px solid var(--border);
+}

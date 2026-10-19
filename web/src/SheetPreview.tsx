@@ -1,20 +1,14 @@
 import { Button, NativeSelect, TextInput } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { get, type ArchiveFile } from "./api";
-import type { components } from "./api-schema";
+import { columnName, type SheetData, type Selection } from "./sheetModel";
+import type { SheetHandle } from "./UniverSheet";
+const UniverSheet = lazy(() => import("./UniverSheet"));
+export { columnName } from "./sheetModel";
 import { useI18n } from "./i18n";
 import { TextPreview } from "./TextPreview";
 
-type SheetData = components["schemas"]["SheetPreview"];
-type Point = { row: number; col: number };
-type Selection = { start: Point; end: Point };
-export function columnName(index: number) {
-  let name = "";
-  for (let n = index + 1; n > 0; n = Math.floor((n - 1) / 26))
-    name = String.fromCharCode(65 + ((n - 1) % 26)) + name;
-  return name;
-}
 export function selectedText(
   cells: { text: string }[][],
   selection: Selection,
@@ -56,7 +50,7 @@ export default function SheetPreview({
   const [selection, setSelection] = useState<Selection | null>(null),
     [search, setSearch] = useState(""),
     [copyState, setCopyState] = useState("");
-  const grid = useRef<HTMLDivElement>(null);
+  const grid = useRef<SheetHandle>(null);
   const query = useQuery({
     queryKey: [
       "sheet-preview",
@@ -85,10 +79,6 @@ export default function SheetPreview({
   useEffect(() => {
     setSelection(null);
     setCopyState("");
-    if (grid.current) {
-      grid.current.scrollTop = 0;
-      grid.current.scrollLeft = 0;
-    }
   }, [sheet, row, column, encoding]);
   useEffect(() => {
     const onHash = () => {
@@ -163,12 +153,6 @@ export default function SheetPreview({
         )}
       </div>
     );
-  const selected = (r: number, c: number) =>
-    selection &&
-    r >= Math.min(selection.start.row, selection.end.row) &&
-    r <= Math.max(selection.start.row, selection.end.row) &&
-    c >= Math.min(selection.start.col, selection.end.col) &&
-    c <= Math.max(selection.start.col, selection.end.col);
   const matches = search
     ? cells.flatMap((r, ri) =>
         r.flatMap((c, ci) =>
@@ -186,9 +170,16 @@ export default function SheetPreview({
     );
     const next = matches[(index + 1) % matches.length];
     setSelection({ start: next, end: next });
-    grid.current
-      ?.querySelector(`[data-cell="${next.row}:${next.col}"]`)
-      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    grid.current?.select(next.row, next.col);
+  };
+  const copySelection = async () => {
+    if (!selection) return;
+    try {
+      await navigator.clipboard.writeText(selectedText(cells, selection));
+      setCopyState(t("sheetCopied"));
+    } catch {
+      setCopyState(t("sheetCopyFailed"));
+    }
   };
   const widths = Array.from({ length: columns }, (_, col) =>
     detail
@@ -252,39 +243,10 @@ export default function SheetPreview({
                   data-cell={`${r}:${c}`}
                   rowSpan={merge?.rows}
                   colSpan={merge?.columns}
-                  className={`${selected(r, c) ? "selected" : ""} ${search && value?.text.toLocaleLowerCase().includes(search.toLocaleLowerCase()) ? "match" : ""}`}
                   title={
                     value?.missing_result
                       ? t("sheetMissingFormula")
                       : value?.text
-                  }
-                  onPointerDown={
-                    detail
-                      ? (e) => {
-                          if (e.button !== 0) return;
-                          e.preventDefault();
-                          grid.current?.focus();
-                          const point = { row: r, col: c };
-                          setSelection({
-                            start:
-                              e.shiftKey && selection ? selection.start : point,
-                            end: point,
-                          });
-                          setCopyState("");
-                        }
-                      : undefined
-                  }
-                  onPointerEnter={
-                    detail
-                      ? (e) => {
-                          if (e.buttons === 1)
-                            setSelection((previous) =>
-                              previous
-                                ? { ...previous, end: { row: r, col: c } }
-                                : previous,
-                            );
-                        }
-                      : undefined
                   }
                 >
                   {value?.missing_result ? (
@@ -313,14 +275,7 @@ export default function SheetPreview({
       </div>
     );
   return (
-    <section
-      className="text-reader sheet-reader"
-      aria-label={t("sheetReader")}
-      onKeyDown={(e) => {
-        if (e.key.startsWith("Arrow") || e.key === "Home" || e.key === "End")
-          e.stopPropagation();
-      }}
-    >
+    <section className="text-reader sheet-reader" aria-label={t("sheetReader")}>
       <div className="text-toolbar">
         {sourceToggle}
         <NativeSelect
@@ -349,19 +304,7 @@ export default function SheetPreview({
         <Button disabled={!matches.length} onClick={find}>
           {t("pdfNextMatch")}
         </Button>
-        <Button
-          disabled={!selection}
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(
-                selectedText(cells, selection!),
-              );
-              setCopyState(t("sheetCopied"));
-            } catch {
-              setCopyState(t("sheetCopyFailed"));
-            }
-          }}
-        >
+        <Button disabled={!selection} onClick={copySelection}>
           {t("sheetCopy")}
         </Button>
       </div>
@@ -371,72 +314,31 @@ export default function SheetPreview({
         {data.truncated ? ` · ${t("sheetTruncated")}` : ""}
         {search ? ` · ${matches.length} ${t("sheetMatches")}` : ""}
       </p>
+      {selection && (
+        <output className="sheet-selection" aria-live="polite">
+          {columnName(column + selection.start.col)}
+          {row + selection.start.row + 1}–
+          {columnName(column + selection.end.col)}
+          {row + selection.end.row + 1}
+          {selection.start.row === selection.end.row &&
+          selection.start.col === selection.end.col
+            ? ` · ${cells[selection.start.row]?.[selection.start.col]?.text || ""}`
+            : ""}
+        </output>
+      )}
       {copyState && (
         <p className="text-notice" role="status">
           {copyState}
         </p>
       )}
-      <div
-        className="sheet-scroll"
-        ref={grid}
-        tabIndex={0}
-        role="region"
-        aria-label={t("sheetCells")}
-        onCopy={(e) => {
-          if (selection) {
-            e.preventDefault();
-            e.clipboardData.setData(
-              "text/plain",
-              selectedText(cells, selection),
-            );
-          }
-        }}
-        onKeyDown={(e) => {
-          if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
-            e.preventDefault();
-            if (cells.length && columns)
-              setSelection({
-                start: { row: 0, col: 0 },
-                end: { row: cells.length - 1, col: columns - 1 },
-              });
-            return;
-          }
-          if (!e.key.startsWith("Arrow") || !cells.length || !columns) return;
-          e.preventDefault();
-          const current = selection?.end || { row: 0, col: 0 };
-          const next = {
-            row: Math.max(
-              0,
-              Math.min(
-                cells.length - 1,
-                current.row +
-                  (e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0),
-              ),
-            ),
-            col: Math.max(
-              0,
-              Math.min(
-                columns - 1,
-                current.col +
-                  (e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0),
-              ),
-            ),
-          };
-          setSelection({
-            start: e.shiftKey && selection ? selection.start : next,
-            end: next,
-          });
-          grid.current
-            ?.querySelector(`[data-cell="${next.row}:${next.col}"]`)
-            ?.scrollIntoView({ block: "nearest", inline: "nearest" });
-        }}
-      >
-        {cells.length ? (
-          table
-        ) : (
-          <p className="text-notice">{t("sheetEmpty")}</p>
-        )}
-      </div>
+      <Suspense fallback={<p className="text-notice">{t("loading")}</p>}>
+        <UniverSheet
+          data={data}
+          onSelection={setSelection}
+          onCopySelection={() => void copySelection()}
+          ref={grid}
+        />
+      </Suspense>
       <div className="sheet-pagination">
         <Button disabled={!row} onClick={() => setRow(Math.max(0, row - 100))}>
           {t("sheetPreviousRows")}
