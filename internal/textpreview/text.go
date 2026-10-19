@@ -32,6 +32,19 @@ func Read(r io.Reader, detail bool, encoding string) (Preview, error) {
 	if detail {
 		limit = DetailBytes
 	}
+	out, err := ReadLimit(r, limit, encoding)
+	if !detail && out.Supported {
+		lines := strings.SplitN(out.Text, "\n", 21)
+		if len(lines) > 20 {
+			out.Text = strings.Join(lines[:20], "\n")
+			out.Truncated = true
+		}
+	}
+	return out, err
+}
+
+// ReadLimit decodes a bounded prefix without imposing a line limit.
+func ReadLimit(r io.Reader, limit int, encoding string) (Preview, error) {
 	data, err := io.ReadAll(io.LimitReader(r, int64(limit+4)))
 	if err != nil {
 		return Preview{}, err
@@ -121,13 +134,6 @@ func Read(r io.Reader, detail bool, encoding string) (Preview, error) {
 		}
 	}
 	text = strings.ReplaceAll(strings.ReplaceAll(text, "\r\n", "\n"), "\r", "\n")
-	if !detail {
-		lines := strings.SplitN(text, "\n", 21)
-		if len(lines) > 20 {
-			text = strings.Join(lines[:20], "\n")
-			out.Truncated = true
-		}
-	}
 	out.Supported = true
 	out.Text = text
 	return out, nil

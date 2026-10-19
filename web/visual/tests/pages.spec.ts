@@ -97,6 +97,7 @@ type Options = {
   mapFailure?: boolean;
   dateline?: boolean;
   text?: string;
+  sheet?: boolean;
   textBody?: string;
   textReason?: string;
   textEncoding?: string;
@@ -176,6 +177,39 @@ async function prepare(page: Page, options: Options = {}) {
       return route.abort();
     }
     let body: unknown;
+    if (options.sheet && path === "/files/file-3/sheet-preview") {
+      const params = new URL(route.request().url()).searchParams;
+      const sheet = Number(params.get("sheet") || 0);
+      return route.fulfill({
+        json: {
+          supported: true,
+          sheets: ["旅行费用", "行程"],
+          sheet,
+          row: 0,
+          column: 0,
+          cells:
+            sheet === 0
+              ? [
+                  [{ text: "山海之旅 · 费用明细" }],
+                  [{ text: "项目" }, { text: "金额" }, { text: "说明" }],
+                  [
+                    { text: "交通" },
+                    { text: "1,280.00" },
+                    { text: "往返车票" },
+                  ],
+                  [{ text: "住宿" }, { text: "960.00" }, { text: "两晚住宿" }],
+                ]
+              : [[{ text: "山间步道" }, { text: "2026-10-19" }]],
+          widths: [24, 18, 24],
+          merges:
+            sheet === 0 ? [{ row: 0, column: 0, rows: 1, columns: 3 }] : [],
+          more_rows: false,
+          more_columns: false,
+          truncated: false,
+        },
+      });
+    }
+
     if (
       (options.text && path === "/files/file-3/text-preview") ||
       /^\/files\/(?:scroll-\d+|auto-\d+|last)\/text-preview$/.test(path)
@@ -2258,6 +2292,26 @@ for (const mode of ["light", "dark", "mobile"] as const) {
       page.getByRole("heading", { name: "旅行归档", exact: true }),
     ).toBeVisible();
     await expect(page.getByRole("link", { name: "本地照片" })).toBeVisible();
+    await capture(page, errors, info.title);
+  });
+}
+
+for (const mode of ["light", "dark", "mobile"] as const) {
+  test(`sheet-reader-${mode}`, async ({ page }, info) => {
+    const errors = await prepare(page, {
+      text: "travel.xlsx",
+      sheet: true,
+      mode: mode === "dark" ? "dark" : "light",
+      mobile: mode === "mobile",
+    });
+    await page.goto("/files?file=file-3");
+    const reader = page.getByRole("region", { name: "表格阅读器" });
+    await expect(reader.getByText("1,280.00")).toBeVisible();
+    await reader.getByLabel("工作表", { exact: true }).selectOption("1");
+    await expect(reader.getByText("山间步道")).toBeVisible();
+    await reader.getByLabel("工作表", { exact: true }).selectOption("0");
+    await reader.getByText("交通", { exact: true }).click();
+    await expect(reader.locator("td.selected")).toHaveText("交通");
     await capture(page, errors, info.title);
   });
 }

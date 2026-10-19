@@ -283,6 +283,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/files/{id}/sheet-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 files by ID sheet preview */
+        get: operations["get-api-v1-files-by-id-sheet-preview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/files/{id}/text-preview": {
         parameters: {
             query?: never;
@@ -743,6 +760,10 @@ export interface components {
             boxes: components["schemas"]["BoxSearchItem"][] | null;
             cursor?: string;
         };
+        Cell: {
+            missing_result?: boolean;
+            text: string;
+        };
         CreateTagInputBody: {
             name: string;
             parent_id?: string;
@@ -953,6 +974,16 @@ export interface components {
         MediaRequestBody: {
             retry?: boolean;
         };
+        Merge: {
+            /** Format: int64 */
+            column: number;
+            /** Format: int64 */
+            columns: number;
+            /** Format: int64 */
+            row: number;
+            /** Format: int64 */
+            rows: number;
+        };
         Metadata: {
             key: string;
             source: string;
@@ -1060,6 +1091,25 @@ export interface components {
             /** Format: int64 */
             op_id?: number;
             session?: components["schemas"]["UploadState"];
+        };
+        SheetPreview: {
+            cells: (components["schemas"]["Cell"][] | null)[] | null;
+            /** Format: int64 */
+            column: number;
+            encoding?: string;
+            legacy?: boolean;
+            merges: components["schemas"]["Merge"][] | null;
+            more_columns: boolean;
+            more_rows: boolean;
+            reason?: string;
+            /** Format: int64 */
+            row: number;
+            /** Format: int64 */
+            sheet: number;
+            sheets: string[] | null;
+            supported: boolean;
+            truncated: boolean;
+            widths: number[] | null;
         };
         Tag: {
             /** Format: int64 */
@@ -1996,6 +2046,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RequestResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-files-by-id-sheet-preview": {
+        parameters: {
+            query?: {
+                detail?: boolean;
+                sheet?: number;
+                row?: number;
+                column?: number;
+                encoding?: "auto" | "gb18030";
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SheetPreview"];
                 };
             };
             /** @description Error */

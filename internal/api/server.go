@@ -123,6 +123,7 @@ func New(l *library.Library, opt Options) (*Server, error) {
 	s.media = l.Media()
 	s.contentRoutes()
 	s.textRoutes()
+	s.sheetRoutes()
 	s.mediaRoutes()
 	s.uploadRoutes()
 	s.uploadSessionRoutes()
