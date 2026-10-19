@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
-import { Button } from "@mantine/core";
+import { BackgroundMenu } from "./BackgroundMenu";
+import { Button, Menu } from "@mantine/core";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { api, type Box } from "./api";
 import type { BoxFilters } from "./Filters";
@@ -71,6 +72,11 @@ export function BoxBrowser({
   );
   return (
     <>
+      {create && !paused && (
+        <BackgroundMenu>
+          <Menu.Item onClick={create}>{t("createBox")}</Menu.Item>
+        </BackgroundMenu>
+      )}
       {query.isPending && <p role="status">{t("loading")}</p>}
       {query.isError && (
         <div role="alert">

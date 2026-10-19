@@ -1,3 +1,4 @@
+import { BackgroundMenu } from "./BackgroundMenu";
 import { FileIcon } from "./FileIcon";
 import { DisplayModeControl, useDisplayMode } from "./DisplayMode";
 import { useEffect, useRef, useState } from "react";
@@ -231,6 +232,19 @@ export function FileBrowser({
   );
   return (
     <>
+      {box && uploadFolder && !paused && (
+        <BackgroundMenu key={`${box.id}:${uploadFolder}`}>
+          <Menu.Item onClick={() => setCreating(true)}>
+            {t("createFolder")}
+          </Menu.Item>
+          <Menu.Item
+            disabled={!info.data}
+            onClick={() => picker.current?.open()}
+          >
+            {t("uploadFiles")}
+          </Menu.Item>
+        </BackgroundMenu>
+      )}
       {actionsHost ? createPortal(actions, actionsHost) : actions}
       {infoHost ? createPortal(details, infoHost) : details}
       <DialogPresence>

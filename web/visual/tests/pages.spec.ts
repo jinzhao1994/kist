@@ -2335,3 +2335,35 @@ for (const mode of ["light", "dark", "mobile"] as const) {
     await capture(page, errors, info.title);
   });
 }
+
+for (const kind of ["boxes", "files"] as const) {
+  test(`background-menu-${kind}`, async ({ page }, info) => {
+    const errors = await prepare(page, {
+      mode: kind === "files" ? "dark" : "light",
+    });
+    await page.goto(kind === "boxes" ? "/" : "/boxes/box-1");
+    if (kind === "boxes")
+      await expect(page.locator(".box-card")).toHaveCount(2);
+    else await grid(page);
+    const main = page.locator("main");
+    const bounds = await main.boundingBox();
+    const background = { x: bounds!.width - 8, y: bounds!.height - 8 };
+    await main.click({ button: "right", position: background });
+    const create = page.getByRole("menuitem", {
+      name: kind === "boxes" ? "新建归档盒" : "新建目录",
+      exact: true,
+    });
+    await expect(create).toBeVisible();
+    await create.click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.getByRole("button", { name: "取消", exact: true }).click();
+    await expect(page.getByRole("dialog")).toBeHidden();
+    await main.click({ button: "right", position: background });
+    await expect(create).toBeVisible();
+    if (kind === "files")
+      await expect(
+        page.getByRole("menuitem", { name: "上传文件", exact: true }),
+      ).toBeEnabled();
+    await capture(page, errors, info.title);
+  });
+}
