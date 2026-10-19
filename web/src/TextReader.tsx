@@ -26,6 +26,7 @@ const highlight = HighlightStyle.define([
     color: "var(--code-string)",
   },
   { tag: [tags.number, tags.bool, tags.null], color: "var(--code-number)" },
+  { tag: tags.propertyName, color: "var(--code-number)" },
   { tag: tags.comment, color: "var(--muted)", fontStyle: "italic" },
   {
     tag: [tags.function(tags.variableName), tags.definition(tags.variableName)],
@@ -130,7 +131,23 @@ export default function TextReader({
         .load()
         .then((support) => {
           if (!disposed)
-            instance.dispatch({ effects: syntax.reconfigure(support) });
+            instance.dispatch({
+              effects: syntax.reconfigure([
+                support,
+                // YAML's unquoted values use content, not string tokens.
+                // Scope this rule so prose in other languages stays neutral.
+                ...(description.name === "YAML"
+                  ? [
+                      syntaxHighlighting(
+                        HighlightStyle.define(
+                          [{ tag: tags.content, color: "var(--code-string)" }],
+                          { scope: support.language },
+                        ),
+                      ),
+                    ]
+                  : []),
+              ]),
+            });
         })
         .catch(() => {
           if (!disposed) setLanguage("");

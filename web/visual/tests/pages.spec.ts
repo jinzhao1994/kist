@@ -2126,3 +2126,35 @@ for (const state of [
     await capture(page, errors, info.title);
   });
 }
+
+for (const mode of ["light", "dark"] as const) {
+  test(`text-yaml-${mode}`, async ({ page }, info) => {
+    const errors = await prepare(page, {
+      text: mode === "light" ? "settings.yaml" : "settings.yml",
+      textBody:
+        "# Archive settings\narchive:\n  name: 测试归档\n  read_only: true\n  count: 12\n  formats:\n    - text\n    - source\n",
+      mode,
+    });
+    await page.goto("/files?file=file-3");
+    const reader = page.getByRole("region", { name: "文本阅读器" });
+    await expect(reader.locator(".text-language")).toContainText("YAML");
+    const key = reader
+      .locator(".cm-line span")
+      .filter({ hasText: /^archive$/ });
+    const value = reader
+      .locator(".cm-line span")
+      .filter({ hasText: /^测试归档$/ });
+    await expect(key).toBeVisible();
+    await expect(value).toBeVisible();
+    const baseColor = await reader
+      .locator(".cm-content")
+      .evaluate((node) => getComputedStyle(node).color);
+    expect(await key.evaluate((node) => getComputedStyle(node).color)).not.toBe(
+      baseColor,
+    );
+    expect(
+      await value.evaluate((node) => getComputedStyle(node).color),
+    ).not.toBe(baseColor);
+    await capture(page, errors, info.title);
+  });
+}
