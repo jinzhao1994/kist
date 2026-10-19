@@ -2453,3 +2453,23 @@ for (const kind of ["box", "file", "folder", "breadcrumb"] as const) {
     await capture(page, errors, info.title);
   });
 }
+
+for (const mobile of [false, true]) {
+  test(`empty-folder-layout-${mobile ? "mobile" : "desktop"}`, async ({
+    page,
+  }, info) => {
+    const errors = await prepare(page, { mobile, empty: true });
+    await page.goto("/boxes/box-1");
+    await expect(page.locator(".file-empty-state")).toBeVisible();
+    const header = (await page.locator(".page-header").boundingBox())!;
+    const actions = (await page.locator(".header-actions").boundingBox())!;
+    expect(Math.abs(header.y - actions.y)).toBeLessThan(2);
+    const path = (await page.getByLabel("目录路径").boundingBox())!;
+    const filters = (await page
+      .getByRole("region", { name: "筛选", exact: true })
+      .boundingBox())!;
+    expect(path.y).toBeGreaterThanOrEqual(header.y + header.height);
+    expect(filters.y).toBeGreaterThan(path.y + path.height);
+    await capture(page, errors, info.title);
+  });
+}

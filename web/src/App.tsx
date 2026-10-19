@@ -294,19 +294,6 @@ export function App() {
                   )}
               </div>
               {route.files && <div ref={setInfoHost} />}
-              {route.box &&
-                route.files &&
-                currentFolder &&
-                folderChain(folderList, currentFolder).length > 0 && (
-                  <FolderBreadcrumbs
-                    box={route.box}
-                    goRoot={() => navigate()}
-                    rootLabel={selected?.name}
-                    folders={folderList}
-                    current={currentFolder}
-                    choose={chooseFolder}
-                  />
-                )}
             </div>
             <div className="header-actions">
               {!route.section && !selected && !route.files && !route.tag && (
@@ -402,6 +389,19 @@ export function App() {
               )}
             </div>
           </header>
+          {route.box &&
+            route.files &&
+            currentFolder &&
+            folderChain(folderList, currentFolder).length > 0 && (
+              <FolderBreadcrumbs
+                box={route.box}
+                goRoot={() => navigate()}
+                rootLabel={selected?.name}
+                folders={folderList}
+                current={currentFolder}
+                choose={chooseFolder}
+              />
+            )}
           {info.data?.projection_dirty && (
             <p className="notice" role="status">
               {t("projectionDirty")}
