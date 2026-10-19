@@ -2368,10 +2368,29 @@ for (const kind of ["boxes", "files"] as const) {
     await expect(page.getByRole("dialog")).toBeHidden();
     await main.click({ button: "right", position: background });
     await expect(create).toBeVisible();
-    if (kind === "files")
+    if (kind === "files") {
       await expect(
         page.getByRole("menuitem", { name: "上传文件", exact: true }),
       ).toBeEnabled();
+      await expect(
+        page.getByRole("menuitem", { name: "添加标签", exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("menuitem", { name: "操作历史", exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("menuitem", { name: "移入回收站", exact: true }),
+      ).toBeVisible();
+      await page
+        .getByRole("menuitem", { name: "编辑归档盒", exact: true })
+        .click();
+      await expect(
+        page.getByRole("dialog", { name: "编辑归档盒", exact: true }),
+      ).toBeVisible();
+      await page.getByRole("button", { name: "取消", exact: true }).click();
+      await expect(page.getByRole("dialog")).toBeHidden();
+      await main.click({ button: "right", position: background });
+    }
     await capture(page, errors, info.title);
   });
 }

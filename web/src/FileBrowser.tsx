@@ -1,7 +1,7 @@
 import { BackgroundMenu } from "./BackgroundMenu";
 import { FileIcon } from "./FileIcon";
 import { DisplayModeControl, useDisplayMode } from "./DisplayMode";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Dialog, DialogPresence } from "./Dialog";
 import { Button, ActionIcon, Menu } from "@mantine/core";
@@ -17,6 +17,7 @@ import { ExtractionStatus, pendingFiles, useExtraction } from "./Extraction";
 import { useI18n } from "./i18n";
 import { errorMessage } from "./mutations";
 export function FileBrowser({
+  boxActions,
   toolbarHost,
   actionsHost,
   infoHost,
@@ -34,6 +35,7 @@ export function FileBrowser({
   paused,
   emptyHint,
 }: {
+  boxActions?: ReactNode;
   toolbarHost?: HTMLElement | null;
   actionsHost?: HTMLElement | null;
   infoHost?: HTMLElement | null;
@@ -245,6 +247,12 @@ export function FileBrowser({
           >
             {t("uploadFiles")}
           </Menu.Item>
+          <Menu.Divider />
+          <Menu.Label>{t("boxRoot")}</Menu.Label>
+          <Menu.Item onClick={() => setAddingTag(true)}>
+            {t("addTag")}
+          </Menu.Item>
+          {boxActions}
         </BackgroundMenu>
       )}
       <DialogPresence>

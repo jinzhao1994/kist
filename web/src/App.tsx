@@ -113,6 +113,26 @@ export function App() {
     setFilters({ ...emptyFilters });
     go({ box: box?.id, files: !!box || files });
   };
+  const boxManagementActions = selected && (
+    <>
+      <Menu.Item
+        onClick={() =>
+          go({
+            files: false,
+            section: "history",
+            box: selected.id,
+          })
+        }
+      >
+        {t("history")}
+      </Menu.Item>
+      <Menu.Item onClick={() => setEditor(selected)}>{t("editBox")}</Menu.Item>
+      <Menu.Divider />
+      <Menu.Item color="red" onClick={() => setTrashing(selected)}>
+        {t("moveBoxToTrash")}
+      </Menu.Item>
+    </>
+  );
   return (
     <>
       <div
@@ -362,29 +382,7 @@ export function App() {
                       </ActionIcon>
                     </Tooltip>
                   </Menu.Target>
-                  <Menu.Dropdown>
-                    <Menu.Item
-                      onClick={() =>
-                        go({
-                          files: false,
-                          section: "history",
-                          box: selected.id,
-                        })
-                      }
-                    >
-                      {t("history")}
-                    </Menu.Item>
-                    <Menu.Item onClick={() => setEditor(selected)}>
-                      {t("editBox")}
-                    </Menu.Item>
-                    <Menu.Divider />
-                    <Menu.Item
-                      color="red"
-                      onClick={() => setTrashing(selected)}
-                    >
-                      {t("moveBoxToTrash")}
-                    </Menu.Item>
-                  </Menu.Dropdown>
+                  <Menu.Dropdown>{boxManagementActions}</Menu.Dropdown>
                 </Menu>
               )}
             </div>
@@ -498,6 +496,7 @@ export function App() {
                 <p role="alert">{t("notFound")}</p>
               ) : (
                 <FileBrowser
+                  boxActions={boxManagementActions}
                   onSort={(sort) => {
                     const next = {
                       ...filters,
