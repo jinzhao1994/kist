@@ -101,7 +101,7 @@ it("offers an explicit legacy encoding retry instead of showing corrupt text", a
     );
   vi.stubGlobal("fetch", fetch);
   mount({ detail: true });
-  expect(await screen.findByText(/Cannot decode as Unicode/)).toBeVisible();
+  expect(await screen.findByText(/Cannot preview this text/)).toBeVisible();
   await userEvent.selectOptions(
     screen.getByRole("combobox", { name: "Text encoding" }),
     "gb18030",

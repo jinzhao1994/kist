@@ -238,7 +238,7 @@ export const en = {
   textEncodingAuto: "Auto encoding",
   textLoadFailed: "Could not load text.",
   textEncodingUnknown:
-    "Cannot decode as Unicode text. Try GB18030 for legacy text, or download the original.",
+    "Cannot preview this text with the supported encodings (UTF-8, UTF-16, GBK/GB18030). It may use another encoding or contain invalid bytes. You can download the original.",
   emptyText: "Empty text file",
   plainText: "Plain text",
   textWrap: "Wrap lines",
@@ -633,7 +633,7 @@ export const zh: Record<MessageKey, string> = {
   textEncodingAuto: "自动识别编码",
   textLoadFailed: "文本加载失败。",
   textEncodingUnknown:
-    "无法按 Unicode 文本解码。旧编码文本可尝试 GB18030，或下载原文件。",
+    "暂时无法解码这份文本。已支持 UTF-8、UTF-16 和 GBK/GB18030；文件可能使用了其他编码，或含有无效字节。你仍可下载原文件查看。",
   emptyText: "空文本文件",
   plainText: "纯文本",
   textWrap: "自动换行",

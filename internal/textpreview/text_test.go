@@ -23,7 +23,9 @@ func TestReadText(t *testing.T) {
 		{"utf16le", []byte{0xff, 0xfe, 'a', 0, 0x2d, 0x4e}, "auto", "a中", true},
 		{"utf16be", []byte{0xfe, 0xff, 0, 'a', 0x4e, 0x2d}, "auto", "a中", true},
 		{"legacy explicit", gb, "gb18030", "中文日志", true},
-		{"legacy needs choice", gb, "auto", "", false},
+		{"legacy automatic", gb, "auto", "中文日志", true},
+		{"literal replacement character", []byte("合法字符：�"), "auto", "合法字符：�", true},
+		{"invalid utf8 with bom", []byte("\xef\xbb\xbf\xd6\xd0"), "auto", "", false},
 		{"binary", []byte{'a', 0, 'b'}, "auto", "", false},
 		{"invalid", []byte{0xff, 'a'}, "auto", "", false},
 		{"bad utf16", []byte{0xff, 0xfe, 0, 0xd8}, "auto", "", false},
@@ -54,5 +56,35 @@ func TestBounds(t *testing.T) {
 	got, _ = Read(strings.NewReader(strings.Repeat("x", ThumbnailBytes)), false, "auto")
 	if got.Truncated {
 		t.Fatal("exactly-sized file is not truncated")
+	}
+}
+
+func TestLegacyAutomaticBoundaries(t *testing.T) {
+	for _, value := range []string{"中文日志", "中文😀日志"} {
+		encoded, err := simplifiedchinese.GB18030.NewEncoder().Bytes([]byte(value))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, detail := range []bool{false, true} {
+			got, err := Read(bytes.NewReader(encoded), detail, "auto")
+			if err != nil || !got.Supported || got.Text != value || got.Encoding != "GB18030" {
+				t.Fatalf("automatic: %+v %v", got, err)
+			}
+		}
+	}
+	for _, value := range []string{"中", "😀"} {
+		encoded, _ := simplifiedchinese.GB18030.NewEncoder().Bytes([]byte(value))
+		for cut := 1; cut < len(encoded); cut++ {
+			prefix := strings.Repeat("x", ThumbnailBytes-cut)
+			data := append([]byte(prefix), encoded...)
+			got, err := Read(bytes.NewReader(data), false, "auto")
+			if err != nil || !got.Supported || got.Text != prefix || !got.Truncated || got.Encoding != "GB18030" {
+				t.Fatalf("boundary %q/%d: encoding=%s len=%d supported=%v err=%v", value, cut, got.Encoding, len(got.Text), got.Supported, err)
+			}
+		}
+	}
+	got, _ := Read(bytes.NewReader([]byte{0xd6, 0xd0, 0, 0xce, 0xc4}), true, "auto")
+	if got.Supported || got.Reason != "binary" {
+		t.Fatalf("legacy binary: %+v", got)
 	}
 }

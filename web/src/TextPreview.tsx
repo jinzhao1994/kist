@@ -36,7 +36,7 @@ export function TextPreview({
       onChange={(event) => setEncoding(event.currentTarget.value)}
       data={[
         { value: "auto", label: t("textEncodingAuto") },
-        { value: "gb18030", label: "GB18030" },
+        { value: "gb18030", label: "GBK / GB18030" },
       ]}
     />
   );

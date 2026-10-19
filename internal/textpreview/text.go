@@ -17,7 +17,7 @@ const ThumbnailBytes = 8 << 10
 const DetailBytes = 1 << 20
 
 // Preview never contains unbounded file content. Reason distinguishes binary
-// data from text that needs an explicit legacy encoding choice.
+// data from text that cannot be decoded with the supported encodings.
 type Preview struct {
 	Supported bool   `json:"supported"`
 	Text      string `json:"text"`
@@ -37,6 +37,7 @@ func Read(r io.Reader, detail bool, encoding string) (Preview, error) {
 		return Preview{}, err
 	}
 	truncated := len(data) > limit
+	lookahead := data
 	if truncated {
 		data = data[:limit]
 	}
@@ -68,34 +69,45 @@ func Read(r io.Reader, detail bool, encoding string) (Preview, error) {
 		text = string(utf16.Decode(units))
 	case encoding == "gb18030":
 		out.Encoding = "GB18030"
-		decoder := simplifiedchinese.GB18030.NewDecoder()
-		dst := make([]byte, len(data)*3+4)
-		n, _, decodeErr := decoder.Transform(dst, data, !truncated)
-		if decodeErr != nil && decodeErr != transform.ErrShortSrc {
+		var ok bool
+		text, ok = decodeGB18030(data, truncated)
+		if !ok {
 			out.Reason = "encoding"
 			return out, nil
 		}
-		text = string(dst[:n])
 	default:
+		bom := bytes.HasPrefix(data, []byte{0xef, 0xbb, 0xbf})
 		data = bytes.TrimPrefix(data, []byte{0xef, 0xbb, 0xbf})
+		lookahead = bytes.TrimPrefix(lookahead, []byte{0xef, 0xbb, 0xbf})
+		original := data
 		if truncated {
 			// Drop only an incomplete final UTF-8 sequence, never invalid interior bytes.
 			start := len(data) - 1
 			for start > 0 && data[start]&0xc0 == 0x80 {
 				start--
 			}
-			if start >= 0 && !utf8.FullRune(data[start:]) {
+			_, size := utf8.DecodeRune(lookahead[start:])
+			if !utf8.FullRune(data[start:]) && size > 1 {
 				data = data[:start]
 			}
 		}
 		if !utf8.Valid(data) {
-			out.Reason = "encoding"
-			return out, nil
+			// A BOM is authoritative. Only unmarked input may fall back to GBK/GB18030.
+			var ok bool
+			if !bom {
+				text, ok = decodeGB18030(original, truncated)
+			}
+			if !ok {
+				out.Reason = "encoding"
+				return out, nil
+			}
+			out.Encoding = "GB18030"
+		} else {
+			text = string(data)
 		}
-		text = string(data)
 	}
 	for _, r := range text {
-		if r == utf8.RuneError {
+		if r == utf8.RuneError && out.Encoding != "UTF-8" {
 			out.Reason = "encoding"
 			return out, nil
 		}
@@ -119,4 +131,15 @@ func Read(r io.Reader, detail bool, encoding string) (Preview, error) {
 	out.Supported = true
 	out.Text = text
 	return out, nil
+}
+
+func decodeGB18030(data []byte, truncated bool) (string, bool) {
+	decoder := simplifiedchinese.GB18030.NewDecoder()
+	dst := make([]byte, len(data)*3+4)
+	n, _, err := decoder.Transform(dst, data, !truncated)
+	if err != nil && !(truncated && err == transform.ErrShortSrc) {
+		return "", false
+	}
+	text := string(dst[:n])
+	return text, !strings.ContainsRune(text, utf8.RuneError)
 }

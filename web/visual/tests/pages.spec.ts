@@ -99,6 +99,7 @@ type Options = {
   text?: string;
   textBody?: string;
   textReason?: string;
+  textEncoding?: string;
   textTruncated?: boolean;
 };
 async function prepare(page: Page, options: Options = {}) {
@@ -187,7 +188,7 @@ async function prepare(page: Page, options: Options = {}) {
         json: {
           supported: !options.textReason,
           reason: options.textReason || "",
-          encoding: "UTF-8",
+          encoding: options.textEncoding || "UTF-8",
           text: options.textReason
             ? ""
             : detail
@@ -2082,6 +2083,7 @@ for (const mode of ["light", "dark", "mobile"] as const) {
 }
 for (const state of [
   "plain",
+  "legacy",
   "empty",
   "truncated",
   "binary",
@@ -2094,6 +2096,7 @@ for (const state of [
         state === "empty"
           ? ""
           : "<script>window.bad = true</script>\n中文日志\n2026-10-19 INFO Archive opened\n",
+      textEncoding: state === "legacy" ? "GB18030" : "UTF-8",
       textTruncated: state === "truncated",
       textReason: ["binary", "encoding"].includes(state) ? state : undefined,
     });
@@ -2101,9 +2104,15 @@ for (const state of [
     if (["binary", "encoding"].includes(state)) {
       await expect(
         page.locator(".media-placeholder [role=status]"),
-      ).toContainText(state === "binary" ? "暂不支持" : "无法按 Unicode");
+      ).toContainText(state === "binary" ? "暂不支持" : "暂时无法解码");
     } else {
       await expect(page.locator(".cm-editor")).toBeVisible();
+      if (state === "legacy") {
+        await expect(page.locator(".text-language")).toContainText("GB18030");
+        await expect(
+          page.getByRole("combobox", { name: "文本编码" }),
+        ).toHaveValue("auto");
+      }
       if (state === "empty")
         await expect(
           page.getByText("空文本文件", { exact: true }),
