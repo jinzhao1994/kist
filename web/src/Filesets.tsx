@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ActionIcon,
+  Anchor,
   Button,
   Checkbox,
   Group,
@@ -34,7 +35,7 @@ export function useFilesets() {
     queryFn: ({ signal }) => get<{ filesets: Fileset[] }>("/filesets", signal),
   });
 }
-export function FilesetFolderButton({
+export function FilesetFolderLink({
   folder,
   open,
 }: {
@@ -46,14 +47,9 @@ export function FilesetFolderButton({
   if (!sets.data?.filesets?.some((set) => set.folder_id === folder))
     return null;
   return (
-    <Button
-      variant="subtle"
-      size="compact-sm"
-      className="folder-fileset-action"
-      onClick={open}
-    >
+    <Anchor component="button" className="folder-fileset-action" onClick={open}>
       {t("filesetView")}
-    </Button>
+    </Anchor>
   );
 }
 export function primaryFile(

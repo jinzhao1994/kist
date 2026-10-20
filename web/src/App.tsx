@@ -31,7 +31,7 @@ import {
 } from "./Filters";
 import { FileBrowser } from "./FileBrowser";
 import { Gallery } from "./Gallery";
-import { FilesetFolderButton } from "./Filesets";
+import { FilesetFolderLink } from "./Filesets";
 import { useNavigation } from "./navigation";
 import { errorMessage } from "./mutations";
 import { HistoryPage } from "./History";
@@ -412,7 +412,7 @@ export function App() {
                 current={currentFolder}
                 choose={chooseFolder}
               >
-                <FilesetFolderButton
+                <FilesetFolderLink
                   folder={currentFolder}
                   open={() =>
                     go({ ...route, file: currentFolder, page: undefined })
