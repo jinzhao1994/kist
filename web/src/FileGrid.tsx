@@ -451,12 +451,15 @@ export function FileGrid({
                         )}
                         {!boxID && (
                           <small className="file-card-meta">
-                            <Tooltip
+                            <Tooltip.Floating
                               label={source}
                               disabled={!source}
                               multiline
                               maw={360}
-                              openDelay={250}
+                              position="bottom-start"
+                              offset={16}
+                              role="tooltip"
+                              classNames={{ tooltip: "metadata-tooltip" }}
                             >
                               <span className="file-card-source">
                                 <bdi className="file-card-source-name">
@@ -472,7 +475,7 @@ export function FileGrid({
                                   </time>
                                 )}
                               </span>
-                            </Tooltip>
+                            </Tooltip.Floating>
                             <span className="file-card-size">
                               {size == null ? "—" : formatBytes(size, prefs)}
                             </span>
