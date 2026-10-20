@@ -2728,3 +2728,53 @@ test("fileset-grid", async ({ page }, info) => {
   await expect(page.locator(".fileset-indicator")).toBeVisible();
   await capture(page, errors, info.title);
 });
+
+test("fileset-gallery-navigation", async ({ page }, info) => {
+  const errors = await prepareFileset(page);
+  const zero = "00000000-0000-0000-0000-000000000000";
+  await page.route("**/api/v1/filesets", (route) =>
+    route.fulfill({
+      json: {
+        filesets: [
+          {
+            folder_id: "folder-set",
+            kind: "document_pages",
+            layout: "directory",
+            primary: zero,
+            members: [],
+          },
+        ],
+      },
+    }),
+  );
+  await page.route(/\/api\/v1\/entries\?/, (route) =>
+    route.fulfill({
+      json: {
+        files:
+          new URL(route.request().url()).searchParams.get("folder") ===
+          "folder-set"
+            ? []
+            : [
+                files[0],
+                {
+                  ...files[1],
+                  id: "folder-set",
+                  name: "旅行证件",
+                  fileset_id: "folder-set",
+                  primary_id: zero,
+                  no_primary: true,
+                },
+              ],
+      },
+    }),
+  );
+  await page.goto("/boxes/box-1?file=file-1");
+  await expect(page.locator(".gallery")).toBeVisible();
+  await page.getByRole("button", { name: "下一个文件", exact: true }).click();
+  await expect(page).toHaveURL(/folder=folder-set/);
+  await expect(page.locator(".gallery")).toHaveCount(0);
+  await expect(
+    page.getByRole("region", { name: "文件组合预览" }),
+  ).toContainText("0 / 0");
+  await capture(page, errors, info.title);
+});

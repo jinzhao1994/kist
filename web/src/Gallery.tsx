@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, UnstyledButton } from "@mantine/core";
 import { useFocusTrap } from "@mantine/hooks";
 import { useQuery } from "@tanstack/react-query";
-import { api, contentURL, type Tag } from "./api";
+import { api, contentURL, type Tag, type ArchiveFile } from "./api";
 import type { Filters } from "./Filters";
 import { useFileResults, resultFiles } from "./fileResults";
 import { FileDetail } from "./FileDetail";
@@ -127,13 +127,20 @@ export function Gallery({
       if (trigger?.isConnected) trigger.focus({ preventScroll: true });
     };
   }, []);
+  function openResult(file: ArchiveFile) {
+    if (file.fileset_id) {
+      window.location.assign(
+        routeURL({ files: true, box: file.box_id, folder: file.fileset_id }),
+      );
+    } else change(file.id);
+  }
   function previous() {
-    if (hasPrevious && !advancing) change(files[index - 1].id);
+    if (hasPrevious && !advancing) openResult(files[index - 1]);
   }
   async function next() {
     if (!hasNext || advancing) return;
     if (index + 1 < files.length) {
-      change(files[index + 1].id);
+      openResult(files[index + 1]);
       return;
     }
     setAdvancing(true);
@@ -147,7 +154,7 @@ export function Gallery({
         position >= 0 &&
         loaded[position + 1]
       )
-        change(loaded[position + 1].id);
+        openResult(loaded[position + 1]);
     } finally {
       setAdvancing(false);
     }
