@@ -190,6 +190,22 @@ export function BoxGrid({
                       : ""}
                 </time>
                 {mode !== "list" &&
+                  box.start_at &&
+                  box.end_at === box.start_at && (
+                    <span>
+                      ·{" "}
+                      {t(
+                        box.start_at.length === 4
+                          ? "sameYear"
+                          : box.start_at.length === 7
+                            ? "sameMonth"
+                            : box.start_at.length === 10
+                              ? "sameDay"
+                              : "sameMoment",
+                      )}
+                    </span>
+                  )}
+                {mode !== "list" &&
                   box.end_at &&
                   box.end_at !== box.start_at && (
                     <>
