@@ -802,7 +802,7 @@ export function FilesetPreview({
             {t("filesetPrevious")}
           </Button>
           <span role="status" aria-label={t("pdfPage")}>
-            {pages.length ? index + 1 : 0} / {pages.length}
+            {`${pages.length ? index + 1 : 0} / ${pages.length}`}
           </span>
           <Button
             disabled={index + 1 >= pages.length}

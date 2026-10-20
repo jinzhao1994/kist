@@ -1343,7 +1343,6 @@ button.filter-token-segment:hover {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 1.5rem;
   padding: 0.75rem;
 }
 .gallery-details {
@@ -1390,7 +1389,6 @@ button.filter-token-segment:hover {
     padding: 0.25rem;
   }
   .gallery-navigation {
-    gap: 0.5rem;
     padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
   }
 }
@@ -3232,4 +3230,15 @@ main.upload-drag-active {
 }
 .folder-fileset-separator {
   color: var(--muted);
+}
+
+.gallery-navigation,
+.fileset-page-toolbar {
+  gap: 1.5rem;
+}
+@media (max-width: 680px) {
+  .gallery-navigation,
+  .fileset-page-toolbar {
+    gap: 0.5rem;
+  }
 }
