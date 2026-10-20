@@ -160,63 +160,62 @@ export function BoxGrid({
                     </span>
                   )}
                 </span>
-                <TagLabels tags={box.tags} />
+                {mode === "list" && <TagLabels tags={box.tags} />}
               </span>
               <span
-                className={mode === "list" ? "box-list-meta" : "box-card-meta"}
+                className="box-activity"
+                title={
+                  mode === "list" && box.end_at
+                    ? `${box.start_at ? formatLocalDate(box.start_at, prefs) : "—"} — ${formatLocalDate(box.end_at, prefs)}`
+                    : undefined
+                }
               >
-                <span
-                  className="box-activity"
-                  title={
-                    mode === "list" && box.end_at
-                      ? `${box.start_at ? formatLocalDate(box.start_at, prefs) : "—"} — ${formatLocalDate(box.end_at, prefs)}`
-                      : undefined
-                  }
-                >
-                  <time>
-                    {box.start_at
-                      ? formatLocalDate(box.start_at, prefs)
-                      : mode === "list"
-                        ? "—"
-                        : ""}
-                  </time>
-                  {mode !== "list" &&
-                    box.start_at &&
-                    box.end_at === box.start_at && (
-                      <span>
-                        （
-                        {t(
-                          box.start_at.length === 4
-                            ? "sameYear"
-                            : box.start_at.length === 7
-                              ? "sameMonth"
-                              : box.start_at.length === 10
-                                ? "sameDay"
-                                : "sameMoment",
-                        )}
-                        ）
-                      </span>
-                    )}
-                  {mode !== "list" &&
-                    box.end_at &&
-                    box.end_at !== box.start_at && (
-                      <>
-                        <span aria-hidden="true">—</span>
-                        <time>
-                          {formatLocalDate(box.end_at, prefs, box.start_at)}
-                        </time>
-                      </>
-                    )}
-                </span>
-                {mode !== "list" && (
+                <time>
+                  {box.start_at
+                    ? formatLocalDate(box.start_at, prefs)
+                    : mode === "list"
+                      ? "—"
+                      : ""}
+                </time>
+                {mode !== "list" &&
+                  box.start_at &&
+                  box.end_at === box.start_at && (
+                    <span>
+                      （
+                      {t(
+                        box.start_at.length === 4
+                          ? "sameYear"
+                          : box.start_at.length === 7
+                            ? "sameMonth"
+                            : box.start_at.length === 10
+                              ? "sameDay"
+                              : "sameMoment",
+                      )}
+                      ）
+                    </span>
+                  )}
+                {mode !== "list" &&
+                  box.end_at &&
+                  box.end_at !== box.start_at && (
+                    <>
+                      <span aria-hidden="true">—</span>
+                      <time>
+                        {formatLocalDate(box.end_at, prefs, box.start_at)}
+                      </time>
+                    </>
+                  )}
+              </span>
+              {mode !== "list" && (
+                <span className="box-card-meta">
+                  <TagLabels tags={box.tags} />
                   <span
                     className="box-size"
                     aria-label={`${t("fileSize")}: ${formatBytes(box.total_size, prefs)}`}
                   >
                     {formatBytes(box.total_size, prefs)}
                   </span>
-                )}
-              </span>
+                </span>
+              )}
               {mode === "list" && (
                 <time className="box-updated">
                   {formatInstant(box.updated_at, prefs)}

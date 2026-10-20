@@ -1686,21 +1686,31 @@ button.filter-token-segment:hover {
   gap: 0.75rem;
   margin-block-start: 0.65rem;
 }
-.box-grid:not(.view-list) .box-summary > .entry-tags {
+.box-card-meta > .entry-tags {
   flex: 1;
   min-inline-size: 0;
   gap: 0.3rem;
-  margin: 0.5rem 0 0;
+  margin: 0;
 }
-.box-grid:not(.view-list) .box-summary > .entry-tags .tag-chip {
+.box-card-meta > .entry-tags .tag-chip {
   font-size: 0.75rem;
-  padding: 0.1rem 0.35rem;
-  border-radius: 4px;
-  background: var(--surface-hover);
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--mantine-primary-color-light-color);
 }
-.box-grid:not(.view-list) .box-summary > .entry-tags .tag-chip::before {
+.box-card-meta > .entry-tags .tag-chip::before {
   content: none;
+}
+.box-card-meta > .entry-tags .tag-chip + .tag-chip::before {
+  content: "·";
+  position: static;
+  z-index: auto;
+  margin-inline-end: 0.3rem;
+  background: none;
+  mask-image: none;
+  clip-path: none;
+  color: var(--muted);
 }
 .box-card-meta .box-size {
   margin-inline-start: auto;
@@ -1716,7 +1726,7 @@ button.filter-token-segment:hover {
   font-size: 0.85rem;
 }
 .box-grid:not(.view-list) .box-activity {
-  margin-block-start: 0;
+  margin-block-start: 0.35rem;
   min-inline-size: 0;
   font-size: 0.75rem;
   display: flex;
@@ -2967,8 +2977,4 @@ main.upload-drag-active {
 .box-grid:not(.view-list)
   .box-activity:has(time:empty):not(:has(time:not(:empty))) {
   display: none;
-}
-
-.box-list-meta {
-  display: contents;
 }
