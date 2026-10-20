@@ -1182,7 +1182,7 @@ for (const kind of ["boxes", "files"] as const) {
         await expect(root.locator(".entry-tags .tag-chip")).toHaveCount(2);
       }
       if (kind === "files") await grid(page, mode === "list" ? 0 : 4);
-      if (kind === "files" && mode === "list")
+      if (kind === "files")
         await expect(root.locator(".entry-tags")).toContainText("旅行");
       await page.reload();
       await expect(root).toHaveClass(new RegExp(`view-${mode}`));
@@ -2544,3 +2544,20 @@ for (const mobile of [false, true]) {
     await capture(page, errors, info.title);
   });
 }
+
+test("file-tags-dialog", async ({ page }, info) => {
+  const errors = await prepare(page);
+  await page.goto("/files");
+  await grid(page);
+  await page
+    .locator('.file-card[data-item-id="file-1"]')
+    .click({ button: "right" });
+  await page.getByRole("menuitem", { name: "添加标签", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "添加标签" });
+  await expect(dialog).toBeVisible();
+  await expect(
+    dialog.getByRole("combobox", { name: "选择标签" }),
+  ).toBeFocused();
+  await expect(dialog.locator(".tag-chip")).toContainText("山野");
+  await capture(page, errors, info.title);
+});

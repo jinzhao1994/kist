@@ -1,6 +1,7 @@
 import { LinkMenuItems } from "./LinkMenuItems";
 import { routeURL } from "./navigation";
 import { iconGridColumns, iconGridStyle } from "./icon-grid";
+import { FileTagsDialog } from "./FileTagsDialog";
 import { TagLabels } from "./TagLabels";
 import { DialogPresence } from "./Dialog";
 import { SidebarMenuButton } from "./SidebarMenuButton";
@@ -109,6 +110,8 @@ export function FileGrid({
   const context = useContextMenu<(typeof items)[number]>();
   const selected = context.menu?.item;
   const [entryAction, setEntryAction] = useState<EntryActionTarget>();
+  const [taggingFile, setTaggingFile] = useState<string>();
+  const hasTags = files.some((file) => file.display_tags?.length);
   const selectedBox = selected?.file?.box_id || boxID;
   const dateSort =
     filters?.sort === "captured" || filters?.sort === "imported"
@@ -135,13 +138,14 @@ export function FileGrid({
     );
   }
   const rowSize =
-    mode === "list"
+    (mode !== "list" && hasTags ? 24 : 0) +
+    (mode === "list"
       ? 50
       : mode === "large"
         ? 328
         : mode === "small"
           ? 168
-          : 248;
+          : 248);
   const columnCount = (width: number, value: DisplayMode) =>
     value !== "small" && window.matchMedia("(max-width: 680px)").matches
       ? 1
@@ -298,7 +302,7 @@ export function FileGrid({
         </div>
       )}
       <div
-        className={`file-scroll view-${mode}`}
+        className={`file-scroll view-${mode} ${hasTags ? "has-tags" : ""}`}
         style={iconGridStyle(mode)}
         ref={scroll}
         role="region"
@@ -481,6 +485,9 @@ export function FileGrid({
                             </span>
                           </small>
                         )}
+                        {mode !== "list" && (
+                          <TagLabels tags={file?.display_tags} />
+                        )}
                       </UnstyledButton>
                       {mode === "list" && !editing && (
                         <SidebarMenuButton
@@ -511,6 +518,9 @@ export function FileGrid({
         </Menu.Item>
         {selected?.file && (
           <>
+            <Menu.Item onClick={() => setTaggingFile(selected.id)}>
+              {t("addTag")}
+            </Menu.Item>
             <LinkMenuItems
               key={selected.id}
               href={routeURL({ files: true, file: selected.id })}
@@ -567,6 +577,12 @@ export function FileGrid({
         )}
       </ContextMenu>
       <DialogPresence>
+        {taggingFile && (
+          <FileTagsDialog
+            file={taggingFile}
+            close={() => setTaggingFile(undefined)}
+          />
+        )}
         {entryAction?.action === "trash" && (
           <EntryActions
             entry={entryAction}

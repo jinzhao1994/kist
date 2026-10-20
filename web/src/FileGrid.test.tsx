@@ -831,3 +831,65 @@ it.each([
     }
   },
 );
+
+it.each(["medium", "list"])(
+  "assigns file tags from the %s action menu",
+  async (mode) => {
+    localStorage.setItem("kist.display.files.v1", mode);
+    let assigned: string[] = [];
+    const taggedFile = {
+      ...files[0],
+      display_tags: [{ id: "existing", name: "Existing" }],
+    };
+    const fetch = vi.fn(async (path: string, options?: RequestInit) => {
+      if (path === "/api/v1/tags/new/files" && options?.method === "PUT") {
+        assigned = ["new"];
+        return Response.json({ op_id: 1 });
+      }
+      if (path === "/api/v1/tags")
+        return Response.json({
+          tags: [{ id: "new", name: "Travel", parent_id: null, count: 0 }],
+        });
+      if (path === "/api/v1/files/0")
+        return Response.json({
+          file: taggedFile,
+          tags: assigned,
+          metadata: [],
+        });
+      return ready();
+    });
+    vi.stubGlobal("fetch", fetch);
+    render(
+      <ThemeProvider env="test">
+        <I18nProvider>
+          <FileGrid files={[taggedFile]} open={() => {}} />
+        </I18nProvider>
+      </ThemeProvider>,
+      { wrapper: mediaWrapper },
+    );
+    const card = await screen.findByRole("button", { name: /photo-0.jpg/ });
+    expect(card).toHaveTextContent("Existing");
+    if (mode === "list")
+      await userEvent.click(
+        screen.getByRole("button", { name: "More actions" }),
+      );
+    else fireEvent.contextMenu(card);
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "Add tag" }),
+    );
+    const picker = await screen.findByRole("combobox", {
+      name: "Select a tag",
+    });
+    await userEvent.click(picker);
+    await userEvent.click(
+      await screen.findByRole("option", { name: /^Travel$/ }),
+    );
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/v1/tags/new/files",
+        expect.objectContaining({ method: "PUT", body: '{"ids":["0"]}' }),
+      ),
+    );
+    expect(await screen.findByRole("dialog")).toHaveTextContent("Travel");
+  },
+);

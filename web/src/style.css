@@ -1706,17 +1706,17 @@ button.filter-token-segment:hover {
   gap: 0.3rem;
   margin: 0;
 }
-.box-card-meta > .entry-tags .tag-chip {
+.entry-tags .tag-chip {
   font-size: 0.75rem;
   padding: 0;
   border-radius: 0;
   background: transparent;
   color: var(--mantine-primary-color-light-color);
 }
-.box-card-meta > .entry-tags .tag-chip::before {
+.entry-tags .tag-chip::before {
   content: none;
 }
-.box-card-meta > .entry-tags .tag-chip + .tag-chip::before {
+.entry-tags .tag-chip + .tag-chip::before {
   content: "·";
   position: static;
   z-index: auto;
@@ -1729,7 +1729,7 @@ button.filter-token-segment:hover {
 .box-card-meta .box-size {
   margin-inline-start: auto;
   font-size: 0.75rem;
-  line-height: var(--box-detail-line-height);
+  line-height: var(--box-detail-line-height, 1.25rem);
 }
 .box-summary-description {
   color: var(--muted);
@@ -1747,7 +1747,7 @@ button.filter-token-segment:hover {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.15rem 0.3rem;
-  line-height: var(--box-detail-line-height);
+  line-height: var(--box-detail-line-height, 1.25rem);
 }
 .box-grid.view-list .box-summary {
   display: flex;
@@ -2990,10 +2990,26 @@ main.upload-drag-active {
   --box-detail-gap: 0.375rem;
 }
 .box-grid:not(.view-list) .box-summary-description,
-.box-card-meta > .entry-tags .tag-chip {
-  line-height: var(--box-detail-line-height);
+.entry-tags .tag-chip {
+  line-height: var(--box-detail-line-height, 1.25rem);
 }
 .box-grid:not(.view-list)
   .box-activity:has(time:empty):not(:has(time:not(:empty))) {
   display: none;
+}
+
+.file-scroll.has-tags:not(.view-list) .file-card {
+  block-size: 256px;
+}
+.file-scroll.has-tags.view-large .file-card {
+  block-size: 336px;
+}
+.file-scroll.has-tags.view-small .file-card {
+  block-size: 176px;
+}
+.file-scroll:not(.view-list) .file-card > .entry-tags {
+  margin: 0.25rem 0.7rem 0;
+  gap: 0.3rem;
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
