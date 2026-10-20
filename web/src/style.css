@@ -3081,4 +3081,6 @@ main.upload-drag-active {
   display: inline-flex;
   flex-shrink: 0;
   color: var(--muted);
+  /* Align the visible strokes with the text rather than the line box. */
+  transform: translateY(1px);
 }
