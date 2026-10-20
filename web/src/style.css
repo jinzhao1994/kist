@@ -3066,3 +3066,19 @@ main.upload-drag-active {
   border-block-end: 1px solid var(--mantine-color-default-border);
   padding-block: 0.5rem;
 }
+
+.file-name-fileset {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.file-name-text {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fileset-indicator {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--muted);
+}

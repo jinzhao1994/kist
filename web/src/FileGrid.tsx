@@ -426,16 +426,44 @@ export function FileGrid({
                               />
                             </div>
                           ) : (
-                            <bdi className="file-name">
-                              {file?.fileset_id && (
-                                <span
-                                  className="fileset-indicator"
-                                  title={t("filesetLabel")}
-                                >
-                                  ▣{" "}
-                                </span>
+                            <bdi
+                              className={`file-name${file?.fileset_id ? " file-name-fileset" : ""}`}
+                            >
+                              {file?.fileset_id ? (
+                                <>
+                                  <span className="file-name-text">
+                                    {item.name}
+                                  </span>
+                                  <span
+                                    className="fileset-indicator"
+                                    title={t("filesetLabel")}
+                                  >
+                                    <svg
+                                      width="14"
+                                      height="14"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="1.6"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      role="img"
+                                      aria-label={t("filesetLabel")}
+                                    >
+                                      <rect
+                                        x="8"
+                                        y="8"
+                                        width="12"
+                                        height="12"
+                                        rx="2"
+                                      />
+                                      <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+                                    </svg>
+                                  </span>
+                                </>
+                              ) : (
+                                item.name
                               )}
-                              {item.name}
                             </bdi>
                           )}
                           {boxID && mode !== "list" && (
