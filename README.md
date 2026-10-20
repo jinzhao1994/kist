@@ -187,6 +187,13 @@ undoing an import. v0.1 retains historical originals permanently and offers no
 empty-bin or retention-period setting. Historical queries replay the log; large
 histories may exceed the 30-second request limit and return a retryable error.
 
+**Box covers and sizes.** Use a file's context menu to set it as its box's
+cover. Medium and large box cards preserve the complete preview; the box menu
+can remove the association without deleting the file. Covers follow file IDs,
+survive trash/restore, and participate in undo and rebuild. Folder and box sizes
+are maintained logical byte totals, excluding recycled files. File cards and
+lists expose tag actions and display assigned tags.
+
 **Display settings** separates English/Chinese language, regional number/date
 formatting, display timezone and reading direction. These preferences stay in
 the browser. Mantine controls support gray, green, yellow, pink, blue, and orange
