@@ -22,14 +22,14 @@ import { useVirtualizer, useWindowVirtualizer } from "@tanstack/react-virtual";
 import { ContextMenu, useContextMenu } from "./ContextMenu";
 import { FileIcon, fileType } from "./FileIcon";
 import type { Filters } from "./Filters";
-import { contentURL, type ArchiveFile, type Folder } from "./api";
+import { contentURL, type ArchiveFile, type Folder, type Box } from "./api";
 import { Media, hasPreview } from "./Media";
 import {
   DisplayModeControl,
   useDisplayMode,
   type DisplayMode,
 } from "./DisplayMode";
-import { formatBytes, formatInstant, useI18n } from "./i18n";
+import { formatBytes, formatInstant, formatLocalDate, useI18n } from "./i18n";
 export function activeImages(
   files: ArchiveFile[],
   first: number,
@@ -45,6 +45,7 @@ export function activeImages(
 export function FileGrid({
   files,
   folders = [],
+  boxes = [],
   chooseFolder,
   createFolder,
   uploadToFolder,
@@ -57,6 +58,7 @@ export function FileGrid({
 }: {
   files: ArchiveFile[];
   folders?: Folder[];
+  boxes?: Box[];
   chooseFolder?: (id: string) => void;
   createFolder?: (id: string) => void;
   uploadToFolder?: (id: string) => void;
@@ -69,6 +71,7 @@ export function FileGrid({
 }) {
   const { t, prefs } = useI18n();
   const [mode, setMode] = useDisplayMode("files");
+  const boxesByID = new Map(boxes.map((box) => [box.id, box]));
   const sortedFolders = [...folders].sort((a, b) => {
     const byName =
       a.name.localeCompare(b.name, prefs.formatLocale, {
@@ -320,6 +323,21 @@ export function FileGrid({
                 .slice(row.index * columns, (row.index + 1) * columns)
                 .map((item, offset) => {
                   const { file, folder } = item;
+                  const sourceBox =
+                    !boxID && file?.box_id
+                      ? boxesByID.get(file.box_id)
+                      : undefined;
+                  const source = sourceBox
+                    ? [
+                        sourceBox.start_at
+                          ? formatLocalDate(sourceBox.start_at, prefs)
+                          : "",
+                        sourceBox.name,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")
+                    : "";
+                  const size = folder ? folder.total_size : file?.size;
                   const editing =
                     entryAction?.action === "rename" &&
                     entryAction.id === item.id;
@@ -393,7 +411,9 @@ export function FileGrid({
                             <FileIcon folder={!!folder} />
                           )}
                         </div>
-                        <div className="file-name-cell">
+                        <div
+                          className={`file-name-cell ${boxID && mode !== "list" ? "file-name-with-size" : ""}`}
+                        >
                           {editing ? (
                             <div className="file-name file-name-edit">
                               <EntryRename
@@ -403,6 +423,11 @@ export function FileGrid({
                             </div>
                           ) : (
                             <bdi className="file-name">{item.name}</bdi>
+                          )}
+                          {boxID && mode !== "list" && (
+                            <span className="file-card-size">
+                              {size == null ? "—" : formatBytes(size, prefs)}
+                            </span>
                           )}
                           {mode === "list" && (
                             <TagLabels tags={file?.display_tags} />
@@ -429,13 +454,16 @@ export function FileGrid({
                             </time>
                           </>
                         )}
-                        <small>
-                          <bdi>
-                            {file
-                              ? file.path || file.name
-                              : `${t("folderType")} · ${formatBytes(folder!.total_size, prefs)}`}
-                          </bdi>
-                        </small>
+                        {!boxID && (
+                          <small className="file-card-meta">
+                            <bdi className="file-card-source" title={source}>
+                              {source}
+                            </bdi>
+                            <span className="file-card-size">
+                              {size == null ? "—" : formatBytes(size, prefs)}
+                            </span>
+                          </small>
+                        )}
                       </UnstyledButton>
                       {mode === "list" && !editing && (
                         <SidebarMenuButton

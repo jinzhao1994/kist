@@ -581,6 +581,36 @@ progress {
   text-overflow: ellipsis;
   margin-inline: 0.7rem;
 }
+.file-name-with-size {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-inline: 0.7rem;
+}
+.file-name-with-size .file-name {
+  flex: 1;
+  min-inline-size: 0;
+  margin-inline: 0;
+}
+.file-name-with-size .file-card-size {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.file-card > .file-card-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.file-card-source {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+.file-card-size {
+  flex-shrink: 0;
+  margin-inline-start: auto;
+}
 .file-name {
   margin-block-start: 0.5rem;
   font-size: 0.85rem;
@@ -1644,6 +1674,33 @@ button.filter-token-segment:hover {
   color: var(--muted);
   font-size: 0.8rem;
   white-space: nowrap;
+}
+/* Icon cards keep their title hierarchy and group secondary metadata below. */
+.box-grid:not(.view-list) .box-summary-description {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.box-card-footer {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-block-start: 0.75rem;
+}
+.box-card-footer .entry-tags {
+  flex: 1;
+  min-inline-size: 0;
+  gap: 0.3rem;
+  margin: 0;
+}
+.box-card-footer .tag-chip {
+  font-size: 0.75rem;
+  padding-block: 0.1rem;
+  padding-inline-end: 0.45rem;
+}
+.box-card-footer .box-size {
+  margin-inline-start: auto;
+  font-size: 0.75rem;
+  line-height: 1.6;
 }
 .box-summary-description {
   color: var(--muted);

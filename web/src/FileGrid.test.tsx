@@ -771,3 +771,58 @@ it("distinguishes the archive root from the current box root", async () => {
     await screen.findByRole("menuitem", { name: "Open in new tab" }),
   ).toHaveAttribute("href", "/");
 });
+
+it.each([
+  { scoped: false, start: "2026", source: "2026 · Trip" },
+  { scoped: false, start: "", source: "Trip" },
+  { scoped: true, start: "2026", source: "" },
+])(
+  "renders card source and size without repeating the filename: %j",
+  async ({ scoped, start, source }) => {
+    const box: Box = {
+      id: "box",
+      name: "Trip",
+      start_at: start,
+      total_size: 2048,
+      created_at: files[0].created_at,
+      updated_at: files[0].updated_at,
+    };
+    render(
+      <ThemeProvider env="test">
+        <I18nProvider>
+          <FileGrid
+            files={[
+              {
+                ...files[0],
+                box_id: box.id,
+                size: 2048,
+                path: "sub/photo-0.jpg",
+              },
+            ]}
+            boxes={[box]}
+            boxID={scoped ? box.id : undefined}
+            open={() => {}}
+          />
+        </I18nProvider>
+      </ThemeProvider>,
+      { wrapper: mediaWrapper },
+    );
+    const card = await screen.findByRole("button", { name: /photo-0.jpg/ });
+    expect(card.querySelector(".file-card-size")).toHaveTextContent("2 kB");
+    if (scoped) {
+      expect(card.querySelector(".file-card-meta")).toBeNull();
+      expect(
+        card.querySelector(".file-name-cell .file-card-size"),
+      ).toBeInTheDocument();
+    } else {
+      expect(card.querySelector(".file-card-source")).toHaveTextContent(source);
+      expect(card.querySelector(".file-card-source")).toHaveAttribute(
+        "title",
+        source,
+      );
+      expect(card.querySelector(".file-card-meta")).not.toHaveTextContent(
+        "photo-0.jpg",
+      );
+    }
+  },
+);

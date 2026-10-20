@@ -143,12 +143,14 @@ export function BoxGrid({
                   <h2>
                     <bdi>{box.name}</bdi>
                   </h2>
-                  <span
-                    className="box-size"
-                    aria-label={`${t("fileSize")}: ${formatBytes(box.total_size, prefs)}`}
-                  >
-                    {formatBytes(box.total_size, prefs)}
-                  </span>
+                  {mode === "list" && (
+                    <span
+                      className="box-size"
+                      aria-label={`${t("fileSize")}: ${formatBytes(box.total_size, prefs)}`}
+                    >
+                      {formatBytes(box.total_size, prefs)}
+                    </span>
+                  )}
                   {box.description && (
                     <span
                       className="box-summary-description"
@@ -158,7 +160,19 @@ export function BoxGrid({
                     </span>
                   )}
                 </span>
-                <TagLabels tags={box.tags} />
+                {mode === "list" ? (
+                  <TagLabels tags={box.tags} />
+                ) : (
+                  <span className="box-card-footer">
+                    <TagLabels tags={box.tags} />
+                    <span
+                      className="box-size"
+                      aria-label={`${t("fileSize")}: ${formatBytes(box.total_size, prefs)}`}
+                    >
+                      {formatBytes(box.total_size, prefs)}
+                    </span>
+                  </span>
+                )}
               </span>
               <span
                 className="box-activity"

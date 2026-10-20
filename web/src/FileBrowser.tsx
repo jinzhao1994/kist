@@ -17,6 +17,7 @@ import { ExtractionStatus, pendingFiles, useExtraction } from "./Extraction";
 import { useI18n } from "./i18n";
 import { errorMessage } from "./mutations";
 export function FileBrowser({
+  boxes = [],
   boxActions,
   toolbarHost,
   actionsHost,
@@ -40,6 +41,7 @@ export function FileBrowser({
   actionsHost?: HTMLElement | null;
   infoHost?: HTMLElement | null;
   box?: Box;
+  boxes?: Box[];
   folder?: string;
   uploadFolder?: string;
   folders?: Folder[];
@@ -130,6 +132,7 @@ export function FileBrowser({
           {files.length || folders.length ? (
             <FileGrid
               files={files}
+              boxes={boxes}
               boxID={box?.id}
               folders={
                 filters.sort === "type" && !filters.asc && query.hasNextPage

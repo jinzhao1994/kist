@@ -95,7 +95,7 @@ export function App() {
   const boxes = useQuery({
     queryKey: ["boxes"],
     queryFn: ({ signal }) => api.boxes(signal),
-    enabled: !!route.section || (route.files && !route.box),
+    enabled: !!route.section || !!route.tag || (route.files && !route.box),
   });
   const info = useQuery({
     queryKey: ["info"],
@@ -439,6 +439,7 @@ export function App() {
               <p role="alert">{t("notFound")}</p>
             ) : (
               <TagResults
+                boxes={boxes.data?.boxes || []}
                 key={route.tag}
                 tag={route.tag}
                 tags={tree}
@@ -496,6 +497,7 @@ export function App() {
                 <p role="alert">{t("notFound")}</p>
               ) : (
                 <FileBrowser
+                  boxes={boxes.data?.boxes || []}
                   boxActions={boxManagementActions}
                   onSort={(sort) => {
                     const next = {

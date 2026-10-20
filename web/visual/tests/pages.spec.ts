@@ -626,6 +626,9 @@ for (const scenario of [
     );
     if (scenario === "mobile") {
       await expect(page.locator(".file-count")).toContainText("4");
+      await expect(page.locator(".file-card-source").first()).toContainText(
+        "山海拾光",
+      );
       await page.evaluate(() => document.fonts.ready);
       // Column measurement changes the document height after the first render.
       // Wait for the requested scroll position, not just the file-count text.
@@ -652,6 +655,11 @@ for (const scenario of [
       expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
     } else if (scenario === "box-files") {
       await grid(page);
+      await expect(page.locator(".file-card-source")).toHaveCount(0);
+      await expect(
+        page.locator(".file-name-cell .file-card-size").first(),
+      ).toBeVisible();
+      await expect(page.locator(".file-card-size").first()).not.toBeEmpty();
       const path = page.getByLabel("目录路径");
       await expect(
         path.getByRole("link", { name: "根目录", exact: true }),
@@ -2052,6 +2060,8 @@ async function openReaderFromThumbnail(
   });
   await page.goto("/boxes/box-1");
   await expect(page.locator(".file-count")).toContainText("4");
+  // Bring the virtualized grid into view before waiting for an offscreen row.
+  await page.locator(".file-scroll").scrollIntoViewIfNeeded();
   const card = page.locator('.file-card[data-item-id="file-3"]');
   await card.scrollIntoViewIfNeeded();
   const thumbnail = card.locator("img");

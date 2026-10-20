@@ -5,12 +5,14 @@ import { emptyBoxFilters, emptyFilters } from "./Filters";
 import { useI18n } from "./i18n";
 
 export function TagResults({
+  boxes,
   tag,
   tags,
   paused,
   openBox,
   openFile,
 }: {
+  boxes: Box[];
   tag: string;
   tags: Tag[];
   paused: boolean;
@@ -32,6 +34,7 @@ export function TagResults({
       <section>
         <h2>{t("files")}</h2>
         <FileBrowser
+          boxes={boxes}
           filters={{ ...emptyFilters, tag_all: [tag] }}
           tags={tags}
           paused={paused}
