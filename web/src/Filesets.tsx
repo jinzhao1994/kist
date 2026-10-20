@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ActionIcon,
@@ -21,7 +21,7 @@ import {
 import type { components } from "./api-schema";
 import { Dialog } from "./Dialog";
 import { Select } from "./Select";
-import { Media } from "./Media";
+import { Media, type SubtitleTrack } from "./Media";
 import { ExtractionStatus, useExtraction } from "./Extraction";
 import { useI18n } from "./i18n";
 import { useWrites, WriteFeedback, errorMessage } from "./mutations";
@@ -690,53 +690,67 @@ export function captionText(raw: string) {
     raw.replace(/^\uFEFF/, "").replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, "$1.$2")
   );
 }
-function useSubtitle(file: ArchiveFile | undefined) {
-  const [state, setState] = useState<{ url?: string; error?: boolean }>({});
+function useSubtitles(subtitles: (SubtitleTrack & { file: ArchiveFile })[]) {
+  const [state, setState] = useState<{
+    tracks: SubtitleTrack[];
+    error: boolean;
+  }>({
+    tracks: [],
+    error: false,
+  });
   useEffect(() => {
-    setState({});
-    if (!file) return;
+    setState({ tracks: [], error: false });
     const control = new AbortController();
-    let url: string | undefined;
-    void (async () => {
-      const response = await fetch(contentURL(file), {
-        signal: control.signal,
-      });
-      if (!response.ok || !response.body)
-        throw new Error("Subtitle unavailable");
-      const reader = response.body.getReader();
-      const chunks: Uint8Array[] = [];
-      let size = 0;
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          size += value.length;
-          if (size > 4 * 1024 * 1024) throw new Error("Subtitle too large");
-          chunks.push(value);
+    const urls: string[] = [];
+    void Promise.allSettled(
+      subtitles.map(async ({ file, ...track }) => {
+        const response = await fetch(contentURL(file), {
+          signal: control.signal,
+        });
+        if (!response.ok || !response.body)
+          throw new Error("Subtitle unavailable");
+        const reader = response.body.getReader();
+        const chunks: Uint8Array[] = [];
+        let size = 0;
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            size += value.length;
+            if (size > 4 * 1024 * 1024) throw new Error("Subtitle too large");
+            chunks.push(value);
+          }
+        } finally {
+          await reader.cancel();
         }
-      } finally {
-        await reader.cancel();
-      }
-      const bytes = new Uint8Array(size);
-      let at = 0;
-      for (const c of chunks) {
-        bytes.set(c, at);
-        at += c.length;
-      }
-      const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+        const bytes = new Uint8Array(size);
+        let at = 0;
+        for (const c of chunks) {
+          bytes.set(c, at);
+          at += c.length;
+        }
+        const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+        if (control.signal.aborted) return;
+        const url = URL.createObjectURL(
+          new Blob([captionText(text)], { type: "text/vtt" }),
+        );
+        urls.push(url);
+        return { ...track, src: url };
+      }),
+    ).then((results) => {
       if (control.signal.aborted) return;
-      url = URL.createObjectURL(
-        new Blob([captionText(text)], { type: "text/vtt" }),
-      );
-      setState({ url });
-    })().catch(() => {
-      if (!control.signal.aborted) setState({ error: true });
+      setState({
+        tracks: results.flatMap((result) =>
+          result.status === "fulfilled" && result.value ? [result.value] : [],
+        ),
+        error: results.some((result) => result.status === "rejected"),
+      });
     });
     return () => {
       control.abort();
-      if (url) URL.revokeObjectURL(url);
+      urls.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [file?.id, file?.blob_key]);
+  }, [subtitles]);
   return state;
 }
 
@@ -760,10 +774,27 @@ export function FilesetPreview({
   const updatePath = changePage || setLocalPath;
   const setPage = (index: number) => updatePath([index + 1]);
   const [motion, setMotion] = useState(false);
-  const [subtitle, setSubtitle] = useState(
-    () => set.members?.find((m) => m.default)?.file_id || "",
+  const subtitles = useMemo(
+    () =>
+      set.kind !== "video_subtitles"
+        ? []
+        : (set.members || []).flatMap((member) => {
+            const file = files.find((file) => file.id === member.file_id);
+            return member.role === "subtitle" && file
+              ? [
+                  {
+                    file,
+                    src: "",
+                    label: member.language || file.name,
+                    language: member.language || "und",
+                    default: member.default,
+                  },
+                ]
+              : [];
+          }),
+    [set.kind, set.members, files],
   );
-  const captions = useSubtitle(files.find((f) => f.id === subtitle));
+  const captions = useSubtitles(subtitles);
   const pages = set.members || [];
   const index = filesetPageIndex(set, path[0]);
   const member = pages[index];
@@ -823,61 +854,20 @@ export function FilesetPreview({
         />
       ) : file ? (
         <div className="fileset-media">
-          <Media
-            key={file.id}
-            file={file}
-            detail
-            tracks={
-              captions.url
-                ? [
-                    {
-                      src: captions.url,
-                      label:
-                        pages.find((m) => m.file_id === subtitle)?.language ||
-                        files.find((f) => f.id === subtitle)?.name ||
-                        t("fileset_role_subtitle"),
-                      language:
-                        pages.find((m) => m.file_id === subtitle)?.language ||
-                        "und",
-                    },
-                  ]
-                : undefined
-            }
-          />
+          <Media key={file.id} file={file} detail tracks={captions.tracks} />
         </div>
       ) : (
         <p className="supporting-text">{t("filesetIncomplete")}</p>
       )}
-      {set.kind !== "document_pages" && (
+      {set.kind === "live_photo" && (
         <Group className="fileset-controls" justify="center" gap="sm">
-          {set.kind === "live_photo" && (
-            <Button
-              variant="subtle"
-              size="compact-sm"
-              onClick={() => setMotion(!motion)}
-            >
-              {t(motion ? "filesetStill" : "filesetMotion")}
-            </Button>
-          )}
-          {set.kind === "video_subtitles" && (
-            <Select
-              aria-label={t("fileset_role_subtitle")}
-              value={subtitle}
-              onValueChange={setSubtitle}
-              options={[
-                { value: "", label: t("filesetNoSubtitle") },
-                ...pages
-                  .filter((m) => m.role === "subtitle")
-                  .map((m) => ({
-                    value: m.file_id,
-                    label:
-                      m.language ||
-                      files.find((f) => f.id === m.file_id)?.name ||
-                      m.file_id,
-                  })),
-              ]}
-            />
-          )}
+          <Button
+            variant="subtle"
+            size="compact-sm"
+            onClick={() => setMotion(!motion)}
+          >
+            {t(motion ? "filesetStill" : "filesetMotion")}
+          </Button>
         </Group>
       )}
     </section>

@@ -341,3 +341,31 @@ it("shows and retries original image failures without generating a compressed su
   );
   expect(fetch).not.toHaveBeenCalled();
 });
+
+it("exposes all subtitle tracks to native controls with only the configured default", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(Response.json(job("ready"))),
+  );
+  const { container } = mount({
+    file: {
+      ...file,
+      kind: "video",
+      media_type: "video/mp4",
+      name: "movie.mp4",
+    },
+    tracks: [
+      { src: "blob:en", label: "English", language: "en" },
+      { src: "blob:zh", label: "中文", language: "zh", default: true },
+    ],
+  });
+  await screen.findByLabelText("movie.mp4");
+  const tracks = container.querySelectorAll("video track");
+  expect(tracks).toHaveLength(2);
+  expect(tracks[0]).not.toHaveAttribute("default");
+  expect(tracks[1]).toHaveAttribute("default");
+  const track = { mode: "disabled" };
+  Object.defineProperty(tracks[1], "track", { value: track });
+  fireEvent.load(tracks[1]);
+  expect(track.mode).toBe("disabled");
+});

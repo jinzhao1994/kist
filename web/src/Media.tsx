@@ -153,6 +153,13 @@ const states: Record<MediaJob["state"], MessageKey> = {
   cancelled: "mediaCancelled",
 };
 
+export type SubtitleTrack = {
+  src: string;
+  label: string;
+  language: string;
+  default?: boolean;
+};
+
 export function Media({
   file,
   active = true,
@@ -161,7 +168,7 @@ export function Media({
   tracks,
 }: {
   file: ArchiveFile;
-  tracks?: { src: string; label: string; language: string }[];
+  tracks?: SubtitleTrack[];
   active?: boolean;
   detail?: boolean;
   paused?: boolean;
@@ -305,10 +312,7 @@ export function Media({
             src={track.src}
             label={track.label}
             srcLang={track.language}
-            onLoad={(event) => {
-              event.currentTarget.track.mode = "showing";
-            }}
-            default
+            default={track.default}
           />
         ))}
       </video>

@@ -49,7 +49,6 @@ export const en = {
   noTags: "No tags",
   filesetStill: "Show photo",
   filesetMotion: "Play motion",
-  filesetNoSubtitle: "No subtitles",
   filesetSubtitleError:
     "Cannot load subtitles. Use UTF-8 SRT or WebVTT (up to 4 MiB).",
   filesetIncomplete:
@@ -569,7 +568,6 @@ export const zh: Record<MessageKey, string> = {
   noTags: "暂无标签",
   filesetStill: "显示照片",
   filesetMotion: "播放动态",
-  filesetNoSubtitle: "不显示字幕",
   filesetSubtitleError: "字幕加载失败。支持 UTF-8 SRT 或 WebVTT，最大 4 MiB。",
   filesetIncomplete: "组合尚不完整，请配置成员或补充缺少的文件。",
   filesetView: "查看组合",
