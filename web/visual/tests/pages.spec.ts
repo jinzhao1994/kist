@@ -670,6 +670,12 @@ for (const scenario of [
     } else if (scenario === "empty")
       await expect(page.locator(".empty-state")).toBeVisible();
     else await expect(page.locator(".box-card")).toHaveCount(2);
+    if (scenario === "boxes") {
+      const dates = page.locator(
+        '.box-card[data-item-id="box-1"] .box-activity time',
+      );
+      await expect(dates).toHaveText(["2026年1月1日", "3日"]);
+    }
     if (scenario === "settings" || scenario === "tags") {
       await page
         .getByRole("button", {

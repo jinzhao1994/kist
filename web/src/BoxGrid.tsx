@@ -189,12 +189,16 @@ export function BoxGrid({
                       ? "—"
                       : ""}
                 </time>
-                {mode !== "list" && box.end_at && (
-                  <>
-                    <span aria-hidden="true">—</span>
-                    <time>{formatLocalDate(box.end_at, prefs)}</time>
-                  </>
-                )}
+                {mode !== "list" &&
+                  box.end_at &&
+                  box.end_at !== box.start_at && (
+                    <>
+                      <span aria-hidden="true">—</span>
+                      <time>
+                        {formatLocalDate(box.end_at, prefs, box.start_at)}
+                      </time>
+                    </>
+                  )}
               </span>
               {mode === "list" && (
                 <time className="box-updated">

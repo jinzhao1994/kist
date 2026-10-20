@@ -1046,7 +1046,11 @@ export function formatInstant(value: string, prefs: Preferences): string {
 }
 // LocalDate is a civil date with significant precision, not an instant. Use a
 // fixed Gregorian calendar and UTC only as an Intl formatting carrier.
-export function formatLocalDate(value: string, prefs: Preferences): string {
+export function formatLocalDate(
+  value: string,
+  prefs: Preferences,
+  rangeStart?: string,
+): string {
   if (!/^\d{4}(-\d{2}(-\d{2}(T\d{2}:\d{2})?)?)?$/.test(value)) return value;
   const [year, month = 1, day = 1, hour = 0, minute = 0] = value
     .split(/[-T:]/)
@@ -1057,8 +1061,17 @@ export function formatLocalDate(value: string, prefs: Preferences): string {
   return new Intl.DateTimeFormat(prefs.formatLocale, {
     calendar: "gregory",
     timeZone: "UTC",
-    year: "numeric",
-    ...(value.length >= 7 && { month: "long" }),
+    ...(rangeStart?.length === 10 &&
+    value.length === 10 &&
+    rangeStart.slice(0, 4) === value.slice(0, 4)
+      ? {}
+      : { year: "numeric" as const }),
+    ...(value.length >= 7 &&
+      !(
+        rangeStart?.length === 10 &&
+        value.length === 10 &&
+        rangeStart.slice(0, 7) === value.slice(0, 7)
+      ) && { month: "long" as const }),
     ...(value.length >= 10 && { day: "numeric" }),
     ...(value.length >= 16 && { hour: "numeric", minute: "2-digit" }),
   }).format(carrier);

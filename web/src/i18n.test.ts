@@ -57,6 +57,16 @@ describe("message contract", () => {
     ).toBe(formatLocalDate("2020-02-29", prefs));
     expect(formatInstant("2020-03-01T00:00:00Z", prefs)).toContain("Feb 29");
   });
+  it("abbreviates full-date range ends without losing partial-date precision", () => {
+    const zh = { ...prefs, formatLocale: "zh-CN" };
+    expect(formatLocalDate("2026-10-22", zh, "2026-10-20")).toBe("22日");
+    expect(formatLocalDate("2026-11-02", zh, "2026-10-20")).toBe("11月2日");
+    expect(formatLocalDate("2027-01-02", zh, "2026-10-20")).toBe(
+      "2027年1月2日",
+    );
+    expect(formatLocalDate("2026-11", zh, "2026-10")).toBe("2026年11月");
+    expect(formatLocalDate("2026-10-22", prefs, "2026-10-20")).toBe("22");
+  });
   it("keeps regional formatting independent from message language", () => {
     expect(
       translator({ ...prefs, formatLocale: "de-DE" })("fileCount", {
