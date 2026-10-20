@@ -2581,3 +2581,18 @@ test("box-tags-dialog", async ({ page }, info) => {
   ).toHaveCount(0);
   await capture(page, errors, info.title);
 });
+
+test("trash-scope-mobile", async ({ page }, info) => {
+  const errors = await prepare(page, { mobile: true });
+  await page.goto("/trash?box=box-1");
+  const scope = page.getByRole("combobox", { name: "历史范围" });
+  await expect(scope).toContainText("山海拾光 · 2026-01-01");
+  await expect(page.locator(".history-entry").first()).toBeVisible();
+  const control = await scope.boundingBox();
+  const value = await scope.locator(".select-value").boundingBox();
+  expect(value!.y).toBeGreaterThanOrEqual(control!.y);
+  expect(value!.y + value!.height).toBeLessThanOrEqual(
+    control!.y + control!.height,
+  );
+  await capture(page, errors, info.title);
+});

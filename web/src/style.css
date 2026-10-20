@@ -2205,8 +2205,8 @@ main.upload-drag-active {
 .history-page .history-toolbar {
   align-items: center;
   justify-content: space-between;
-  gap: 12px 24px;
-  margin-block: 0 20px;
+  gap: 12px 20px;
+  margin-block: 0 16px;
 }
 .history-page .history-toolbar input {
   max-width: none;
@@ -2447,7 +2447,7 @@ main.upload-drag-active {
 }
 
 .history-page .history-toolbar .searchable-select {
-  width: 194px;
+  width: 320px;
   max-width: 100%;
 }
 .history-page .history-toolbar .tag-select-input {
@@ -3012,4 +3012,23 @@ main.upload-drag-active {
   gap: 0.3rem;
   flex-wrap: nowrap;
   overflow: hidden;
+}
+
+.searchable-select .select-value {
+  display: block;
+  min-inline-size: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: start;
+}
+.history-page .history-toolbar .tag-select-input {
+  block-size: var(--toolbar-control-size);
+  min-block-size: var(--toolbar-control-size);
+}
+.history-page .history-entry strong {
+  line-height: 1.5;
+}
+.history-page .history-entry small {
+  line-height: 1.5;
 }

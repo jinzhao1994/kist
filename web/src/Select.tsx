@@ -1,5 +1,6 @@
 import {
   Select as MantineSelect,
+  Tooltip,
   CheckIcon,
   Combobox,
   InputBase,
@@ -99,7 +100,18 @@ export function Select({
             }}
             onClick={() => store.toggleDropdown()}
           >
-            {selected?.label}
+            <Tooltip.Floating
+              label={selected?.label}
+              disabled={!selected?.label}
+              position="bottom-start"
+              offset={16}
+              role="tooltip"
+              multiline
+              maw={360}
+              classNames={{ tooltip: "metadata-tooltip" }}
+            >
+              <span className="select-value">{selected?.label}</span>
+            </Tooltip.Floating>
           </InputBase>
         </Combobox.Target>
         <Combobox.Dropdown>

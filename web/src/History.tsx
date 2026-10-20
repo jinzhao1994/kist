@@ -100,7 +100,7 @@ export function HistoryPage({
             ...boxes.map((item) => ({
               value: item.id,
               label: item.start_at
-                ? `${item.name} · ${formatLocalDate(item.start_at, prefs)}`
+                ? `${item.name} · ${item.start_at.replace("T", " ")}`
                 : item.name,
             })),
           ]}
