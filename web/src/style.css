@@ -3225,5 +3225,11 @@ main.upload-drag-active {
 }
 
 .folder-fileset-action {
-  margin-inline-start: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-inline-start: 8px;
+}
+.folder-fileset-separator {
+  color: var(--muted);
 }

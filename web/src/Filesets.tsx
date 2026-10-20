@@ -47,9 +47,14 @@ export function FilesetFolderLink({
   if (!sets.data?.filesets?.some((set) => set.folder_id === folder))
     return null;
   return (
-    <Anchor component="button" className="folder-fileset-action" onClick={open}>
-      {t("filesetView")}
-    </Anchor>
+    <span className="folder-fileset-action">
+      <span className="folder-fileset-separator" aria-hidden="true">
+        ·
+      </span>
+      <Anchor component="button" onClick={open}>
+        {t("filesetView")}
+      </Anchor>
+    </span>
   );
 }
 export function primaryFile(
