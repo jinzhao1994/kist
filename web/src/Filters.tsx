@@ -1,5 +1,4 @@
 import {
-  Checkbox,
   ActionIcon,
   Button,
   Menu,
@@ -17,6 +16,7 @@ export type Filters = Omit<
   "folder" | "recursive" | "cursor" | "limit"
 >;
 export const emptyFilters: Filters = {
+  include_members: false,
   condition: [],
   name: "",
   keyword: [],
@@ -42,6 +42,7 @@ type FilterValues = Omit<Filters, "sort"> & {
 };
 export type SearchCondition = components["schemas"]["SearchCondition"];
 type Field =
+  | "include_members"
   | "keyword"
   | "name_contains"
   | "name_equals"
@@ -59,6 +60,7 @@ const fields = [
   ["tag_all", "tags"],
   ["from", "from"],
   ["to", "to"],
+  ["include_members", "filesetMemberScope"],
 ] as const;
 const kinds = ["image", "video", "audio", "document", "other"] as const;
 const scalar = (field: Field) =>
@@ -98,6 +100,7 @@ export function normalizedFilters<T extends FilterValues>(value: T): T {
     ...emptyFilters,
     sort: value.sort,
     asc: value.asc,
+    include_members: value.include_members,
     condition: searchConditions(value).map((c) => JSON.stringify(c)),
   };
 }
@@ -177,11 +180,27 @@ export function FiltersPanel<T extends FilterValues>({
       setDraft("");
     }
   }
-  const clauses = searchConditions(working);
+  // Scope uses the existing API flag while sharing the condition editor.
+  const clauses: SearchCondition[] = [
+    ...searchConditions(working),
+    ...(working.include_members
+      ? [{ field: "include_members", values: ["true"] }]
+      : []),
+  ];
+  const withClauses = (next: SearchCondition[]) => ({
+    ...working,
+    include_members: next.some(
+      (c) => c.field === "include_members" && c.values?.[0] === "true",
+    ),
+    condition: next
+      .filter((c) => c.field !== "include_members")
+      .map((c) => JSON.stringify(c)),
+  });
   const flat = flattenTags(tags);
   const visibleFields = fields.filter(
     ([key]) =>
-      (entity !== "boxes" || (key !== "kind" && key !== "box")) &&
+      (entity !== "boxes" ||
+        (key !== "kind" && key !== "box" && key !== "include_members")) &&
       (key !== "box" || boxes !== undefined),
   );
   const title = (key: Field) =>
@@ -211,14 +230,20 @@ export function FiltersPanel<T extends FilterValues>({
   const describe = (c: SearchCondition) =>
     (c.values || [])
       .map((item) =>
-        c.field === "kind"
-          ? t(item as (typeof kinds)[number])
-          : c.field === "box"
-            ? boxes?.find((box) => box.id === item)?.name || item
-            : c.field.startsWith("tag_")
-              ? flat.map(tagOption).find((tag) => tag.value === item)?.label ||
-                item
-              : item,
+        c.field === "include_members"
+          ? t(
+              item === "true"
+                ? "filesetMembersIncluded"
+                : "filesetMembersExcluded",
+            )
+          : c.field === "kind"
+            ? t(item as (typeof kinds)[number])
+            : c.field === "box"
+              ? boxes?.find((box) => box.id === item)?.name || item
+              : c.field.startsWith("tag_")
+                ? flat.map(tagOption).find((tag) => tag.value === item)
+                    ?.label || item
+                : item,
       )
       .join(", ");
   const change = (patch: Partial<FilterValues>) =>
@@ -239,10 +264,16 @@ export function FiltersPanel<T extends FilterValues>({
   const nextFilters = (c?: SearchCondition) => {
     const next = [...clauses];
     if (c) {
-      if (editing === null) next.push(c);
-      else next[editing] = c;
+      if (editing === null) {
+        const existing =
+          c.field === "include_members"
+            ? next.findIndex((item) => item.field === c.field)
+            : -1;
+        if (existing >= 0) next[existing] = c;
+        else next.push(c);
+      } else next[editing] = c;
     }
-    return { ...working, condition: next.map((item) => JSON.stringify(item)) };
+    return withClauses(next);
   };
   const invalid =
     (field === "from" || field === "to") &&
@@ -302,23 +333,23 @@ export function FiltersPanel<T extends FilterValues>({
     restoreFocus.current = false;
   };
   const remove = (index: number) => {
-    setWorking({
-      ...working,
-      condition: clauses
-        .filter((_, i) => i !== index)
-        .map((c) => JSON.stringify(c)),
-    });
+    setWorking(withClauses(clauses.filter((_, i) => i !== index)));
     reset();
     restoreFocus.current = false;
   };
   const needle = draft.trim().toLocaleLowerCase();
   const matches = (text: string) => text.toLocaleLowerCase().includes(needle);
   const options =
-    field === "kind"
-      ? kinds.map((kind) => ({ value: kind, label: t(kind) }))
-      : field === "box"
-        ? (boxes || []).map((box) => ({ value: box.id, label: box.name }))
-        : flat.map(tagOption);
+    field === "include_members"
+      ? [
+          { value: "true", label: t("filesetMembersIncluded") },
+          { value: "false", label: t("filesetMembersExcluded") },
+        ]
+      : field === "kind"
+        ? kinds.map((kind) => ({ value: kind, label: t(kind) }))
+        : field === "box"
+          ? (boxes || []).map((box) => ({ value: box.id, label: box.name }))
+          : flat.map(tagOption);
   const editor = (
     <div className="filter-inline-editor">
       {field !== "keyword" && (
@@ -380,16 +411,6 @@ export function FiltersPanel<T extends FilterValues>({
   );
   return (
     <section className="filters-bar" aria-label={t("filters")}>
-      {entity === "files" && (
-        <Checkbox
-          size="xs"
-          label={t("filesetIncludeMembers")}
-          checked={!!value.include_members}
-          onChange={(event) =>
-            change({ include_members: event.target.checked })
-          }
-        />
-      )}
       <div className="filter-search">
         <Combobox
           store={combo}

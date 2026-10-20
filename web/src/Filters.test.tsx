@@ -216,3 +216,42 @@ it("keeps segmented prefixes while editing and offers the value directly", async
   expect(screen.getByText("contains")).toHaveClass("filter-token-segment");
   expect(screen.getByRole("option", { name: "456" })).toBeVisible();
 });
+
+it("edits member scope alongside conditions and submits the existing API flag", async () => {
+  const user = userEvent.setup();
+  render(<Harness />);
+  const state = () => JSON.parse(screen.getByTestId("filters").textContent!);
+  expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  await user.click(screen.getByRole("combobox"));
+  await user.click(screen.getByRole("option", { name: "Files within sets" }));
+  await user.click(screen.getByRole("option", { name: "Include" }));
+  expect(
+    screen.getByRole("button", {
+      name: "Files within sets: Include",
+    }),
+  ).toBeVisible();
+  expect(state().include_members).toBe(false);
+  await user.click(screen.getByRole("button", { name: "Search" }));
+  expect(state().include_members).toBe(true);
+  expect(state().condition).toEqual([]);
+  await user.click(
+    screen.getByRole("button", {
+      name: "Files within sets: Include",
+    }),
+  );
+  await user.click(screen.getByRole("option", { name: "Exclude" }));
+  expect(state().include_members).toBe(true);
+  await user.click(screen.getByRole("button", { name: "Search" }));
+  expect(state().include_members).toBe(false);
+  await user.click(screen.getByRole("combobox"));
+  await user.click(screen.getByRole("option", { name: "Files within sets" }));
+  await user.click(screen.getByRole("option", { name: "Include" }));
+  await user.click(screen.getByRole("button", { name: "Search" }));
+  await user.click(
+    screen.getByRole("button", {
+      name: "Remove: Files within sets: Include",
+    }),
+  );
+  await user.click(screen.getByRole("button", { name: "Search" }));
+  expect(state().include_members).toBe(false);
+});
