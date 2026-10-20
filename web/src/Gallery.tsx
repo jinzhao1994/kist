@@ -340,7 +340,7 @@ export function Gallery({
                 if (
                   event.touches.length !== 1 ||
                   (event.target as HTMLElement).closest(
-                    "video,audio,button,a,input,.gpx-detail,.pdf-reader,.text-reader",
+                    "video,audio,button,a,input,.gpx-detail,.pdf-reader,.text-reader,.fileset-page-reader",
                   )
                 ) {
                   touch.current = null;

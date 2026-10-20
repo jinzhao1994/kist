@@ -3095,3 +3095,10 @@ main.upload-drag-active {
   /* Align the visible strokes with the text rather than the line box. */
   transform: translateY(1px);
 }
+
+.fileset-page-toolbar {
+  flex-shrink: 0;
+}
+.fileset-page-actions {
+  margin-inline-start: auto;
+}

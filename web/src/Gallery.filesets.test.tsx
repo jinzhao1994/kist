@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { Gallery } from "./Gallery";
@@ -138,8 +138,21 @@ it("uses the gallery shell and keeps primary metadata while turning pages", asyn
   expect(await screen.findByText("first metadata")).toBeVisible();
   await user.click(screen.getByRole("button", { name: "Next page" }));
   expect(screen.getByTestId("media")).toHaveTextContent("second.jpg");
+  const pageNumber = screen.getByRole("spinbutton", { name: "Page number" });
+  fireEvent.change(pageNumber, { target: { value: "1" } });
+  expect(screen.getByTestId("media")).toHaveTextContent("first.jpg");
+  fireEvent.change(pageNumber, { target: { value: "99" } });
+  expect(pageNumber).toHaveValue(1);
+  fireEvent.keyDown(pageNumber, { key: "ArrowRight" });
+  expect(change).not.toHaveBeenCalled();
+  fireEvent.change(pageNumber, { target: { value: "2" } });
+  expect(screen.getByTestId("media")).toHaveTextContent("second.jpg");
+
   expect(screen.getByText("first metadata")).toBeVisible();
-  await user.click(screen.getByRole("button", { name: "Open this file" }));
+  await user.click(screen.getByRole("button", { name: "Page actions" }));
+  await user.click(
+    screen.getByRole("menuitem", { name: "Open current page original" }),
+  );
   expect(change).toHaveBeenLastCalledWith("second");
   await user.click(screen.getByRole("button", { name: "Next file" }));
   expect(change).toHaveBeenLastCalledWith("other");
@@ -164,7 +177,12 @@ it("opens empty combinations without requesting a nonexistent primary", async ()
   expect(
     await screen.findByRole("heading", { name: "Travel documents" }),
   ).toBeVisible();
-  expect(await screen.findByText("0 / 0")).toBeVisible();
+  expect(
+    await screen.findByRole("spinbutton", { name: "Page number" }),
+  ).toHaveValue(0);
+  expect(
+    screen.getByRole("spinbutton", { name: "Page number" }),
+  ).toBeDisabled();
   expect(screen.queryByTestId("media")).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "More actions" }));
   expect(

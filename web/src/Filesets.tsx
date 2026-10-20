@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Checkbox, Group, Stack, TextInput } from "@mantine/core";
+import {
+  ActionIcon,
+  Button,
+  Checkbox,
+  Group,
+  Menu,
+  Stack,
+  TextInput,
+} from "@mantine/core";
 import {
   api,
   createWrite,
@@ -472,7 +480,76 @@ export function FilesetPreview({
         : primaryFile(set, sets);
   const file = files.find((f) => f.id === target);
   return (
-    <section className="fileset-preview" aria-label={t("filesetPreview")}>
+    <section
+      className={`fileset-preview${set.kind === "document_pages" ? " fileset-page-reader" : ""}`}
+      aria-label={t("filesetPreview")}
+      onKeyDown={(event) => {
+        // Page controls must not trigger navigation between gallery files.
+        if (set.kind === "document_pages" && event.key !== "Escape")
+          event.stopPropagation();
+      }}
+    >
+      {set.kind === "document_pages" && (
+        <div
+          className="pdf-toolbar fileset-page-toolbar"
+          role="toolbar"
+          aria-label={t("filesetPageTools")}
+        >
+          <Button
+            disabled={index === 0 || !pages.length}
+            onClick={() => setPage(index - 1)}
+          >
+            {t("filesetPrevious")}
+          </Button>
+          <label className="pdf-page-number">
+            <span className="sr-only">{t("pdfPage")}</span>
+            <input
+              aria-label={t("pdfPage")}
+              type="number"
+              min={1}
+              max={pages.length || 1}
+              value={pages.length ? index + 1 : 0}
+              disabled={!pages.length}
+              onChange={(event) => {
+                const number = Number(event.target.value);
+                if (
+                  Number.isInteger(number) &&
+                  number >= 1 &&
+                  number <= pages.length
+                )
+                  setPage(number - 1);
+              }}
+            />
+            <span>/ {pages.length}</span>
+          </label>
+          <Button
+            disabled={index + 1 >= pages.length}
+            onClick={() => setPage(index + 1)}
+          >
+            {t("filesetNext")}
+          </Button>
+          {file && (
+            <Menu position="bottom-end">
+              <Menu.Target>
+                <ActionIcon
+                  className="fileset-page-actions"
+                  variant="subtle"
+                  color="gray"
+                  size="lg"
+                  aria-label={t("filesetPageActions")}
+                >
+                  <span aria-hidden="true">⋯</span>
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item onClick={() => open(file)}>
+                  {t("filesetOpenPage")}
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          )}
+        </div>
+      )}
       {file && <ExtractionStatus files={[file]} state={extraction} />}
       {captions.error && <p role="alert">{t("filesetSubtitleError")}</p>}
       {set.kind === "document_pages" && child ? (
@@ -510,64 +587,47 @@ export function FilesetPreview({
       ) : (
         <p className="supporting-text">{t("filesetIncomplete")}</p>
       )}
-      <Group className="fileset-controls" justify="center" gap="sm">
-        {set.kind === "document_pages" && (
-          <Group>
+      {set.kind !== "document_pages" && (
+        <Group className="fileset-controls" justify="center" gap="sm">
+          {set.kind === "live_photo" && (
             <Button
               variant="subtle"
               size="compact-sm"
-              disabled={index === 0}
-              onClick={() => setPage(index - 1)}
+              onClick={() => setMotion(!motion)}
             >
-              {t("filesetPrevious")}
+              {t(motion ? "filesetStill" : "filesetMotion")}
             </Button>
-            <span>
-              {pages.length ? index + 1 : 0} / {pages.length}
-            </span>
+          )}
+          {set.kind === "video_subtitles" && (
+            <Select
+              aria-label={t("fileset_role_subtitle")}
+              value={subtitle}
+              onValueChange={setSubtitle}
+              options={[
+                { value: "", label: t("filesetNoSubtitle") },
+                ...pages
+                  .filter((m) => m.role === "subtitle")
+                  .map((m) => ({
+                    value: m.file_id,
+                    label:
+                      m.language ||
+                      files.find((f) => f.id === m.file_id)?.name ||
+                      m.file_id,
+                  })),
+              ]}
+            />
+          )}
+          {file && (
             <Button
               variant="subtle"
               size="compact-sm"
-              disabled={index + 1 >= pages.length}
-              onClick={() => setPage(index + 1)}
+              onClick={() => open(file)}
             >
-              {t("filesetNext")}
+              {t("filesetOpenMember")}
             </Button>
-          </Group>
-        )}
-        {set.kind === "live_photo" && (
-          <Button
-            variant="subtle"
-            size="compact-sm"
-            onClick={() => setMotion(!motion)}
-          >
-            {t(motion ? "filesetStill" : "filesetMotion")}
-          </Button>
-        )}
-        {set.kind === "video_subtitles" && (
-          <Select
-            aria-label={t("fileset_role_subtitle")}
-            value={subtitle}
-            onValueChange={setSubtitle}
-            options={[
-              { value: "", label: t("filesetNoSubtitle") },
-              ...pages
-                .filter((m) => m.role === "subtitle")
-                .map((m) => ({
-                  value: m.file_id,
-                  label:
-                    m.language ||
-                    files.find((f) => f.id === m.file_id)?.name ||
-                    m.file_id,
-                })),
-            ]}
-          />
-        )}
-        {file && (
-          <Button variant="subtle" size="compact-sm" onClick={() => open(file)}>
-            {t("filesetOpenMember")}
-          </Button>
-        )}
-      </Group>
+          )}
+        </Group>
+      )}
     </section>
   );
 }
