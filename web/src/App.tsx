@@ -632,18 +632,20 @@ export function App() {
           filters={
             route.tag ? { ...emptyFilters, tag_all: [route.tag] } : filters
           }
-          change={(file) => go({ ...route, file }, true)}
+          change={(file) => go({ ...route, file, page: undefined }, true)}
+          page={route.page}
+          changePage={(page) => go({ ...route, page }, true)}
           id={route.file}
           tags={tree}
           close={() => {
             if (window.history.state?.kistGallery) window.history.back();
-            else go({ ...route, file: undefined }, true);
+            else go({ ...route, file: undefined, page: undefined }, true);
           }}
-          history={(fileset) =>
+          history={(fileset, file) =>
             go({
               files: false,
               section: "history",
-              file: fileset ? undefined : route.file,
+              file: fileset ? undefined : file || route.file,
               fileset,
               box: route.box,
             })

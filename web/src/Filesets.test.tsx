@@ -4,6 +4,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import {
   FilesetPreview,
   primaryFile,
+  readingFile,
   captionText,
   zeroID,
   type Fileset,
@@ -103,4 +104,27 @@ it("converts SRT timestamps and retains native VTT", () => {
   );
   expect(captionText("WEBVTT\n\n")).toBe("WEBVTT\n\n");
   expect(() => captionText("[Script Info]\nASS")).toThrow();
+});
+
+it("resolves nested reading pages independently of the primary and safely handles invalid pages", () => {
+  const nested: Fileset = {
+    ...child,
+    kind: "document_pages",
+    primary: "still",
+    members: [member("still"), member("motion")],
+  };
+  expect(readingFile(parent, [nested], [1, 2])).toBe("motion");
+  expect(readingFile(parent, [child], [1])).toBe("still");
+  expect(readingFile(parent, [child], [2])).toBe("second");
+  for (const invalid of [0, -1, 99, 1.5, NaN, Infinity])
+    expect(readingFile(parent, [child], [invalid])).toBe("still");
+  expect(readingFile({ ...parent, primary: "second" }, [child], [1])).toBe(
+    "still",
+  );
+  expect(readingFile({ ...parent, members: [] }, [], [1])).toBeUndefined();
+  const cycle = {
+    ...parent,
+    members: [{ ...member(zeroID), folder_id: parent.folder_id }],
+  };
+  expect(readingFile(cycle, [cycle], [1, 1])).toBeUndefined();
 });

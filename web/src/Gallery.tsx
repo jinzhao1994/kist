@@ -3,6 +3,8 @@ import {
   FilesetEditor,
   FilesetPreview,
   primaryFile,
+  readingFile,
+  filesetPageIndex,
   boxFiles,
 } from "./Filesets";
 import { DialogPresence } from "./Dialog";
@@ -36,15 +38,19 @@ export function Gallery({
   change,
   close,
   history,
+  page,
+  changePage,
 }: {
   id: string;
+  page?: string;
+  changePage?: (page: string) => void;
   box?: string;
   folder?: string;
   filters: Filters;
   tags: Tag[];
   change: (id: string) => void;
   close: () => void;
-  history: (fileset?: string) => void;
+  history: (fileset?: string, file?: string) => void;
 }) {
   const { t, prefs } = useI18n();
   const [trigger] = useState(
@@ -88,10 +94,25 @@ export function Gallery({
   const primary = selectedSet
     ? primaryFile(selectedSet, sets.data?.filesets || [])
     : id;
+  const [localPage, setLocalPage] = useState({ id, page: "" });
+  const pagePath = (
+    page ?? (!changePage && localPage.id === id ? localPage.page : "")
+  )
+    .split(".")
+    .map(Number);
+  const isPages = selectedSet?.kind === "document_pages";
+  const detailID = isPages
+    ? readingFile(selectedSet, sets.data?.filesets || [], pagePath)
+    : primary;
+  const updatePage = (path: number[]) => {
+    const value = path.join(".");
+    setLocalPage({ id, page: value });
+    changePage?.(value);
+  };
   const query = useQuery({
-    queryKey: ["file", primary],
-    queryFn: ({ signal }) => api.file(primary!, signal),
-    enabled: !sets.isPending && !sets.isError && !!primary,
+    queryKey: ["file", detailID],
+    queryFn: ({ signal }) => api.file(detailID!, signal),
+    enabled: !sets.isPending && !sets.isError && !!detailID,
   });
   const data = query.data;
   const members = useQuery({
@@ -378,6 +399,8 @@ export function Gallery({
                 <div key={id} className="gallery-frame">
                   <FilesetPreview
                     key={id + JSON.stringify(selectedSet)}
+                    pagePath={pagePath}
+                    changePage={updatePage}
                     set={selectedSet}
                     sets={sets.data?.filesets || []}
                     files={members.data}
@@ -441,10 +464,10 @@ export function Gallery({
                   <Button onClick={() => query.refetch()}>{t("retry")}</Button>
                 </p>
               )}
-              {set && primary && query.isPending && (
+              {set && detailID && query.isPending && (
                 <p role="status">{t("loading")}</p>
               )}
-              {set && !primary && combination.data && (
+              {set && !detailID && combination.data && (
                 <div className="file-info-panel">
                   <h3>{t("basicInfo")}</h3>
                   <dl className="detail-facts">
@@ -460,14 +483,28 @@ export function Gallery({
                   <p className="supporting-text">{t("filesetIncomplete")}</p>
                 </div>
               )}
+              {isPages && data && (
+                <p className="supporting-text">
+                  {t("filesetCurrentPage", {
+                    page: filesetPageIndex(selectedSet, pagePath[0]) + 1,
+                  })}
+                  {" · "}
+                  {data.file.name}
+                  {detailID === primary && <> · {t("filesetPrimary")}</>}
+                </p>
+              )}
               {data && (
                 <FileDetail
-                  key={primary}
+                  key={detailID}
                   data={data}
                   tags={tags}
-                  history={() => history(set ? id : undefined)}
+                  history={() =>
+                    history(set && !isPages ? id : undefined, detailID)
+                  }
                   combination={
-                    set && combination.data ? combination.data : undefined
+                    set && !isPages && combination.data
+                      ? combination.data
+                      : undefined
                   }
                 />
               )}

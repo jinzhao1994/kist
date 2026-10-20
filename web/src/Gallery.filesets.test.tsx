@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { useNavigation } from "./navigation";
 import { Gallery } from "./Gallery";
 import { emptyFilters } from "./Filters";
 import { zeroID } from "./Filesets";
@@ -100,6 +101,7 @@ function wrapper({ children }: { children: ReactNode }) {
   );
 }
 beforeEach(() => {
+  window.history.replaceState(null, "", "/");
   localStorage.clear();
   localStorage.setItem(
     storageKey,
@@ -115,7 +117,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   localStorage.clear();
 });
-it("uses the gallery shell and keeps primary metadata while turning pages", async () => {
+it("uses the gallery shell and follows current member metadata while turning pages", async () => {
   const fetcher = fixture();
   const user = userEvent.setup();
   const change = vi.fn();
@@ -148,7 +150,8 @@ it("uses the gallery shell and keeps primary metadata while turning pages", asyn
   fireEvent.change(pageNumber, { target: { value: "2" } });
   expect(screen.getByTestId("media")).toHaveTextContent("second.jpg");
 
-  expect(screen.getByText("first metadata")).toBeVisible();
+  expect(await screen.findByText("second metadata")).toBeVisible();
+  expect(screen.queryByText("first metadata")).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Page actions" }));
   await user.click(
     screen.getByRole("menuitem", { name: "Open current page original" }),
@@ -254,4 +257,51 @@ it("closes the configuration dialog without dismissing the gallery", async () =>
   expect(
     screen.getByRole("heading", { name: "Travel documents" }),
   ).toBeVisible();
+});
+
+it("restores the URL page and preserves it on reload without changing the gallery identity", async () => {
+  fixture();
+  window.history.replaceState(
+    { kistGallery: true },
+    "",
+    "/boxes/box?file=set&page=2",
+  );
+  localStorage.setItem("kist.gallery.details.v1", "open");
+  const history = vi.fn();
+  function Harness() {
+    const { route, go } = useNavigation();
+    return (
+      <Gallery
+        id={route.file!}
+        page={route.page}
+        changePage={(page) => go({ ...route, page }, true)}
+        filters={emptyFilters}
+        tags={[]}
+        change={(file) => go({ ...route, file, page: undefined }, true)}
+        close={vi.fn()}
+        history={history}
+      />
+    );
+  }
+  const view = render(<Harness />, { wrapper });
+  expect(await screen.findByTestId("media")).toHaveTextContent("second.jpg");
+  expect(await screen.findByText("second metadata")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
+  expect(await screen.findByText("first metadata")).toBeVisible();
+  expect(new URL(location.href).searchParams.get("page")).toBe("1");
+  expect(window.history.state).toEqual({ kistGallery: true });
+  fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+  expect(new URL(location.href).searchParams.get("file")).toBe("set");
+  expect(new URL(location.href).searchParams.get("page")).toBe("2");
+  view.unmount();
+  render(<Harness />, { wrapper });
+  expect(await screen.findByTestId("media")).toHaveTextContent("second.jpg");
+  expect(await screen.findByText("second metadata")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "File versions" }));
+  expect(history).toHaveBeenLastCalledWith(undefined, "second");
+  fireEvent.click(screen.getByRole("button", { name: "Next file" }));
+  expect(
+    await screen.findByRole("heading", { name: "other.jpg" }),
+  ).toBeVisible();
+  expect(new URL(location.href).searchParams.has("page")).toBe(false);
 });

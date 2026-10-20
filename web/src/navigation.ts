@@ -10,6 +10,7 @@ export interface Route {
   tag?: string;
   file?: string;
   fileset?: string;
+  page?: string;
   section?: "history" | "trash";
 }
 function read(): Route {
@@ -43,6 +44,7 @@ function read(): Route {
           ? "trash"
           : undefined,
     file: url.searchParams.get("file") || undefined,
+    page: url.searchParams.get("page") || undefined,
     fileset: url.searchParams.get("fileset") || undefined,
   };
 }
@@ -60,6 +62,7 @@ export function routeURL(next: Route): string {
   if (next.box && next.folder && !next.section)
     params.set("folder", next.folder);
   if (next.file) params.set("file", next.file);
+  if (next.file && next.page) params.set("page", next.page);
   if (next.section && next.fileset) params.set("fileset", next.fileset);
   if (next.section && next.box) params.set("box", next.box);
   writeURLFilters(params, next.boxFilters, true);

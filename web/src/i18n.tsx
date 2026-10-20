@@ -13,6 +13,7 @@ export const en = {
   copyFilesetId: "Copy file set ID",
   filesetConfigHistory: "Combination configuration history",
   filesetPrimaryDetails: "Primary file details and tags",
+  filesetCurrentPage: "Page {page}",
   filesetConfigure: "Configure file set",
   filesetType: "File set type",
   filesetPrimary: "Primary file",
@@ -522,6 +523,7 @@ export const zh: Record<MessageKey, string> = {
   copyFilesetId: "复制组合 ID",
   filesetConfigHistory: "组合配置历史",
   filesetPrimaryDetails: "主文件详情与标签",
+  filesetCurrentPage: "第 {page} 页",
   filesetConfigure: "配置文件组合",
   filesetType: "组合类型",
   filesetPrimary: "主文件",
@@ -1065,6 +1067,7 @@ interface Parameters {
   trashBoxConfirm: { name: string; count: number };
   tagActions: { name: string };
   expandTag: { name: string };
+  filesetCurrentPage: { page: number };
   collapseTag: { name: string };
   operation: { id: number };
   undoneBy: { id: number };

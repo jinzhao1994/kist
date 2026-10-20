@@ -52,6 +52,29 @@ export function primaryFile(
   const child = sets.find((s) => s.folder_id === member.folder_id);
   return child ? primaryFile(child, sets, seen) : undefined;
 }
+export function filesetPageIndex(set: Fileset, page = 1) {
+  return Number.isSafeInteger(page) &&
+    page >= 1 &&
+    page <= (set.members?.length || 0)
+    ? page - 1
+    : 0;
+}
+export function readingFile(
+  set: Fileset,
+  sets: Fileset[],
+  path: number[],
+  seen = new Set<string>(),
+): string | undefined {
+  if (seen.has(set.folder_id)) return;
+  seen.add(set.folder_id);
+  if (set.kind !== "document_pages") return primaryFile(set, sets);
+  const member = set.members?.[filesetPageIndex(set, path[0])];
+  if (presentID(member?.file_id)) return member!.file_id;
+  const child = sets.find(
+    (candidate) => candidate.folder_id === member?.folder_id,
+  );
+  return child ? readingFile(child, sets, path.slice(1), seen) : undefined;
+}
 export async function boxFiles(box: string, signal?: AbortSignal) {
   const out: ArchiveFile[] = [];
   let cursor = "";
@@ -452,22 +475,29 @@ export function FilesetPreview({
   sets,
   files,
   open,
+  pagePath,
+  changePage,
 }: {
   set: Fileset;
   sets: Fileset[];
   files: ArchiveFile[];
   open: (file: ArchiveFile) => void;
+  pagePath?: number[];
+  changePage?: (path: number[]) => void;
 }) {
   const { t } = useI18n();
   const extraction = useExtraction();
-  const [page, setPage] = useState(0);
+  const [localPath, setLocalPath] = useState<number[]>([]);
+  const path = pagePath || localPath;
+  const updatePath = changePage || setLocalPath;
+  const setPage = (index: number) => updatePath([index + 1]);
   const [motion, setMotion] = useState(false);
   const [subtitle, setSubtitle] = useState(
     () => set.members?.find((m) => m.default)?.file_id || "",
   );
   const captions = useSubtitle(files.find((f) => f.id === subtitle));
   const pages = set.members || [];
-  const index = Math.min(page, Math.max(0, pages.length - 1));
+  const index = filesetPageIndex(set, path[0]);
   const member = pages[index];
   const child = member && sets.find((s) => s.folder_id === member.folder_id);
   const target =
@@ -555,6 +585,8 @@ export function FilesetPreview({
       {set.kind === "document_pages" && child ? (
         <FilesetPreview
           key={child.folder_id}
+          pagePath={path.slice(1)}
+          changePage={(childPath) => updatePath([index + 1, ...childPath])}
           set={child}
           sets={sets}
           files={files}
