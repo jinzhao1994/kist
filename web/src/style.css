@@ -3112,3 +3112,76 @@ main.upload-drag-active {
 .gallery-member-heading p {
   margin: 0;
 }
+
+.fileset-pages-editor h3 {
+  margin: 12px 0 0;
+  font-size: 14px;
+}
+.fileset-pages-editor .supporting-text {
+  margin: 8px 0 12px;
+}
+.fileset-page-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.fileset-page-list:empty {
+  display: none;
+}
+.fileset-page-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px;
+  min-width: 0;
+  background: var(--surface);
+}
+.fileset-page-row + .fileset-page-row {
+  border-block-start: 1px solid var(--border);
+}
+.fileset-page-row.is-dragging {
+  opacity: 0.5;
+}
+.fileset-page-row.is-drop-before {
+  box-shadow: inset 0 2px var(--mantine-primary-color-filled);
+}
+.fileset-page-row.is-drop-after {
+  box-shadow: inset 0 -2px var(--mantine-primary-color-filled);
+}
+.fileset-drag-handle {
+  cursor: grab;
+  touch-action: none;
+  flex-shrink: 0;
+}
+.fileset-drag-handle:active {
+  cursor: grabbing;
+}
+.fileset-page-position {
+  color: var(--muted);
+  font-size: 12px;
+  min-width: 1.5em;
+  text-align: center;
+}
+.fileset-page-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 14px;
+}
+.fileset-advanced {
+  border-block-start: 1px solid var(--border);
+  padding-block: 12px;
+}
+.fileset-advanced summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 13px;
+}
+.fileset-advanced[open] summary {
+  margin-block-end: 16px;
+}

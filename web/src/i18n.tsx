@@ -17,6 +17,19 @@ export const en = {
   filesetConfigure: "Configure file set",
   filesetType: "File set type",
   filesetPrimary: "Primary file",
+  filesetFirstPage: "Automatic · first page",
+  filesetPages: "Pages",
+  filesetPageOrderHint:
+    "Drag to reorder, or focus a handle and use the arrow keys.",
+  filesetDragPage: "Reorder {name}",
+  filesetRemovePage: "Remove {name} from pages",
+  filesetReordered: "Moved to page {page}",
+  filesetAddPage: "Add page",
+  filesetChoosePage: "Choose a file from this folder…",
+  filesetNoPages: "No pages yet. Add a file below.",
+  filesetExcludedHint:
+    "Files outside this list remain in the folder. Removing a page does not delete its file.",
+  filesetAdvanced: "Advanced settings",
   filesetAutomatic: "Automatic (by role / first page)",
   filesetLayout: "Filesystem layout",
   filesetFlat: "Shared prefix, same directory",
@@ -526,6 +539,17 @@ export const zh: Record<MessageKey, string> = {
   filesetConfigure: "配置文件组合",
   filesetType: "组合类型",
   filesetPrimary: "主文件",
+  filesetFirstPage: "自动 · 使用第一页",
+  filesetPages: "页面",
+  filesetPageOrderHint: "拖动调整顺序，也可聚焦拖动手柄后使用上下方向键。",
+  filesetDragPage: "调整 {name} 的顺序",
+  filesetRemovePage: "将 {name} 移出页面",
+  filesetReordered: "已移至第 {page} 页",
+  filesetAddPage: "添加页面",
+  filesetChoosePage: "选择目录中的文件…",
+  filesetNoPages: "暂无页面，可在下方添加文件。",
+  filesetExcludedHint: "未加入的文件仍保留在目录中。移出页面不会删除文件。",
+  filesetAdvanced: "高级设置",
   filesetAutomatic: "自动（按角色／第一页）",
   filesetLayout: "文件系统布局",
   filesetFlat: "共同前缀，放在同一目录",
@@ -1066,6 +1090,9 @@ interface Parameters {
   tagActions: { name: string };
   expandTag: { name: string };
   filesetCurrentPage: { page: number };
+  filesetDragPage: { name: string };
+  filesetRemovePage: { name: string };
+  filesetReordered: { page: number };
   collapseTag: { name: string };
   operation: { id: number };
   undoneBy: { id: number };

@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Checkbox, Group, Stack, TextInput } from "@mantine/core";
+import {
+  ActionIcon,
+  Button,
+  Checkbox,
+  Group,
+  Stack,
+  TextInput,
+} from "@mantine/core";
 import {
   api,
   createWrite,
@@ -150,6 +157,16 @@ export function FilesetEditor({
     [next[i], next[i + step]] = [next[i + step], next[i]];
     setValue({ ...value, members: next });
   };
+  const [drag, setDrag] = useState<{ from: number; over: number } | null>(null);
+  const [orderNotice, setOrderNotice] = useState("");
+  const reorder = (from: number, to: number) => {
+    if (from === to || to < 0 || to >= members.length) return;
+    const next = [...members];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    setValue({ ...value, members: next });
+    setOrderNotice(t("filesetReordered", { page: to + 1 }));
+  };
   const [initialized, setInitialized] = useState(!!before);
   useEffect(() => {
     if (initialized || !data.data) return;
@@ -232,152 +249,313 @@ export function FilesetEditor({
       >
         <Stack gap="sm">
           <Select
-            label={t("filesetType")}
-            value={value.kind}
-            disabled={writes.busy || writes.locked || !initialized}
-            onValueChange={(kind) =>
-              setValue({
-                ...value,
-                kind,
-                members: [],
-                primary: zeroID,
-                layout: kind === "document_pages" ? "directory" : "flat",
-              })
-            }
-            options={["live_photo", "video_subtitles", "document_pages"].map(
-              (kind) => ({
-                value: kind,
-                label: t(`fileset_${kind}` as "fileset_live_photo"),
-              }),
-            )}
-          />
-          <Select
             label={t("filesetPrimary")}
+            disabled={writes.busy || writes.locked || !data.data}
             value={value.primary}
             onValueChange={(primary) => setValue({ ...value, primary })}
             options={[
-              { value: zeroID, label: t("filesetAutomatic") },
+              {
+                value: zeroID,
+                label: t(
+                  value.kind === "document_pages"
+                    ? "filesetFirstPage"
+                    : "filesetAutomatic",
+                ),
+              },
               ...(data.data?.files || [])
                 .filter((f) => subtree.has(f.folder_id))
                 .map((f) => ({ value: f.id, label: f.path || f.name })),
             ]}
           />
-          <Select
-            label={t("filesetLayout")}
-            value={value.layout}
-            onValueChange={(layout) => setValue({ ...value, layout })}
-            options={[
-              { value: "flat", label: t("filesetFlat") },
-              { value: "directory", label: t("filesetDirectory") },
-            ]}
-          />
           {data.isPending && <p role="status">{t("loading")}</p>}
           {data.error && <p role="alert">{errorMessage(data.error, t)}</p>}
-          <p className="supporting-text">{t("filesetOrderHint")}</p>
-          {members.map((m, i) => (
-            <Stack
-              gap="xs"
-              key={presentID(m.file_id) ? m.file_id : m.folder_id}
-              className="fileset-member-editor"
-            >
-              <Group justify="space-between">
-                <span>
-                  {i + 1}.{" "}
-                  {names.get(presentID(m.file_id) ? m.file_id : m.folder_id) ||
-                    t("notFound")}
-                </span>
-                <Group gap="xs">
-                  <Button
-                    size="compact-xs"
-                    aria-label={t("filesetMoveUp")}
-                    disabled={i === 0}
-                    onClick={() => move(i, -1)}
-                  >
-                    ↑
-                  </Button>
-                  <Button
-                    size="compact-xs"
-                    aria-label={t("filesetMoveDown")}
-                    disabled={i === members.length - 1}
-                    onClick={() => move(i, 1)}
-                  >
-                    ↓
-                  </Button>
-                  <Button
-                    size="compact-xs"
-                    onClick={() =>
-                      setValue({
-                        ...value,
-                        members: members.filter((_, j) => i !== j),
-                      })
-                    }
-                  >
-                    {t("filesetRemoveMember")}
-                  </Button>
-                </Group>
-              </Group>
+          {value.kind === "document_pages" ? (
+            <section className="fileset-pages-editor">
+              <h3>{t("filesetPages")}</h3>
+              <p className="supporting-text" id="fileset-sort-hint">
+                {t("filesetPageOrderHint")}
+              </p>
+              <ol className="fileset-page-list" aria-label={t("filesetPages")}>
+                {members.map((member, index) => {
+                  const id = presentID(member.file_id)
+                    ? member.file_id
+                    : member.folder_id;
+                  const name = names.get(id) || t("notFound");
+                  return (
+                    <li
+                      key={id}
+                      className={`fileset-page-row${drag?.from === index ? " is-dragging" : ""}${drag?.over === index && drag.from !== index ? (drag.from < index ? " is-drop-after" : " is-drop-before") : ""}`}
+                    >
+                      <ActionIcon
+                        type="button"
+                        variant="subtle"
+                        color="gray"
+                        className="fileset-drag-handle"
+                        aria-label={t("filesetDragPage", { name })}
+                        aria-describedby="fileset-sort-hint"
+                        disabled={writes.busy || writes.locked}
+                        onPointerDown={(event) => {
+                          if (event.button !== 0) return;
+                          event.preventDefault();
+                          event.currentTarget.focus();
+                          event.currentTarget.setPointerCapture(
+                            event.pointerId,
+                          );
+                          setDrag({ from: index, over: index });
+                        }}
+                        onPointerMove={(event) => {
+                          if (!drag) return;
+                          const rows = event.currentTarget
+                            .closest("ol")!
+                            .querySelectorAll(".fileset-page-row");
+                          let over = members.length - 1;
+                          for (let i = 0; i < rows.length; i++) {
+                            const rect = rows[i].getBoundingClientRect();
+                            if (event.clientY < rect.bottom) {
+                              over = i;
+                              break;
+                            }
+                          }
+                          setDrag({ ...drag, over });
+                        }}
+                        onPointerUp={() => {
+                          if (drag) reorder(drag.from, drag.over);
+                          setDrag(null);
+                        }}
+                        onPointerCancel={() => setDrag(null)}
+                        onLostPointerCapture={() => setDrag(null)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Escape" && drag) {
+                            event.stopPropagation();
+                            setDrag(null);
+                          }
+                          if (
+                            event.key === "ArrowUp" ||
+                            event.key === "ArrowDown"
+                          ) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            reorder(
+                              index,
+                              index + (event.key === "ArrowUp" ? -1 : 1),
+                            );
+                          }
+                        }}
+                      >
+                        <svg
+                          width="16"
+                          height="20"
+                          viewBox="0 0 16 20"
+                          fill="currentColor"
+                          aria-hidden="true"
+                        >
+                          {[5, 10, 15].map((y) => (
+                            <g key={y}>
+                              <circle cx="5" cy={y} r="1.2" />
+                              <circle cx="11" cy={y} r="1.2" />
+                            </g>
+                          ))}
+                        </svg>
+                      </ActionIcon>
+                      <span className="fileset-page-position">{index + 1}</span>
+                      <bdi className="fileset-page-name" title={name}>
+                        {name}
+                      </bdi>
+                      <ActionIcon
+                        type="button"
+                        variant="subtle"
+                        color="gray"
+                        aria-label={t("filesetRemovePage", { name })}
+                        title={t("filesetRemovePage", { name })}
+                        disabled={writes.busy || writes.locked}
+                        onClick={() =>
+                          setValue({
+                            ...value,
+                            members: members.filter((_, i) => i !== index),
+                          })
+                        }
+                      >
+                        <span aria-hidden="true">×</span>
+                      </ActionIcon>
+                    </li>
+                  );
+                })}
+              </ol>
+              {!members.length && (
+                <p className="supporting-text">{t("filesetNoPages")}</p>
+              )}
+              <span className="sr-only" role="status">
+                {orderNotice}
+              </span>
               <Select
-                label={t("filesetRole")}
-                value={m.role}
-                onValueChange={(role) =>
-                  update(i, { role, language: "", default: false })
+                label={t("filesetAddPage")}
+                value=""
+                searchable
+                disabled={writes.busy || writes.locked || !data.data}
+                onValueChange={(id) => {
+                  if (id)
+                    add(
+                      id,
+                      nested.some((f) => f.id === id),
+                    );
+                }}
+                options={[
+                  { value: "", label: t("filesetChoosePage") },
+                  ...[...direct, ...nested]
+                    .filter((f) => !selected.has(f.id))
+                    .map((f) => ({ value: f.id, label: f.name })),
+                ]}
+              />
+              <p className="supporting-text">{t("filesetExcludedHint")}</p>
+            </section>
+          ) : (
+            <>
+              <p className="supporting-text">{t("filesetOrderHint")}</p>
+              {members.map((m, i) => (
+                <Stack
+                  gap="xs"
+                  key={presentID(m.file_id) ? m.file_id : m.folder_id}
+                  className="fileset-member-editor"
+                >
+                  <Group justify="space-between">
+                    <span>
+                      {i + 1}.{" "}
+                      {names.get(
+                        presentID(m.file_id) ? m.file_id : m.folder_id,
+                      ) || t("notFound")}
+                    </span>
+                    <Group gap="xs">
+                      <Button
+                        size="compact-xs"
+                        aria-label={t("filesetMoveUp")}
+                        disabled={i === 0}
+                        onClick={() => move(i, -1)}
+                      >
+                        ↑
+                      </Button>
+                      <Button
+                        size="compact-xs"
+                        aria-label={t("filesetMoveDown")}
+                        disabled={i === members.length - 1}
+                        onClick={() => move(i, 1)}
+                      >
+                        ↓
+                      </Button>
+                      <Button
+                        size="compact-xs"
+                        onClick={() =>
+                          setValue({
+                            ...value,
+                            members: members.filter((_, j) => i !== j),
+                          })
+                        }
+                      >
+                        {t("filesetRemoveMember")}
+                      </Button>
+                    </Group>
+                  </Group>
+                  <Select
+                    label={t("filesetRole")}
+                    value={m.role}
+                    onValueChange={(role) =>
+                      update(i, { role, language: "", default: false })
+                    }
+                    options={roles.map((role) => ({
+                      value: role,
+                      label: t(`fileset_role_${role}` as "fileset_role_page"),
+                    }))}
+                  />
+                  {m.role === "subtitle" && (
+                    <>
+                      <TextInput
+                        label={t("filesetLanguage")}
+                        value={m.language}
+                        onChange={(e) =>
+                          update(i, { language: e.target.value })
+                        }
+                      />
+                      <Checkbox
+                        label={t("filesetDefaultSubtitle")}
+                        checked={m.default}
+                        onChange={(e) =>
+                          setValue({
+                            ...value,
+                            members: members.map((entry, j) => ({
+                              ...entry,
+                              default: j === i && e.target.checked,
+                            })),
+                          })
+                        }
+                      />
+                    </>
+                  )}
+                </Stack>
+              ))}
+              <Group>
+                {direct
+                  .filter((f) => !selected.has(f.id))
+                  .map((f) => (
+                    <Button
+                      key={f.id}
+                      variant="default"
+                      size="xs"
+                      onClick={() => add(f.id, false)}
+                    >
+                      ＋ {f.name}
+                    </Button>
+                  ))}
+                {value.kind === "document_pages" &&
+                  nested
+                    .filter((f) => !selected.has(f.id))
+                    .map((f) => (
+                      <Button
+                        key={f.id}
+                        variant="default"
+                        size="xs"
+                        onClick={() => add(f.id, true)}
+                      >
+                        ＋ {f.name}
+                      </Button>
+                    ))}
+              </Group>
+            </>
+          )}
+          <details className="fileset-advanced">
+            <summary>{t("filesetAdvanced")}</summary>
+            <Stack gap="sm">
+              <Select
+                label={t("filesetType")}
+                value={value.kind}
+                disabled={writes.busy || writes.locked || !initialized}
+                onValueChange={(kind) =>
+                  setValue({
+                    ...value,
+                    kind,
+                    members: [],
+                    primary: zeroID,
+                    layout: kind === "document_pages" ? "directory" : "flat",
+                  })
                 }
-                options={roles.map((role) => ({
-                  value: role,
-                  label: t(`fileset_role_${role}` as "fileset_role_page"),
+                options={[
+                  "live_photo",
+                  "video_subtitles",
+                  "document_pages",
+                ].map((kind) => ({
+                  value: kind,
+                  label: t(`fileset_${kind}` as "fileset_live_photo"),
                 }))}
               />
-              {m.role === "subtitle" && (
-                <>
-                  <TextInput
-                    label={t("filesetLanguage")}
-                    value={m.language}
-                    onChange={(e) => update(i, { language: e.target.value })}
-                  />
-                  <Checkbox
-                    label={t("filesetDefaultSubtitle")}
-                    checked={m.default}
-                    onChange={(e) =>
-                      setValue({
-                        ...value,
-                        members: members.map((entry, j) => ({
-                          ...entry,
-                          default: j === i && e.target.checked,
-                        })),
-                      })
-                    }
-                  />
-                </>
-              )}
+              <Select
+                label={t("filesetLayout")}
+                value={value.layout}
+                onValueChange={(layout) => setValue({ ...value, layout })}
+                options={[
+                  { value: "flat", label: t("filesetFlat") },
+                  { value: "directory", label: t("filesetDirectory") },
+                ]}
+              />
             </Stack>
-          ))}
-          <Group>
-            {direct
-              .filter((f) => !selected.has(f.id))
-              .map((f) => (
-                <Button
-                  key={f.id}
-                  variant="default"
-                  size="xs"
-                  onClick={() => add(f.id, false)}
-                >
-                  ＋ {f.name}
-                </Button>
-              ))}
-            {value.kind === "document_pages" &&
-              nested
-                .filter((f) => !selected.has(f.id))
-                .map((f) => (
-                  <Button
-                    key={f.id}
-                    variant="default"
-                    size="xs"
-                    onClick={() => add(f.id, true)}
-                  >
-                    ＋ {f.name}
-                  </Button>
-                ))}
-          </Group>
+          </details>
           <WriteFeedback state={writes} />
           <Group justify="space-between">
             {before && (
