@@ -404,7 +404,6 @@ export function Gallery({
                     set={selectedSet}
                     sets={sets.data?.filesets || []}
                     files={members.data}
-                    open={openResult}
                   />
                 </div>
               ) : !set && data ? (

@@ -55,7 +55,7 @@ it("resolves automatic nested and explicit primaries without cycling", () => {
     ),
   ).toBeUndefined();
 });
-it("reads nested Live Photo pages and opens the displayed original", () => {
+it("reads nested Live Photo pages and switches motion in the combination", () => {
   localStorage.setItem(
     storageKey,
     JSON.stringify({
@@ -65,7 +65,6 @@ it("reads nested Live Photo pages and opens the displayed original", () => {
       direction: "ltr",
     }),
   );
-  const open = vi.fn();
   const files = ["still", "motion", "second"].map((id) => ({
     id,
     name: id,
@@ -79,12 +78,7 @@ it("reads nested Live Photo pages and opens the displayed original", () => {
     <QueryClientProvider client={new QueryClient()}>
       <ThemeProvider env="test">
         <I18nProvider>
-          <FilesetPreview
-            set={parent}
-            sets={[parent, child]}
-            files={files}
-            open={open}
-          />
+          <FilesetPreview set={parent} sets={[parent, child]} files={files} />
         </I18nProvider>
       </ThemeProvider>
     </QueryClientProvider>,
@@ -93,8 +87,6 @@ it("reads nested Live Photo pages and opens the displayed original", () => {
   expect(screen.getByRole("button", { name: "Read metadata" })).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Play motion" }));
   expect(screen.getByTestId("media")).toHaveTextContent("motion");
-  fireEvent.click(screen.getByRole("button", { name: "Open this file" }));
-  expect(open).toHaveBeenCalledWith(files[1]);
   fireEvent.click(screen.getByRole("button", { name: "Next page" }));
   expect(screen.getByTestId("media")).toHaveTextContent("second");
 });

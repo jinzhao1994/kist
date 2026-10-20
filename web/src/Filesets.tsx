@@ -744,14 +744,12 @@ export function FilesetPreview({
   set,
   sets,
   files,
-  open,
   pagePath,
   changePage,
 }: {
   set: Fileset;
   sets: Fileset[];
   files: ArchiveFile[];
-  open: (file: ArchiveFile) => void;
   pagePath?: number[];
   changePage?: (path: number[]) => void;
 }) {
@@ -822,7 +820,6 @@ export function FilesetPreview({
           set={child}
           sets={sets}
           files={files}
-          open={open}
         />
       ) : file ? (
         <div className="fileset-media">
@@ -880,15 +877,6 @@ export function FilesetPreview({
                   })),
               ]}
             />
-          )}
-          {file && (
-            <Button
-              variant="subtle"
-              size="compact-sm"
-              onClick={() => open(file)}
-            >
-              {t("filesetOpenMember")}
-            </Button>
           )}
         </Group>
       )}
