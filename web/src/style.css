@@ -1680,29 +1680,29 @@ button.filter-token-segment:hover {
   display: block;
   overflow-wrap: anywhere;
 }
-.box-card-footer {
+.box-card-meta {
   display: flex;
-  align-items: flex-end;
+  align-items: baseline;
   gap: 0.75rem;
-  margin-block-start: 0.5rem;
+  margin-block-start: 0.65rem;
 }
-.box-card-footer .entry-tags {
+.box-grid:not(.view-list) .box-summary > .entry-tags {
   flex: 1;
   min-inline-size: 0;
   gap: 0.3rem;
-  margin: 0;
+  margin: 0.5rem 0 0;
 }
-.box-card-footer .tag-chip {
+.box-grid:not(.view-list) .box-summary > .entry-tags .tag-chip {
   font-size: 0.75rem;
   padding: 0.1rem 0.35rem;
   border-radius: 4px;
   background: var(--surface-hover);
   color: var(--mantine-primary-color-light-color);
 }
-.box-card-footer .tag-chip::before {
+.box-grid:not(.view-list) .box-summary > .entry-tags .tag-chip::before {
   content: none;
 }
-.box-card-footer .box-size {
+.box-card-meta .box-size {
   margin-inline-start: auto;
   font-size: 0.75rem;
   line-height: 1.6;
@@ -1716,7 +1716,9 @@ button.filter-token-segment:hover {
   font-size: 0.85rem;
 }
 .box-grid:not(.view-list) .box-activity {
-  margin-block-start: 0.6rem;
+  margin-block-start: 0;
+  min-inline-size: 0;
+  font-size: 0.75rem;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -2965,4 +2967,8 @@ main.upload-drag-active {
 .box-grid:not(.view-list)
   .box-activity:has(time:empty):not(:has(time:not(:empty))) {
   display: none;
+}
+
+.box-list-meta {
+  display: contents;
 }
