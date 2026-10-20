@@ -2729,12 +2729,12 @@ for (const mobile of [false, true]) {
     await page.goto("/boxes/box-1?file=folder-set");
     const preview = page.getByRole("region", { name: "文件组合预览" });
     await expect(preview).toBeVisible();
-    await expect(preview.getByRole("spinbutton", { name: "页码" })).toHaveValue(
-      "1",
+    await expect(preview.getByRole("status", { name: "页码" })).toHaveText(
+      "1 / 2",
     );
     await page.getByRole("button", { name: "下一页", exact: true }).click();
-    await expect(preview.getByRole("spinbutton", { name: "页码" })).toHaveValue(
-      "2",
+    await expect(preview.getByRole("status", { name: "页码" })).toHaveText(
+      "2 / 2",
     );
     await expect(preview.locator("img")).toBeVisible();
     await capture(page, errors, info.title);
@@ -2832,6 +2832,8 @@ test("fileset-gallery-navigation", async ({ page }, info) => {
   await expect(
     page.getByRole("region", { name: "文件组合预览" }),
   ).toContainText("/ 0");
-  await expect(page.getByRole("spinbutton", { name: "页码" })).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "下一页", exact: true }),
+  ).toBeDisabled();
   await capture(page, errors, info.title);
 });

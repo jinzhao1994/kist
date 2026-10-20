@@ -140,15 +140,17 @@ it("uses the gallery shell and follows current member metadata while turning pag
   expect(await screen.findByText("first metadata")).toBeVisible();
   await user.click(screen.getByRole("button", { name: "Next page" }));
   expect(screen.getByTestId("media")).toHaveTextContent("second.jpg");
-  const pageNumber = screen.getByRole("spinbutton", { name: "Page number" });
-  fireEvent.change(pageNumber, { target: { value: "1" } });
+  expect(screen.getByRole("status", { name: "Page number" })).toHaveTextContent(
+    "2 / 2",
+  );
+  expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Previous page" }));
   expect(screen.getByTestId("media")).toHaveTextContent("first.jpg");
-  fireEvent.change(pageNumber, { target: { value: "99" } });
-  expect(pageNumber).toHaveValue(1);
-  fireEvent.keyDown(pageNumber, { key: "ArrowRight" });
+  fireEvent.keyDown(screen.getByRole("button", { name: "Next page" }), {
+    key: "ArrowRight",
+  });
   expect(change).not.toHaveBeenCalled();
-  fireEvent.change(pageNumber, { target: { value: "2" } });
-  expect(screen.getByTestId("media")).toHaveTextContent("second.jpg");
+  await user.click(screen.getByRole("button", { name: "Next page" }));
 
   expect(await screen.findByText("second metadata")).toBeVisible();
   expect(screen.queryByText("first metadata")).not.toBeInTheDocument();
@@ -181,11 +183,10 @@ it("opens empty combinations without requesting a nonexistent primary", async ()
     await screen.findByRole("heading", { name: "Travel documents" }),
   ).toBeVisible();
   expect(
-    await screen.findByRole("spinbutton", { name: "Page number" }),
-  ).toHaveValue(0);
-  expect(
-    screen.getByRole("spinbutton", { name: "Page number" }),
-  ).toBeDisabled();
+    await screen.findByRole("status", { name: "Page number" }),
+  ).toHaveTextContent("0 / 0");
+  expect(screen.getByRole("button", { name: "Previous page" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
   expect(screen.queryByTestId("media")).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "More actions" }));
   expect(

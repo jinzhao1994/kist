@@ -531,27 +531,9 @@ export function FilesetPreview({
           >
             {t("filesetPrevious")}
           </Button>
-          <label className="pdf-page-number">
-            <span className="sr-only">{t("pdfPage")}</span>
-            <input
-              aria-label={t("pdfPage")}
-              type="number"
-              min={1}
-              max={pages.length || 1}
-              value={pages.length ? index + 1 : 0}
-              disabled={!pages.length}
-              onChange={(event) => {
-                const number = Number(event.target.value);
-                if (
-                  Number.isInteger(number) &&
-                  number >= 1 &&
-                  number <= pages.length
-                )
-                  setPage(number - 1);
-              }}
-            />
-            <span>/ {pages.length}</span>
-          </label>
+          <span role="status" aria-label={t("pdfPage")}>
+            {pages.length ? index + 1 : 0} / {pages.length}
+          </span>
           <Button
             disabled={index + 1 >= pages.length}
             onClick={() => setPage(index + 1)}
