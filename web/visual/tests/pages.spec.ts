@@ -1242,9 +1242,10 @@ test("box-list-long-description-preserves-tags", async ({ page }, info) => {
   await page.getByText("列表", { exact: true }).click();
   const title = page.locator(".box-summary h2");
   await expect(title).toHaveText(box.name);
-  expect(
-    await title.evaluate((node) => node.scrollWidth <= node.clientWidth),
-  ).toBe(true);
+  await page.evaluate(() => document.fonts.ready);
+  await expect
+    .poll(() => title.evaluate((node) => node.scrollWidth <= node.clientWidth))
+    .toBe(true);
   const description = page.locator(".box-summary-description");
   await expect(description).toBeVisible();
   expect(
@@ -2284,6 +2285,16 @@ for (const mode of ["light", "dark"] as const) {
     await expect(page.locator(".cm-selected-line").first()).toHaveText(
       "Archive entry 45",
     );
+    // The hash assertion above verifies automatic navigation. Pin the capture
+    // viewport separately from CodeMirror's asynchronous measurement scroll.
+    await page.evaluate(() => document.fonts.ready);
+    await page
+      .locator(".cm-selected-line")
+      .first()
+      .evaluate((node) => {
+        node.scrollIntoView({ block: "center", behavior: "instant" });
+      });
+    await expect(page.locator(".cm-selected-line").last()).toBeInViewport();
     await capture(page, errors, info.title);
     await page.getByRole("button", { name: "下一个文件", exact: true }).click();
     await expect(page).not.toHaveURL(/#L/);
