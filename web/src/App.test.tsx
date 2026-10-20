@@ -381,3 +381,120 @@ it("sorts boxes from list headings and keeps the search when switching views", a
   expect(screen.getByRole("button", { name: "Sort by" })).toBeVisible();
   expect(new URL(location.href).searchParams.get("b.sort")).toBe("activity");
 });
+
+it("opens a folder's combination in its parent list and returns there after reload", async () => {
+  const time = "2026-01-01T00:00:00Z";
+  const current = {
+    id: "box",
+    name: "Archive",
+    total_size: 0,
+    description: "",
+    start_at: "",
+    end_at: "",
+    created_at: time,
+    updated_at: time,
+  };
+  const root = {
+    id: "root",
+    parent_id: null,
+    name: "",
+    total_size: 0,
+    created_at: time,
+    updated_at: time,
+  };
+  const folder = { ...root, id: "set", parent_id: "root", name: "Documents" };
+  const set = {
+    folder_id: "set",
+    kind: "document_pages",
+    layout: "directory",
+    primary: "00000000-0000-0000-0000-000000000000",
+    members: [],
+  };
+  const entry = {
+    id: "set",
+    fileset_id: "set",
+    name: "Documents",
+    folder_id: "root",
+    box_id: "box",
+    size: 0,
+    created_at: time,
+    updated_at: time,
+  };
+  const requests: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string) => {
+      requests.push(input);
+      const url = new URL(input, "http://localhost");
+      const path = url.pathname;
+      let data: unknown;
+      if (path === "/api/v1/filesets") data = { filesets: [set] };
+      else if (path === "/api/v1/filesets/set")
+        data = { fileset: set, folder, box_id: "box" };
+      else if (path.endsWith("/folders")) data = { folders: [root, folder] };
+      else if (path === "/api/v1/boxes/box") data = current;
+      else if (path.endsWith("/boxes/search") || path.endsWith("/boxes"))
+        data = { boxes: [current] };
+      else if (path.endsWith("/tags")) data = { tags: [] };
+      else if (path.endsWith("/entries"))
+        data = {
+          files:
+            url.searchParams.get("folder") === "root"
+              ? [
+                  entry,
+                  {
+                    ...entry,
+                    id: "other",
+                    fileset_id: undefined,
+                    name: "other.txt",
+                  },
+                ]
+              : [],
+        };
+      else if (path.endsWith("/files")) data = { files: [] };
+      else
+        data = {
+          version: "test",
+          timezone: "UTC",
+          projection_dirty: false,
+          max_upload_bytes: 1000000,
+          max_upload_files: 100,
+        };
+      return Response.json(data);
+    }),
+  );
+  history.replaceState(null, "", "/boxes/box?folder=set&q=member-only");
+  let view = mount();
+  const user = userEvent.setup();
+  await user.click(
+    await screen.findByRole("button", { name: "View file set" }),
+  );
+  await screen.findByRole("region", { name: "Gallery" });
+  expect(new URL(location.href).searchParams.get("folder")).toBe("root");
+  expect(new URL(location.href).searchParams.get("file")).toBe("set");
+  expect(new URL(location.href).searchParams.has("q")).toBe(false);
+  const navigation = screen.getByRole("navigation", { name: "Browse files" });
+  await waitFor(() => expect(navigation).toHaveTextContent("1 / 2"));
+  expect(
+    within(navigation).getByRole("button", { name: "Next file" }),
+  ).toBeEnabled();
+  view.unmount();
+  view = mount();
+  await screen.findByRole("region", { name: "Gallery" });
+  await user.click(screen.getByRole("button", { name: "Back to results" }));
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("region", { name: "Gallery" }),
+    ).not.toBeInTheDocument(),
+  );
+  expect(new URL(location.href).searchParams.get("folder")).toBe("root");
+  expect(new URL(location.href).searchParams.has("file")).toBe(false);
+  expect(
+    requests.some(
+      (path) =>
+        path.includes("/entries?") &&
+        new URL(path, "http://localhost").searchParams.get("folder") === "root",
+    ),
+  ).toBe(true);
+  view.unmount();
+});

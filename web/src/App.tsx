@@ -414,9 +414,26 @@ export function App() {
               >
                 <FilesetFolderLink
                   folder={currentFolder}
-                  open={() =>
-                    go({ ...route, file: currentFolder, page: undefined })
-                  }
+                  open={() => {
+                    const parent = folderList.find(
+                      (folder) => folder.id === currentFolder,
+                    )?.parent_id;
+                    if (!parent) return;
+                    const list = {
+                      ...route,
+                      folder: parent,
+                      file: undefined,
+                      page: undefined,
+                      filters: {
+                        ...emptyFilters,
+                        sort: filters.sort,
+                        asc: filters.asc,
+                      },
+                    };
+                    // The gallery's history entry must return to its own list scope.
+                    go(list, true);
+                    go({ ...list, file: currentFolder });
+                  }}
                 />
               </FolderBreadcrumbs>
             )}
