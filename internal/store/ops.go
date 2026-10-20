@@ -338,7 +338,7 @@ func InsertOpBlobs(tx *sql.Tx, opID int64, blobs []string) error {
 // the payloads (spec 2.2.1). It does NOT touch ops itself — that table is the
 // authority and is never rewritten.
 func DeleteOpIndexes(tx *sql.Tx) error {
-	for _, table := range []string{"op_boxes", "op_files", "op_blobs", "op_requests"} {
+	for _, table := range []string{"op_filesets", "op_boxes", "op_files", "op_blobs", "op_requests"} {
 		if _, err := tx.Exec(`DELETE FROM ` + table); err != nil {
 			return fmt.Errorf("clear %s: %w", table, err)
 		}
@@ -353,4 +353,13 @@ func RequestOp(q Queryer, id string) (digest string, opID int64, found bool, err
 		return "", 0, false, nil
 	}
 	return digest, opID, err == nil, err
+}
+
+func InsertOpFilesets(tx *sql.Tx, opID int64, ids []domain.FolderID) error {
+	for _, id := range ids {
+		if _, err := tx.Exec(`INSERT OR IGNORE INTO op_filesets(op_id,fileset_id) VALUES(?,?)`, opID, id); err != nil {
+			return err
+		}
+	}
+	return nil
 }

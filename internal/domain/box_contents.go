@@ -4,10 +4,11 @@ package domain
 // and file annotations. Folders are ordered parents first, files by ID.
 // Existing entity types retain their JSON field names as part of this format.
 type BoxContents struct {
-	Box     Box            `json:"box"`
-	Folders []Folder       `json:"folders"`
-	Files   []ArchivedFile `json:"files"`
-	Tags    []TagID        `json:"tags"`
+	Filesets []Fileset      `json:"filesets,omitempty"`
+	Box      Box            `json:"box"`
+	Folders  []Folder       `json:"folders"`
+	Files    []ArchivedFile `json:"files"`
+	Tags     []TagID        `json:"tags"`
 }
 
 // ArchivedFile retains all authoritative file state; derived media is excluded.

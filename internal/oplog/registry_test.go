@@ -276,7 +276,10 @@ func TestEveryActionDeclaresWhetherItChangesContent(t *testing.T) {
 		ActionRenameEntry: true, ActionDeleteEntryContents: true, ActionRestoreEntryContents: true,
 		ActionDeleteBoxContents: true, ActionRestoreBoxContents: true,
 		ActionCreateBox: true, ActionDeleteBox: true, ActionUpdateBox: true,
-		ActionImportFiles: true, ActionDeleteFiles: true, ActionCreateFolder: true, ActionDeleteFolder: true,
+		ActionImportFiles: true, ActionDeleteFiles: true, ActionSetFileset: true,
+		ActionDeleteFilesetEntry:  true,
+		ActionRestoreFilesetEntry: true,
+		ActionCreateFolder:        true, ActionDeleteFolder: true,
 
 		ActionCreateSavedSearch: false, ActionUpdateSavedSearch: false, ActionDeleteSavedSearch: false,
 		ActionCreateTag: false, ActionDeleteTag: false,

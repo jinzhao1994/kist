@@ -56,10 +56,18 @@ func (v *ViewTx) EntryContents(box domain.BoxID, id domain.ID, folder bool) (dom
 		}
 		at = *f.ParentID
 	}
+	for _, set := range all.Filesets {
+		if selected[set.FolderID] {
+			s.Filesets = append(s.Filesets, set)
+		}
+	}
 	return s, true, nil
 }
 
 func (v *ViewTx) DeleteEntryContents(s domain.EntryContents) error {
+	if err := v.DeleteFilesets(s.Filesets); err != nil {
+		return err
+	}
 	for _, f := range s.Files {
 		for _, table := range []string{"file_tag_sources", "file_tags", "tag_rejections"} {
 			if _, err := v.tx.Exec(`DELETE FROM `+table+` WHERE file_id=?`, f.File.ID); err != nil {
@@ -86,7 +94,10 @@ func (v *ViewTx) RestoreEntryContents(s domain.EntryContents) error {
 			return err
 		}
 	}
-	return v.restoreArchivedFiles(s.Files)
+	if err := v.restoreArchivedFiles(s.Files); err != nil {
+		return err
+	}
+	return v.RestoreFilesets(s.Filesets)
 }
 
 func (v *ViewTx) RenameEntry(id domain.ID, folder bool, name string) error {

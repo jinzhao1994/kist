@@ -53,6 +53,17 @@ func (l *Library) DeleteEntry(ctx context.Context, box domain.BoxID, id domain.I
 	if err != nil {
 		return 0, err
 	}
+	changes, err := l.entryFilesetChanges(ctx, s)
+	if err != nil {
+		return 0, err
+	}
+	if len(changes) > 0 {
+		payload, err := oplog.Marshal(oplog.FilesetEntryPayload{Entry: raw, Changes: changes})
+		if err != nil {
+			return 0, err
+		}
+		return l.write(ctx, oplog.ActionDeleteFilesetEntry, payload, oplog.OriginUser, writeOptions{})
+	}
 	return l.write(ctx, oplog.ActionDeleteEntryContents, raw, oplog.OriginUser, writeOptions{})
 }
 func (l *Library) RenameEntry(ctx context.Context, box domain.BoxID, id domain.ID, folder bool, before, name string) (int64, error) {

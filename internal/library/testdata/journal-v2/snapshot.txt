@@ -4,6 +4,9 @@
 == blobs ==
 == boxes ==
 == folders ==
+== filesets ==
+== fileset_members ==
+== op_filesets ==
 == files ==
 == saved_searches ==
 == tags ==

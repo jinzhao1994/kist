@@ -50,6 +50,17 @@ func applyOp(tx *sql.Tx, row store.OpRow) (oplog.Targets, error) {
 	if err := handler.Apply(vtx, row.Payload); err != nil {
 		return targets, fmt.Errorf("apply op %d (%s): %w", row.ID, action, err)
 	}
+	// Deferred references must be checked during the pre-append trial too.
+	var violations int
+	if err := tx.QueryRow(`SELECT count(*) FROM pragma_foreign_key_check WHERE "table" IN ('filesets','fileset_members')`).Scan(&violations); err != nil {
+		return targets, err
+	}
+	if violations != 0 {
+		return targets, fmt.Errorf("fileset still references a removed member: %w", oplog.ErrStaleBefore)
+	}
+	if err := store.InsertOpFilesets(tx, row.ID, targets.Filesets); err != nil {
+		return targets, err
+	}
 	if err := store.InsertOpIndexes(tx, row.ID, targets.Boxes, targets.Files, targets.Blobs); err != nil {
 		return targets, err
 	}

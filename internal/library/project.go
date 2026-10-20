@@ -156,7 +156,11 @@ func (l *Library) syncBox(s *projection.Syncer, b domain.Box, dir string) (proje
 	if err != nil {
 		return projection.Stats{}, err
 	}
-	want, err := projection.Plan(dir, b, folders, files)
+	sets, err := store.Filesets(l.db)
+	if err != nil {
+		return projection.Stats{}, err
+	}
+	want, err := projection.Plan(dir, b, folders, files, sets...)
 	if err != nil {
 		return projection.Stats{}, err
 	}

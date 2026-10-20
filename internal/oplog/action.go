@@ -16,6 +16,9 @@ package oplog
 type Action string
 
 const (
+	ActionDeleteFilesetEntry   Action = "delete_fileset_entry"
+	ActionRestoreFilesetEntry  Action = "restore_fileset_entry"
+	ActionSetFileset           Action = "set_fileset"
 	ActionUploadFiles          Action = "upload_files"
 	ActionUndoUploadFiles      Action = "undo_upload_files"
 	ActionRenameEntry          Action = "rename_entry"
@@ -75,7 +78,7 @@ func AllActions() []Action {
 // Finder.
 func (a Action) ChangesContent() bool {
 	switch a {
-	case ActionUploadFiles, ActionUndoUploadFiles, ActionRenameEntry, ActionDeleteEntryContents, ActionRestoreEntryContents, ActionCreateBox, ActionDeleteBox, ActionUpdateBox, ActionDeleteBoxContents, ActionRestoreBoxContents,
+	case ActionDeleteFilesetEntry, ActionRestoreFilesetEntry, ActionSetFileset, ActionUploadFiles, ActionUndoUploadFiles, ActionRenameEntry, ActionDeleteEntryContents, ActionRestoreEntryContents, ActionCreateBox, ActionDeleteBox, ActionUpdateBox, ActionDeleteBoxContents, ActionRestoreBoxContents,
 		ActionImportFiles, ActionDeleteFiles, ActionCreateFolder, ActionDeleteFolder:
 		return true
 	}

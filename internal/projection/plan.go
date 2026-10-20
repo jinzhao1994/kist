@@ -34,7 +34,10 @@ type Entry struct {
 //
 // Entries come out sorted by path, which puts a parent before everything
 // inside it. Sync relies on that when creating and reverses it when removing.
-func Plan(boxDir string, box domain.Box, folders []domain.Folder, files []domain.File) ([]Entry, error) {
+func Plan(boxDir string, box domain.Box, folders []domain.Folder, files []domain.File, sets ...domain.Fileset) ([]Entry, error) {
+	if len(sets) > 0 {
+		return planFilesets(boxDir, box, folders, files, sets)
+	}
 	var root *domain.Folder
 	children := map[domain.FolderID][]domain.Folder{}
 	for i := range folders {

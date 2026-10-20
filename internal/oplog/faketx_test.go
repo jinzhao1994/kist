@@ -12,6 +12,7 @@ import (
 // functions of (tx, payload), so testing them against maps rather than SQLite
 // is not a shortcut — it is the shape the design promises.
 type fakeTx struct {
+	sets     map[domain.FolderID]domain.Fileset
 	searches map[domain.SavedSearchID]domain.SavedSearch
 	ts       time.Time
 	boxes    map[domain.BoxID]domain.Box
@@ -388,4 +389,23 @@ func (*fakeTx) RenameEntry(domain.ID, bool, string) error       { panic("not imp
 
 func (*fakeTx) EntryNameAvailable(domain.FolderID, string, domain.ID) (bool, error) {
 	panic("not implemented")
+}
+
+func (f *fakeTx) GetFileset(id domain.FolderID) (*domain.Fileset, error) {
+	s, ok := f.sets[id]
+	if !ok {
+		return nil, nil
+	}
+	return &s, nil
+}
+func (f *fakeTx) SetFileset(id domain.FolderID, s *domain.Fileset) error {
+	if f.sets == nil {
+		f.sets = map[domain.FolderID]domain.Fileset{}
+	}
+	if s == nil {
+		delete(f.sets, id)
+	} else {
+		f.sets[id] = *s
+	}
+	return nil
 }

@@ -10,6 +10,7 @@ import "github.com/jinzhao1994/kist/internal/domain"
 // that is the direction invariant 4 requires — payload is self-sufficient, and
 // every index table rebuilds from it.
 type Targets struct {
+	Filesets []domain.FolderID
 	// FolderAncestors are payload-derived timestamps targets, not a separate index.
 	FolderAncestors []domain.FolderID
 	Boxes           []domain.BoxID

@@ -155,6 +155,9 @@ func (h entryContents) Inverse(raw []byte) (Action, []byte, error) {
 func (entryContents) Targets(raw []byte) (Targets, error) {
 	p, err := Payload[domain.EntryContents](raw)
 	t := Targets{Boxes: []domain.BoxID{p.BoxID}, FolderAncestors: p.Ancestors}
+	for _, set := range p.Filesets {
+		t.Filesets = append(t.Filesets, set.FolderID)
+	}
 	for _, f := range p.Files {
 		t.Files = append(t.Files, f.File.ID)
 		t.Blobs = append(t.Blobs, f.File.BlobKey)

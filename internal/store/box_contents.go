@@ -159,11 +159,23 @@ func (v *ViewTx) boxContents(id domain.BoxID, entry *domain.ID, folder bool) (do
 			return s, false, err
 		}
 	}
+	sets, err := Filesets(v.tx)
+	if err != nil {
+		return s, false, err
+	}
+	for _, set := range sets {
+		if seen[set.FolderID] {
+			s.Filesets = append(s.Filesets, set)
+		}
+	}
 	return s, true, nil
 }
 
 // DeleteBoxContents removes only the IDs recorded in the checked payload.
 func (v *ViewTx) DeleteBoxContents(s domain.BoxContents) error {
+	if err := v.DeleteFilesets(s.Filesets); err != nil {
+		return err
+	}
 	for _, f := range s.Files {
 		for _, table := range []string{"file_tag_sources", "file_tags", "tag_rejections"} {
 			if _, err := v.tx.Exec(`DELETE FROM `+table+` WHERE file_id=?`, f.File.ID); err != nil {
@@ -212,7 +224,10 @@ func (v *ViewTx) RestoreBoxContents(s domain.BoxContents) error {
 			return err
 		}
 	}
-	return v.restoreArchivedFiles(s.Files)
+	if err := v.restoreArchivedFiles(s.Files); err != nil {
+		return err
+	}
+	return v.RestoreFilesets(s.Filesets)
 }
 
 func (v *ViewTx) restoreArchivedFiles(files []domain.ArchivedFile) error {

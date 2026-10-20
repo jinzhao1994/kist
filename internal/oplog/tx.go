@@ -23,6 +23,8 @@ import (
 // (spec 1.5.1 ②). Putting them here would invite a handler to do it, and then
 // a new op type could forget to.
 type Tx interface {
+	GetFileset(domain.FolderID) (*domain.Fileset, error)
+	SetFileset(domain.FolderID, *domain.Fileset) error
 	EntryNameAvailable(domain.FolderID, string, domain.ID) (bool, error)
 	EntryContents(domain.BoxID, domain.ID, bool) (domain.EntryContents, bool, error)
 	DeleteEntryContents(domain.EntryContents) error

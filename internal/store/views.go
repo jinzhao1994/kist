@@ -284,7 +284,7 @@ func (v *ViewTx) HasBoxTag(box domain.BoxID, tag domain.TagID) (bool, error) {
 // touched either would turn `kist rebuild` into data loss.
 func ClearViews(tx *sql.Tx) error {
 	for _, table := range []string{
-		"box_tags", "file_tag_sources", "file_tags", "tag_rejections",
+		"fileset_members", "filesets", "box_tags", "file_tag_sources", "file_tags", "tag_rejections",
 		"file_metadata", "file_extractions",
 		// boxes before folders: a box points at its root folder, so the
 		// dependency runs the opposite way from files → folders.

@@ -59,6 +59,9 @@ func (boxContents) Targets(raw []byte) (Targets, error) {
 		return Targets{}, err
 	}
 	t := Targets{Boxes: []domain.BoxID{s.Box.ID}}
+	for _, set := range s.Filesets {
+		t.Filesets = append(t.Filesets, set.FolderID)
+	}
 	for _, f := range s.Files {
 		t.Files = append(t.Files, f.File.ID)
 		t.Blobs = append(t.Blobs, f.File.BlobKey)

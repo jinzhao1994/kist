@@ -146,7 +146,11 @@ func (l *Library) checkProjection(ctx context.Context) (integrity.Report, error)
 		if err != nil {
 			return r, err
 		}
-		want, err := projection.Plan(dirs[b.ID], b, folders, files)
+		sets, err := store.Filesets(l.db)
+		if err != nil {
+			return r, err
+		}
+		want, err := projection.Plan(dirs[b.ID], b, folders, files, sets...)
 		if err != nil {
 			// A box that cannot even be planned is a structural problem, and
 			// the structural layer has already said so in its own words. Keep
