@@ -7,6 +7,7 @@ import {
   Group,
   Stack,
   TextInput,
+  Tooltip,
 } from "@mantine/core";
 import {
   api,
@@ -242,6 +243,7 @@ export function FilesetEditor({
       }}
     >
       <form
+        className="fileset-editor"
         onSubmit={(e) => {
           e.preventDefault();
           write(value);
@@ -271,10 +273,46 @@ export function FilesetEditor({
           {data.error && <p role="alert">{errorMessage(data.error, t)}</p>}
           {value.kind === "document_pages" ? (
             <section className="fileset-pages-editor">
-              <h3>{t("filesetPages")}</h3>
-              <p className="supporting-text" id="fileset-sort-hint">
+              <div className="fileset-section-heading">
+                <h3>{t("filesetPages")}</h3>
+                <Tooltip
+                  label={`${t("filesetPageOrderHint")} ${t("filesetExcludedHint")}`}
+                  multiline
+                  w={280}
+                  events={{ hover: true, focus: true, touch: true }}
+                >
+                  <ActionIcon
+                    type="button"
+                    variant="subtle"
+                    color="gray"
+                    size="sm"
+                    aria-label={t("filesetPagesHelp")}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 20 20"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.4"
+                      aria-hidden="true"
+                    >
+                      <circle cx="10" cy="10" r="7.5" />
+                      <path d="M10 9v5" />
+                      <circle
+                        cx="10"
+                        cy="6"
+                        r=".7"
+                        fill="currentColor"
+                        stroke="none"
+                      />
+                    </svg>
+                  </ActionIcon>
+                </Tooltip>
+              </div>
+              <span className="sr-only" id="fileset-sort-hint">
                 {t("filesetPageOrderHint")}
-              </p>
+              </span>
               <ol className="fileset-page-list" aria-label={t("filesetPages")}>
                 {members.map((member, index) => {
                   const id = presentID(member.file_id)
@@ -366,6 +404,7 @@ export function FilesetEditor({
                         variant="subtle"
                         color="gray"
                         aria-label={t("filesetRemovePage", { name })}
+                        className="fileset-remove-page"
                         title={t("filesetRemovePage", { name })}
                         disabled={writes.busy || writes.locked}
                         onClick={() =>
@@ -406,7 +445,6 @@ export function FilesetEditor({
                     .map((f) => ({ value: f.id, label: f.name })),
                 ]}
               />
-              <p className="supporting-text">{t("filesetExcludedHint")}</p>
             </section>
           ) : (
             <>
@@ -521,7 +559,21 @@ export function FilesetEditor({
             </>
           )}
           <details className="fileset-advanced">
-            <summary>{t("filesetAdvanced")}</summary>
+            <summary>
+              <svg
+                className="fileset-advanced-chevron"
+                width="14"
+                height="14"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                aria-hidden="true"
+              >
+                <path d="m6 3 5 5-5 5" />
+              </svg>
+              {t("filesetAdvanced")}
+            </summary>
             <Stack gap="sm">
               <Select
                 label={t("filesetType")}
@@ -554,20 +606,28 @@ export function FilesetEditor({
                   { value: "directory", label: t("filesetDirectory") },
                 ]}
               />
+              {before && (
+                <Button
+                  color="red"
+                  variant="subtle"
+                  disabled={writes.busy || writes.locked}
+                  onClick={() => write(null)}
+                >
+                  {t("filesetCancel")}
+                </Button>
+              )}
             </Stack>
           </details>
           <WriteFeedback state={writes} />
-          <Group justify="space-between">
-            {before && (
-              <Button
-                color="red"
-                variant="subtle"
-                disabled={writes.busy || writes.locked}
-                onClick={() => write(null)}
-              >
-                {t("filesetCancel")}
-              </Button>
-            )}
+          <Group justify="flex-end">
+            <Button
+              type="button"
+              variant="default"
+              disabled={writes.busy}
+              onClick={close}
+            >
+              {t("cancel")}
+            </Button>
             <Button
               type="submit"
               disabled={writes.busy || writes.locked || !data.data}

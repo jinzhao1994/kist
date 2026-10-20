@@ -19,6 +19,7 @@ export const en = {
   filesetPrimary: "Primary file",
   filesetFirstPage: "Automatic · first page",
   filesetPages: "Pages",
+  filesetPagesHelp: "About page order and membership",
   filesetPageOrderHint:
     "Drag to reorder, or focus a handle and use the arrow keys.",
   filesetDragPage: "Reorder {name}",
@@ -541,6 +542,7 @@ export const zh: Record<MessageKey, string> = {
   filesetPrimary: "主文件",
   filesetFirstPage: "自动 · 使用第一页",
   filesetPages: "页面",
+  filesetPagesHelp: "页面排序与成员说明",
   filesetPageOrderHint: "拖动调整顺序，也可聚焦拖动手柄后使用上下方向键。",
   filesetDragPage: "调整 {name} 的顺序",
   filesetRemovePage: "将 {name} 移出页面",
