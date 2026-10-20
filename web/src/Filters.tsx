@@ -16,7 +16,7 @@ export type Filters = Omit<
   "folder" | "recursive" | "cursor" | "limit"
 >;
 export const emptyFilters: Filters = {
-  include_members: false,
+  include_members: undefined,
   condition: [],
   name: "",
   keyword: [],
@@ -183,15 +183,20 @@ export function FiltersPanel<T extends FilterValues>({
   // Scope uses the existing API flag while sharing the condition editor.
   const clauses: SearchCondition[] = [
     ...searchConditions(working),
-    ...(working.include_members
-      ? [{ field: "include_members", values: ["true"] }]
+    ...(working.include_members !== undefined
+      ? [
+          {
+            field: "include_members",
+            values: [String(working.include_members)],
+          },
+        ]
       : []),
   ];
   const withClauses = (next: SearchCondition[]) => ({
     ...working,
-    include_members: next.some(
-      (c) => c.field === "include_members" && c.values?.[0] === "true",
-    ),
+    include_members: next.some((c) => c.field === "include_members")
+      ? next.find((c) => c.field === "include_members")?.values?.[0] === "true"
+      : undefined,
     condition: next
       .filter((c) => c.field !== "include_members")
       .map((c) => JSON.stringify(c)),

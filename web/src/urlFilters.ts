@@ -103,8 +103,12 @@ export function writeURLFilters(
     if (value[field]?.length) clause(field, value[field]);
   if (value.sort && value.sort !== "updated")
     params.set(prefix + "sort", value.sort);
-  if (!boxes && "include_members" in value && value.include_members)
-    params.set("include_members", "1");
+  if (
+    !boxes &&
+    "include_members" in value &&
+    value.include_members !== undefined
+  )
+    params.set("include_members", value.include_members ? "1" : "0");
   if (value.asc) params.set(prefix + "asc", "1");
 }
 

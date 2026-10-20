@@ -93,3 +93,12 @@ describe("filter URLs", () => {
     expect(readURLFilters(params)?.condition).toEqual(clauses);
   });
 });
+
+it("preserves explicit member scope including exclusion through URLs", () => {
+  for (const include_members of [true, false]) {
+    const params = new URLSearchParams();
+    writeURLFilters(params, { include_members });
+    expect(params.get("include_members")).toBe(include_members ? "1" : "0");
+    expect(readURLFilters(params)).toEqual({ include_members });
+  }
+});

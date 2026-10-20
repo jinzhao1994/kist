@@ -230,7 +230,7 @@ it("edits member scope alongside conditions and submits the existing API flag", 
       name: "Files within sets: Include",
     }),
   ).toBeVisible();
-  expect(state().include_members).toBe(false);
+  expect(state().include_members).toBeUndefined();
   await user.click(screen.getByRole("button", { name: "Search" }));
   expect(state().include_members).toBe(true);
   expect(state().condition).toEqual([]);
@@ -243,6 +243,9 @@ it("edits member scope alongside conditions and submits the existing API flag", 
   expect(state().include_members).toBe(true);
   await user.click(screen.getByRole("button", { name: "Search" }));
   expect(state().include_members).toBe(false);
+  expect(
+    screen.getByRole("button", { name: "Files within sets: Exclude" }),
+  ).toBeVisible();
   await user.click(screen.getByRole("combobox"));
   await user.click(screen.getByRole("option", { name: "Files within sets" }));
   await user.click(screen.getByRole("option", { name: "Include" }));
@@ -253,5 +256,30 @@ it("edits member scope alongside conditions and submits the existing API flag", 
     }),
   );
   await user.click(screen.getByRole("button", { name: "Search" }));
-  expect(state().include_members).toBe(false);
+  expect(state().include_members).toBeUndefined();
+});
+
+it("keeps an explicit exclusion visible until the user clears it", async () => {
+  const user = userEvent.setup();
+  render(<Harness />);
+  await user.click(screen.getByRole("combobox"));
+  await user.click(screen.getByRole("option", { name: "Files within sets" }));
+  await user.click(screen.getByRole("option", { name: "Exclude" }));
+  expect(
+    screen.getByRole("button", { name: "Files within sets: Exclude" }),
+  ).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "Search" }));
+  expect(
+    screen.getByRole("button", { name: "Files within sets: Exclude" }),
+  ).toBeVisible();
+  expect(
+    JSON.parse(screen.getByTestId("filters").textContent!).include_members,
+  ).toBe(false);
+  await user.click(screen.getByRole("button", { name: "Clear filters" }));
+  expect(
+    screen.queryByRole("button", { name: "Files within sets: Exclude" }),
+  ).not.toBeInTheDocument();
+  expect(
+    JSON.parse(screen.getByTestId("filters").textContent!).include_members,
+  ).toBeUndefined();
 });
