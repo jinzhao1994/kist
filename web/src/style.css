@@ -608,10 +608,14 @@ progress {
   overflow: hidden;
 }
 .file-card-source-date {
-  flex-shrink: 0;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: pre;
 }
 .file-card-source-name {
+  flex-shrink: 0;
+  max-inline-size: 100%;
   min-inline-size: 0;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -10,7 +10,7 @@ import {
   type EntryActionTarget,
 } from "./EntryActions";
 import { createPortal } from "react-dom";
-import { Menu, UnstyledButton } from "@mantine/core";
+import { Menu, Tooltip, UnstyledButton } from "@mantine/core";
 import {
   useEffect,
   useLayoutEffect,
@@ -451,20 +451,28 @@ export function FileGrid({
                         )}
                         {!boxID && (
                           <small className="file-card-meta">
-                            <span className="file-card-source" title={source}>
-                              <bdi className="file-card-source-name">
-                                {sourceBox?.name}
-                              </bdi>
-                              {sourceDate && (
-                                <time
-                                  className="file-card-source-date"
-                                  dateTime={sourceBox?.start_at}
-                                >
-                                  {" · "}
-                                  {sourceDate}
-                                </time>
-                              )}
-                            </span>
+                            <Tooltip
+                              label={source}
+                              disabled={!source}
+                              multiline
+                              maw={360}
+                              openDelay={250}
+                            >
+                              <span className="file-card-source">
+                                <bdi className="file-card-source-name">
+                                  {sourceBox?.name}
+                                </bdi>
+                                {sourceDate && (
+                                  <time
+                                    className="file-card-source-date"
+                                    dateTime={sourceBox?.start_at}
+                                  >
+                                    {" · "}
+                                    {sourceDate}
+                                  </time>
+                                )}
+                              </span>
+                            </Tooltip>
                             <span className="file-card-size">
                               {size == null ? "—" : formatBytes(size, prefs)}
                             </span>

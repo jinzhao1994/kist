@@ -823,10 +823,8 @@ it.each([
       ).toBeInTheDocument();
     } else {
       expect(card.querySelector(".file-card-source")).toHaveTextContent(source);
-      expect(card.querySelector(".file-card-source")).toHaveAttribute(
-        "title",
-        source,
-      );
+      await userEvent.hover(card.querySelector(".file-card-source")!);
+      expect(await screen.findByRole("tooltip")).toHaveTextContent(source);
       expect(card.querySelector(".file-card-meta")).not.toHaveTextContent(
         "photo-0.jpg",
       );
