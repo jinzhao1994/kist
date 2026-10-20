@@ -156,6 +156,8 @@ type ListOpsOptions struct {
 	Box *domain.BoxID
 	// File restricts to the complete history of one file, including deletion.
 	File *domain.FileID
+	// Fileset restricts to configuration and lifecycle events.
+	Fileset *domain.FolderID
 	// Action restricts to an exact action discriminator.
 	Action string
 	// Actions restricts to any of these discriminators.
@@ -186,6 +188,10 @@ func ListOps(q Queryer, opt ListOpsOptions) ([]OpRow, error) {
 		// 94.63ms at 200k ops, and the gap widens forever (spec 2.2.1).
 		sb.WriteString(` AND id IN (SELECT op_id FROM op_boxes WHERE box_id = ?)`)
 		args = append(args, *opt.Box)
+	}
+	if opt.Fileset != nil {
+		sb.WriteString(` AND id IN (SELECT op_id FROM op_filesets WHERE fileset_id = ?)`)
+		args = append(args, *opt.Fileset)
 	}
 	if opt.File != nil {
 		sb.WriteString(` AND id IN (SELECT op_id FROM op_files WHERE file_id = ?)`)

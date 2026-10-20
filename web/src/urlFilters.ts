@@ -103,6 +103,8 @@ export function writeURLFilters(
     if (value[field]?.length) clause(field, value[field]);
   if (value.sort && value.sort !== "updated")
     params.set(prefix + "sort", value.sort);
+  if (!boxes && "include_members" in value && value.include_members)
+    params.set("include_members", "1");
   if (value.asc) params.set(prefix + "asc", "1");
 }
 
@@ -125,6 +127,8 @@ export function readURLFilters(
   const sort = params.get(prefix + "sort");
   const validated = readLegacyFilters(JSON.stringify({ sort }), boxes);
   if (validated?.sort) out.sort = validated.sort;
+  if (!boxes && params.has("include_members"))
+    (out as Filters).include_members = params.get("include_members") === "1";
   const asc = params.get(prefix + "asc");
   if (asc === "1" || asc === "0") out.asc = asc === "1";
   return Object.keys(out).length ? out : undefined;

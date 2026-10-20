@@ -428,9 +428,10 @@ export function App() {
           )}
           {route.section ? (
             <HistoryPage
-              key={`${route.section}:${route.box || ""}:${route.file || ""}`}
+              key={`${route.section}:${route.box || ""}:${route.file || route.fileset || ""}`}
               box={route.box}
               file={route.file}
+              fileset={route.fileset}
               trash={route.section === "trash"}
               boxes={boxes.data?.boxes || []}
               scope={(box, file) =>

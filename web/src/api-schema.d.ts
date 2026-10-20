@@ -195,6 +195,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 entries */
+        get: operations["get-api-v1-entries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/files": {
         parameters: {
             query?: never;
@@ -328,6 +345,40 @@ export interface paths {
         /** Get API v1 files by ID text preview */
         get: operations["get-api-v1-files-by-id-text-preview"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/filesets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 filesets */
+        get: operations["get-api-v1-filesets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/filesets/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put API v1 filesets by ID */
+        put: operations["put-api-v1-filesets-by-id"];
         post?: never;
         delete?: never;
         options?: never;
@@ -858,12 +909,15 @@ export interface components {
             created_at: string;
             display_tags?: components["schemas"]["DisplayTag"][] | null;
             extraction_pending?: string[] | null;
+            fileset_id?: string;
             folder_id: string;
             id: string;
             kind?: string;
             media_type?: string;
             name: string;
+            no_primary?: boolean;
             path?: string;
+            primary_id?: string;
             /** Format: int64 */
             size?: number;
             type_label?: string;
@@ -873,6 +927,28 @@ export interface components {
         FileSearchResult: {
             cursor?: string;
             files: components["schemas"]["FileSearchItem"][] | null;
+        };
+        Fileset: {
+            folder_id: string;
+            kind: string;
+            layout: string;
+            members: components["schemas"]["FilesetMember"][] | null;
+            primary: string;
+        };
+        FilesetList: {
+            filesets: components["schemas"]["Fileset"][] | null;
+        };
+        FilesetMember: {
+            default: boolean;
+            file_id: string;
+            folder_id: string;
+            language: string;
+            role: string;
+        };
+        FilesetWriteInputBody: {
+            after?: components["schemas"]["Fileset"];
+            before?: components["schemas"]["Fileset"];
+            box: string;
         };
         Folder: {
             /** Format: date-time */
@@ -1087,6 +1163,7 @@ export interface components {
             box?: string[] | null;
             conditions?: components["schemas"]["SearchCondition"][] | null;
             from?: string;
+            include_members?: boolean;
             keyword?: string[] | null;
             kind?: string[] | null;
             name?: string;
@@ -1779,6 +1856,56 @@ export interface operations {
             };
         };
     };
+    "get-api-v1-entries": {
+        parameters: {
+            query?: {
+                condition?: string[] | null;
+                keyword?: string[] | null;
+                name_contains?: string;
+                name_equals?: string;
+                kind?: string[] | null;
+                box?: string[] | null;
+                folder?: string;
+                /** @description Include descendants of folder */
+                recursive?: boolean;
+                tag_all?: string[] | null;
+                tag_any?: string[] | null;
+                tag_not?: string[] | null;
+                name?: string;
+                from?: string;
+                to?: string;
+                sort?: "captured" | "imported" | "name" | "updated" | "type" | "size";
+                asc?: boolean;
+                cursor?: string;
+                limit?: number;
+                include_members?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileSearchResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
     "get-api-v1-files": {
         parameters: {
             query?: {
@@ -2231,6 +2358,72 @@ export interface operations {
             };
         };
     };
+    "get-api-v1-filesets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FilesetList"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "put-api-v1-filesets-by-id": {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FilesetWriteInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
     "get-api-v1-history-by-op-boxes-by-id": {
         parameters: {
             query?: {
@@ -2359,6 +2552,7 @@ export interface operations {
     "get-api-v1-ops": {
         parameters: {
             query?: {
+                fileset?: string;
                 box?: string;
                 file?: string;
                 action?: string;

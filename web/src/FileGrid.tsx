@@ -47,6 +47,7 @@ export function activeImages(
 }
 export function FileGrid({
   files,
+  configureFileset,
   folders = [],
   boxes = [],
   chooseFolder,
@@ -60,6 +61,7 @@ export function FileGrid({
   toolbarHost,
 }: {
   files: ArchiveFile[];
+  configureFileset?: (folder: Folder) => void;
   folders?: Folder[];
   boxes?: Box[];
   chooseFolder?: (id: string) => void;
@@ -342,7 +344,7 @@ export function FileGrid({
                   const size = folder ? folder.total_size : file?.size;
                   const editing =
                     entryAction?.action === "rename" &&
-                    entryAction.id === item.id;
+                    entryAction.id === (file?.fileset_id || item.id);
                   const timestamp = file
                     ? dateSort === "captured"
                       ? file.captured_at
@@ -424,7 +426,17 @@ export function FileGrid({
                               />
                             </div>
                           ) : (
-                            <bdi className="file-name">{item.name}</bdi>
+                            <bdi className="file-name">
+                              {file?.fileset_id && (
+                                <span
+                                  className="fileset-indicator"
+                                  title={t("filesetLabel")}
+                                >
+                                  ▣{" "}
+                                </span>
+                              )}
+                              {item.name}
+                            </bdi>
                           )}
                           {boxID && mode !== "list" && (
                             <span className="file-card-size">
@@ -440,7 +452,9 @@ export function FileGrid({
                             <span className="file-list-kind">
                               {folder
                                 ? t("folderType")
-                                : fileType(file!) || t("unknown")}
+                                : file?.fileset_id
+                                  ? t("filesetLabel")
+                                  : fileType(file!) || t("unknown")}
                             </span>
                             <span className="file-list-size">
                               {folder
@@ -520,7 +534,26 @@ export function FileGrid({
         >
           {t("openItem")}
         </Menu.Item>
-        {selected?.file && (
+        {selected &&
+          configureFileset &&
+          (selected.folder || selected.file?.fileset_id) && (
+            <Menu.Item
+              onClick={() => {
+                const f = selected.folder || {
+                  id: selected.file!.fileset_id!,
+                  name: selected.name,
+                  parent_id: selected.file!.folder_id,
+                  created_at: selected.file!.created_at,
+                  updated_at: selected.file!.updated_at,
+                  total_size: selected.file!.size || 0,
+                };
+                configureFileset(f);
+              }}
+            >
+              {t("filesetConfigure")}
+            </Menu.Item>
+          )}
+        {selected?.file && !selected.file.no_primary && (
           <>
             {hasPreview(selected.file) && (selected.file.box_id || boxID) && (
               <Menu.Item
@@ -537,7 +570,15 @@ export function FileGrid({
             </Menu.Item>
             <LinkMenuItems
               key={selected.id}
-              href={routeURL({ files: true, file: selected.id })}
+              href={
+                selected.file.fileset_id
+                  ? routeURL({
+                      files: true,
+                      box: selectedBox,
+                      folder: selected.file.fileset_id,
+                    })
+                  : routeURL({ files: true, file: selected.id })
+              }
             />
             <Menu.Item
               component="a"
@@ -545,10 +586,11 @@ export function FileGrid({
                 files: false,
                 section: "history",
                 box: selectedBox,
-                file: selected.id,
+                file: selected.file.fileset_id ? undefined : selected.id,
+                fileset: selected.file.fileset_id,
               })}
             >
-              {t("history")}
+              {t(selected.file.fileset_id ? "filesetConfigHistory" : "history")}
             </Menu.Item>
           </>
         )}
@@ -557,7 +599,7 @@ export function FileGrid({
             {t("uploadHere")}
           </Menu.Item>
         )}
-        {selected?.file && (
+        {selected?.file && !selected.file.fileset_id && (
           <Menu.Item component="a" href={contentURL(selected.file, true)}>
             {t("download")}
           </Menu.Item>
@@ -576,10 +618,10 @@ export function FileGrid({
                 color={action === "trash" ? "red" : undefined}
                 onClick={() =>
                   setEntryAction({
-                    id: selected.id,
+                    id: selected.file?.fileset_id || selected.id,
                     name: selected.name,
                     box: selectedBox,
-                    folder: !!selected.folder,
+                    folder: !!selected.folder || !!selected.file?.fileset_id,
                     action,
                   })
                 }

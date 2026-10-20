@@ -314,6 +314,14 @@ kist never writes to a remote, and never trusts one: content fetched from it is
 hashed on the way in and discarded if it is not what was asked for. Run
 `kist remote list` to check a path today rather than on the day you need it.
 
+### File sets
+
+In a box, open a folder's menu and choose **Configure file set**. Choose Live Photo, video with subtitles, or document pages, assign member roles, and save. Page order is editable; the primary file defaults to the photo, video, or first page (including nested sets), and can be overridden. The combination keeps the folder's name.
+
+Search treats a combination as its primary file. Enable **Include files within sets** to find other members independently. Tags and metadata remain on the original files; changing the primary changes which annotations represent the combination. Use the preview's primary-file button to inspect or edit them, or open any member and follow its link back to the combination.
+
+Projection can retain directories or flatten members with a shared, collision-safe prefix. Original blobs are unchanged. Cancelling a set keeps its folder and files. Configuration changes and whole-folder deletion support strict undo. Subtitle playback supports UTF-8 SRT and WebVTT up to 4 MiB; other subtitle files remain available as originals. Existing folders are configured manually; import does not automatically pair files.
+
 ## Derived media
 
 Opening a grid or file requests background work: imports do not wait for image

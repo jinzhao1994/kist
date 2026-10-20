@@ -463,7 +463,8 @@ async function prepare(page: Page, options: Options = {}) {
     else if (path === "/boxes/box-1/deletion-preview")
       body = { name: box.name, file_count: 4, revision: 42 };
     else if (path === "/boxes/box-1/tags") body = { tags: ["tag-1"] };
-    else if (path === "/files")
+    else if (path === "/filesets") body = { filesets: [] };
+    else if (path === "/files" || path === "/entries")
       body = {
         files: options.empty
           ? []
@@ -2622,3 +2623,108 @@ for (const mode of ["medium", "large"] as const) {
     await capture(page, errors, info.title);
   });
 }
+
+async function prepareFileset(page: Page, mobile = false) {
+  const errors = await prepare(page, { mobile });
+  const zero = "00000000-0000-0000-0000-000000000000";
+  const set = {
+    folder_id: "folder-set",
+    kind: "document_pages",
+    primary: zero,
+    layout: "directory",
+    members: files.slice(0, 2).map((f) => ({
+      file_id: f.id,
+      folder_id: zero,
+      role: "page",
+      language: "",
+      default: false,
+    })),
+  };
+  await page.route("**/api/v1/filesets", (route) =>
+    route.fulfill({ json: { filesets: [set] } }),
+  );
+  await page.route("**/api/v1/boxes/box-1/folders", (route) =>
+    route.fulfill({
+      json: {
+        folders: [
+          {
+            id: "folder-1",
+            parent_id: null,
+            name: "",
+            total_size: 493824,
+            created_at: time,
+            updated_at: time,
+          },
+          {
+            id: "folder-set",
+            parent_id: "folder-1",
+            name: "旅行证件",
+            total_size: 246912,
+            created_at: time,
+            updated_at: time,
+          },
+        ],
+      },
+    }),
+  );
+  await page.route(/\/api\/v1\/files\?/, (route) =>
+    route.fulfill({
+      json: { files: files.map((f) => ({ ...f, folder_id: "folder-set" })) },
+    }),
+  );
+  await page.route(/\/api\/v1\/entries\?/, (route) =>
+    route.fulfill({
+      json: {
+        files:
+          new URL(route.request().url()).searchParams.get("folder") ===
+          "folder-set"
+            ? files.slice(0, 2)
+            : [
+                {
+                  ...files[0],
+                  folder_id: "folder-1",
+                  name: "旅行证件",
+                  fileset_id: "folder-set",
+                  primary_id: files[0].id,
+                  size: 246912,
+                },
+              ],
+      },
+    }),
+  );
+  return errors;
+}
+for (const mobile of [false, true]) {
+  test(`fileset-pages-${mobile ? "mobile" : "desktop"}`, async ({
+    page,
+  }, info) => {
+    const errors = await prepareFileset(page, mobile);
+    await page.goto("/boxes/box-1?folder=folder-set");
+    const preview = page.getByRole("region", { name: "文件组合预览" });
+    await expect(preview).toBeVisible();
+    await expect(preview).toContainText("1 / 2");
+    await page.getByRole("button", { name: "下一页", exact: true }).click();
+    await expect(preview).toContainText("2 / 2");
+    await expect(preview.locator("img")).toBeVisible();
+    await capture(page, errors, info.title);
+  });
+}
+test("fileset-editor", async ({ page }, info) => {
+  const errors = await prepareFileset(page);
+  await page.goto("/boxes/box-1?folder=folder-set");
+  await page.getByRole("button", { name: "配置文件组合", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("山间清晨.jpg");
+  await expect(
+    dialog.getByRole("button", { name: "保存", exact: true }),
+  ).toBeEnabled();
+  await capture(page, errors, info.title);
+});
+
+test("fileset-grid", async ({ page }, info) => {
+  const errors = await prepareFileset(page);
+  await page.goto("/boxes/box-1");
+  await expect(page.locator(".file-count")).toContainText("1");
+  await expect(page.locator(".fileset-indicator")).toBeVisible();
+  await capture(page, errors, info.title);
+});

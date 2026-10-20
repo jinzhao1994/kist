@@ -241,7 +241,7 @@ func TestFileUpdatedSortQuery(t *testing.T) {
 	if response.Code != 200 {
 		t.Fatalf("updated sort rejected: %d %s", response.Code, response.Body)
 	}
-	q, err := s.fileQuery(&fileQueryInput{Sort: "updated", Asc: true})
+	q, err := s.fileQuery(&FileQueryInput{Sort: "updated", Asc: true})
 	if err != nil || q.Sort.Key.String() != "updated" || !q.Sort.Asc {
 		t.Fatalf("query: %+v %v", q, err)
 	}

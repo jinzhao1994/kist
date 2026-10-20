@@ -39,7 +39,7 @@ type displayTag struct {
 func (s *Server) boxSearchRoute() {
 	huma.Get(s.contract, Prefix+"/boxes/search", func(ctx context.Context, in *boxQueryInput) (*output[boxSearchResult], error) {
 		// Share date validation and descendant-aware tag expression construction.
-		shared, err := s.fileQuery(&fileQueryInput{All: in.All, Any: in.Any, Not: in.Not, From: in.From, To: in.To, Limit: in.Limit})
+		shared, err := s.fileQuery(&FileQueryInput{All: in.All, Any: in.Any, Not: in.Not, From: in.From, To: in.To, Limit: in.Limit})
 		if err != nil {
 			return nil, err
 		}

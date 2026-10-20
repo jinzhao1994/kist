@@ -12,7 +12,7 @@ import (
 	"github.com/jinzhao1994/kist/internal/wire"
 )
 
-type fileQueryInput struct {
+type FileQueryInput struct {
 	Conditions   []string `query:"condition,explode" maxItems:"128"`
 	Keywords     []string `query:"keyword,explode" maxItems:"128"`
 	NameContains string   `query:"name_contains" maxLength:"4096"`
@@ -38,6 +38,9 @@ type fileDetail struct {
 	Tags []string `json:"tags"`
 }
 type fileSearchItem struct {
+	FilesetID string `json:"fileset_id,omitempty"`
+	PrimaryID string `json:"primary_id,omitempty"`
+	NoPrimary bool   `json:"no_primary,omitempty"`
 	wire.File
 	DisplayTags []displayTag `json:"display_tags,omitempty"`
 }
@@ -52,7 +55,7 @@ type tagList struct {
 	Tags []string `json:"tags"`
 }
 
-func (s *Server) fileQuery(in *fileQueryInput) (query.Query, error) {
+func (s *Server) fileQuery(in *FileQueryInput) (query.Query, error) {
 	q := query.Query{Recursive: in.Recursive, Keywords: in.Keywords, NameContains: in.NameContains, NameEquals: in.NameEquals, Kinds: in.Kinds, Text: in.Name, Cursor: in.Cursor, Limit: in.Limit, Sort: query.SortSpec{Asc: in.Asc}}
 	switch in.Sort {
 	case "type":
@@ -205,7 +208,7 @@ func tagStrings(tags []domain.TagID) []string {
 	return out
 }
 func (s *Server) fileRoutes() {
-	huma.Get(s.contract, Prefix+"/files", func(ctx context.Context, in *fileQueryInput) (*output[fileSearchResult], error) {
+	huma.Get(s.contract, Prefix+"/files", func(ctx context.Context, in *FileQueryInput) (*output[fileSearchResult], error) {
 		q, err := s.fileQuery(in)
 		if err != nil {
 			return nil, err

@@ -1,4 +1,5 @@
 import {
+  Checkbox,
   ActionIcon,
   Button,
   Menu,
@@ -379,6 +380,16 @@ export function FiltersPanel<T extends FilterValues>({
   );
   return (
     <section className="filters-bar" aria-label={t("filters")}>
+      {entity === "files" && (
+        <Checkbox
+          size="xs"
+          label={t("filesetIncludeMembers")}
+          checked={!!value.include_members}
+          onChange={(event) =>
+            change({ include_members: event.target.checked })
+          }
+        />
+      )}
       <div className="filter-search">
         <Combobox
           store={combo}

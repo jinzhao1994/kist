@@ -12,13 +12,14 @@ import (
 )
 
 type historyInput struct {
-	Box    string `query:"box"`
-	File   string `query:"file"`
-	Action string `query:"action"`
-	Group  int64  `query:"group" minimum:"0"`
-	Before int64  `query:"before" minimum:"0"`
-	Limit  int    `query:"limit" minimum:"0" maximum:"1000"`
-	Trash  bool   `query:"trash"`
+	Fileset string `query:"fileset"`
+	Box     string `query:"box"`
+	File    string `query:"file"`
+	Action  string `query:"action"`
+	Group   int64  `query:"group" minimum:"0"`
+	Before  int64  `query:"before" minimum:"0"`
+	Limit   int    `query:"limit" minimum:"0" maximum:"1000"`
+	Trash   bool   `query:"trash"`
 }
 type HistoryOp struct {
 	wire.Op
@@ -67,6 +68,14 @@ func (s *Server) historyRoutes() {
 			}
 			box := domain.BoxID{ID: id}
 			opt.Box = &box
+		}
+		if in.Fileset != "" {
+			id, err := parseID(in.Fileset)
+			if err != nil {
+				return nil, err
+			}
+			folder := domain.FolderID{ID: id}
+			opt.Fileset = &folder
 		}
 		if in.File != "" {
 			id, err := parseID(in.File)

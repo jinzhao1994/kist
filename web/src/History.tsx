@@ -45,12 +45,14 @@ function QueryError({
 export function HistoryPage({
   box,
   file,
+  fileset,
   trash,
   boxes,
   scope,
 }: {
   box?: string;
   file?: string;
+  fileset?: string;
   trash?: boolean;
   boxes: Box[];
   scope: (box?: string, file?: string) => void;
@@ -65,10 +67,13 @@ export function HistoryPage({
     to: number;
   }>();
   const query = useInfiniteQuery({
-    queryKey: ["history", { box, file, trash }],
+    queryKey: ["history", { box, file, fileset, trash }],
     initialPageParam: 0,
     queryFn: ({ pageParam, signal }) =>
-      api.history({ box, file, trash, before: pageParam, limit: 50 }, signal),
+      api.history(
+        { box, file, fileset, trash, before: pageParam, limit: 50 },
+        signal,
+      ),
     getNextPageParam: (page) => page.before || undefined,
   });
   const ops = query.data?.pages.flatMap((page) => page.ops || []) || [];
@@ -108,9 +113,10 @@ export function HistoryPage({
         {trash && (
           <p className="supporting-text trash-hint">{t("trashHint")}</p>
         )}
-        {file && (
+        {(file || fileset) && (
           <p className="supporting-text history-file-scope">
-            {t("versionHistory")} · <bdi>{file}</bdi>
+            {t(fileset ? "filesetConfigHistory" : "versionHistory")} ·{" "}
+            <bdi>{file || fileset}</bdi>
             <Button variant="subtle" onClick={() => scope()}>
               {t("allHistory")}
             </Button>

@@ -8,20 +8,21 @@ import (
 // SearchFilters is the versioned, portable subset of the UI query contract.
 // Pagination, transient input, and presentation preferences are not saved.
 type SearchFilters struct {
-	Conditions   []SearchCondition `json:"conditions,omitempty"`
-	Keywords     []string          `json:"keyword,omitempty"`
-	NameContains string            `json:"name_contains,omitempty"`
-	NameEquals   string            `json:"name_equals,omitempty"`
-	Name         string            `json:"name,omitempty"`
-	Sort         string            `json:"sort"`
-	Asc          bool              `json:"asc"`
-	From         string            `json:"from,omitempty"`
-	To           string            `json:"to,omitempty"`
-	Boxes        []string          `json:"box,omitempty"`
-	Kinds        []string          `json:"kind,omitempty"`
-	TagAll       []string          `json:"tag_all,omitempty"`
-	TagAny       []string          `json:"tag_any,omitempty"`
-	TagNot       []string          `json:"tag_not,omitempty"`
+	IncludeMembers bool              `json:"include_members,omitempty"`
+	Conditions     []SearchCondition `json:"conditions,omitempty"`
+	Keywords       []string          `json:"keyword,omitempty"`
+	NameContains   string            `json:"name_contains,omitempty"`
+	NameEquals     string            `json:"name_equals,omitempty"`
+	Name           string            `json:"name,omitempty"`
+	Sort           string            `json:"sort"`
+	Asc            bool              `json:"asc"`
+	From           string            `json:"from,omitempty"`
+	To             string            `json:"to,omitempty"`
+	Boxes          []string          `json:"box,omitempty"`
+	Kinds          []string          `json:"kind,omitempty"`
+	TagAll         []string          `json:"tag_all,omitempty"`
+	TagAny         []string          `json:"tag_any,omitempty"`
+	TagNot         []string          `json:"tag_not,omitempty"`
 }
 
 // SearchDefinition preserves IDs even when referenced entities disappear.
@@ -76,7 +77,7 @@ func (d SearchDefinition) Normalize() (SearchDefinition, error) {
 	if d.Entity != "files" && d.Entity != "boxes" {
 		return d, fmt.Errorf("invalid search entity")
 	}
-	if d.Entity == "boxes" && (d.BoxID != "" || d.FolderID != "" || len(d.Filters.Boxes) > 0 || len(d.Filters.Kinds) > 0) {
+	if d.Entity == "boxes" && (d.BoxID != "" || d.FolderID != "" || len(d.Filters.Boxes) > 0 || len(d.Filters.Kinds) > 0 || d.Filters.IncludeMembers) {
 		return d, fmt.Errorf("file scope in box search")
 	}
 	if d.FolderID != "" && d.BoxID == "" {

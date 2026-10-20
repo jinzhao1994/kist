@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/oplog"
+	"github.com/jinzhao1994/kist/internal/query"
 	"github.com/jinzhao1994/kist/internal/store"
 )
 
@@ -101,4 +102,18 @@ func (l *Library) entryFilesetChanges(ctx context.Context, s domain.EntryContent
 		return nil
 	})
 	return changes, err
+}
+
+// BrowseEntry carries the stable presentation identity separately from the primary.
+type BrowseEntry = store.BrowseEntry
+
+func (l *Library) Browse(ctx context.Context, q query.Query, include bool) ([]BrowseEntry, string, error) {
+	var out []BrowseEntry
+	var next string
+	err := l.readTx(ctx, func(tx *store.ViewTx) error {
+		var err error
+		out, next, err = store.ListEntries(tx.Queryer(), q, include, l.zone())
+		return err
+	})
+	return out, next, err
 }

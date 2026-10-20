@@ -158,8 +158,10 @@ export function Media({
   active = true,
   detail = false,
   paused = false,
+  tracks,
 }: {
   file: ArchiveFile;
+  tracks?: { src: string; label: string; language: string }[];
   active?: boolean;
   detail?: boolean;
   paused?: boolean;
@@ -295,7 +297,18 @@ export function Media({
         preload="metadata"
         onError={fail}
         aria-label={file.name}
-      />
+      >
+        {tracks?.map((track) => (
+          <track
+            key={track.src}
+            kind="subtitles"
+            src={track.src}
+            label={track.label}
+            srcLang={track.language}
+            default
+          />
+        ))}
+      </video>
     ) : (
       <img
         className={detail ? "detail-image" : "file-image"}

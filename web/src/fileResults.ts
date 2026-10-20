@@ -1,3 +1,4 @@
+import { useFilesets } from "./Filesets";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { api, type ArchiveFile } from "./api";
 import { searchConditions, type Filters } from "./Filters";
@@ -7,11 +8,15 @@ export function useFileResults(
   filters: Filters,
   folder?: string,
 ) {
+  const sets = useFilesets();
+  const combined = !!sets.data?.filesets?.length;
   return useInfiniteQuery({
-    queryKey: ["files", box, filters, ...(folder ? [folder] : [])],
+    queryKey: ["files", box, filters, combined, ...(folder ? [folder] : [])],
     initialPageParam: "",
-    queryFn: ({ pageParam, signal }) =>
-      api.files(
+    enabled: !sets.isPending,
+    queryFn: ({ pageParam, signal }) => {
+      if (sets.error) throw sets.error;
+      return (combined ? api.entries : api.files)(
         {
           ...filters,
           ...(folder
@@ -22,7 +27,8 @@ export function useFileResults(
           cursor: pageParam,
         },
         signal,
-      ),
+      );
+    },
     getNextPageParam: (page) => page.cursor || undefined,
     refetchOnMount: false,
   });

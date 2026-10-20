@@ -90,6 +90,27 @@ func summarizeHistory(view *store.ViewTx, action oplog.Action, raw []byte) (Hist
 	var err error
 	s.Count = 1
 	switch action {
+	case oplog.ActionDeleteFilesetEntry, oplog.ActionRestoreFilesetEntry:
+		payload, e := oplog.Payload[oplog.FilesetEntryPayload](raw)
+		if e != nil {
+			return s, e
+		}
+		return summarizeHistory(view, oplog.ActionDeleteEntryContents, payload.Entry)
+	case oplog.ActionSetFileset:
+		payload, e := oplog.Payload[oplog.FilesetPayload](raw)
+		if e != nil {
+			return s, e
+		}
+		f, ok, e := view.GetFolder(payload.FolderID)
+		if e != nil {
+			return s, e
+		}
+		s.Name = payload.FolderID.String()
+		if ok {
+			s.Name = f.Name
+		}
+		s.CurrentNames = true
+
 	case oplog.ActionCreateBox, oplog.ActionDeleteBox, oplog.ActionCreateTag, oplog.ActionDeleteTag, oplog.ActionDeleteEntryContents, oplog.ActionRestoreEntryContents:
 		err = json.Unmarshal(p.Name, &s.Name)
 	case oplog.ActionDeleteBoxContents, oplog.ActionRestoreBoxContents:

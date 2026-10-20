@@ -186,6 +186,8 @@ it("automatically uses keyset pagination, shows the total and resets when filter
             max_upload_bytes: 10000,
           }),
         );
+      if (url.pathname.endsWith("/filesets"))
+        return Response.json({ filesets: [] });
       requests.push(url);
       return new Response(
         JSON.stringify(

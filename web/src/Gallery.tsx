@@ -1,3 +1,6 @@
+import { useFilesets } from "./Filesets";
+import { folderChain } from "./Folders";
+import { routeURL } from "./navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, UnstyledButton } from "@mantine/core";
 import { useFocusTrap } from "@mantine/hooks";
@@ -69,6 +72,21 @@ export function Gallery({
     queryFn: ({ signal }) => api.file(id, signal),
   });
   const data = query.data;
+  const sets = useFilesets();
+  const memberFolders = useQuery({
+    queryKey: ["folders", data?.file.box_id],
+    queryFn: ({ signal }) => api.folders(data!.file.box_id!, signal),
+    enabled: !!data?.file.box_id && !!sets.data?.filesets?.length,
+  });
+  const owners = data
+    ? folderChain(
+        memberFolders.data?.folders || [],
+        data.file.folder_id,
+      ).filter((folder) =>
+        sets.data?.filesets?.some((set) => set.folder_id === folder.id),
+      )
+    : [];
+
   const previewFile = data?.file || files[index];
   const motion = useGalleryMotion(
     id,
@@ -189,6 +207,19 @@ export function Gallery({
           <bdi>{data?.file.name || t("gallery")}</bdi>
         </h1>
         <div className="gallery-actions">
+          {owners.map((owner) => (
+            <Button
+              key={owner.id}
+              component="a"
+              href={routeURL({
+                files: true,
+                box: data?.file.box_id,
+                folder: owner.id,
+              })}
+            >
+              {owner.name}
+            </Button>
+          ))}
           {data && <OpenMediaButton file={data.file} />}
           {data && (
             <Button component="a" href={contentURL(data.file, true)} download>

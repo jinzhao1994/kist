@@ -19,7 +19,7 @@ func (s *Server) searchConditions(raw []string, entity string) ([]query.Query, e
 		if err := c.Validate(entity); err != nil {
 			return nil, invalid(err.Error())
 		}
-		in := fileQueryInput{}
+		in := FileQueryInput{}
 		switch c.Field {
 		case "keyword":
 			in.Name = c.Values[0]

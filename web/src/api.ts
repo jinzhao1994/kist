@@ -17,7 +17,7 @@ export type HistoryQuery = NonNullable<
 >;
 export type APIErrorBody = components["schemas"]["HTTPError"];
 export type FileQuery = NonNullable<
-  operations["get-api-v1-files"]["parameters"]["query"]
+  operations["get-api-v1-entries"]["parameters"]["query"]
 >;
 export type BoxQuery = NonNullable<
   operations["get-api-v1-boxes-search"]["parameters"]["query"]
@@ -119,6 +119,22 @@ export const api = {
           );
     return get<components["schemas"]["FileSearchResult"]>(
       `/files?${params}`,
+      signal,
+    );
+  },
+  entries: (query: FileQuery, signal?: AbortSignal) => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query))
+      if (value !== undefined && value !== "")
+        if ((key === "keyword" || key === "condition") && Array.isArray(value))
+          value.forEach((term) => params.append(key, term));
+        else
+          params.set(
+            key,
+            Array.isArray(value) ? value.join(",") : String(value),
+          );
+    return get<components["schemas"]["FileSearchResult"]>(
+      `/entries?${params}`,
       signal,
     );
   },

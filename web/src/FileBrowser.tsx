@@ -1,3 +1,11 @@
+import {
+  useFilesets,
+  FilesetEditor,
+  FilesetPreview,
+  boxFiles,
+  primaryFile,
+} from "./Filesets";
+import { routeURL } from "./navigation";
 import { BackgroundMenu } from "./BackgroundMenu";
 import { FileIcon } from "./FileIcon";
 import { DisplayModeControl, useDisplayMode } from "./DisplayMode";
@@ -56,6 +64,26 @@ export function FileBrowser({
   open: (file: ArchiveFile) => void;
 }) {
   const { t } = useI18n();
+  const setQuery = useFilesets();
+  const sets = setQuery.data?.filesets || [];
+  const currentSet = sets.find((s) => s.folder_id === uploadFolder);
+  const [editingSet, setEditingSet] = useState<Folder>();
+  const [showMembers, setShowMembers] = useState(false);
+  const setContents = useQuery({
+    queryKey: ["fileset-content", box?.id, uploadFolder],
+    queryFn: ({ signal }) => boxFiles(box!.id, signal),
+    enabled: !!box && !!currentSet,
+  });
+  const openEntry = (file: ArchiveFile) => {
+    if (file.fileset_id) {
+      if (chooseFolder) chooseFolder(file.fileset_id);
+      else
+        window.location.assign(
+          routeURL({ files: true, box: file.box_id, folder: file.fileset_id }),
+        );
+    } else open(file);
+  };
+
   const [emptyMode, setEmptyMode] = useDisplayMode("files");
   const picker = useRef<UploadHandle>(null);
   const [addingTag, setAddingTag] = useState(false);
@@ -84,8 +112,77 @@ export function FileBrowser({
     return () => observer.disconnect();
   }, [hasNextPage, isFetching, isError, paused, fetchNextPage, dataUpdatedAt]);
   const files = resultFiles(query.data?.pages);
+  const ordinaryFolders = folders.filter(
+    (f) => !sets.some((s) => s.folder_id === f.id),
+  );
   const content = (
     <>
+      <DialogPresence>
+        {editingSet && box && (
+          <FilesetEditor
+            key={editingSet.id}
+            folder={editingSet}
+            box={box.id}
+            sets={sets}
+            close={() => setEditingSet(undefined)}
+          />
+        )}
+      </DialogPresence>
+      {currentSet && box && (
+        <section>
+          <div className="actions">
+            <Button
+              variant="default"
+              onClick={() => {
+                void api
+                  .folders(box.id)
+                  .then((data) =>
+                    setEditingSet(
+                      data.folders?.find((f) => f.id === currentSet.folder_id),
+                    ),
+                  );
+              }}
+            >
+              {t("filesetConfigure")}
+            </Button>
+            {setContents.data?.find(
+              (f) => f.id === primaryFile(currentSet, sets),
+            ) && (
+              <Button
+                variant="subtle"
+                onClick={() =>
+                  open(
+                    setContents.data!.find(
+                      (f) => f.id === primaryFile(currentSet, sets),
+                    )!,
+                  )
+                }
+              >
+                {t("filesetPrimaryDetails")}
+              </Button>
+            )}
+            <Button
+              variant="subtle"
+              onClick={() => setShowMembers(!showMembers)}
+            >
+              {t(showMembers ? "filesetHideMembers" : "filesetShowMembers")}
+            </Button>
+          </div>
+          {setContents.isPending ? (
+            <p role="status">{t("loading")}</p>
+          ) : setContents.error ? (
+            <p role="alert">{errorMessage(setContents.error, t)}</p>
+          ) : (
+            <FilesetPreview
+              key={currentSet.folder_id + JSON.stringify(currentSet)}
+              set={currentSet}
+              sets={sets}
+              files={setContents.data || []}
+              open={open}
+            />
+          )}
+        </section>
+      )}
       {searching && box && searchingSubfolder && (
         <p className="supporting-text search-scope-hint">
           {t("searchWholeBox")}
@@ -123,13 +220,13 @@ export function FileBrowser({
           <Button onClick={() => query.refetch()}>{t("retry")}</Button>
         </div>
       )}
-      {query.data && (
+      {query.data && (!currentSet || showMembers || searching) && (
         <>
           <span className="file-count sr-only" role="status">
             {t("loadedFiles", { count: files.length })}
           </span>
           <ExtractionStatus files={files} state={extraction} />
-          {files.length || folders.length ? (
+          {files.length || ordinaryFolders.length ? (
             <FileGrid
               files={files}
               boxes={boxes}
@@ -137,14 +234,15 @@ export function FileBrowser({
               folders={
                 filters.sort === "type" && !filters.asc && query.hasNextPage
                   ? []
-                  : folders
+                  : ordinaryFolders
               }
               chooseFolder={chooseFolder}
               createFolder={box ? setContextParent : undefined}
               uploadToFolder={box && info.data ? setUploadTarget : undefined}
               filters={filters}
               onSort={onSort}
-              open={open}
+              open={openEntry}
+              configureFileset={box ? setEditingSet : undefined}
               paused={paused}
               toolbarHost={toolbarHost}
             />

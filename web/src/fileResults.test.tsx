@@ -1,12 +1,21 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import { api } from "./api";
 import { emptyFilters } from "./Filters";
 import { useFileResults } from "./fileResults";
 
-afterEach(() => vi.restoreAllMocks());
+beforeEach(() =>
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ filesets: [] })),
+  ),
+);
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 it("sends selected boxes with tag and name filters and keeps box pages scoped", async () => {
   const files = vi
     .spyOn(api, "files")

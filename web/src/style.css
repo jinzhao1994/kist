@@ -3044,3 +3044,23 @@ main.upload-drag-active {
 .box-grid.view-large .box-cover {
   block-size: 208px;
 }
+
+.fileset-preview {
+  margin-block: 1rem;
+}
+.fileset-media {
+  display: grid;
+  place-items: center;
+  min-height: 16rem;
+  max-height: 70vh;
+  overflow: auto;
+  margin-block: 1rem;
+}
+.fileset-media .detail-image {
+  max-height: 65vh;
+  object-fit: contain;
+}
+.fileset-member-editor {
+  border-block-end: 1px solid var(--mantine-color-default-border);
+  padding-block: 0.5rem;
+}

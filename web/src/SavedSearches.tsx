@@ -36,6 +36,9 @@ export function searchDefinition(
     ...(box && folder && { folder_id: folder }),
     filters: {
       conditions: searchConditions(filters),
+      ...("include_members" in filters && filters.include_members
+        ? { include_members: true }
+        : {}),
       sort: filters.sort || "updated",
       asc: !!filters.asc,
     },
