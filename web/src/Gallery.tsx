@@ -484,14 +484,17 @@ export function Gallery({
                 </div>
               )}
               {isPages && data && (
-                <p className="supporting-text">
-                  {t("filesetCurrentPage", {
-                    page: filesetPageIndex(selectedSet, pagePath[0]) + 1,
-                  })}
-                  {" · "}
-                  {data.file.name}
-                  {detailID === primary && <> · {t("filesetPrimary")}</>}
-                </p>
+                <header className="gallery-member-heading">
+                  <h2>
+                    <bdi>{data.file.name}</bdi>
+                  </h2>
+                  <p className="supporting-text">
+                    {t("filesetCurrentPage", {
+                      page: filesetPageIndex(selectedSet, pagePath[0]) + 1,
+                    })}
+                    {detailID === primary && <> · {t("filesetPrimary")}</>}
+                  </p>
+                </header>
               )}
               {data && (
                 <FileDetail

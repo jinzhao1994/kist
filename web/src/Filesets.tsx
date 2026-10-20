@@ -1,14 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  ActionIcon,
-  Button,
-  Checkbox,
-  Group,
-  Menu,
-  Stack,
-  TextInput,
-} from "@mantine/core";
+import { Button, Checkbox, Group, Stack, TextInput } from "@mantine/core";
 import {
   api,
   createWrite,
@@ -540,26 +532,6 @@ export function FilesetPreview({
           >
             {t("filesetNext")}
           </Button>
-          {file && (
-            <Menu position="bottom-end">
-              <Menu.Target>
-                <ActionIcon
-                  className="fileset-page-actions"
-                  variant="subtle"
-                  color="gray"
-                  size="lg"
-                  aria-label={t("filesetPageActions")}
-                >
-                  <span aria-hidden="true">⋯</span>
-                </ActionIcon>
-              </Menu.Target>
-              <Menu.Dropdown>
-                <Menu.Item onClick={() => open(file)}>
-                  {t("filesetOpenPage")}
-                </Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
-          )}
         </div>
       )}
       {file && <ExtractionStatus files={[file]} state={extraction} />}

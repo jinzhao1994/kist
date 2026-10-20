@@ -390,6 +390,7 @@ export function TagAssignment({
   compact = false,
   editing = true,
   collapsible = false,
+  showEmpty = false,
   target,
   kind,
   tags,
@@ -399,6 +400,7 @@ export function TagAssignment({
   compact?: boolean;
   editing?: boolean;
   collapsible?: boolean;
+  showEmpty?: boolean;
   inDialog?: boolean;
   target: string;
   kind: "files" | "boxes";
@@ -434,6 +436,9 @@ export function TagAssignment({
             </Button>
           )}
         </div>
+      )}
+      {showEmpty && assigned.length === 0 && (
+        <p className="supporting-text">{t("noTags")}</p>
       )}
       <ul className="tag-chips">
         {assigned.map((tagID) => (

@@ -154,11 +154,11 @@ it("uses the gallery shell and follows current member metadata while turning pag
 
   expect(await screen.findByText("second metadata")).toBeVisible();
   expect(screen.queryByText("first metadata")).not.toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Page actions" }));
-  await user.click(
-    screen.getByRole("menuitem", { name: "Open current page original" }),
-  );
-  expect(change).toHaveBeenLastCalledWith("second");
+  expect(screen.getByRole("heading", { name: "second.jpg" })).toBeVisible();
+  expect(screen.getByText("No tags")).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: "Page actions" }),
+  ).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Next file" }));
   expect(change).toHaveBeenLastCalledWith("other");
   expect(fetcher.mock.calls.some(([url]) => url === "/api/v1/files/set")).toBe(

@@ -131,6 +131,7 @@ export function FileDetail({
         </dd>
       </dl>
       <TagAssignment
+        showEmpty
         collapsible
         target={file.id}
         kind="files"
