@@ -2421,7 +2421,6 @@ for (const kind of ["boxes", "files"] as const) {
           .getByRole("dialog")
           .getByRole("heading", { name: "标签", exact: true }),
       ).toHaveCount(0);
-      await capture(page, errors, `${info.title}-add-tag`);
       await page.getByRole("button", { name: "关闭", exact: true }).click();
       await expect(page.getByRole("dialog")).toBeHidden();
       await main.click({ button: "right", position: background });
@@ -2559,5 +2558,26 @@ test("file-tags-dialog", async ({ page }, info) => {
     dialog.getByRole("combobox", { name: "选择标签" }),
   ).toBeFocused();
   await expect(dialog.locator(".tag-chip")).toContainText("山野");
+  await capture(page, errors, info.title);
+});
+
+test("box-tags-dialog", async ({ page }, info) => {
+  const errors = await prepare(page, { mode: "dark" });
+  await page.goto("/boxes/box-1");
+  await grid(page);
+  const main = page.locator("main");
+  const bounds = await main.boundingBox();
+  await main.click({
+    button: "right",
+    position: { x: bounds!.width - 8, y: bounds!.height - 8 },
+  });
+  await page.getByRole("menuitem", { name: "添加标签", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "添加标签" });
+  await expect(
+    dialog.getByRole("combobox", { name: "选择标签" }),
+  ).toBeFocused();
+  await expect(
+    dialog.getByRole("heading", { name: "标签", exact: true }),
+  ).toHaveCount(0);
   await capture(page, errors, info.title);
 });
