@@ -55,6 +55,7 @@ export const en = {
     "Cannot load subtitles. Use UTF-8 SRT or WebVTT (up to 4 MiB).",
   filesetIncomplete:
     "This file set is incomplete. Configure its members or upload the missing files.",
+  filesetView: "View file set",
   filesetShowMembers: "Show all files",
   filesetHideMembers: "Hide files",
   filesetIncludeMembers: "Include files within sets",
@@ -573,6 +574,7 @@ export const zh: Record<MessageKey, string> = {
   filesetOpenMember: "单独打开此文件",
   filesetSubtitleError: "字幕加载失败。支持 UTF-8 SRT 或 WebVTT，最大 4 MiB。",
   filesetIncomplete: "组合尚不完整，请配置成员或补充缺少的文件。",
+  filesetView: "查看组合",
   filesetShowMembers: "查看全部文件",
   filesetHideMembers: "收起文件",
   filesetIncludeMembers: "包含组合内文件",

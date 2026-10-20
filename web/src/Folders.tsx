@@ -2,7 +2,7 @@ import { ContextMenu, useContextMenu } from "./ContextMenu";
 import { LinkMenuItems } from "./LinkMenuItems";
 import { routeURL } from "./navigation";
 import { Anchor, Breadcrumbs, Button, TextInput } from "@mantine/core";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { createWrite, type Folder } from "./api";
 import { Dialog } from "./Dialog";
 import { useI18n } from "./i18n";
@@ -28,7 +28,9 @@ export function FolderBreadcrumbs({
   folders,
   current,
   choose,
+  children,
 }: {
+  children?: ReactNode;
   rootLabel?: string;
   goRoot?: () => void;
   box?: string;
@@ -101,6 +103,7 @@ export function FolderBreadcrumbs({
           </span>
         ))}
       </Breadcrumbs>
+      {children}
       <ContextMenu anchor={context.menu} close={context.close}>
         {context.menu && (
           <LinkMenuItems key={context.menu.item} href={context.menu.item} />

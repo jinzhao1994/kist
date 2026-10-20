@@ -31,6 +31,7 @@ import {
 } from "./Filters";
 import { FileBrowser } from "./FileBrowser";
 import { Gallery } from "./Gallery";
+import { FilesetFolderButton } from "./Filesets";
 import { useNavigation } from "./navigation";
 import { errorMessage } from "./mutations";
 import { HistoryPage } from "./History";
@@ -410,7 +411,14 @@ export function App() {
                 folders={folderList}
                 current={currentFolder}
                 choose={chooseFolder}
-              />
+              >
+                <FilesetFolderButton
+                  folder={currentFolder}
+                  open={() =>
+                    go({ ...route, file: currentFolder, page: undefined })
+                  }
+                />
+              </FolderBreadcrumbs>
             )}
           {info.data?.projection_dirty && (
             <p className="notice" role="status">

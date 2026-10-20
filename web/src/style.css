@@ -3223,3 +3223,7 @@ main.upload-drag-active {
     opacity: 1;
   }
 }
+
+.folder-fileset-action {
+  margin-inline-start: 12px;
+}

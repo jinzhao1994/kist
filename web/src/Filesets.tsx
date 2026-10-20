@@ -34,6 +34,28 @@ export function useFilesets() {
     queryFn: ({ signal }) => get<{ filesets: Fileset[] }>("/filesets", signal),
   });
 }
+export function FilesetFolderButton({
+  folder,
+  open,
+}: {
+  folder: string;
+  open: () => void;
+}) {
+  const { t } = useI18n();
+  const sets = useFilesets();
+  if (!sets.data?.filesets?.some((set) => set.folder_id === folder))
+    return null;
+  return (
+    <Button
+      variant="subtle"
+      size="compact-sm"
+      className="folder-fileset-action"
+      onClick={open}
+    >
+      {t("filesetView")}
+    </Button>
+  );
+}
 export function primaryFile(
   set: Fileset,
   sets: Fileset[],
