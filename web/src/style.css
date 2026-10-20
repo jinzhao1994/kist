@@ -3056,8 +3056,10 @@ main.upload-drag-active {
   overflow: auto;
   margin-block: 1rem;
 }
-.fileset-media .detail-image {
-  max-height: 65vh;
+.fileset-media .detail-image,
+.fileset-media video {
+  max-width: 100%;
+  max-height: min(60vh, 30rem);
   object-fit: contain;
 }
 .fileset-member-editor {

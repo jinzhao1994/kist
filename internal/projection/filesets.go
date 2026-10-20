@@ -151,9 +151,29 @@ func planFilesets(boxDir string, box domain.Box, folders []domain.Folder, files 
 	var emit func(string, []projectedGroup) error
 	emit = func(dir string, groups []projectedGroup) error {
 		slices.SortFunc(groups, func(a, b projectedGroup) int { return strings.Compare(a.id.String(), b.id.String()) })
+		// Preserve the established naming rule in directories with no flattened
+		// groups. A fileset elsewhere in the box must not rename these siblings.
+		ordinary := true
+		for _, g := range groups {
+			if len(g.nodes) != 1 || g.nodes[0].suffix != "" {
+				ordinary = false
+				break
+			}
+		}
+		var names map[domain.ID]string
+		if ordinary {
+			named := make([]Named, len(groups))
+			for i, g := range groups {
+				named[i] = Named{ID: g.id, Name: g.prefix}
+			}
+			names = Resolve(named)
+		}
 		used := map[string]bool{}
 		for _, g := range groups {
 			base := Sanitize(g.prefix)
+			if ordinary {
+				base = names[g.id]
+			}
 			candidate := base
 			for attempt := 0; ; attempt++ {
 				collision := false

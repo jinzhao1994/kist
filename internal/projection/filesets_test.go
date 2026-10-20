@@ -58,3 +58,29 @@ func TestFilesetProjectionGroupsAndCollisions(t *testing.T) {
 		t.Fatalf("nondeterministic projection: %v", err)
 	}
 }
+
+func TestFilesetDoesNotRenameOrdinaryDirectoryCollisions(t *testing.T) {
+	root := domain.NewRootFolder(domain.NewFolderID())
+	box := domain.Box{ID: domain.NewBoxID(), RootFolderID: root.ID}
+	folder, _ := domain.NewFolder(domain.NewFolderID(), root.ID, "ordinary")
+	setFolder, _ := domain.NewFolder(domain.NewFolderID(), root.ID, "set")
+	first, _ := domain.NewFile(domain.NewFileID(), folder.ID, "a:b.txt", "a")
+	second, _ := domain.NewFile(domain.NewFileID(), folder.ID, "a?b.txt", "b")
+	folders := []domain.Folder{root, folder, setFolder}
+	files := []domain.File{first, second}
+	before, err := Plan("box", box, folders, files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	set := domain.Fileset{FolderID: setFolder.ID, Kind: "document_pages", Layout: "directory"}
+	after, err := Plan("box", box, folders, files, set)
+	if err != nil || !reflect.DeepEqual(before, after) {
+		t.Fatalf("ordinary names changed: %v\nbefore=%+v\nafter=%+v", err, before, after)
+	}
+	unrelated := set
+	unrelated.FolderID = domain.NewFolderID()
+	after, err = Plan("box", box, folders, files, unrelated)
+	if err != nil || !reflect.DeepEqual(before, after) {
+		t.Fatalf("unrelated set changed projection: %v", err)
+	}
+}
