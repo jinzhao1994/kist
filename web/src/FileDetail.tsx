@@ -1,4 +1,5 @@
 import { Button, CopyButton, Tooltip } from "@mantine/core";
+import type { components } from "./api-schema";
 import type { FileDetail as FileData, Tag } from "./api";
 import { TagAssignment } from "./Tags";
 import { ExtractionStatus, useExtraction } from "./Extraction";
@@ -9,14 +10,17 @@ export function FileDetail({
   data,
   tags,
   history,
+  combination,
 }: {
   data: FileData;
   tags: Tag[];
   history?: () => void;
+  combination?: components["schemas"]["FilesetDetail"];
 }) {
   const { t, prefs } = useI18n();
   const extraction = useExtraction();
   const file = data.file;
+  const displayID = combination?.folder.id || file.id;
   const labels: Record<string, string> = {
     "exif:ExifImageHeight": t("imageHeight"),
     "exif:ExifImageWidth": t("imageWidth"),
@@ -60,39 +64,66 @@ export function FileDetail({
         <h3>{t("basicInfo")}</h3>
         {history && (
           <Button variant="subtle" size="compact-xs" onClick={history}>
-            {t("versionHistory")}
+            {t(combination ? "filesetConfigHistory" : "versionHistory")}
           </Button>
         )}
       </div>
       <dl className="detail-facts">
-        <dt>{t("path")}</dt>
+        <dt>{t(combination ? "name" : "path")}</dt>
         <dd>
-          <bdi>{file.path || file.name}</bdi>
+          <bdi>{combination?.folder.name || file.path || file.name}</bdi>
         </dd>
         <dt>{t("kind")}</dt>
         <dd>
-          <bdi>{file.media_type || t("unknown")}</bdi>
+          <bdi>
+            {combination
+              ? t(`fileset_${combination.fileset.kind}` as "fileset_live_photo")
+              : file.media_type || t("unknown")}
+          </bdi>
         </dd>
         <dt>{t("fileSize")}</dt>
-        <dd>{file.size == null ? "—" : formatBytes(file.size, prefs)}</dd>
+        <dd>
+          {file.size == null
+            ? "—"
+            : formatBytes(combination?.folder.total_size ?? file.size, prefs)}
+        </dd>
         <dt>{t("capturedAt")}</dt>
         <dd>
           {file.captured_at ? formatInstant(file.captured_at, prefs) : "—"}
         </dd>
         <dt>{t("created")}</dt>
-        <dd>{formatInstant(file.created_at, prefs)}</dd>
-        <dt>{t("fileId")}</dt>
         <dd>
-          <CopyButton value={file.id}>
+          {formatInstant(
+            combination?.folder.created_at || file.created_at,
+            prefs,
+          )}
+        </dd>
+        {combination && (
+          <>
+            <dt>{t("filesetPrimary")}</dt>
+            <dd>
+              <bdi>{file.name}</bdi>
+            </dd>
+          </>
+        )}
+        <dt>{t(combination ? "filesetId" : "fileId")}</dt>
+        <dd>
+          <CopyButton value={displayID}>
             {({ copied, copy }) => (
               <button
                 type="button"
                 className="file-id-copy"
                 onClick={copy}
-                title={file.id}
-                aria-label={t(copied ? "copied" : "copyFileId")}
+                title={displayID}
+                aria-label={t(
+                  copied
+                    ? "copied"
+                    : combination
+                      ? "copyFilesetId"
+                      : "copyFileId",
+                )}
               >
-                <bdi>{file.id}</bdi>
+                <bdi>{displayID}</bdi>
                 <span>{t(copied ? "copied" : "copy")}</span>
               </button>
             )}

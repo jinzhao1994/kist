@@ -27,7 +27,26 @@ type entryQueryInput struct {
 	IncludeMembers bool `query:"include_members"`
 }
 
+type filesetDetail struct {
+	Fileset domain.Fileset `json:"fileset"`
+	Folder  wire.Folder    `json:"folder"`
+	BoxID   string         `json:"box_id"`
+}
+
 func (s *Server) filesetRoutes() {
+	huma.Get(s.contract, Prefix+"/filesets/{id}", func(ctx context.Context, in *struct {
+		ID string `path:"id"`
+	}) (*output[filesetDetail], error) {
+		id, err := parseID(in.ID)
+		if err != nil {
+			return nil, err
+		}
+		set, folder, box, err := s.library.FilesetDetail(ctx, domain.FolderID{ID: id})
+		if err != nil {
+			return nil, failure(err)
+		}
+		return response(filesetDetail{Fileset: set, Folder: wire.NewFolder(folder), BoxID: box.String()}, nil)
+	})
 	huma.Get(s.contract, Prefix+"/filesets", func(ctx context.Context, _ *struct{}) (*output[filesetList], error) {
 		sets, err := s.library.Filesets(ctx)
 		if sets == nil {

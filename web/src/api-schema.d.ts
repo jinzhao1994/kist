@@ -376,7 +376,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Get API v1 filesets by ID */
+        get: operations["get-api-v1-filesets-by-id"];
         /** Put API v1 filesets by ID */
         put: operations["put-api-v1-filesets-by-id"];
         post?: never;
@@ -934,6 +935,11 @@ export interface components {
             layout: string;
             members: components["schemas"]["FilesetMember"][] | null;
             primary: string;
+        };
+        FilesetDetail: {
+            box_id: string;
+            fileset: components["schemas"]["Fileset"];
+            folder: components["schemas"]["Folder"];
         };
         FilesetList: {
             filesets: components["schemas"]["Fileset"][] | null;
@@ -2374,6 +2380,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FilesetList"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-filesets-by-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FilesetDetail"];
                 };
             };
             /** @description Error */

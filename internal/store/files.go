@@ -1,6 +1,7 @@
 package store
 
 import (
+	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
@@ -277,6 +278,21 @@ func FoldersOfBox(q Queryer, box domain.BoxID) ([]domain.Folder, error) {
 		out = append(out, f)
 	}
 	return out, rows.Err()
+}
+
+// FolderForDisplay returns one folder including its derived size.
+func FolderForDisplay(q Queryer, id domain.FolderID) (domain.Folder, bool, error) {
+	var size int64
+	row := q.QueryRow(`SELECT `+folderColumns+`, total_size FROM folders WHERE id = ?`, id)
+	f, err := scanFolder(func(args ...any) error { return row.Scan(append(args, &size)...) })
+	if err == sql.ErrNoRows {
+		return domain.Folder{}, false, nil
+	}
+	if err != nil {
+		return domain.Folder{}, false, err
+	}
+	f.TotalSize = size
+	return f, true, nil
 }
 
 // ExistingNames maps folder → folded name → blob key, for one box.

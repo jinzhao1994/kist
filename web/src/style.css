@@ -3046,20 +3046,31 @@ main.upload-drag-active {
 }
 
 .fileset-preview {
-  margin-block: 1rem;
+  display: flex;
+  flex-direction: column;
+  inline-size: 100%;
+  block-size: 100%;
+  min-block-size: 0;
+  gap: 0.75rem;
 }
 .fileset-media {
-  display: grid;
-  place-items: center;
-  min-height: 16rem;
-  max-height: 70vh;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 0;
   overflow: auto;
-  margin-block: 1rem;
+}
+.fileset-controls {
+  flex-shrink: 0;
+}
+.fileset-controls .mantine-Select-root {
+  inline-size: min(14rem, 100%);
 }
 .fileset-media .detail-image,
 .fileset-media video {
-  max-width: 100%;
-  max-height: min(60vh, 30rem);
+  max-inline-size: 100%;
+  max-block-size: 100%;
   object-fit: contain;
 }
 .fileset-member-editor {

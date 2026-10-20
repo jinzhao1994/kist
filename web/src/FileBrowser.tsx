@@ -1,11 +1,4 @@
-import {
-  useFilesets,
-  FilesetEditor,
-  FilesetPreview,
-  boxFiles,
-  primaryFile,
-} from "./Filesets";
-import { routeURL } from "./navigation";
+import { useFilesets, FilesetEditor } from "./Filesets";
 import { BackgroundMenu } from "./BackgroundMenu";
 import { FileIcon } from "./FileIcon";
 import { DisplayModeControl, useDisplayMode } from "./DisplayMode";
@@ -66,23 +59,7 @@ export function FileBrowser({
   const { t } = useI18n();
   const setQuery = useFilesets();
   const sets = setQuery.data?.filesets || [];
-  const currentSet = sets.find((s) => s.folder_id === uploadFolder);
   const [editingSet, setEditingSet] = useState<Folder>();
-  const [showMembers, setShowMembers] = useState(false);
-  const setContents = useQuery({
-    queryKey: ["fileset-content", box?.id, uploadFolder],
-    queryFn: ({ signal }) => boxFiles(box!.id, signal),
-    enabled: !!box && !!currentSet,
-  });
-  const openEntry = (file: ArchiveFile) => {
-    if (file.fileset_id) {
-      if (chooseFolder) chooseFolder(file.fileset_id);
-      else
-        window.location.assign(
-          routeURL({ files: true, box: file.box_id, folder: file.fileset_id }),
-        );
-    } else open(file);
-  };
 
   const [emptyMode, setEmptyMode] = useDisplayMode("files");
   const picker = useRef<UploadHandle>(null);
@@ -128,61 +105,6 @@ export function FileBrowser({
           />
         )}
       </DialogPresence>
-      {currentSet && box && (
-        <section>
-          <div className="actions">
-            <Button
-              variant="default"
-              onClick={() => {
-                void api
-                  .folders(box.id)
-                  .then((data) =>
-                    setEditingSet(
-                      data.folders?.find((f) => f.id === currentSet.folder_id),
-                    ),
-                  );
-              }}
-            >
-              {t("filesetConfigure")}
-            </Button>
-            {setContents.data?.find(
-              (f) => f.id === primaryFile(currentSet, sets),
-            ) && (
-              <Button
-                variant="subtle"
-                onClick={() =>
-                  open(
-                    setContents.data!.find(
-                      (f) => f.id === primaryFile(currentSet, sets),
-                    )!,
-                  )
-                }
-              >
-                {t("filesetPrimaryDetails")}
-              </Button>
-            )}
-            <Button
-              variant="subtle"
-              onClick={() => setShowMembers(!showMembers)}
-            >
-              {t(showMembers ? "filesetHideMembers" : "filesetShowMembers")}
-            </Button>
-          </div>
-          {setContents.isPending ? (
-            <p role="status">{t("loading")}</p>
-          ) : setContents.error ? (
-            <p role="alert">{errorMessage(setContents.error, t)}</p>
-          ) : (
-            <FilesetPreview
-              key={currentSet.folder_id + JSON.stringify(currentSet)}
-              set={currentSet}
-              sets={sets}
-              files={setContents.data || []}
-              open={open}
-            />
-          )}
-        </section>
-      )}
       {searching && box && searchingSubfolder && (
         <p className="supporting-text search-scope-hint">
           {t("searchWholeBox")}
@@ -220,7 +142,7 @@ export function FileBrowser({
           <Button onClick={() => query.refetch()}>{t("retry")}</Button>
         </div>
       )}
-      {query.data && (!currentSet || showMembers || searching) && (
+      {query.data && (
         <>
           <span className="file-count sr-only" role="status">
             {t("loadedFiles", { count: files.length })}
@@ -241,7 +163,7 @@ export function FileBrowser({
               uploadToFolder={box && info.data ? setUploadTarget : undefined}
               filters={filters}
               onSort={onSort}
-              open={openEntry}
+              open={open}
               configureFileset={box ? setEditingSet : undefined}
               paused={paused}
               toolbarHost={toolbarHost}

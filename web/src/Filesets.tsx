@@ -473,53 +473,6 @@ export function FilesetPreview({
   const file = files.find((f) => f.id === target);
   return (
     <section className="fileset-preview" aria-label={t("filesetPreview")}>
-      <Group justify="space-between">
-        {set.kind === "document_pages" && (
-          <Group>
-            <Button disabled={index === 0} onClick={() => setPage(index - 1)}>
-              {t("filesetPrevious")}
-            </Button>
-            <span>
-              {pages.length ? index + 1 : 0} / {pages.length}
-            </span>
-            <Button
-              disabled={index + 1 >= pages.length}
-              onClick={() => setPage(index + 1)}
-            >
-              {t("filesetNext")}
-            </Button>
-          </Group>
-        )}
-        {set.kind === "live_photo" && (
-          <Button variant="default" onClick={() => setMotion(!motion)}>
-            {t(motion ? "filesetStill" : "filesetMotion")}
-          </Button>
-        )}
-        {set.kind === "video_subtitles" && (
-          <Select
-            label={t("fileset_role_subtitle")}
-            value={subtitle}
-            onValueChange={setSubtitle}
-            options={[
-              { value: "", label: t("filesetNoSubtitle") },
-              ...pages
-                .filter((m) => m.role === "subtitle")
-                .map((m) => ({
-                  value: m.file_id,
-                  label:
-                    m.language ||
-                    files.find((f) => f.id === m.file_id)?.name ||
-                    m.file_id,
-                })),
-            ]}
-          />
-        )}
-        {file && (
-          <Button variant="subtle" onClick={() => open(file)}>
-            {t("filesetOpenMember")}
-          </Button>
-        )}
-      </Group>
       {file && <ExtractionStatus files={[file]} state={extraction} />}
       {captions.error && <p role="alert">{t("filesetSubtitleError")}</p>}
       {set.kind === "document_pages" && child ? (
@@ -557,6 +510,64 @@ export function FilesetPreview({
       ) : (
         <p className="supporting-text">{t("filesetIncomplete")}</p>
       )}
+      <Group className="fileset-controls" justify="center" gap="sm">
+        {set.kind === "document_pages" && (
+          <Group>
+            <Button
+              variant="subtle"
+              size="compact-sm"
+              disabled={index === 0}
+              onClick={() => setPage(index - 1)}
+            >
+              {t("filesetPrevious")}
+            </Button>
+            <span>
+              {pages.length ? index + 1 : 0} / {pages.length}
+            </span>
+            <Button
+              variant="subtle"
+              size="compact-sm"
+              disabled={index + 1 >= pages.length}
+              onClick={() => setPage(index + 1)}
+            >
+              {t("filesetNext")}
+            </Button>
+          </Group>
+        )}
+        {set.kind === "live_photo" && (
+          <Button
+            variant="subtle"
+            size="compact-sm"
+            onClick={() => setMotion(!motion)}
+          >
+            {t(motion ? "filesetStill" : "filesetMotion")}
+          </Button>
+        )}
+        {set.kind === "video_subtitles" && (
+          <Select
+            aria-label={t("fileset_role_subtitle")}
+            value={subtitle}
+            onValueChange={setSubtitle}
+            options={[
+              { value: "", label: t("filesetNoSubtitle") },
+              ...pages
+                .filter((m) => m.role === "subtitle")
+                .map((m) => ({
+                  value: m.file_id,
+                  label:
+                    m.language ||
+                    files.find((f) => f.id === m.file_id)?.name ||
+                    m.file_id,
+                })),
+            ]}
+          />
+        )}
+        {file && (
+          <Button variant="subtle" size="compact-sm" onClick={() => open(file)}>
+            {t("filesetOpenMember")}
+          </Button>
+        )}
+      </Group>
     </section>
   );
 }

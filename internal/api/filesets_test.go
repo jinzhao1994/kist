@@ -49,6 +49,10 @@ func TestFilesetHTTPConfigurationAndSearch(t *testing.T) {
 	set := domain.Fileset{FolderID: folder, Kind: "video_subtitles", Layout: "flat", Members: []domain.FilesetMember{{FileID: video, Role: "video"}, {FileID: sub, Role: "subtitle"}}}
 	body, _ := json.Marshal(map[string]any{"box": box.ID.String(), "after": set})
 	mustWrite(t, s, "PUT", "/filesets/"+folder.String(), "fileset-create-001", string(body))
+	detail := decodeBody[filesetDetail](t, s, "/filesets/"+folder.String())
+	if detail.BoxID != box.ID.String() || detail.Folder.ID != folder.String() || detail.Folder.Name != "episode" || detail.Folder.TotalSize != 13 || !domain.EqualFileset(&detail.Fileset, &set) {
+		t.Fatalf("unexpected combination detail: %+v", detail)
+	}
 	history := decodeBody[historyList](t, s, "/ops?fileset="+folder.String())
 	if len(history.Ops) != 1 || history.Ops[0].Action != "set_fileset" {
 		t.Fatal(history)
@@ -72,5 +76,8 @@ func TestFilesetHTTPConfigurationAndSearch(t *testing.T) {
 	mustWrite(t, s, "PUT", "/filesets/"+folder.String(), "fileset-remove-001", string(body))
 	if got := decodeBody[filesetList](t, s, "/filesets"); len(got.Filesets) != 0 {
 		t.Fatal(got)
+	}
+	if got := call(s, "GET", Prefix+"/filesets/"+folder.String(), "", ""); got.Code != 404 {
+		t.Fatalf("removed configuration still has a detail: %d %s", got.Code, got.Body)
 	}
 }

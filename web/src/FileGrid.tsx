@@ -603,7 +603,7 @@ export function FileGrid({
                   ? routeURL({
                       files: true,
                       box: selectedBox,
-                      folder: selected.file.fileset_id,
+                      file: selected.file.fileset_id,
                     })
                   : routeURL({ files: true, file: selected.id })
               }

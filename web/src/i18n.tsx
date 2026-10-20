@@ -9,6 +9,8 @@ import {
 
 export const en = {
   filesetLabel: "File set",
+  filesetId: "File set ID",
+  copyFilesetId: "Copy file set ID",
   filesetConfigHistory: "Combination configuration history",
   filesetPrimaryDetails: "Primary file details and tags",
   filesetConfigure: "Configure file set",
@@ -513,6 +515,8 @@ export const en = {
 export type MessageKey = keyof typeof en;
 export const zh: Record<MessageKey, string> = {
   filesetLabel: "文件组合",
+  filesetId: "组合 ID",
+  copyFilesetId: "复制组合 ID",
   filesetConfigHistory: "组合配置历史",
   filesetPrimaryDetails: "主文件详情与标签",
   filesetConfigure: "配置文件组合",

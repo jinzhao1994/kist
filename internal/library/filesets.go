@@ -117,3 +117,31 @@ func (l *Library) Browse(ctx context.Context, q query.Query, include bool) ([]Br
 	})
 	return out, next, err
 }
+
+// FilesetDetail resolves a combination and its location in one read transaction.
+func (l *Library) FilesetDetail(ctx context.Context, id domain.FolderID) (domain.Fileset, domain.Folder, domain.BoxID, error) {
+	var set domain.Fileset
+	var folder domain.Folder
+	var box domain.BoxID
+	err := l.readTx(ctx, func(tx *store.ViewTx) error {
+		current, err := tx.GetFileset(id)
+		if err != nil {
+			return err
+		}
+		if current == nil {
+			return ErrNoSuchFile
+		}
+		set = *current
+		var found bool
+		folder, found, err = store.FolderForDisplay(tx.Queryer(), id)
+		if err != nil {
+			return err
+		}
+		if !found {
+			return ErrNoSuchFile
+		}
+		box, _, err = store.FolderChain(tx.Queryer(), id)
+		return err
+	})
+	return set, folder, box, err
+}

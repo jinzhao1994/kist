@@ -461,7 +461,7 @@ export function App() {
                 openFile={(file) =>
                   go({
                     ...route,
-                    file: file.id,
+                    file: file.fileset_id || file.id,
                     filters: { ...emptyFilters, tag_all: [route.tag!] },
                   })
                 }
@@ -547,7 +547,9 @@ export function App() {
                   paused={!!route.file}
                   filters={filters}
                   tags={tree}
-                  open={(file) => go({ ...route, file: file.id, filters })}
+                  open={(file) =>
+                    go({ ...route, file: file.fileset_id || file.id, filters })
+                  }
                 />
               )}
             </>
@@ -637,11 +639,12 @@ export function App() {
             if (window.history.state?.kistGallery) window.history.back();
             else go({ ...route, file: undefined }, true);
           }}
-          history={() =>
+          history={(fileset) =>
             go({
               files: false,
               section: "history",
-              file: route.file,
+              file: fileset ? undefined : route.file,
+              fileset,
               box: route.box,
             })
           }
