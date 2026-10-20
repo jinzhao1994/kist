@@ -278,8 +278,13 @@ export function FilesetEditor({
                 <Tooltip
                   label={`${t("filesetPageOrderHint")} ${t("filesetExcludedHint")}`}
                   multiline
-                  w={280}
-                  events={{ hover: true, focus: true, touch: true }}
+                  maw={360}
+                  position="bottom-start"
+                  offset={8}
+                  classNames={{ tooltip: "metadata-tooltip" }}
+                  openDelay={0}
+                  transitionProps={{ duration: 0 }}
+                  events={{ hover: false, focus: true, touch: true }}
                 >
                   <ActionIcon
                     type="button"
@@ -288,25 +293,37 @@ export function FilesetEditor({
                     size="sm"
                     aria-label={t("filesetPagesHelp")}
                   >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 20 20"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.4"
-                      aria-hidden="true"
+                    <Tooltip.Floating
+                      label={`${t("filesetPageOrderHint")} ${t("filesetExcludedHint")}`}
+                      position="bottom-start"
+                      offset={16}
+                      role="tooltip"
+                      multiline
+                      maw={360}
+                      classNames={{ tooltip: "metadata-tooltip" }}
                     >
-                      <circle cx="10" cy="10" r="7.5" />
-                      <path d="M10 9v5" />
-                      <circle
-                        cx="10"
-                        cy="6"
-                        r=".7"
-                        fill="currentColor"
-                        stroke="none"
-                      />
-                    </svg>
+                      <span style={{ display: "inline-flex" }}>
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 20 20"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.4"
+                          aria-hidden="true"
+                        >
+                          <circle cx="10" cy="10" r="7.5" />
+                          <path d="M10 9v5" />
+                          <circle
+                            cx="10"
+                            cy="6"
+                            r=".7"
+                            fill="currentColor"
+                            stroke="none"
+                          />
+                        </svg>
+                      </span>
+                    </Tooltip.Floating>
                   </ActionIcon>
                 </Tooltip>
               </div>
