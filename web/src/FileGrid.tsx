@@ -29,7 +29,7 @@ import {
   useDisplayMode,
   type DisplayMode,
 } from "./DisplayMode";
-import { formatBytes, formatInstant, formatLocalDate, useI18n } from "./i18n";
+import { formatBytes, formatInstant, useI18n } from "./i18n";
 export function activeImages(
   files: ArchiveFile[],
   first: number,
@@ -327,15 +327,10 @@ export function FileGrid({
                     !boxID && file?.box_id
                       ? boxesByID.get(file.box_id)
                       : undefined;
+                  const sourceDate =
+                    sourceBox?.start_at?.replace("T", " ") || "";
                   const source = sourceBox
-                    ? [
-                        sourceBox.start_at
-                          ? formatLocalDate(sourceBox.start_at, prefs)
-                          : "",
-                        sourceBox.name,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")
+                    ? [sourceDate, sourceBox.name].filter(Boolean).join(" · ")
                     : "";
                   const size = folder ? folder.total_size : file?.size;
                   const editing =
@@ -456,9 +451,20 @@ export function FileGrid({
                         )}
                         {!boxID && (
                           <small className="file-card-meta">
-                            <bdi className="file-card-source" title={source}>
-                              {source}
-                            </bdi>
+                            <span className="file-card-source" title={source}>
+                              {sourceDate && (
+                                <time
+                                  className="file-card-source-date"
+                                  dateTime={sourceBox?.start_at}
+                                >
+                                  {sourceDate}
+                                  {" · "}
+                                </time>
+                              )}
+                              <bdi className="file-card-source-name">
+                                {sourceBox?.name}
+                              </bdi>
+                            </span>
                             <span className="file-card-size">
                               {size == null ? "—" : formatBytes(size, prefs)}
                             </span>

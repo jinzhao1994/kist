@@ -602,10 +602,20 @@ progress {
   gap: 0.5rem;
 }
 .file-card-source {
+  display: flex;
+  min-inline-size: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.file-card-source-date {
+  flex-shrink: 0;
+  white-space: pre;
+}
+.file-card-source-name {
   min-inline-size: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex: 1;
+  white-space: nowrap;
 }
 .file-card-size {
   flex-shrink: 0;
