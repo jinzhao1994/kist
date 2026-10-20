@@ -773,7 +773,6 @@ export function FilesetPreview({
   const path = pagePath || localPath;
   const updatePath = changePage || setLocalPath;
   const setPage = (index: number) => updatePath([index + 1]);
-  const [motion, setMotion] = useState(false);
   const subtitles = useMemo(
     () =>
       set.kind !== "video_subtitles"
@@ -804,10 +803,14 @@ export function FilesetPreview({
       ? presentID(member?.file_id)
         ? member.file_id
         : undefined
-      : motion
-        ? set.members?.find((m) => m.role === "video")?.file_id
-        : primaryFile(set, sets);
+      : primaryFile(set, sets);
   const file = files.find((f) => f.id === target);
+  const motionFile =
+    set.kind === "live_photo"
+      ? files.find(
+          (f) => f.id === set.members?.find((m) => m.role === "video")?.file_id,
+        )
+      : undefined;
   return (
     <section
       className={`fileset-preview${set.kind === "document_pages" ? " fileset-page-reader" : ""}`}
@@ -854,21 +857,16 @@ export function FilesetPreview({
         />
       ) : file ? (
         <div className="fileset-media">
-          <Media key={file.id} file={file} detail tracks={captions.tracks} />
+          <Media
+            key={file.id}
+            file={motionFile || file}
+            livePhoto={motionFile ? file : undefined}
+            detail
+            tracks={captions.tracks}
+          />
         </div>
       ) : (
         <p className="supporting-text">{t("filesetIncomplete")}</p>
-      )}
-      {set.kind === "live_photo" && (
-        <Group className="fileset-controls" justify="center" gap="sm">
-          <Button
-            variant="subtle"
-            size="compact-sm"
-            onClick={() => setMotion(!motion)}
-          >
-            {t(motion ? "filesetStill" : "filesetMotion")}
-          </Button>
-        </Group>
       )}
     </section>
   );

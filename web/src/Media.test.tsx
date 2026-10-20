@@ -369,3 +369,54 @@ it("exposes all subtitle tracks to native controls with only the configured defa
   fireEvent.load(tracks[1]);
   expect(track.mode).toBe("disabled");
 });
+
+it("preloads Live Photo motion inline, toggles playback and restores the photo on end", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(Response.json(job("ready"))),
+  );
+  const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+  const pause = vi
+    .spyOn(HTMLMediaElement.prototype, "pause")
+    .mockImplementation(() => {});
+  const load = vi
+    .spyOn(HTMLMediaElement.prototype, "load")
+    .mockImplementation(() => {});
+  const view = mount({
+    file: {
+      ...file,
+      id: "motion",
+      kind: "video",
+      media_type: "video/mp4",
+      name: "motion.mp4",
+    },
+    livePhoto: { ...file, name: "photo.jpg", media_type: "image/jpeg" },
+  });
+  expect(screen.getByRole("img", { name: "photo.jpg" })).toBeVisible();
+  const button = await screen.findByRole("button", { name: "Play motion" });
+  await waitFor(() => expect(button).toBeEnabled());
+  const video = view.container.querySelector("video")!;
+  expect(video).toHaveAttribute("preload", "auto");
+  expect(video).toHaveAttribute("playsinline");
+  expect(video).not.toHaveAttribute("controls");
+  expect(play).not.toHaveBeenCalled();
+  fireEvent.click(button);
+  expect(play).toHaveBeenCalledOnce();
+  fireEvent.playing(video);
+  expect(button).toHaveAttribute("aria-pressed", "true");
+  fireEvent.click(button);
+  expect(button).toHaveAttribute("aria-pressed", "false");
+  fireEvent.click(button);
+  fireEvent.playing(video);
+  fireEvent.ended(video);
+  expect(button).toHaveAttribute("aria-pressed", "false");
+  play.mockRejectedValueOnce(new Error("Playback denied"));
+  fireEvent.click(button);
+  await waitFor(() => expect(screen.getByRole("status")).toBeVisible());
+  expect(button).toHaveAttribute("aria-pressed", "false");
+  view.unmount();
+  expect(video).not.toHaveAttribute("src");
+  play.mockRestore();
+  pause.mockRestore();
+  load.mockRestore();
+});

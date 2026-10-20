@@ -3059,12 +3059,6 @@ main.upload-drag-active {
   min-block-size: 0;
   overflow: auto;
 }
-.fileset-controls {
-  flex-shrink: 0;
-}
-.fileset-controls .mantine-Select-root {
-  inline-size: min(14rem, 100%);
-}
 .fileset-media .detail-image,
 .fileset-media video {
   max-inline-size: 100%;
@@ -3241,4 +3235,63 @@ main.upload-drag-active {
   .fileset-page-toolbar {
     gap: 0.5rem;
   }
+}
+
+.live-photo {
+  position: relative;
+  inline-size: 100%;
+  block-size: 100%;
+  min-block-size: 0;
+}
+.live-photo-still {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 100%;
+  block-size: 100%;
+}
+.live-photo video {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+  visibility: hidden;
+}
+.live-photo.is-playing video {
+  visibility: visible;
+}
+.live-photo.is-playing .live-photo-still {
+  visibility: hidden;
+}
+.live-photo-button {
+  position: absolute;
+  inset-inline-start: 1rem;
+  inset-block-end: 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 55%);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.live-photo-button:disabled {
+  cursor: wait;
+}
+.live-photo-button:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+}
+.live-photo-error {
+  position: absolute;
+  inset-block-start: 1rem;
+  inset-inline-start: 1rem;
+  background: rgb(0 0 0 / 65%);
+  color: white;
+  padding: 0.35rem 0.65rem;
 }

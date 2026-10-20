@@ -1,5 +1,12 @@
 import { Button } from "@mantine/core";
-import { lazy, Suspense, useCallback, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   contentURL,
@@ -160,15 +167,163 @@ export type SubtitleTrack = {
   default?: boolean;
 };
 
+function LivePhotoPlayer({
+  photo,
+  src,
+  retry,
+}: {
+  photo: ArchiveFile;
+  src?: string;
+  retry?: () => void;
+}) {
+  const { t } = useI18n();
+  const surface = useRef<HTMLDivElement>(null);
+  const [inset, setInset] = useState({ x: 0, y: 0 });
+  const alignButton = useCallback(() => {
+    const node = surface.current;
+    const image = node?.querySelector("img");
+    if (!node || !image?.naturalWidth || !image.naturalHeight) return;
+    const scale = Math.min(
+      node.clientWidth / image.naturalWidth,
+      node.clientHeight / image.naturalHeight,
+    );
+    setInset({
+      x: (node.clientWidth - image.naturalWidth * scale) / 2,
+      y: (node.clientHeight - image.naturalHeight * scale) / 2,
+    });
+  }, []);
+  useEffect(() => {
+    const observer = new ResizeObserver(alignButton);
+    if (surface.current) observer.observe(surface.current);
+    alignButton();
+    return () => observer.disconnect();
+  }, [alignButton]);
+  const video = useRef<HTMLVideoElement>(null);
+  const requested = useRef(false);
+  const attempt = useRef(0);
+  const [playing, setPlaying] = useState(false);
+  const [waiting, setWaiting] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const stop = () => {
+    attempt.current++;
+    requested.current = false;
+    video.current?.pause();
+    if (video.current) video.current.currentTime = 0;
+    setPlaying(false);
+    setWaiting(false);
+  };
+  useEffect(() => {
+    const element = video.current;
+    return () => {
+      requested.current = false;
+      element?.pause();
+      element?.removeAttribute("src");
+      element?.load();
+    };
+  }, []);
+  const play = () => {
+    if (requested.current) {
+      stop();
+      return;
+    }
+    if (!src) {
+      retry?.();
+      return;
+    }
+    requested.current = true;
+    const currentAttempt = ++attempt.current;
+    setWaiting(true);
+    setFailed(false);
+    const element = video.current!;
+    if (failed) element.load();
+    element.currentTime = 0;
+    void element.play().catch(() => {
+      if (!requested.current || currentAttempt !== attempt.current) return;
+      stop();
+      setFailed(true);
+    });
+  };
+  return (
+    <div
+      ref={surface}
+      onLoadCapture={alignButton}
+      className={`live-photo${playing ? " is-playing" : ""}`}
+    >
+      <div className="live-photo-still">
+        <Media file={photo} detail />
+      </div>
+      <video
+        ref={video}
+        src={src}
+        preload="auto"
+        playsInline
+        aria-hidden="true"
+        onPlaying={() => {
+          if (!requested.current) {
+            video.current?.pause();
+            return;
+          }
+          setPlaying(true);
+          setWaiting(false);
+        }}
+        onEnded={stop}
+        onError={() => {
+          stop();
+          setFailed(true);
+        }}
+      />
+      <button
+        type="button"
+        className="live-photo-button"
+        style={{ insetInlineStart: inset.x + 16, bottom: inset.y + 16 }}
+        onClick={play}
+        aria-label={t(playing ? "filesetStill" : "filesetMotion")}
+        aria-pressed={playing}
+        disabled={!src && !retry}
+        title={
+          failed || retry
+            ? t("retry")
+            : !src || waiting
+              ? t("loading")
+              : undefined
+        }
+      >
+        {playing ? (
+          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+            <path fill="currentColor" d="M3 2h2v8H3zm4 0h2v8H7z" />
+          </svg>
+        ) : (
+          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+            <path fill="currentColor" d="M3 1.5 10 6l-7 4.5z" />
+          </svg>
+        )}
+        {t("filesetLive")}
+        {((!src && !retry) || waiting) && (
+          <span className="live-photo-loading" aria-hidden="true">
+            ···
+          </span>
+        )}
+      </button>
+      {failed && (
+        <span className="live-photo-error" role="status">
+          {t("mediaFailed")}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function Media({
   file,
   active = true,
   detail = false,
   paused = false,
   tracks,
+  livePhoto,
 }: {
   file: ArchiveFile;
   tracks?: SubtitleTrack[];
+  livePhoto?: ArchiveFile;
   active?: boolean;
   detail?: boolean;
   paused?: boolean;
@@ -273,6 +428,32 @@ export function Media({
         />
       </Suspense>
     );
+  if (livePhoto && detail && file.kind === "video") {
+    const retryable =
+      query.isError ||
+      failed ||
+      (job && ["failed", "cancelled", "blocked"].includes(job.state));
+    return (
+      <LivePhotoPlayer
+        key={`${file.id}:${file.blob_key}`}
+        photo={livePhoto}
+        src={
+          job?.state === "ready" && !failed
+            ? `/api/v1${path}/content?v=${encodeURIComponent(job.generation)}`
+            : undefined
+        }
+        retry={
+          retryable
+            ? () => {
+                setFailedGeneration("");
+                if (query.isError || failed) void query.refetch();
+                else action.mutate("retry");
+              }
+            : undefined
+        }
+      />
+    );
+  }
   if (enabled && job?.state === "ready" && !failed) {
     const src = `/api/v1${path}/content?v=${encodeURIComponent(job.generation)}`;
     const fail = () => {

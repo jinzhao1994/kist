@@ -13,8 +13,20 @@ import { ThemeProvider } from "./theme";
 import { I18nProvider, storageKey } from "./i18n";
 import type { ArchiveFile } from "./api";
 vi.mock("./Media", () => ({
-  Media: ({ file, tracks }: { file: ArchiveFile; tracks?: unknown[] }) => (
-    <div data-testid="media" data-tracks={JSON.stringify(tracks)}>
+  Media: ({
+    file,
+    tracks,
+    livePhoto,
+  }: {
+    file: ArchiveFile;
+    tracks?: unknown[];
+    livePhoto?: ArchiveFile;
+  }) => (
+    <div
+      data-testid="media"
+      data-tracks={JSON.stringify(tracks)}
+      data-live-photo={livePhoto?.name}
+    >
       {file.name}
     </div>
   ),
@@ -58,7 +70,7 @@ it("resolves automatic nested and explicit primaries without cycling", () => {
     ),
   ).toBeUndefined();
 });
-it("reads nested Live Photo pages and switches motion in the combination", () => {
+it("preloads nested Live Photo motion with its still image and navigates pages", () => {
   localStorage.setItem(
     storageKey,
     JSON.stringify({
@@ -86,10 +98,12 @@ it("reads nested Live Photo pages and switches motion in the combination", () =>
       </ThemeProvider>
     </QueryClientProvider>,
   );
-  expect(screen.getByTestId("media")).toHaveTextContent("still");
-  expect(screen.getByRole("button", { name: "Read metadata" })).toBeVisible();
-  fireEvent.click(screen.getByRole("button", { name: "Play motion" }));
   expect(screen.getByTestId("media")).toHaveTextContent("motion");
+  expect(screen.getByTestId("media")).toHaveAttribute(
+    "data-live-photo",
+    "still",
+  );
+  expect(screen.getByRole("button", { name: "Read metadata" })).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Next page" }));
   expect(screen.getByTestId("media")).toHaveTextContent("second");
 });

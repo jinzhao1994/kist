@@ -47,6 +47,7 @@ export const en = {
   filesetPreview: "File set preview",
   filesetPageTools: "Page navigation",
   noTags: "No tags",
+  filesetLive: "LIVE",
   filesetStill: "Show photo",
   filesetMotion: "Play motion",
   filesetSubtitleError:
@@ -566,6 +567,7 @@ export const zh: Record<MessageKey, string> = {
   filesetPreview: "文件组合预览",
   filesetPageTools: "页面导航",
   noTags: "暂无标签",
+  filesetLive: "实况",
   filesetStill: "显示照片",
   filesetMotion: "播放动态",
   filesetSubtitleError: "字幕加载失败。支持 UTF-8 SRT 或 WebVTT，最大 4 MiB。",
