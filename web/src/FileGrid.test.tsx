@@ -773,13 +773,13 @@ it("distinguishes the archive root from the current box root", async () => {
 });
 
 it.each([
-  { scoped: false, start: "2026", source: "2026 · Trip" },
-  { scoped: false, start: "2026-10", source: "2026-10 · Trip" },
-  { scoped: false, start: "2026-10-20", source: "2026-10-20 · Trip" },
+  { scoped: false, start: "2026", source: "Trip · 2026" },
+  { scoped: false, start: "2026-10", source: "Trip · 2026-10" },
+  { scoped: false, start: "2026-10-20", source: "Trip · 2026-10-20" },
   {
     scoped: false,
     start: "2026-10-20T08:30",
-    source: "2026-10-20 08:30 · Trip",
+    source: "Trip · 2026-10-20 08:30",
   },
   { scoped: false, start: "", source: "Trip" },
   { scoped: true, start: "2026", source: "" },

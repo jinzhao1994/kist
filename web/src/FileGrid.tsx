@@ -330,7 +330,7 @@ export function FileGrid({
                   const sourceDate =
                     sourceBox?.start_at?.replace("T", " ") || "";
                   const source = sourceBox
-                    ? [sourceDate, sourceBox.name].filter(Boolean).join(" · ")
+                    ? [sourceBox.name, sourceDate].filter(Boolean).join(" · ")
                     : "";
                   const size = folder ? folder.total_size : file?.size;
                   const editing =
@@ -452,18 +452,18 @@ export function FileGrid({
                         {!boxID && (
                           <small className="file-card-meta">
                             <span className="file-card-source" title={source}>
+                              <bdi className="file-card-source-name">
+                                {sourceBox?.name}
+                              </bdi>
                               {sourceDate && (
                                 <time
                                   className="file-card-source-date"
                                   dateTime={sourceBox?.start_at}
                                 >
-                                  {sourceDate}
                                   {" · "}
+                                  {sourceDate}
                                 </time>
                               )}
-                              <bdi className="file-card-source-name">
-                                {sourceBox?.name}
-                              </bdi>
                             </span>
                             <span className="file-card-size">
                               {size == null ? "—" : formatBytes(size, prefs)}
