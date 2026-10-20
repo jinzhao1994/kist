@@ -72,6 +72,21 @@ type libraryInfo struct {
 }
 
 func (s *Server) readRoutes() {
+	huma.Get(s.contract, Prefix+"/boxes/{id}/cover", func(ctx context.Context, in *entityInput) (*output[boxCover], error) {
+		id, err := parseID(in.ID)
+		if err != nil {
+			return nil, err
+		}
+		f, found, err := s.library.BoxCover(ctx, domain.BoxID{ID: id})
+		out := boxCover{}
+		if err == nil && found {
+			item, e := renderFile(ctx, s.library, f)
+			err = e
+			out.File = &item
+		}
+		return response(out, err)
+	})
+
 	s.boxSearchRoute()
 	huma.Get(s.contract, Prefix+"/boxes/{id}/deletion-preview", func(ctx context.Context, in *entityInput) (*output[library.BoxDeletionPreview], error) {
 		id, err := parseID(in.ID)
@@ -191,6 +206,30 @@ func (s *Server) writeRoutes() {
 			return err
 		})
 	})
+	huma.Put(s.contract, Prefix+"/boxes/{id}/cover", func(ctx context.Context, in *struct {
+		ID   string `path:"id"`
+		Key  string `header:"Idempotency-Key" required:"true"`
+		Body struct {
+			FileID string `json:"file_id"`
+		}
+	}) (*output[library.RequestResult], error) {
+		id, err := parseID(in.ID)
+		if err != nil {
+			return nil, err
+		}
+		var file domain.FileID
+		if in.Body.FileID != "" {
+			parsed, err := parseID(in.Body.FileID)
+			if err != nil {
+				return nil, err
+			}
+			file = domain.FileID{ID: parsed}
+		}
+		return s.mutate(ctx, in.Key, "PUT", Prefix+"/boxes/"+id.String()+"/cover", in.Body, func(ctx context.Context) error {
+			return s.library.SetBoxCover(ctx, domain.BoxID{ID: id}, file)
+		})
+	})
+
 	huma.Put(s.contract, Prefix+"/boxes/{id}", func(ctx context.Context, in *updateBoxInput) (*output[library.RequestResult], error) {
 		id, err := parseID(in.ID)
 		if err != nil {
@@ -205,4 +244,8 @@ func (s *Server) writeRoutes() {
 			return err
 		})
 	})
+}
+
+type boxCover struct {
+	File *wire.File `json:"file,omitempty"`
 }

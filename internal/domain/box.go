@@ -12,6 +12,7 @@ type Box struct {
 	// TotalSize is populated by display queries only, never stored in journal payloads.
 	TotalSize    int64 `json:"-"`
 	ID           BoxID
+	CoverFileID  FileID
 	RootFolderID FolderID
 	Name         string
 	NameFold     string

@@ -1,3 +1,5 @@
+import { useBoxCover } from "./BoxCover";
+import { WriteFeedback } from "./mutations";
 import { LinkMenuItems } from "./LinkMenuItems";
 import { routeURL } from "./navigation";
 import { iconGridColumns, iconGridStyle } from "./icon-grid";
@@ -71,6 +73,7 @@ export function FileGrid({
   open: (file: ArchiveFile) => void;
 }) {
   const { t, prefs } = useI18n();
+  const cover = useBoxCover();
   const [mode, setMode] = useDisplayMode("files");
   const boxesByID = new Map(boxes.map((box) => [box.id, box]));
   const sortedFolders = [...folders].sort((a, b) => {
@@ -507,6 +510,7 @@ export function FileGrid({
           ))}
         </div>
       </div>
+      <WriteFeedback state={cover} />
       <ContextMenu anchor={context.menu} close={context.close}>
         <Menu.Item
           onClick={() => {
@@ -518,6 +522,16 @@ export function FileGrid({
         </Menu.Item>
         {selected?.file && (
           <>
+            {hasPreview(selected.file) && (selected.file.box_id || boxID) && (
+              <Menu.Item
+                disabled={cover.busy || cover.locked}
+                onClick={() =>
+                  cover.setCover(selected.file!.box_id || boxID!, selected.id)
+                }
+              >
+                {t("setCover")}
+              </Menu.Item>
+            )}
             <Menu.Item onClick={() => setTaggingFile(selected.id)}>
               {t("addTag")}
             </Menu.Item>

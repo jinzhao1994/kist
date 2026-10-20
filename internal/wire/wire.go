@@ -26,6 +26,7 @@ import (
 
 // Box is one activity, trip or batch of paperwork.
 type Box struct {
+	CoverFileID string `json:"cover_file_id,omitempty"`
 	TotalSize   int64  `json:"total_size" minimum:"0"`
 	ID          string `json:"id"`
 	Name        string `json:"name"`
@@ -39,7 +40,12 @@ type Box struct {
 }
 
 func NewBox(b domain.Box) Box {
+	var cover string
+	if !b.CoverFileID.IsZero() {
+		cover = b.CoverFileID.String()
+	}
 	return Box{
+		CoverFileID: cover,
 		TotalSize:   b.TotalSize,
 		ID:          b.ID.String(),
 		Name:        b.Name,

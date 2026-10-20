@@ -85,6 +85,7 @@ const panorama = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="30
 const modelPage = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><rect width="512" height="512" fill="#f3f4f6"/><path d="M256 72L432 168 256 272 80 168Z" fill="#6796b5"/><path d="M80 168L256 272V440L80 336Z" fill="#355e7b"/><path d="M256 272L432 168V336L256 440Z" fill="#4f7c9c"/></svg>`;
 
 type Options = {
+  cover?: boolean;
   primaryColor?: Appearance["primaryColor"];
   mode?: Appearance["mode"];
   state?: MediaJob["state"];
@@ -338,6 +339,8 @@ async function prepare(page: Page, options: Options = {}) {
           },
         ],
       };
+    else if (path === "/boxes/box-1/cover" && options.cover)
+      body = { file: files[1] };
     else if (path === "/saved-searches") body = { searches: [] };
     else if (path === "/boxes" || path === "/boxes/search")
       body = {
@@ -346,6 +349,7 @@ async function prepare(page: Page, options: Options = {}) {
           : [
               {
                 ...box,
+                cover_file_id: options.cover ? files[1].id : undefined,
                 tags: [
                   { id: "tag-1", name: "旅行" },
                   { id: "tag-2", name: "山野" },
@@ -2596,3 +2600,25 @@ test("trash-scope-mobile", async ({ page }, info) => {
   );
   await capture(page, errors, info.title);
 });
+
+for (const mode of ["medium", "large"] as const) {
+  test(`box-cover-${mode}`, async ({ page }, info) => {
+    const errors = await prepare(page, { cover: true });
+    await page.addInitScript(
+      (mode) => localStorage.setItem("kist.display.boxes.v1", mode),
+      mode,
+    );
+    await page.goto("/");
+    const covered = page.locator('.box-card[data-item-id="box-1"]');
+    await expect(covered.locator(".box-cover img")).toBeVisible();
+    await expect(
+      page.locator('.box-card[data-item-id="box-2"] .box-icon'),
+    ).toBeVisible();
+    await covered.click({ button: "right" });
+    await expect(
+      page.getByRole("menuitem", { name: "移除封面" }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+    await capture(page, errors, info.title);
+  });
+}

@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/jinzhao1994/kist/internal/integrity"
@@ -38,6 +39,20 @@ func checkFrozenJournal(t *testing.T, version string) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Historical fixtures predate covers. Extend only the independent expected
+	// box rows with the migration's empty reference; keep frozen logs untouched.
+	lines := strings.Split(string(want), "\n")
+	inBoxes := false
+	for i, line := range lines {
+		if strings.HasPrefix(line, "== ") {
+			inBoxes = line == "== boxes =="
+			continue
+		}
+		if inBoxes && line != "" {
+			lines[i] += "\t00000000000000000000000000000000"
+		}
+	}
+	want = []byte(strings.Join(lines, "\n"))
 	l, err := Open(root)
 	if err != nil {
 		t.Fatal(err)

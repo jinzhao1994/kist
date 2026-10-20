@@ -8,6 +8,8 @@ import {
 } from "react";
 
 export const en = {
+  setCover: "Set as box cover",
+  removeCover: "Remove cover",
   mapZoomIn: "Zoom in",
   mapZoomOut: "Zoom out",
   mapAttribution: "Map attribution",
@@ -463,6 +465,8 @@ export const en = {
 } as const;
 export type MessageKey = keyof typeof en;
 export const zh: Record<MessageKey, string> = {
+  setCover: "设为归档盒封面",
+  removeCover: "移除封面",
   mapZoomIn: "放大地图",
   mapZoomOut: "缩小地图",
   mapAttribution: "地图来源",

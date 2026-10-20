@@ -26,6 +26,7 @@ func init() {
 // purpose: it is maintained derived state and does not take part in Inverse
 // (spec 1.5.1 ④).
 type BoxFields struct {
+	CoverFileID domain.FileID    `json:"cover_file_id,omitzero"`
 	Name        string           `json:"name"`
 	Description string           `json:"description"`
 	StartAt     domain.LocalDate `json:"start_at"`
@@ -58,6 +59,7 @@ func (createBox) Apply(tx Tx, payload []byte) error {
 		return err
 	}
 	b.StartAt, b.EndAt = p.StartAt, p.EndAt
+	b.CoverFileID = p.CoverFileID
 	// The folder first: boxes.root_folder_id points at it.
 	if err := tx.InsertFolder(domain.NewRootFolder(p.RootFolderID)); err != nil {
 		return err
@@ -148,6 +150,12 @@ type DateChange struct {
 	After  domain.LocalDate `json:"after"`
 }
 
+// CoverChange records a soft reference; zero denotes no selected cover.
+type CoverChange struct {
+	Before domain.FileID `json:"before"`
+	After  domain.FileID `json:"after"`
+}
+
 // UpdateBoxPayload records only the fields this op actually changes. A field
 // it left alone is absent, not a pair of equal values.
 //
@@ -157,6 +165,7 @@ type DateChange struct {
 // between — or, worse, succeed and silently revert that edit too, which is
 // precisely the half-restored archive spec 2.5 exists to prevent.
 type UpdateBoxPayload struct {
+	CoverFileID *CoverChange `json:"cover_file_id,omitempty"`
 	BoxID       domain.BoxID `json:"box_id"`
 	Name        *TextChange  `json:"name,omitempty"`
 	Description *TextChange  `json:"description,omitempty"`
@@ -168,7 +177,7 @@ type UpdateBoxPayload struct {
 // such an op; Apply refuses one, because a stored op that does nothing would
 // still have to be undoable.
 func (p UpdateBoxPayload) Empty() bool {
-	return p.Name == nil && p.Description == nil && p.StartAt == nil && p.EndAt == nil
+	return p.CoverFileID == nil && p.Name == nil && p.Description == nil && p.StartAt == nil && p.EndAt == nil
 }
 
 func (c *TextChange) swapped() *TextChange {
@@ -243,6 +252,13 @@ func (updateBox) Apply(tx Tx, payload []byte) error {
 		return err
 	}
 	updated.StartAt, updated.EndAt = next.StartAt, next.EndAt
+	updated.CoverFileID = current.CoverFileID
+	if c := p.CoverFileID; c != nil {
+		if current.CoverFileID != c.Before {
+			return staleField(p.BoxID, "cover_file_id", current.CoverFileID, c.Before)
+		}
+		updated.CoverFileID = c.After
+	}
 	return tx.UpdateBox(updated)
 }
 
@@ -257,6 +273,9 @@ func (updateBox) Inverse(payload []byte) (Action, []byte, error) {
 		return "", nil, err
 	}
 	p.Name, p.Description = p.Name.swapped(), p.Description.swapped()
+	if c := p.CoverFileID; c != nil {
+		p.CoverFileID = &CoverChange{Before: c.After, After: c.Before}
+	}
 	p.StartAt, p.EndAt = p.StartAt.swapped(), p.EndAt.swapped()
 	raw, err := Marshal(p)
 	return ActionUpdateBox, raw, err
@@ -280,6 +299,7 @@ func (updateBox) Targets(payload []byte) (Targets, error) {
 // comparison.
 func checkBoxFields(id domain.BoxID, want BoxFields, got domain.Box) error {
 	actual := BoxFields{
+		CoverFileID: got.CoverFileID,
 		Name:        got.Name,
 		Description: got.Description,
 		StartAt:     got.StartAt,

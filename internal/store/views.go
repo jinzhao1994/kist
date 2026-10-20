@@ -43,10 +43,10 @@ func (v *ViewTx) SQL() *sql.Tx { return v.tx }
 func (v *ViewTx) InsertBox(b domain.Box) error {
 	_, err := v.tx.Exec(
 		`INSERT INTO boxes (id, name, name_fold, description,
-		                    created_at, updated_at, start_at, end_at, root_folder_id)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		                    created_at, updated_at, start_at, end_at, root_folder_id, cover_file_id)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		b.ID, b.Name, b.NameFold, b.Description,
-		FormatTime(v.ts), FormatTime(v.ts), b.StartAt, b.EndAt, b.RootFolderID)
+		FormatTime(v.ts), FormatTime(v.ts), b.StartAt, b.EndAt, b.RootFolderID, b.CoverFileID)
 	if err != nil {
 		return fmt.Errorf("insert box %s: %w", b.ID, err)
 	}
@@ -64,10 +64,10 @@ func (v *ViewTx) InsertBox(b domain.Box) error {
 func (v *ViewTx) UpdateBox(b domain.Box) error {
 	res, err := v.tx.Exec(
 		`UPDATE boxes SET name = ?, name_fold = ?, description = ?,
-		                  start_at = ?, end_at = ?
+		                  start_at = ?, end_at = ?, cover_file_id = ?
 		 WHERE id = ?`,
 		b.Name, b.NameFold, b.Description,
-		b.StartAt, b.EndAt, b.ID)
+		b.StartAt, b.EndAt, b.CoverFileID, b.ID)
 	if err != nil {
 		return fmt.Errorf("update box %s: %w", b.ID, err)
 	}
@@ -103,7 +103,7 @@ func DisplayBox(q Queryer, id domain.BoxID) (domain.Box, bool, error) {
 	return scanDisplayBox(q.QueryRow(`SELECT `+boxDisplayColumns+` FROM boxes WHERE id = ?`, id).Scan)
 }
 
-const boxColumns = `id, root_folder_id, name, name_fold, description, created_at, updated_at, start_at, end_at`
+const boxColumns = `id, root_folder_id, name, name_fold, description, created_at, updated_at, start_at, end_at, cover_file_id`
 
 func scanBox(scan func(...any) error) (domain.Box, bool, error) {
 	var (
@@ -112,7 +112,7 @@ func scanBox(scan func(...any) error) (domain.Box, bool, error) {
 		start, end       sql.NullString
 	)
 	err := scan(&b.ID, &b.RootFolderID, &b.Name, &b.NameFold, &b.Description,
-		&created, &updated, &start, &end)
+		&created, &updated, &start, &end, &b.CoverFileID)
 	if err == sql.ErrNoRows {
 		return domain.Box{}, false, nil
 	}

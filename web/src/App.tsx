@@ -1,3 +1,5 @@
+import { useBoxCover } from "./BoxCover";
+import { WriteFeedback } from "./mutations";
 import { DialogPresence } from "./Dialog";
 import {
   UnstyledButton,
@@ -113,6 +115,7 @@ export function App() {
     setFilters({ ...emptyFilters });
     go({ box: box?.id, files: !!box || files });
   };
+  const cover = useBoxCover();
   const boxManagementActions = selected && (
     <>
       <Menu.Item
@@ -126,6 +129,14 @@ export function App() {
       >
         {t("history")}
       </Menu.Item>
+      {selected.cover_file_id && (
+        <Menu.Item
+          disabled={cover.busy || cover.locked}
+          onClick={() => cover.setCover(selected.id)}
+        >
+          {t("removeCover")}
+        </Menu.Item>
+      )}
       <Menu.Item onClick={() => setEditor(selected)}>{t("editBox")}</Menu.Item>
       <Menu.Divider />
       <Menu.Item color="red" onClick={() => setTrashing(selected)}>
@@ -135,6 +146,7 @@ export function App() {
   );
   return (
     <>
+      <WriteFeedback state={cover} />
       <div
         className="app-shell"
         inert={!!route.file && !route.section}

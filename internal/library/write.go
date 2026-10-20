@@ -103,6 +103,18 @@ func (l *Library) writeLocked(ctx context.Context, action oplog.Action, payload 
 		return 0, err
 	}
 
+	if action == oplog.ActionUpdateBox && opt.RevertsID == nil {
+		p, err := oplog.Payload[oplog.UpdateBoxPayload](payload)
+		if err != nil {
+			return 0, err
+		}
+		if p.CoverFileID != nil {
+			if err := l.checkBoxCover(ctx, p.BoxID, p.CoverFileID.After); err != nil {
+				return 0, err
+			}
+		}
+	}
+
 	// Recheck state-dependent constraints after recovery, while no writer can
 	// invalidate them. This also covers inverse ops, which bypass commands.
 	if opt.RevertsID != nil {

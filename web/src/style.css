@@ -3032,3 +3032,15 @@ main.upload-drag-active {
 .history-page .history-entry small {
   line-height: 1.5;
 }
+
+.box-cover {
+  block-size: 144px;
+  inline-size: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.box-grid.view-large .box-cover {
+  block-size: 208px;
+}

@@ -105,6 +105,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/boxes/{id}/cover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 boxes by ID cover */
+        get: operations["get-api-v1-boxes-by-id-cover"];
+        /** Put API v1 boxes by ID cover */
+        put: operations["put-api-v1-boxes-by-id-cover"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/boxes/{id}/deletion-preview": {
         parameters: {
             query?: never;
@@ -718,6 +736,7 @@ export interface components {
             ids: string[] | null;
         };
         Box: {
+            cover_file_id?: string;
             /** Format: date-time */
             created_at: string;
             description?: string;
@@ -736,6 +755,9 @@ export interface components {
             name: string;
             start_at?: string;
         };
+        BoxCover: {
+            file?: components["schemas"]["File"];
+        };
         BoxDeletionPreview: {
             /** Format: int64 */
             file_count: number;
@@ -747,6 +769,7 @@ export interface components {
             boxes: components["schemas"]["Box"][] | null;
         };
         BoxSearchItem: {
+            cover_file_id?: string;
             /** Format: date-time */
             created_at: string;
             description?: string;
@@ -1009,6 +1032,9 @@ export interface components {
             supported: boolean;
             text: string;
             truncated: boolean;
+        };
+        "Put-api-v1-boxes-by-id-coverRequest": {
+            file_id: string;
         };
         Ref: {
             id: string;
@@ -1493,6 +1519,74 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["Delete-api-v1-boxes-by-idRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-boxes-by-id-cover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoxCover"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "put-api-v1-boxes-by-id-cover": {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Put-api-v1-boxes-by-id-coverRequest"];
             };
         };
         responses: {

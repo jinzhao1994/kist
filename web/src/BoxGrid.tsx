@@ -1,3 +1,5 @@
+import { BoxCover, useBoxCover } from "./BoxCover";
+import { WriteFeedback } from "./mutations";
 import { ContextMenu, useContextMenu } from "./ContextMenu";
 import { LinkMenuItems } from "./LinkMenuItems";
 import { routeURL } from "./navigation";
@@ -26,6 +28,7 @@ export function BoxGrid({
   onSort?: (sort: NonNullable<BoxFilters["sort"]>) => void;
 }) {
   const { prefs, t } = useI18n();
+  const cover = useBoxCover();
   const context = useContextMenu<Box>();
   const selected = context.menu?.item;
   const [editing, setEditing] = useState<Box | null>(null);
@@ -68,6 +71,7 @@ export function BoxGrid({
   }, [mode]);
   return (
     <div ref={layout} className="box-results">
+      <WriteFeedback state={cover} />
       <div ref={measure} className="box-date-measure" aria-hidden="true">
         {Array.from({ length: 12 }, (_, month) => (
           <span key={month}>
@@ -135,9 +139,13 @@ export function BoxGrid({
               key={box.id}
               onClick={() => open(box)}
             >
-              <span className="box-icon" aria-hidden="true">
-                ▤
-              </span>
+              {mode === "medium" || mode === "large" ? (
+                <BoxCover box={box} />
+              ) : (
+                <span className="box-icon" aria-hidden="true">
+                  ▤
+                </span>
+              )}
               <span className="box-summary">
                 <span className="box-summary-text">
                   <h2>
@@ -240,6 +248,14 @@ export function BoxGrid({
               href={routeURL({ files: true, box: selected.id })}
               copy={false}
             />
+            {selected.cover_file_id && (
+              <Menu.Item
+                disabled={cover.busy || cover.locked}
+                onClick={() => cover.setCover(selected.id)}
+              >
+                {t("removeCover")}
+              </Menu.Item>
+            )}
             <Menu.Item onClick={() => setEditing(selected)}>
               {t("editBox")}
             </Menu.Item>

@@ -1,3 +1,4 @@
+import { BoxGrid } from "./BoxGrid";
 import { FolderBreadcrumbs } from "./Folders";
 import { ThemeProvider } from "./theme";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -328,6 +329,7 @@ it("browses folders and files together with compact types and modification dates
         />
       </I18nProvider>
     </ThemeProvider>,
+    { wrapper: mediaWrapper },
   );
   const directory = await screen.findByRole("button", { name: /Documents/ });
   const document = await screen.findByRole("button", { name: /report.txt/ });
@@ -893,3 +895,87 @@ it.each(["medium", "list"])(
     expect(await screen.findByRole("dialog")).toHaveTextContent("Travel");
   },
 );
+
+it.each(["medium", "list"])(
+  "sets a cover from the %s file menu",
+  async (mode) => {
+    localStorage.setItem("kist.display.files.v1", mode);
+    const fetch = vi.fn(async () => ready());
+    vi.stubGlobal("fetch", fetch);
+    render(
+      <ThemeProvider env="test">
+        <I18nProvider>
+          <FileGrid
+            files={[{ ...files[0], box_id: "owner" }]}
+            open={() => {}}
+          />
+        </I18nProvider>
+      </ThemeProvider>,
+      { wrapper: mediaWrapper },
+    );
+    const card = await screen.findByRole("button", { name: /photo-0.jpg/ });
+    if (mode === "list")
+      await userEvent.click(
+        screen.getByRole("button", { name: "More actions" }),
+      );
+    else fireEvent.contextMenu(card);
+    await userEvent.click(
+      await screen.findByRole("menuitem", { name: "Set as box cover" }),
+    );
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/v1/boxes/owner/cover",
+        expect.objectContaining({ method: "PUT", body: '{"file_id":"0"}' }),
+      ),
+    );
+  },
+);
+
+it("falls back for a trashed cover and removes only the reference", async () => {
+  const box: Box = {
+    id: "owner",
+    name: "Trip",
+    total_size: 1,
+    created_at: files[0].created_at,
+    updated_at: files[0].updated_at,
+    cover_file_id: "0",
+  };
+  let visible = false;
+  const fetch = vi.fn(async (path: string, options?: RequestInit) => {
+    if (path === "/api/v1/boxes/owner/cover" && options?.method !== "PUT")
+      return Response.json(visible ? { file: files[0] } : {});
+    return ready();
+  });
+  vi.stubGlobal("fetch", fetch);
+  render(
+    <ThemeProvider env="test">
+      <I18nProvider>
+        <BoxGrid boxes={[box]} open={() => {}} />
+      </I18nProvider>
+    </ThemeProvider>,
+    { wrapper: mediaWrapper },
+  );
+  const card = await screen.findByRole("button", { name: /Trip/ });
+  await waitFor(() =>
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/v1/boxes/owner/cover",
+      expect.anything(),
+    ),
+  );
+  expect(card.querySelector(".box-icon")).toBeInTheDocument();
+  visible = true;
+  await act(() => mediaClient.invalidateQueries());
+  await waitFor(() =>
+    expect(card.querySelector(".box-cover img")).toBeInTheDocument(),
+  );
+  fireEvent.contextMenu(card);
+  await userEvent.click(
+    await screen.findByRole("menuitem", { name: "Remove cover" }),
+  );
+  await waitFor(() =>
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/v1/boxes/owner/cover",
+      expect.objectContaining({ method: "PUT", body: '{"file_id":""}' }),
+    ),
+  );
+});
