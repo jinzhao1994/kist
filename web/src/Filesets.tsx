@@ -533,7 +533,7 @@ export function FilesetPreview({
       ) : file ? (
         <div className="fileset-media">
           <Media
-            key={`${file.id}:${subtitle}`}
+            key={file.id}
             file={file}
             detail
             tracks={
@@ -541,7 +541,10 @@ export function FilesetPreview({
                 ? [
                     {
                       src: captions.url,
-                      label: subtitle,
+                      label:
+                        pages.find((m) => m.file_id === subtitle)?.language ||
+                        files.find((f) => f.id === subtitle)?.name ||
+                        t("fileset_role_subtitle"),
                       language:
                         pages.find((m) => m.file_id === subtitle)?.language ||
                         "und",

@@ -305,6 +305,9 @@ export function Media({
             src={track.src}
             label={track.label}
             srcLang={track.language}
+            onLoad={(event) => {
+              event.currentTarget.track.mode = "showing";
+            }}
             default
           />
         ))}

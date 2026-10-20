@@ -144,7 +144,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Referrer-Policy", "no-referrer")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; worker-src 'self'; font-src 'self' blob:; img-src 'self' blob: data:; connect-src "+s.mapConnect)
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; worker-src 'self'; font-src 'self' blob:; img-src 'self' blob: data:; media-src 'self' blob:; connect-src "+s.mapConnect)
 	if !s.hosts[strings.ToLower(r.Host)] {
 		writeFailure(w, huma.Error403Forbidden("Host is not allowed"))
 		return

@@ -201,3 +201,12 @@ func TestUploadWASMCSP(t *testing.T) {
 		t.Fatalf("WASM must work without enabling JavaScript eval: %s", policy)
 	}
 }
+
+func TestFilesetSubtitleCSP(t *testing.T) {
+	s, _ := testServer(t)
+	w := call(s, "GET", Prefix+"/info", "", "")
+	policy := w.Header().Get("Content-Security-Policy")
+	if !strings.Contains(policy, "media-src 'self' blob:;") {
+		t.Fatalf("converted subtitle tracks require local blob media: %s", policy)
+	}
+}
