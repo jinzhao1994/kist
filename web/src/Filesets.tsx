@@ -13,6 +13,7 @@ import type { components } from "./api-schema";
 import { Dialog } from "./Dialog";
 import { Select } from "./Select";
 import { Media } from "./Media";
+import { ExtractionStatus, useExtraction } from "./Extraction";
 import { useI18n } from "./i18n";
 import { useWrites, WriteFeedback, errorMessage } from "./mutations";
 export type Fileset = components["schemas"]["Fileset"];
@@ -450,6 +451,7 @@ export function FilesetPreview({
   open: (file: ArchiveFile) => void;
 }) {
   const { t } = useI18n();
+  const extraction = useExtraction();
   const [page, setPage] = useState(0);
   const [motion, setMotion] = useState(false);
   const [subtitle, setSubtitle] = useState(
@@ -518,6 +520,7 @@ export function FilesetPreview({
           </Button>
         )}
       </Group>
+      {file && <ExtractionStatus files={[file]} state={extraction} />}
       {captions.error && <p role="alert">{t("filesetSubtitleError")}</p>}
       {set.kind === "document_pages" && child ? (
         <FilesetPreview

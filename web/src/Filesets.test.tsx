@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import {
@@ -68,23 +69,27 @@ it("reads nested Live Photo pages and opens the displayed original", () => {
     id,
     name: id,
     folder_id: "live",
+    extraction_pending: id === "still" ? ["media"] : [],
     blob_key: id,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
   })) as ArchiveFile[];
   render(
-    <ThemeProvider env="test">
-      <I18nProvider>
-        <FilesetPreview
-          set={parent}
-          sets={[parent, child]}
-          files={files}
-          open={open}
-        />
-      </I18nProvider>
-    </ThemeProvider>,
+    <QueryClientProvider client={new QueryClient()}>
+      <ThemeProvider env="test">
+        <I18nProvider>
+          <FilesetPreview
+            set={parent}
+            sets={[parent, child]}
+            files={files}
+            open={open}
+          />
+        </I18nProvider>
+      </ThemeProvider>
+    </QueryClientProvider>,
   );
   expect(screen.getByTestId("media")).toHaveTextContent("still");
+  expect(screen.getByRole("button", { name: "Read metadata" })).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Play motion" }));
   expect(screen.getByTestId("media")).toHaveTextContent("motion");
   fireEvent.click(screen.getByRole("button", { name: "Open this file" }));
