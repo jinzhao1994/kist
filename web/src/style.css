@@ -1694,8 +1694,13 @@ button.filter-token-segment:hover {
 }
 .box-card-footer .tag-chip {
   font-size: 0.75rem;
-  padding-block: 0.1rem;
-  padding-inline-end: 0.45rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: var(--surface-hover);
+  color: var(--mantine-primary-color-light-color);
+}
+.box-card-footer .tag-chip::before {
+  content: none;
 }
 .box-card-footer .box-size {
   margin-inline-start: auto;
