@@ -624,6 +624,19 @@ async function capture(page: Page, errors: string[], name: string) {
   }
   expect(errors).toEqual([]);
 }
+async function scrollToFileGrid(page: Page) {
+  await expect
+    .poll(() =>
+      page.locator(".file-scroll").evaluate((element) => {
+        window.scrollTo(
+          0,
+          element.getBoundingClientRect().top + window.scrollY,
+        );
+        return Math.abs(element.getBoundingClientRect().top);
+      }),
+    )
+    .toBeLessThan(1);
+}
 async function grid(page: Page, expectedImages = 4) {
   await expect(page.locator(".file-count")).toContainText("4");
   await expect(page.locator(".file-image")).toHaveCount(expectedImages);
@@ -682,17 +695,7 @@ for (const scenario of [
       await page.evaluate(() => document.fonts.ready);
       // Column measurement changes the document height after the first render.
       // Wait for the requested scroll position, not just the file-count text.
-      await expect
-        .poll(() =>
-          page.locator(".file-scroll").evaluate((element) => {
-            window.scrollTo(
-              0,
-              element.getBoundingClientRect().top + window.scrollY,
-            );
-            return Math.abs(element.getBoundingClientRect().top);
-          }),
-        )
-        .toBeLessThan(1);
+      await scrollToFileGrid(page);
       await grid(page);
       expect(
         await page.locator("main").evaluate((element) => element.scrollTop),
@@ -1733,17 +1736,7 @@ for (const mobile of [false, true]) {
       // Off-screen virtual cards do not exist yet. Scroll the stable container
       // into view first, using the same settled position as the mobile grid case.
       await page.evaluate(() => document.fonts.ready);
-      await expect
-        .poll(() =>
-          page.locator(".file-scroll").evaluate((element) => {
-            window.scrollTo(
-              0,
-              element.getBoundingClientRect().top + window.scrollY,
-            );
-            return Math.abs(element.getBoundingClientRect().top);
-          }),
-        )
-        .toBeLessThan(1);
+      await scrollToFileGrid(page);
     }
     await grid(page);
     if (mobile) {
@@ -3336,17 +3329,7 @@ for (const mode of ["grid", "list", "mobile", "dark", "prepare"] as const) {
       // Off-screen virtual cards are not mounted. Use the same stable scroll
       // boundary as the existing mobile grid before waiting for its previews.
       await page.evaluate(() => document.fonts.ready);
-      await expect
-        .poll(() =>
-          page.locator(".file-scroll").evaluate((element) => {
-            window.scrollTo(
-              0,
-              element.getBoundingClientRect().top + window.scrollY,
-            );
-            return Math.abs(element.getBoundingClientRect().top);
-          }),
-        )
-        .toBeLessThan(1);
+      await scrollToFileGrid(page);
     }
     await grid(page, mode === "list" ? 0 : 4);
     await page
@@ -3359,6 +3342,12 @@ for (const mode of ["grid", "list", "mobile", "dark", "prepare"] as const) {
       "true",
     );
     await expect(page.getByText("已选 2 项", { exact: true })).toBeVisible();
+    if (mode === "mobile") {
+      // Clicking the first two cards scrolls the window and can unmount later
+      // virtual rows. Restore the capture boundary and recheck every preview.
+      await scrollToFileGrid(page);
+      await grid(page);
+    }
     if (mode === "prepare") {
       await page.getByRole("button", { name: "保留离线", exact: true }).click();
       await expect(page.getByRole("dialog")).toContainText("已保留 0 / 2 项");

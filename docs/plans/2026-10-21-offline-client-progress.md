@@ -575,3 +575,7 @@ Windows Job 阶段 a4346a2 的 CI 39651563666 全部通过，包括 Windows 原�
 双库旅行流程组合验收：新增 `internal/api/client_journey_test.go`，使用真实 HTTP 授权/目录/原件/提交协议与合成 PNG。NAS 两份原件仅带走一份，模拟连接不可用时仍能读取已缓存原件、导入照片、创建标签和两层多页组合；重开客户端后恢复 pending，NAS 同期独立修改描述，重新连接后收敛且重复同步不追加事件。校验页序/主文件/成员引用、照片可解码、标签归属，并在 NAS Rebuild 后重复核对、Verify Deep 无问题、历史 ViewAt 仍保留标签。未把 HTTP 503 故障模拟冒充进程崩溃或大文件续传验收；这些仍由各自故障测试覆盖和继续补齐。针对性 race 7.327 秒通过（`/tmp/kist-travel-journey-final-test.log`）；完整检查 `/tmp/kist-travel-journey-complete-check.log` 正在运行。
 
 旅行组合验收完整 make check（44825）退出 0，`/tmp/kist-travel-journey-complete-check.log`。本阶段仅增加组合验收，不改变产品行为；等待 bdd1580 的完整 Visual 审阅后再推送，避免反复取消尚未完成的正式采集。
+
+Visual 39653754299 已完成：baseline 141 / candidate 147，零采集失败、跳过和重试。差异仅新批量五场景、fileset 冲突场景、缓存管理页，以及单项离线弹窗背景工具栏新增批量入口（144 像素）；旧 entry-menu-box 本轮完全相同。全尺寸审阅上述变化时发现批量手机全页截图缺少最后一张虚拟卡片：选择卡片时 Playwright 自动滚动，使之前等待过的后续行再次卸载。不能接受这张候选；提取既有稳定 scrollToFileGrid 边界供场景复用，在手机批量选择完成后重新滚到该边界，并再次要求四个预览全部解码。保留原虚拟化行为和零差异阈值；正式修正待下轮完整采集。报告 `/tmp/kist-batch-final-visual-39653754299/report/index.html`，本轮未接受基准。
+
+手机批量截图就绪修正后的完整 make check（90035）退出 0，`/tmp/kist-travel-mobile-final-check.log`；check:visual 独立检查亦通过。与已提交的双库旅行验收一起等待推送。
