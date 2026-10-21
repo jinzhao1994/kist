@@ -62,6 +62,7 @@ func (b boxBody) fields() (library.BoxFields, error) {
 }
 
 type libraryInfo struct {
+	Client                 bool   `json:"client,omitempty"`
 	Version                string `json:"version"`
 	Timezone               string `json:"timezone"`
 	ProjectionDirty        bool   `json:"projection_dirty"`

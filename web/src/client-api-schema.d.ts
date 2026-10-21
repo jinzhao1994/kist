@@ -175,6 +175,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/client/cache": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 client cache */
+        get: operations["get-api-v1-client-cache"];
+        /** Put API v1 client cache */
+        put: operations["put-api-v1-client-cache"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/client/cache/prune": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 client cache prune */
+        post: operations["post-api-v1-client-cache-prune"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/client/catalog": {
         parameters: {
             query?: never;
@@ -192,6 +227,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/client/connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put API v1 client connection */
+        put: operations["put-api-v1-client-connection"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/client/offline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 client offline */
+        get: operations["get-api-v1-client-offline"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/client/offline/{owner}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 client offline by owner */
+        get: operations["get-api-v1-client-offline-by-owner"];
+        /** Put API v1 client offline by owner */
+        put: operations["put-api-v1-client-offline-by-owner"];
+        post?: never;
+        /** Delete API v1 client offline by owner */
+        delete: operations["delete-api-v1-client-offline-by-owner"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/client/offline/{owner}/prepare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 client offline by owner prepare */
+        post: operations["post-api-v1-client-offline-by-owner-prepare"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/client/pending/{id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 client pending by ID resolve */
+        post: operations["post-api-v1-client-pending-by-id-resolve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/client/protected-storage": {
         parameters: {
             query?: never;
@@ -203,6 +325,40 @@ export interface paths {
         get: operations["get-api-v1-client-protected-storage"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/client/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 client status */
+        get: operations["get-api-v1-client-status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/client/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 client sync */
+        post: operations["post-api-v1-client-sync"];
         delete?: never;
         options?: never;
         head?: never;
@@ -711,12 +867,41 @@ export interface components {
             missing_result?: boolean;
             text: string;
         };
+        ClientCacheSettingsBody: {
+            max_age: string;
+            /** Format: int64 */
+            max_bytes: number;
+        };
+        ClientCacheStatus: {
+            /** Format: int64 */
+            cached_bytes: number;
+            /** Format: int64 */
+            corrupt_bytes: number;
+            /** Format: int64 */
+            limit_bytes: number;
+            over_limit: boolean;
+            /** Format: int64 */
+            partial_bytes: number;
+            /** Format: int64 */
+            pinned_bytes: number;
+            /** Format: int64 */
+            reserved_bytes: number;
+        };
         ClientCatalogStatus: {
             complete: boolean;
             confirmed: components["schemas"]["SyncBoundary"];
             /** Format: int64 */
             downloaded: number;
             transfer?: components["schemas"]["SyncBoundary"];
+        };
+        ClientConnectInputBody: {
+            allow_http: boolean;
+            server: string;
+            token: string;
+        };
+        ClientConnection: {
+            allow_http: boolean;
+            server: string;
         };
         ClientDeletionPreview: {
             /** Format: int64 */
@@ -729,6 +914,34 @@ export interface components {
         ClientEntryDeleteInputBody: {
             revision: string;
         };
+        ClientOfflineOriginal: {
+            files: string[] | null;
+            key: string;
+            /** Format: int64 */
+            size: number;
+        };
+        ClientOfflineSelection: {
+            files: string[] | null;
+            filesets: string[] | null;
+        };
+        ClientOfflineStatus: {
+            /** Format: int64 */
+            available: number;
+            catalog: components["schemas"]["ClientCatalogStatus"];
+            missing: string[] | null;
+            originals: components["schemas"]["ClientOfflineOriginal"][] | null;
+            ready: boolean;
+        };
+        ClientPendingStatus: {
+            action: string;
+            awaiting_receipt: boolean;
+            conflict?: string;
+            id: string;
+            /** Format: date-time */
+            occurred_at: string;
+            /** Format: int64 */
+            sequence: number;
+        };
         ClientProtectedStorage: {
             /** Format: int64 */
             originals_bytes: number;
@@ -738,6 +951,35 @@ export interface components {
         ClientRequestResult: {
             local_id?: string;
             noop: boolean;
+        };
+        ClientSettings: {
+            cache_max_age: string;
+            /** Format: int64 */
+            cache_max_bytes: number;
+            id: string;
+            library_id: string;
+            timezone: string;
+            /** Format: int64 */
+            version: number;
+        };
+        ClientStatus: {
+            blocked_id?: string;
+            catalog: components["schemas"]["ClientCatalogStatus"];
+            connection?: components["schemas"]["ClientConnection"];
+            pending: components["schemas"]["ClientPendingStatus"][] | null;
+            settings: components["schemas"]["ClientSettings"];
+        };
+        ClientSyncResponse: {
+            result: components["schemas"]["ClientSyncResult"];
+            status: components["schemas"]["ClientStatus"];
+        };
+        ClientSyncResult: {
+            /** Format: int64 */
+            accepted: number;
+            blocked_id?: string;
+            complete: boolean;
+            /** Format: int64 */
+            remaining: number;
         };
         CreateTagInputBody: {
             name: string;
@@ -869,6 +1111,7 @@ export interface components {
             upload_offset?: number;
         };
         LibraryInfo: {
+            client?: boolean;
             /** Format: int64 */
             max_upload_bytes: number;
             /** Format: int64 */
@@ -906,10 +1149,18 @@ export interface components {
         MoveTagInputBody: {
             parent_id: string | null;
         };
+        "OutputStruct {}Body": Record<string, never>;
         "Post-api-v1-boxes-by-id-foldersRequest": {
             name: string;
             parent?: string;
         };
+        "Post-api-v1-client-cache-pruneRequest": Record<string, never>;
+        "Post-api-v1-client-offline-by-owner-prepareRequest": Record<string, never>;
+        "Post-api-v1-client-pending-by-id-resolveRequest": {
+            reason: string;
+            replacement?: components["schemas"]["SyncProposal"];
+        };
+        "Post-api-v1-client-syncRequest": Record<string, never>;
         Preview: {
             encoding: string;
             reason?: string;
@@ -1020,6 +1271,34 @@ export interface components {
             /** Format: int64 */
             op_id: number;
             sum: string;
+        };
+        SyncDeletionBasis: {
+            box: string;
+            last: string;
+        };
+        SyncFileState: {
+            blob_key: string;
+            id: string;
+        };
+        SyncProposal: {
+            action?: string;
+            deletion?: components["schemas"]["SyncDeletionBasis"];
+            files?: components["schemas"]["SyncFileState"][] | null;
+            group?: components["schemas"]["SyncReference"];
+            id: string;
+            /** Format: date-time */
+            occurred_at: string;
+            origin: string;
+            payload?: unknown;
+            requires?: string[] | null;
+            undo?: components["schemas"]["SyncReference"];
+            /** Format: int64 */
+            version: number;
+        };
+        SyncReference: {
+            local_id?: string;
+            /** Format: int64 */
+            op_id?: number;
         };
         Tag: {
             /** Format: int64 */
@@ -1619,6 +1898,101 @@ export interface operations {
             };
         };
     };
+    "get-api-v1-client-cache": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientCacheStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "put-api-v1-client-cache": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClientCacheSettingsBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientCacheStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-client-cache-prune": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-client-cache-pruneRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientCacheStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
     "get-api-v1-client-catalog": {
         parameters: {
             query?: never;
@@ -1648,6 +2022,237 @@ export interface operations {
             };
         };
     };
+    "put-api-v1-client-connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClientConnectInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-client-offline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: components["schemas"]["ClientOfflineSelection"];
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-client-offline-by-owner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                owner: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientOfflineStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "put-api-v1-client-offline-by-owner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                owner: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClientOfflineSelection"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutputStruct {}Body"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "delete-api-v1-client-offline-by-owner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                owner: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutputStruct {}Body"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-client-offline-by-owner-prepare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                owner: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-client-offline-by-owner-prepareRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientOfflineStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-client-pending-by-id-resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-client-pending-by-id-resolveRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
     "get-api-v1-client-protected-storage": {
         parameters: {
             query?: never;
@@ -1664,6 +2269,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClientProtectedStorage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-client-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-client-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-client-syncRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientSyncResponse"];
                 };
             };
             /** @description Error */

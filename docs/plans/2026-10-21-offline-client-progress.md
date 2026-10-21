@@ -393,3 +393,14 @@ Visual 39596936245 attempt 2 已通过，基准未更改；attempt 1 的单行�
 预览与受保护空间统计阶段完整 make check 已通过：会话 33782 退出 0，日志 `/tmp/kist-client-preview-storage-complete-check.log`。本阶段提交。4060034 的 CI 39605157381 与 Visual 39605157438 均通过，已推送提取提交 5a2e898；其 CI 39606452752、Visual 39606453187 运行中，Secret scan 39606452884 通过。
 
 独立 worktree 新增 API client_management.go/test.go 与 client_sync.go/test.go：本地状态、缓存配置/清理、逻辑离线保留 CRUD/状态、认证连接、手动同步、原文件准备和持久冲突决定；均通过现有 library 边界。同步已知冲突返回携带 blocked/pending 的结果，传输故障仍返回失败，不把不确定提交当作拒绝。`/tmp/kist-client-management-sync-resolve.log` race 3.241 秒通过，使用两实例真实 HTTP 验证连接不泄漏 token、离线创建同步、NAS 并发同字段修改冲突、重复同步不重复操作、明确保留 NAS 修改并持久记录决定后收敛。管理测试覆盖缓存配置跨进程与无 NAS/pending 写入。这四个新文件及 server 的两处注册待合入；不能复制 worktree 旧 server。
+
+
+预览/统计已提交 1827dbf，待前序远端检查通过后推送。已合入 client_management/client_sync 四个新文件及两处注册调用；info 新增可选 client=true 声明，NAS 不返回该字段，供网页准确识别本地客户端。`/tmp/kist-client-management-merged.log` 主线 race 3.404 秒通过，重新生成两端 API schema。开始完整检查 `/tmp/kist-client-management-complete-check.log`。管理/同步 worktree 增量已合入，不要重复复制。下一步应接实际网页面板（现有 App info 查询和 sidebar-footer / Settings 可复用），当前只有 API，不能称网页同步闭环完成；派生预览/历史等剩余范围继续保持。
+
+
+管理接口完整检查首次失败于 syncclient 测试包循环导入：内部测试包引用 api，而新 api 客户端管理引用 syncclient。将仅使用公开 API 的 http_test.go 改为 syncclient_test 外部测试包，不改变生产依赖或测试断言。`/tmp/kist-client-management-cycle.log` syncclient/API race 通过（4.289/3.406 秒）。重新完整检查 `/tmp/kist-client-management-final-check.log`。5a2e898 的 CI 39606452752 与 Visual 39606453187 均通过，正在推送预览提交 1827dbf。
+
+
+客户端管理接口最终完整 make check 已通过：会话 75711 退出 0，日志 `/tmp/kist-client-management-final-check.log`。本阶段提交；预览提交 1827dbf 已推送，CI 39608119224、Visual 39608119289 运行中，Secret scan 39608119052 通过。
+
+独立 worktree 网页面板：新增 OfflineClient.tsx / offline-client.ts / OfflineClient.test.tsx，App 客户端侧栏入口与目录未完整同步的提示；复用 Dialog/Mantine 控件，分同步/缓存/连接，待同步与未确认回执分别展示，放弃冲突需明确选择，停止网络保留进度。新增中英文文案/参数类型、pending 行样式，以及三个确定性视觉场景。复制了主线 web 源文件到该旧 worktree 作为开发基底，node_modules 链接根依赖；不要将基底差异误当新改动。`/tmp/kist-offline-ui-types-final.log` 类型检查通过；`/tmp/kist-offline-ui-workflows.log` 23 项通过；`/tmp/kist-offline-ui-visual-contract.log` 视觉场景契约通过。初次错误断言使用完整错误文字的子串，改为匹配既有 errorMessage 格式。实际浏览器视觉审阅尚未完成，UI 尚未合入。

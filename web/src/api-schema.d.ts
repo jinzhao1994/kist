@@ -1245,6 +1245,7 @@ export interface components {
             tag?: string;
         };
         LibraryInfo: {
+            client?: boolean;
             /** Format: int64 */
             max_upload_bytes: number;
             /** Format: int64 */

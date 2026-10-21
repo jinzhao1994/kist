@@ -1,4 +1,4 @@
-package syncclient
+package syncclient_test
 
 import (
 	"bytes"
@@ -18,6 +18,7 @@ import (
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/library"
 	"github.com/jinzhao1994/kist/internal/oplog"
+	"github.com/jinzhao1994/kist/internal/syncclient"
 )
 
 func TestHTTPClientResumesDurableBlocksAndLostCommit(t *testing.T) {
@@ -86,7 +87,7 @@ func TestHTTPClientResumesDurableBlocksAndLostCommit(t *testing.T) {
 	})
 	server.Start()
 	defer server.Close()
-	peer, err := New(server.URL, credential.Token, Options{})
+	peer, err := syncclient.New(server.URL, credential.Token, syncclient.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -237,7 +238,7 @@ func TestHTTPSubmissionRequiresExplicitRejection(t *testing.T) {
 				_, _ = io.WriteString(w, test.body)
 			}))
 			defer server.Close()
-			peer, err := New(server.URL, "credential", Options{})
+			peer, err := syncclient.New(server.URL, "credential", syncclient.Options{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -258,7 +259,7 @@ func TestHTTPClientRejectsRedirectAndKeepsFailuresUncertain(t *testing.T) {
 		http.Redirect(w, r, target.URL, http.StatusTemporaryRedirect)
 	}))
 	defer redirect.Close()
-	peer, err := New(redirect.URL, "secret", Options{})
+	peer, err := syncclient.New(redirect.URL, "secret", syncclient.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -267,10 +268,10 @@ func TestHTTPClientRejectsRedirectAndKeepsFailuresUncertain(t *testing.T) {
 	if err == nil || errors.As(err, &rejected) || leaked.Load() {
 		t.Fatalf("redirect leaked or was treated as rejection: %v", err)
 	}
-	if _, err := New("http://nas.example", "secret", Options{}); err == nil {
+	if _, err := syncclient.New("http://nas.example", "secret", syncclient.Options{}); err == nil {
 		t.Fatal("silently enabled cleartext NAS authorization")
 	}
-	if _, err := New("http://nas.example", "secret", Options{AllowHTTP: true}); err != nil {
+	if _, err := syncclient.New("http://nas.example", "secret", syncclient.Options{AllowHTTP: true}); err != nil {
 		t.Fatal(err)
 	}
 }
