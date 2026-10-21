@@ -17,32 +17,11 @@ func (l *Library) Filesets(ctx context.Context) ([]domain.Fileset, error) {
 
 // SetFileset creates, edits or removes a configuration without moving any files.
 func (l *Library) SetFileset(ctx context.Context, box domain.BoxID, id domain.FolderID, before, after *domain.Fileset) (int64, error) {
-	if after != nil {
-		if after.FolderID != id {
-			return 0, ErrInvalidRequest
-		}
-		if err := after.Validate(); err != nil {
-			return 0, fmt.Errorf("%w: %v", ErrInvalidRequest, err)
-		}
-	}
 	var p oplog.FilesetPayload
 	err := l.readTx(ctx, func(tx *store.ViewTx) error {
-		s, ok, err := tx.EntryContents(box, id.ID, true)
-		if err != nil {
-			return err
-		}
-		if !ok {
-			return ErrNoSuchFile
-		}
-		current, err := tx.GetFileset(id)
-		if err != nil {
-			return err
-		}
-		if !domain.EqualFileset(current, before) {
-			return oplog.ErrStaleBefore
-		}
-		p = oplog.FilesetPayload{BoxID: box, FolderID: id, Before: before, After: after, Ancestors: append([]domain.FolderID{id}, s.Ancestors...)}
-		return nil
+		var err error
+		p, err = filesetCommandPayload(tx, box, id, before, after)
+		return err
 	})
 	if err != nil {
 		return 0, err

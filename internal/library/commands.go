@@ -26,16 +26,11 @@ var (
 // command and an event (spec 2.3.1). A replay hands the same ids back, so
 // every reference into this box survives a rebuild.
 func (l *Library) CreateBox(ctx context.Context, name, description string, start, end domain.LocalDate) (domain.Box, error) {
-	if err := domain.ValidateName(name); err != nil {
+	p, err := createBoxPayload(name, description, start, end)
+	if err != nil {
 		return domain.Box{}, err
 	}
-	p := oplog.CreateBoxPayload{
-		BoxID:        domain.NewBoxID(),
-		RootFolderID: domain.NewFolderID(),
-		BoxFields: oplog.BoxFields{
-			Name: name, Description: description, StartAt: start, EndAt: end,
-		},
-	}
+
 	raw, err := oplog.Marshal(p)
 	if err != nil {
 		return domain.Box{}, err
@@ -66,22 +61,7 @@ func (l *Library) UpdateBox(ctx context.Context, id domain.BoxID, f BoxFields) (
 		return domain.Box{}, fmt.Errorf("%s: %w", id, ErrNoSuchBox)
 	}
 
-	// Only the fields that actually move go into the payload. Everything
-	// downstream follows from that: Apply asserts exactly these, and a later
-	// edit to a different field cannot block undoing this one (spec 2.3).
-	p := oplog.UpdateBoxPayload{BoxID: id}
-	if current.Name != f.Name {
-		p.Name = &oplog.TextChange{Before: current.Name, After: f.Name}
-	}
-	if current.Description != f.Description {
-		p.Description = &oplog.TextChange{Before: current.Description, After: f.Description}
-	}
-	if current.StartAt != f.StartAt {
-		p.StartAt = &oplog.DateChange{Before: current.StartAt, After: f.StartAt}
-	}
-	if current.EndAt != f.EndAt {
-		p.EndAt = &oplog.DateChange{Before: current.EndAt, After: f.EndAt}
-	}
+	p := updateBoxPayload(current, f)
 	if p.Empty() {
 		return current, nil // nothing to record
 	}

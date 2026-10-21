@@ -43,16 +43,27 @@ type pendingEvent struct {
 	Proposal *SyncProposal `json:"proposal,omitempty"`
 	Receipt  *SyncResult   `json:"receipt,omitempty"`
 	Reason   string        `json:"reason,omitempty"`
+	Request  *Request      `json:"request,omitempty"`
 }
 
 func (e pendingEvent) validate(action string) error {
-	if e.Version != 1 {
+	if e.Version != 1 && e.Version != 2 {
 		return ErrSyncVersion
+	}
+	if e.Version == 1 && e.Request != nil || e.Version == 2 && e.Request == nil {
+		return ErrInvalidRequest
+	}
+	if e.Request != nil && (!e.Request.Valid() || action != "pending_enqueue" && action != "pending_request") {
+		return ErrInvalidRequest
 	}
 	if len(e.Reason) > 4096 {
 		return ErrInvalidRequest
 	}
 	switch action {
+	case "pending_request":
+		if e.Request == nil || e.Proposal != nil || e.Target != "" || e.Receipt != nil || e.Reason != "" {
+			return ErrInvalidRequest
+		}
 	case "pending_enqueue":
 		if e.Proposal == nil || e.Target != "" || e.Receipt != nil || e.Reason != "" {
 			return ErrInvalidRequest
@@ -80,9 +91,15 @@ func (e pendingEvent) validate(action string) error {
 }
 
 type pendingState struct {
-	last    int64
-	entries []pendingEntry
-	byID    map[string]int
+	last     int64
+	entries  []pendingEntry
+	byID     map[string]int
+	requests map[string]pendingRequest
+}
+
+type pendingRequest struct {
+	Digest  string
+	LocalID string
 }
 
 // openPendingQueue opens a dedicated client directory, not a NAS ops directory.
@@ -162,8 +179,23 @@ func (s *pendingState) apply(action string, e pendingEvent, sequence int64) erro
 	if err := e.validate(action); err != nil {
 		return err
 	}
+	if e.Request != nil {
+		if _, exists := s.requests[e.Request.ID]; exists {
+			return ErrRequestConflict
+		}
+	}
 	if action == "pending_enqueue" {
-		return s.add(*e.Proposal, sequence)
+		if err := s.add(*e.Proposal, sequence); err != nil {
+			return err
+		}
+		if e.Request != nil {
+			s.recordRequest(*e.Request, e.Proposal.ID)
+		}
+		return nil
+	}
+	if action == "pending_request" {
+		s.recordRequest(*e.Request, "")
+		return nil
 	}
 	i, exists := s.byID[e.Target]
 	if !exists || !s.entries[i].active() {
@@ -227,6 +259,13 @@ func (s *pendingState) apply(action string, e pendingEvent, sequence int64) erro
 	return nil
 }
 
+func (s *pendingState) recordRequest(request Request, localID string) {
+	if s.requests == nil {
+		s.requests = map[string]pendingRequest{}
+	}
+	s.requests[request.ID] = pendingRequest{Digest: request.Digest, LocalID: localID}
+}
+
 // next never skips a conflict or a broken dependency to send a later intent.
 // Resolutions retain their original logical position despite being appended.
 func (s *pendingState) next() (*pendingEntry, error) {
@@ -287,11 +326,38 @@ func (q *pendingQueue) appendLocked(ctx context.Context, action string, event pe
 		return err
 	}
 	event.Version = 1
+	if event.Request != nil {
+		event.Version = 2
+	}
 	if err := event.validate(action); err != nil {
 		return err
 	}
+	if event.Request != nil {
+		if old, found := s.requests[event.Request.ID]; found {
+			localID := ""
+			if event.Proposal != nil {
+				localID = event.Proposal.ID
+			}
+			if old.Digest != event.Request.Digest || old.LocalID != localID {
+				return ErrRequestConflict
+			}
+			if event.Proposal != nil {
+				digest, err := event.Proposal.digest()
+				if err != nil {
+					return err
+				}
+				if digest != s.entries[s.byID[localID]].Digest {
+					return ErrRequestConflict
+				}
+			}
+			return nil
+		}
+	}
 	if action == "pending_enqueue" && event.Proposal != nil {
 		if i, found := s.byID[event.Proposal.ID]; found {
+			if event.Request != nil {
+				return ErrRequestConflict
+			}
 			digest, err := event.Proposal.digest()
 			if err != nil {
 				return err

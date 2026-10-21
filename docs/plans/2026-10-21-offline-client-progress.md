@@ -156,6 +156,20 @@
 
 ### 网页接入前的源码核对
 
+离线准备阶段已提交并推送 `ec53053`，完整检查通过；Secret scan `39542563044` 通过，CI `39542563073` 和 Visual `39542563126` 仍在运行。
+
+客户端请求幂等层已实现，待完整检查：pending v2 将请求键/摘要和操作入队原子记录，无修改请求单独记本地回执，不产生同步操作；重试稳定返回 local ID，不暴露视图序号。`Client.ExecuteRequest` 串行化回执查询与回调，`Stage` 支持受限请求作用域。针对性 race 检查通过（`/tmp/kist-client-request-final-targeted.log`），覆盖重开、同步后重试、无操作、失败后重试、过期作用域、并发句柄及入队后回调失败。业务命令生成与网页接入尚待完成。
+
+开始共享领域命令：NAS 与客户端共用归档盒创建及字段差异 payload 生成，新增 `Client.CreateBox/UpdateBox` 与编辑锁/请求作用域协调。针对性 race 测试通过（`/tmp/kist-client-commands-targeted.log`），验证离线改名与 NAS 独立改说明合并、本地创建后修改、请求重试及无变化更新不生成同步操作。`/tmp/kist-client-request-check.log` 尚在运行，启动早于命令改动；结束后需对最终代码再次完整检查。
+
+共享命令扩展至 fileset：NAS 与客户端共用归属、完整 before/after 和祖先信息的生成，客户端返回独立 local reference；过期配置拒绝和 NAS 并发改配置的冲突测试通过（`/tmp/kist-client-fileset-targeted.log`，race）。请求层完整检查已通过；包含共享业务命令的最终检查记录于 `/tmp/kist-client-commands-check.log`。已推送 `ec53053` 的 CI `39542563073` 已通过，Visual `39542563126` 尚未结束。
+
+共享命令继续接入目录创建：`Client.CreateFolder` 复用 NAS 的名称规范化、同名判断、box 归属、深度与祖先生成。针对性 race 检查通过（`/tmp/kist-client-folder-final-targeted.log`），验证默认根目录、同名拒绝、跨 box 父目录拒绝和实际同步。当前完整检查启动早于目录命令改动，最终提交前仍需涵盖这些最新代码；标签等其他业务命令仍未接入。
+
+`/tmp/kist-client-commands-check.log` 已通过（退出码 0）。冻结当前阶段代码后，对包含目录命令的最终状态运行 `/tmp/kist-client-domain-final-check.log`，完成后提交。上一提交 `ec53053` 的 CI、Visual、Secret scan 均已通过。
+
+包含全部当前命令和请求回执的最终完整检查 `/tmp/kist-client-domain-final-check.log` 已通过（退出码 0），本阶段准备提交。当前提供请求幂等与归档盒、目录、fileset 的客户端业务入口，未将其等同于全部编辑能力或网页离线验收完成。
+
 - `internal/api/server.go` 当前持有具体 `*library.Library`，初始化还直接根据 NAS 布局创建上传暂存与媒体服务。不能只替换数据库连接就声称支持客户端。
 - `library.ExecuteRequest` 的幂等结果是 NAS 数字 op ID，且无业务修改也记录 request receipt；客户端需要独立持久化请求回执并保留无操作重试语义，不能遗漏或暴露客户端视图序号。
 - 现有领域命令负责生成 before/after payload，`write`/`writeLocked` 承担正式日志与投影。后续抽取共享命令生成及读视图边界，分别接入 NAS 写入口和客户端 pending 入口；上传、历史、撤销与错误结果中的操作引用须一并审计，不以只读浏览替代离线编辑要求。

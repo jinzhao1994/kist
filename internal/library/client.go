@@ -180,17 +180,32 @@ func (c *Client) rebuildLocked(ctx context.Context) (clientOverlay, error) {
 // Stage persists an already generated domain intent. Command adapters generate
 // its IDs and before-state while holding the same client lock in later layers.
 func (c *Client) Stage(ctx context.Context, p SyncProposal) error {
+	if scope, ok := ctx.Value(clientRequestContextKey{}).(*clientRequestScope); ok {
+		scope.mu.Lock()
+		defer scope.mu.Unlock()
+		if !scope.active || scope.client != c || scope.attempted {
+			return ErrRequestScope
+		}
+		scope.attempted = true
+		scope.localID = p.ID
+		scope.err = c.stageLocked(ctx, p, &scope.request)
+		return scope.err
+	}
 	release, err := c.lock.Acquire(ctx)
 	if err != nil {
 		return err
 	}
 	defer release()
+	return c.stageLocked(ctx, p, nil)
+}
+
+func (c *Client) stageLocked(ctx context.Context, p SyncProposal, request *Request) error {
 	state, err := c.queue.read(ctx)
 	if err != nil {
 		return err
 	}
 	if _, found := state.byID[p.ID]; found {
-		if err := c.queue.appendLocked(ctx, "pending_enqueue", pendingEvent{Proposal: &p}); err != nil {
+		if err := c.queue.appendLocked(ctx, "pending_enqueue", pendingEvent{Proposal: &p, Request: request}); err != nil {
 			return err
 		}
 		_, err = c.rebuildLocked(ctx)
@@ -209,7 +224,7 @@ func (c *Client) Stage(ctx context.Context, p SyncProposal) error {
 	if err := c.validateIntentLocked(ctx, p, view, state); err != nil {
 		return err
 	}
-	if err := c.queue.appendLocked(ctx, "pending_enqueue", pendingEvent{Proposal: &p}); err != nil {
+	if err := c.queue.appendLocked(ctx, "pending_enqueue", pendingEvent{Proposal: &p, Request: request}); err != nil {
 		return err
 	}
 	_, err = c.rebuildLocked(ctx)
