@@ -206,9 +206,16 @@ func (l *Library) writeLocked(ctx context.Context, action oplog.Action, payload 
 	if err != nil {
 		return 0, fmt.Errorf("begin validation: %w", err)
 	}
-	if _, err := applyOp(check, row); err != nil {
+	checkedTargets, err := applyOp(check, row)
+	if err != nil {
 		check.Rollback()
 		return 0, err
+	}
+	if opt.sync != nil {
+		if err := l.checkSyncBlobs(ctx, check, checkedTargets); err != nil {
+			check.Rollback()
+			return 0, err
+		}
 	}
 	if err := check.Rollback(); err != nil {
 		return 0, fmt.Errorf("rollback validation: %w", err)

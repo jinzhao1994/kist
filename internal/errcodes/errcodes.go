@@ -103,6 +103,9 @@ const (
 	CodeInvalidRequest        Code = "invalid_request"
 	CodeRequestConflict       Code = "request_conflict"
 	CodeRequestScope          Code = "request_scope"
+	CodeSyncConflict          Code = "sync_conflict"
+	CodeSyncDependency        Code = "sync_dependency"
+	CodeSyncVersion           Code = "sync_version"
 	CodeNotUndoable           Code = "not_undoable"
 	CodeInternal              Code = "internal"
 	CodeWriteCommitted        Code = "write_committed"
@@ -162,6 +165,9 @@ var table = []struct {
 }{
 	{library.ErrMediaNotReady, CodeMediaNotReady},
 	{library.ErrInvalidRequest, CodeInvalidRequest},
+	{library.ErrSyncConflict, CodeSyncConflict},
+	{library.ErrSyncDependency, CodeSyncDependency},
+	{library.ErrSyncVersion, CodeSyncVersion},
 	{library.ErrRequestConflict, CodeRequestConflict},
 	{library.ErrRequestScope, CodeRequestScope},
 	{oplog.ErrNotUndoable, CodeNotUndoable},
@@ -227,6 +233,9 @@ var classes = map[Code]Class{
 	CodeMediaNotReady:         ClassConflict,
 	CodeInvalidRequest:        ClassInvalid,
 	CodeRequestConflict:       ClassConflict,
+	CodeSyncConflict:          ClassConflict,
+	CodeSyncDependency:        ClassConflict,
+	CodeSyncVersion:           ClassInvalid,
 	CodeRequestScope:          ClassInternal,
 	CodeNotUndoable:           ClassConflict,
 	CodeWriteCommitted:        ClassConflict,

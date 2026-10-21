@@ -51,7 +51,11 @@ func applyOp(tx *sql.Tx, row store.OpRow) (oplog.Targets, error) {
 	if err != nil {
 		return targets, err
 	}
-	if err := handler.Apply(vtx, row.Payload); err != nil {
+	var applyTx oplog.Tx = vtx
+	if row.SyncID != "" {
+		applyTx = &syncBlobClaims{Tx: vtx, claims: make(map[string]syncBlobClaim)}
+	}
+	if err := handler.Apply(applyTx, row.Payload); err != nil {
 		return targets, fmt.Errorf("apply op %d (%s): %w", row.ID, action, err)
 	}
 	// Deferred references must be checked during the pre-append trial too.
