@@ -157,3 +157,15 @@ the tab opens. **Check and download** resumes the existing selection without
 changing its members. **Stop retaining offline** removes only that selection's
 protection; other selections may still retain shared content, and archive files
 are not deleted.
+
+
+To prepare several items from the web UI, open a file list and choose **Select
+files for offline use** beside the display-mode control. Click file or file set
+cards to select them, or choose **Select loaded items**. This checkbox includes
+only the currently loaded results, not unrequested search pages. Choose **Keep
+offline**, review the selection, and start **Retain and download**. Every selected
+item receives its own retention entry before downloads begin. The dialog shows
+how many entries have been retained and prepared. Canceling or losing the
+connection keeps completed work; **Check and download** resumes by verifying
+current dependencies and skips content already ready. These entries can then be
+managed independently in the Cache tab.

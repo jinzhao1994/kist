@@ -1,3 +1,5 @@
+import { OfflineBatch } from "./OfflineBatch";
+import { offlineOwner } from "./offline-retention";
 import {
   OfflineEntry,
   useClientMode,
@@ -18,7 +20,16 @@ import {
   type EntryActionTarget,
 } from "./EntryActions";
 import { createPortal } from "react-dom";
-import { Menu, Tooltip, UnstyledButton } from "@mantine/core";
+import {
+  ActionIcon,
+  Button,
+  Checkbox,
+  Group,
+  Text,
+  Menu,
+  Tooltip,
+  UnstyledButton,
+} from "@mantine/core";
 import {
   useEffect,
   useLayoutEffect,
@@ -83,6 +94,36 @@ export function FileGrid({
   const cover = useBoxCover();
   const clientMode = useClientMode();
   const [offline, setOffline] = useState<OfflineTarget>();
+  const [offlineSelection, setOfflineSelection] = useState<
+    OfflineTarget[] | null
+  >(null);
+  const [preparingSelection, setPreparingSelection] = useState(false);
+  const targetFor = (file: ArchiveFile): OfflineTarget => ({
+    id: file.fileset_id || file.id,
+    name: file.name,
+    fileset: !!file.fileset_id,
+  });
+  const selectedOwners = new Set((offlineSelection || []).map(offlineOwner));
+  const loadedTargets = [
+    ...new Map(
+      files.map((file) => {
+        const target = targetFor(file);
+        return [offlineOwner(target), target] as const;
+      }),
+    ).values(),
+  ];
+  const allLoadedSelected =
+    loadedTargets.length > 0 &&
+    loadedTargets.every((target) => selectedOwners.has(offlineOwner(target)));
+  function toggleOffline(file: ArchiveFile) {
+    const target = targetFor(file);
+    const owner = offlineOwner(target);
+    setOfflineSelection((current) =>
+      (current || []).some((item) => offlineOwner(item) === owner)
+        ? (current || []).filter((item) => offlineOwner(item) !== owner)
+        : [...(current || []), target],
+    );
+  }
   const [mode, setMode] = useDisplayMode("files");
   const boxesByID = new Map(boxes.map((box) => [box.id, box]));
   const sortedFolders = [...folders].sort((a, b) => {
@@ -273,7 +314,10 @@ export function FileGrid({
       )
     : new Set<string>();
   function move(index: number, delta: number) {
-    const target = Math.max(0, Math.min(items.length - 1, index + delta));
+    const target = Math.max(
+      offlineSelection !== null ? folderItems.length : 0,
+      Math.min(items.length - 1, index + delta),
+    );
     virtual.scrollToIndex(Math.floor(target / columns), { align: "auto" });
     requestAnimationFrame(() =>
       requestAnimationFrame(() =>
@@ -281,7 +325,7 @@ export function FileGrid({
       ),
     );
   }
-  const displayControl = (
+  const displayModeControl = (
     <DisplayModeControl
       dropdown={!!toolbarHost}
       mode={mode}
@@ -302,9 +346,89 @@ export function FileGrid({
       }}
     />
   );
+  const displayControl = clientMode ? (
+    <Group gap="xs" wrap="nowrap">
+      <ActionIcon
+        className="filter-toolbar-button"
+        size="lg"
+        variant="default"
+        aria-label={t("clientSelectOffline")}
+        aria-pressed={offlineSelection !== null}
+        onClick={() =>
+          setOfflineSelection((current) => (current === null ? [] : null))
+        }
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          aria-hidden="true"
+        >
+          <path d="m3 6 2 2 4-4M12 6h9M3 13h6M12 13h9M3 20h6M12 20h9" />
+        </svg>
+      </ActionIcon>
+      {displayModeControl}
+    </Group>
+  ) : (
+    displayModeControl
+  );
   return (
     <>
       {toolbarHost ? createPortal(displayControl, toolbarHost) : displayControl}
+      {offlineSelection !== null && (
+        <Group
+          gap="sm"
+          mb="sm"
+          role="group"
+          aria-label={t("clientSelectOffline")}
+        >
+          <Checkbox
+            label={t("clientSelectLoaded", { count: loadedTargets.length })}
+            checked={allLoadedSelected}
+            indeterminate={
+              !allLoadedSelected &&
+              loadedTargets.some((target) =>
+                selectedOwners.has(offlineOwner(target)),
+              )
+            }
+            onChange={() =>
+              setOfflineSelection((current) =>
+                allLoadedSelected
+                  ? (current || []).filter(
+                      (item) =>
+                        !loadedTargets.some(
+                          (target) =>
+                            offlineOwner(target) === offlineOwner(item),
+                        ),
+                    )
+                  : [
+                      ...new Map(
+                        [...(current || []), ...loadedTargets].map((target) => [
+                          offlineOwner(target),
+                          target,
+                        ]),
+                      ).values(),
+                    ],
+              )
+            }
+          />
+          <Text size="sm" c="dimmed">
+            {t("clientSelectedCount", { count: offlineSelection.length })}
+          </Text>
+          <Button
+            disabled={!offlineSelection.length}
+            onClick={() => setPreparingSelection(true)}
+          >
+            {t("clientKeepOffline")}
+          </Button>
+          <Button onClick={() => setOfflineSelection(null)}>
+            {t("cancel")}
+          </Button>
+        </Group>
+      )}
       {mode === "list" && (
         <div className="file-list-heading">
           <span>{heading(t("name"), "name")}</span>
@@ -370,10 +494,22 @@ export function FileGrid({
                         aria-label={folder ? folder.name : undefined}
                         data-item-id={item.id}
                         data-active={
-                          selected?.id === item.id || editing || undefined
+                          selected?.id === item.id ||
+                          editing ||
+                          (file &&
+                            selectedOwners.has(
+                              offlineOwner(targetFor(file)),
+                            )) ||
+                          undefined
                         }
+                        aria-pressed={
+                          offlineSelection !== null && file
+                            ? selectedOwners.has(offlineOwner(targetFor(file)))
+                            : undefined
+                        }
+                        disabled={offlineSelection !== null && !!folder}
                         onContextMenu={
-                          editing
+                          editing || offlineSelection !== null
                             ? undefined
                             : context.bindings(item).onContextMenu
                         }
@@ -383,11 +519,16 @@ export function FileGrid({
                         }}
                         onClick={() =>
                           !editing &&
-                          (file ? open(file) : chooseFolder?.(item.id))
+                          (file
+                            ? offlineSelection !== null
+                              ? toggleOffline(file)
+                              : open(file)
+                            : chooseFolder?.(item.id))
                         }
                         onKeyDown={(event: KeyboardEvent<HTMLElement>) => {
                           if (editing) return;
-                          context.bindings(item).onKeyDown(event);
+                          if (offlineSelection === null)
+                            context.bindings(item).onKeyDown(event);
                           if (event.defaultPrevented) return;
                           const rtl = document.documentElement.dir === "rtl";
                           const delta =
@@ -411,6 +552,15 @@ export function FileGrid({
                         }}
                       >
                         <div className="file-preview">
+                          {offlineSelection !== null && file && (
+                            <Checkbox.Indicator
+                              className="file-offline-check"
+                              checked={selectedOwners.has(
+                                offlineOwner(targetFor(file)),
+                              )}
+                              aria-hidden="true"
+                            />
+                          )}
                           {mode !== "list" && file && hasPreview(file) ? (
                             <Media
                               key={file.id}
@@ -541,17 +691,19 @@ export function FileGrid({
                           <TagLabels tags={file?.display_tags} />
                         )}
                       </UnstyledButton>
-                      {mode === "list" && !editing && (
-                        <SidebarMenuButton
-                          label={t("moreActions")}
-                          expanded={selected?.id === item.id}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            if (selected?.id === item.id) context.close();
-                            else context.atElement(item, event.currentTarget);
-                          }}
-                        />
-                      )}
+                      {mode === "list" &&
+                        !editing &&
+                        offlineSelection === null && (
+                          <SidebarMenuButton
+                            label={t("moreActions")}
+                            expanded={selected?.id === item.id}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (selected?.id === item.id) context.close();
+                              else context.atElement(item, event.currentTarget);
+                            }}
+                          />
+                        )}
                     </div>
                   );
                 })}
@@ -561,6 +713,12 @@ export function FileGrid({
       </div>
       <WriteFeedback state={cover} />
       <DialogPresence>
+        {preparingSelection && offlineSelection && (
+          <OfflineBatch
+            targets={offlineSelection}
+            close={() => setPreparingSelection(false)}
+          />
+        )}
         {offline && (
           <OfflineEntry target={offline} close={() => setOffline(undefined)} />
         )}
@@ -645,15 +803,7 @@ export function FileGrid({
           </Menu.Item>
         )}
         {clientMode && selected?.file && (
-          <Menu.Item
-            onClick={() =>
-              setOffline({
-                id: selected.file!.fileset_id || selected.id,
-                name: selected.name,
-                fileset: !!selected.file!.fileset_id,
-              })
-            }
-          >
+          <Menu.Item onClick={() => setOffline(targetFor(selected.file!))}>
             {t("clientKeepOffline")}
           </Menu.Item>
         )}

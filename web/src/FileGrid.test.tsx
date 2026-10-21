@@ -981,3 +981,41 @@ it("falls back for a trashed cover and removes only the reference", async () => 
     ),
   );
 });
+
+it("selects loaded files and file sets for offline preparation without opening them", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string) =>
+      path.endsWith("/info") ? Response.json({ client: true }) : ready(),
+    ),
+  );
+  const open = vi.fn();
+  const selectedFiles = [
+    files[0],
+    { ...files[1], fileset_id: "pages", name: "Passport" },
+  ];
+  render(
+    <ThemeProvider env="test">
+      <I18nProvider>
+        <FileGrid files={selectedFiles} open={open} />
+      </I18nProvider>
+    </ThemeProvider>,
+    { wrapper: mediaWrapper },
+  );
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Select files for offline use" }),
+  );
+  const photo = screen.getByRole("button", { name: /photo-0.jpg/ });
+  await userEvent.click(photo);
+  expect(photo).toHaveAttribute("aria-pressed", "true");
+  expect(open).not.toHaveBeenCalled();
+  await userEvent.click(
+    screen.getByRole("checkbox", { name: "Select loaded items (2)" }),
+  );
+  expect(screen.getByText("2 selected")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Keep offline" }));
+  expect(
+    await screen.findByRole("dialog", { name: "Keep offline" }),
+  ).toHaveTextContent("Passport");
+  expect(screen.getByText("0 of 2 retained · 0 of 2 prepared")).toBeVisible();
+});

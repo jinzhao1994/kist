@@ -8,6 +8,17 @@ import {
 } from "react";
 
 export const en = {
+  clientSelectOffline: "Select files for offline use",
+  clientSelectLoaded: "Select loaded items ({count})",
+  clientSelectedCount: "{count} selected",
+  clientBatchHint:
+    "Each selected file or file set is retained separately. File sets include their configured members. Manage retention in Offline client → Cache.",
+  clientBatchProgress:
+    "{retained} of {total} retained · {prepared} of {total} prepared",
+  clientBatchInterrupted:
+    "Stopped. Saved selections and downloaded content are kept; check and download again to continue.",
+  clientBatchChanged:
+    "This selection changed during preparation. Check and download again for its current members.",
   clientRetainedItems: "Retained offline",
   clientRetainedEmpty:
     "No offline selections yet. Use Keep offline in a file or file set menu.",
@@ -631,6 +642,16 @@ export const en = {
 } as const;
 export type MessageKey = keyof typeof en;
 export const zh: Record<MessageKey, string> = {
+  clientSelectOffline: "选择离线文件",
+  clientSelectLoaded: "选择已加载项目（{count}）",
+  clientSelectedCount: "已选 {count} 项",
+  clientBatchHint:
+    "每个选中的文件或组合分别保留，组合包含其配置成员。可在“离线客户端 → 缓存”中管理保留项。",
+  clientBatchProgress:
+    "已保留 {retained} / {total} 项 · 已准备 {prepared} / {total} 项",
+  clientBatchInterrupted:
+    "已停止。保存的保留项和已下载内容会留下，再次检查并下载即可继续。",
+  clientBatchChanged: "准备期间选择内容发生变化，请重新检查并下载当前成员。",
   clientRetainedItems: "离线保留项",
   clientRetainedEmpty: "尚未保留内容，可在文件或组合的菜单中选择“保留离线”。",
   clientRetainedCount: "{files} 个文件 · {filesets} 个组合",
@@ -1259,6 +1280,9 @@ export function initializeLanguage() {
   applyDocumentLanguage(initialPreferences());
 }
 interface Parameters {
+  clientSelectLoaded: { count: number };
+  clientSelectedCount: { count: number };
+  clientBatchProgress: { retained: number; prepared: number; total: number };
   clientRetainedCount: { files: number; filesets: number };
   clientOfflineMissing: { ready: number; total: number };
   clientOfflinePreviews: { ready: number; total: number };

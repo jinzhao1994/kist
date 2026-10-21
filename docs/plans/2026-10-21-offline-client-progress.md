@@ -539,3 +539,14 @@ c86910b 原文件迁移阶段已推送，CI 39624124913 与 Secret scan 39624124
 180e9c7 的 CI 39641189898 与 Secret scan 39641189894 均通过。Visual 39641189893 完整候选 142 张：新增 offline-client-fileset-conflict 已全尺寸查看，配置对照/拖动列表正常；仍有既有 entry-menu-box 的 326 像素差异，因此未接受基准。新增 menu-layout 附件首次确认：该菜单 baseline/candidate 所有项的元素与文字矩形、字体、行高、transform、zoom 完全相同，不能再把差异简单归因于 DOM 布局位置，需继续排查栅格化/合成因素。报告 `/tmp/kist-fileset-fields-visual-39641189893/report/index.html`。
 
 保留管理最终 make check 已通过（67631 退出 0，`/tmp/kist-retention-delivery-check.log`），前端 282 项通过，未修改 Go 逻辑复用通过的 race 缓存。真实浏览器已验收上述行为；本次缓存页的正式视觉差异待推送采集后审阅。批量创建选择、其他领域冲突与完整故障矩阵继续属于未完成 Goal，不在此阶段缩减范围。
+
+
+批量离线准备阶段：文件网格/列表增加客户端专属选择模式，卡片按钮使用 aria-pressed 与共享 Checkbox.Indicator，保留现有虚拟化及显示方式；普通目录不被错误地当作 fileset 批量保留。“选择已加载项目”明确只选当前已加载结果，按 file/fileset 逻辑身份去重。批量弹窗先逐项保存所有保留选择，再按顺序核验与准备，显示保留/完成数量、当前对象、取消与重试；共享内容由后端既有哈希缓存复用，每项可在缓存页独立管理。单项和批量入口复用相同 retain/prepare helper，不复制请求契约。
+
+新增批量取消、失败重试跳过已准备项、全部保留先于下载、成员变化不误报成功，以及文件网格选择而非打开的测试；针对性 41 项通过（`/tmp/kist-batch-targeted.log`）。完整 make check（39918，`/tmp/kist-batch-complete-check.log`）退出 0，前端 287 项通过，Go race 复用已有通过缓存。随后修正正式列表场景应等待 0 个缩略图（列表本来不渲染媒体），独立视觉工具检查 `/tmp/kist-batch-final-visual-tools.log` 通过。
+
+真实 Chrome 混合准备通过：合成 Packing-list.txt 与 Documents 多页组合一起选择，切换列表保持两项选择，准备完成 2/2，持久清单分别含 file 与 fileset owner，pageErrors 为空。`/tmp/kist-batch-browser-final.log`；网格、列表、窄屏与完成弹窗 `/tmp/kist-batch-{grid,list,mobile,prepared}.png` 已查看。初次截图捕获过渡动画，后改为等待菜单退出及禁用截图动画，稳定状态复核正常。仅更新隔离演示库，客户端会话 58981。正式新增批量视觉场景待推送后采集；全面故障矩阵、其他冲突编辑与最终需求审计继续待办。
+
+3385714 的 CI 39643218000 和 Secret scan 39643218032 均已通过。Visual 39643218095 的两套采集完整（candidate 142、baseline 141，无失败/跳过/重试），仅 offline-client-cache 的预期内容变化与新增 fileset-conflict，旧菜单差异本轮未出现。缓存页全尺寸审阅发现 900px 高度下底部关闭按钮需要滚动，故未立即接受；将保留项名称/数量合为紧凑一行，随本批量阶段重新采集。新增深色批量选择场景；最终完整检查 `/tmp/kist-batch-final-check.log`（31286）正在运行。
+
+本批量阶段最终 make check 已通过（31286 退出 0，`/tmp/kist-batch-final-check.log`）。紧凑缓存布局已用最终二进制在真实 Chrome 1280×900 验证，两个保留项的名称与数量同行，关闭按钮完整处于视口内（`/tmp/kist-retention-compact-browser.log`，截图已查看）；隔离客户端最新会话 30380。准备提交本阶段，正式批量五场景和缓存布局仍需新提交的 Visual 核验。

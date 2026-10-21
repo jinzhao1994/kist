@@ -8,9 +8,16 @@ import { errorMessage } from "./mutations";
 import { clientCommand } from "./offline-client";
 import type { components } from "./client-api-schema";
 
+import {
+  offlineOwner,
+  offlinePath,
+  retainOffline,
+  prepareOffline,
+  type OfflineTarget,
+} from "./offline-retention";
 type Selection = components["schemas"]["ClientOfflineSelection"];
 type Status = components["schemas"]["ClientOfflineStatus"];
-export type OfflineTarget = { id: string; name: string; fileset: boolean };
+export type { OfflineTarget } from "./offline-retention";
 export function useClientMode() {
   return (
     useQuery({ queryKey: ["info"], queryFn: ({ signal }) => api.info(signal) })
@@ -26,8 +33,8 @@ export function OfflineEntry({
 }) {
   const { t } = useI18n();
   const queries = useQueryClient();
-  const owner = `${target.fileset ? "fileset" : "file"}:${target.id}`;
-  const path = `/offline/${encodeURIComponent(owner)}`;
+  const owner = offlineOwner(target);
+  const path = offlinePath(target);
   const selections = useQuery({
     queryKey: ["client", "offline"],
     queryFn: ({ signal }) =>
@@ -53,16 +60,10 @@ export function OfflineEntry({
       if (remove) {
         await clientCommand(path, {}, "DELETE", controller.signal);
       } else {
-        const selection: Selection = {
-          files: target.fileset ? [] : [target.id],
-          filesets: target.fileset ? [target.id] : [],
-        };
-        await clientCommand(path, selection, "PUT", controller.signal);
+        await retainOffline(target, controller.signal);
         // Retention is already durable even if the following transfer fails.
         await queries.invalidateQueries({ queryKey: ["client", "offline"] });
-        const current = await get<Status>(`/client${path}`, controller.signal);
-        if (!current.ready)
-          await clientCommand(`${path}/prepare`, {}, "POST", controller.signal);
+        await prepareOffline(target, controller.signal);
       }
     } catch (err) {
       if (!controller.signal.aborted) setError(errorMessage(err, t));

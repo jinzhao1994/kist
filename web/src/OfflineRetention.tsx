@@ -95,15 +95,17 @@ function RetentionItem({
   });
   return (
     <Stack gap="xs">
-      <Text style={{ overflowWrap: "anywhere" }}>
-        <bdi>{name.data || owner}</bdi>
-      </Text>
-      <Text size="sm" c="dimmed">
-        {t("clientRetainedCount", {
-          files: files.length,
-          filesets: filesets.length,
-        })}
-      </Text>
+      <Group gap="sm" align="baseline">
+        <Text style={{ overflowWrap: "anywhere" }}>
+          <bdi>{name.data || owner}</bdi>
+        </Text>
+        <Text size="sm" c="dimmed">
+          {t("clientRetainedCount", {
+            files: files.length,
+            filesets: filesets.length,
+          })}
+        </Text>
+      </Group>
       {name.error && (
         <Text size="xs" c="dimmed">
           {errorMessage(name.error, t)}

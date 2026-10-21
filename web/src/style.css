@@ -3319,3 +3319,20 @@ main.upload-drag-active {
 .client-sidebar-footer small {
   flex-basis: 100%;
 }
+
+/* Selection belongs to the card button, not a second nested input. */
+.file-preview .file-offline-check {
+  position: absolute;
+  inset-block-start: 0.5rem;
+  inset-inline-start: 0.5rem;
+  z-index: 1;
+  pointer-events: none;
+}
+.file-scroll.view-list .file-preview .file-offline-check {
+  position: static;
+}
+.file-scroll.view-list
+  .file-preview:has(.file-offline-check)
+  > :not(.file-offline-check) {
+  display: none;
+}

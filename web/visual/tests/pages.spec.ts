@@ -3284,3 +3284,48 @@ test("history-synced-operation", async ({ page }, info) => {
   ).toBeVisible();
   await capture(page, errors, info.title);
 });
+
+for (const mode of ["grid", "list", "mobile", "dark", "prepare"] as const) {
+  test(`offline-batch-${mode}`, async ({ page }, info) => {
+    const errors = await prepare(page, {
+      mode: mode === "dark" ? "dark" : "light",
+    });
+    if (mode === "mobile")
+      await page.setViewportSize({ width: 390, height: 844 });
+    if (mode === "list")
+      await page.addInitScript(() =>
+        localStorage.setItem("kist.display.files.v1", "list"),
+      );
+    await page.route("**/api/v1/info", (route) =>
+      route.fulfill({
+        json: {
+          client: true,
+          version: "visual",
+          timezone: "UTC",
+          projection_dirty: false,
+          max_upload_bytes: 1073741824,
+          max_upload_files: 100,
+          resumable_upload_version: 2,
+          upload_chunk_bytes: 8388608,
+        },
+      }),
+    );
+    await page.goto("/files");
+    await grid(page, mode === "list" ? 0 : 4);
+    await page
+      .getByRole("button", { name: "选择离线文件", exact: true })
+      .click();
+    await page.locator('[data-item-id="file-1"]').click();
+    await page.locator('[data-item-id="file-2"]').click();
+    await expect(page.locator('[data-item-id="file-1"]')).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await expect(page.getByText("已选 2 项", { exact: true })).toBeVisible();
+    if (mode === "prepare") {
+      await page.getByRole("button", { name: "保留离线", exact: true }).click();
+      await expect(page.getByRole("dialog")).toContainText("已保留 0 / 2 项");
+    }
+    await capture(page, errors, info.title);
+  });
+}
