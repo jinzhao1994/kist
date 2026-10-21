@@ -1182,6 +1182,7 @@ export interface components {
             replaced_by?: string;
             /** @enum {string} */
             state: "pending" | "awaiting_receipt" | "conflict" | "accepted" | "discarded" | "replaced";
+            summary?: components["schemas"]["HistorySummary"];
             undo?: components["schemas"]["SyncReference"];
         };
         ClientLocalHistoryList: {

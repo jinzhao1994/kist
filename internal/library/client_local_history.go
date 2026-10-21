@@ -12,22 +12,22 @@ import (
 // ClientLocalHistoryEntry keeps local intent identities separate from NAS IDs.
 // Resolved intents remain addressable; only an actual receipt supplies an OpID.
 type ClientLocalHistoryEntry struct {
-	ID         string         `json:"id"`
-	OccurredAt time.Time      `json:"occurred_at"`
-	Action     string         `json:"action"`
-	Origin     string         `json:"origin"`
-	State      string         `json:"state" enum:"pending,awaiting_receipt,conflict,accepted,discarded,replaced"`
-	Receipt    *SyncResult    `json:"receipt,omitempty"`
-	ReplacedBy string         `json:"replaced_by,omitempty"`
-	Reason     string         `json:"reason,omitempty"`
-	Undo       *SyncReference `json:"undo,omitempty"`
-	Group      *SyncReference `json:"group,omitempty"`
+	ID         string          `json:"id"`
+	OccurredAt time.Time       `json:"occurred_at"`
+	Action     string          `json:"action"`
+	Origin     string          `json:"origin"`
+	State      string          `json:"state" enum:"pending,awaiting_receipt,conflict,accepted,discarded,replaced"`
+	Receipt    *SyncResult     `json:"receipt,omitempty"`
+	ReplacedBy string          `json:"replaced_by,omitempty"`
+	Reason     string          `json:"reason,omitempty"`
+	Undo       *SyncReference  `json:"undo,omitempty"`
+	Group      *SyncReference  `json:"group,omitempty"`
+	Summary    *HistorySummary `json:"summary,omitempty"`
 }
 
 type ClientLocalHistoryDetail struct {
 	ClientLocalHistoryEntry
-	Proposal SyncProposal    `json:"proposal"`
-	Summary  *HistorySummary `json:"summary,omitempty"`
+	Proposal SyncProposal `json:"proposal"`
 }
 
 // LocalHistory pages immutable intentions in reverse append order. A replacement
@@ -58,6 +58,22 @@ func (c *Client) LocalHistory(ctx context.Context, before string, limit int) ([]
 				return err
 			}
 			out = append(out, item)
+		}
+		tx, err := c.db.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback()
+		for i := range out {
+			proposal := state.entries[end-1-i].Proposal
+			if proposal.Undo != nil {
+				continue
+			}
+			summary, err := summarizeHistory(store.NewViewTx(tx, time.Time{}), oplog.Action(proposal.Action), proposal.Payload)
+			if err != nil {
+				return err
+			}
+			out[i].Summary = &summary
 		}
 		if start > 0 {
 			next = state.entries[start].Proposal.ID

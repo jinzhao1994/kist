@@ -1,8 +1,10 @@
-# Laptop client development commands
+# Laptop offline client (development build)
 
-The development build provides NAS pairing, local status and manual synchronization.
-The offline web interface and automatic content-cache management are still being
-implemented; these commands alone are not the complete offline workflow.
+[中文](offline-client.zh-CN.md)
+
+The development build provides NAS pairing, a local web interface, selected-content
+caching, offline edits and manual synchronization. Final fault-recovery and visual
+acceptance remain in progress; this feature has not been released.
 
 ## Authorize a client
 
@@ -51,6 +53,23 @@ kist --library /path/to/nas-library sync-access revoke OLD_CREDENTIAL_ID
 `connect` verifies the same library UUID before replacing the configuration.
 It cannot reassign pending changes to another NAS library. Revocation is read
 on each new NAS request, including by an already-running server.
+
+## Open the laptop web interface
+
+```sh
+kist client serve /path/to/laptop-client --listen 127.0.0.1:8474
+```
+
+Open `http://127.0.0.1:8474`. The local binary serves the web assets, so the NAS
+does not need to be reachable to open the interface. Synchronize the catalog
+before leaving, then prepare selected content as described below. An uncached
+original is shown as not cached, rather than as a missing NAS file.
+
+Use **Offline client** to inspect pending work, synchronize manually, manage
+retained content or update the connection. The NAS remains the only authoritative
+archive and may change independently during the trip. Offline searches use the
+last complete synchronized catalog, including objects whose originals were not
+downloaded; they cannot show NAS edits made after that boundary.
 
 ## Inspect and retry synchronization
 
@@ -184,3 +203,9 @@ invalidate the reviewed choice and requires another review. The original local
 intention stays in history, and retrying an uncertain save sends the same decision.
 To use a different file, use its existing **Set as box cover** action after
 resolving the blocked change.
+
+The **Local operations** tab shows object names and change summaries directly in
+the paginated list. Names recorded in the original intent remain unchanged after
+later edits or undo. Summaries that resolve current object names are labeled as
+such. Open an entry for its original identity, sync receipt, related operations,
+and available undo action.

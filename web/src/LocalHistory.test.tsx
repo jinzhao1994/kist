@@ -40,6 +40,33 @@ function setup(active = true) {
   return locked;
 }
 afterEach(() => vi.unstubAllGlobals());
+it("shows object summaries in the list without fetching each operation", async () => {
+  const fetch = vi.fn(
+    async () =>
+      new Response(
+        JSON.stringify({
+          entries: [
+            {
+              ...entry,
+              summary: { name: "Travel notes", count: 1, current_names: false },
+            },
+            {
+              ...entry,
+              id: "local-2",
+              summary: { name: "Receipts", count: 1, current_names: true },
+            },
+          ],
+        }),
+      ),
+  );
+  vi.stubGlobal("fetch", fetch);
+  setup();
+  expect(
+    await screen.findByRole("button", { name: /Travel notes/ }),
+  ).toBeVisible();
+  expect(screen.getByRole("button", { name: /Receipts/ })).toBeVisible();
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
 it("loads only when opened and never posts automatically", async () => {
   const fetch = vi.fn();
   vi.stubGlobal("fetch", fetch);

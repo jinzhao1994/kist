@@ -1,9 +1,9 @@
-import { Button, Group, Stack, Text } from "@mantine/core";
+import { Button, Group, Stack, Text, UnstyledButton } from "@mantine/core";
 import { useEffect, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { createWrite, get } from "./api";
 import type { components } from "./client-api-schema";
-import { actionLabel, describeHistory } from "./History";
+import { describeHistory } from "./History";
 import { formatInstant, useI18n, type Translate } from "./i18n";
 import { errorMessage, useWrites, WriteFeedback } from "./mutations";
 
@@ -99,13 +99,27 @@ export function LocalHistory({
             .map((entry) => (
               <Stack key={entry.id} gap="xs" className="client-pending-item">
                 <Group justify="space-between">
-                  <Button variant="subtle" onClick={() => select(entry.id)}>
+                  <UnstyledButton
+                    className="text-button"
+                    style={{
+                      flex: "1 1 12rem",
+                      minWidth: 0,
+                      overflowWrap: "anywhere",
+                      textAlign: "start",
+                    }}
+                    onClick={() => select(entry.id)}
+                  >
                     {entry.action === "undo"
                       ? t("undo")
-                      : actionLabel(entry.action, t)}
-                  </Button>
+                      : describeHistory(entry.action, entry.summary, t)}
+                  </UnstyledButton>
                   <Text size="sm">{stateLabel(entry.state, t)}</Text>
                 </Group>
+                {entry.summary?.current_names && (
+                  <Text size="sm" c="dimmed">
+                    {t("historyCurrentNames")}
+                  </Text>
+                )}
                 <Text size="sm" c="dimmed">
                   {formatInstant(entry.occurred_at, prefs)}
                 </Text>

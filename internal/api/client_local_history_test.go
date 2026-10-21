@@ -31,6 +31,9 @@ func TestClientLocalHistoryAndUndoKeepIndependentIdentities(t *testing.T) {
 		t.Fatal(history)
 	}
 	localID := history.Entries[0].ID
+	if summary := history.Entries[0].Summary; summary == nil || summary.Name != "Offline box" || summary.CurrentNames {
+		t.Fatalf("missing immutable list summary: %+v", summary)
+	}
 	detail := decodeBody[library.ClientLocalHistoryDetail](t, s, "/client/history/"+localID)
 	if detail.Proposal.ID != localID || detail.Proposal.Action != "create_box" {
 		t.Fatal(detail)
@@ -48,6 +51,13 @@ func TestClientLocalHistoryAndUndoKeepIndependentIdentities(t *testing.T) {
 	history = decodeBody[clientLocalHistoryList](t, s, "/client/history?limit=1")
 	if len(history.Entries) != 1 || history.Entries[0].Action != "undo" || history.Entries[0].Undo.LocalID != localID || history.Before == "" {
 		t.Fatal(history)
+	}
+	if history.Entries[0].Summary != nil {
+		t.Fatal("undo must not be summarized as its inverse payload")
+	}
+	older := decodeBody[clientLocalHistoryList](t, s, "/client/history?limit=1&before="+history.Before)
+	if len(older.Entries) != 1 || older.Entries[0].ID != localID || older.Entries[0].Summary == nil || older.Entries[0].Summary.Name != "Offline box" {
+		t.Fatalf("paginated summary lost the original name after undo: %+v", older)
 	}
 	count, err := nas.OpCount(t.Context())
 	if err != nil || count != 0 {

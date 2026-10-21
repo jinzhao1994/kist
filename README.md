@@ -13,6 +13,10 @@ One Go binary plus SQLite. Apache-2.0.
 > or deploy with Docker. M0–M7 are complete; see [Milestones](#milestones).
 > kist has no built-in login and retains historical originals permanently.
 
+The laptop offline client is under development. See the [pairing, offline preparation
+and manual synchronization guide](docs/offline-client.md); final acceptance is still
+in progress and the feature has not been released.
+
 ## The idea
 
 Most tools make you file a document in one place and then find it from that

@@ -2881,13 +2881,17 @@ for (const panel of [
   "cache",
   "connection",
   "history",
+  "history-list",
+  "history-list-mobile",
   "conflict",
   "fileset-conflict",
   "cover-conflict",
   "cover-missing-conflict",
 ] as const) {
   test(`offline-client-${panel}`, async ({ page }, info) => {
-    const errors = await prepare(page);
+    const errors = await prepare(page, {
+      mobile: panel === "history-list-mobile",
+    });
     const conflict = panel.endsWith("conflict");
     const coverConflict =
       panel === "cover-conflict" || panel === "cover-missing-conflict";
@@ -3101,7 +3105,40 @@ for (const panel of [
                 state: "accepted",
                 occurred_at: time,
                 receipt: { op_id: 42, accepted_at: time },
+                summary: { name: "旅行记录", count: 1, current_names: false },
               },
+              ...(panel.startsWith("history-list")
+                ? [
+                    {
+                      id: "local-long-name",
+                      action: "rename_entry",
+                      origin: "user",
+                      state: "pending",
+                      occurred_at: time,
+                      summary: {
+                        name: "旅行票据",
+                        count: 1,
+                        before: "收据.png",
+                        after:
+                          "2026年秋季旅行交通住宿及景点门票原始凭证扫描归档.png",
+                        current_names: false,
+                      },
+                    },
+                    {
+                      id: "local-tag",
+                      action: "tag_files",
+                      origin: "user",
+                      state: "conflict",
+                      occurred_at: time,
+                      summary: {
+                        name: "山间清晨.jpg",
+                        count: 4,
+                        tag: "旅行",
+                        current_names: true,
+                      },
+                    },
+                  ]
+                : []),
             ],
           },
         });
@@ -3185,12 +3222,13 @@ for (const panel of [
       await expect(dialog.getByLabel("同步凭据", { exact: true })).toHaveValue(
         "",
       );
-    } else if (panel === "history") {
+    } else if (panel.startsWith("history")) {
       await dialog.getByRole("tab", { name: "本地操作", exact: true }).click();
       await expect(dialog).toContainText("NAS 已接纳");
-      await dialog
-        .getByRole("button", { name: "创建归档箱", exact: true })
-        .click();
+      if (panel === "history")
+        await dialog
+          .getByRole("button", { name: /创建归档箱.*旅行记录/ })
+          .click();
       await expect(dialog).toContainText("旅行记录");
       await expect(dialog).toContainText("NAS 操作 #42");
     } else await expect(dialog).toContainText("待同步修改 · 1");
