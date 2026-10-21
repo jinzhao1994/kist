@@ -274,3 +274,15 @@ Visual `39546249957` 已通过完整采集比较，旧菜单单行像素差异�
 
 
 目录读取和收藏搜索阶段完整 `VITEST_MAX_WORKERS=2 make check` 已通过（会话 14593 退出 0，日志 `/tmp/kist-client-catalog-complete-check.log`）。按阶段提交当前 main 内容。独立 worktree 另新增 client_tag_query.go/test.go，并从 commands.go 抽取共用 resolveTag 查询函数；验证 pending 子标签移动、改名后的包含/排除条件与名称/ID 解析，`/tmp/kist-client-tag-query.log` 通过（1.480 秒）。这批标签查询和此前 client_search 两个文件尚未合入；后续合入仅取 commands.go 增量及这 4 个新文件。
+
+
+目录读取/收藏搜索阶段已提交推送 `42d5f86`，CI `39596936256` 运行中、Visual `39596936245` 排队、Secret scan `39596936185` 通过。随后已合入独立 worktree 的 client_search、client_tag_query 四个新文件及 commands.go 的 resolveTag 增量，勿重复应用。main 另外补 Client.SetBoxCover，使用既有 update_box payload 与共享校验；覆盖跨盒拒绝、未缓存封面修改、同步及同步后通过 localID 严格撤销。针对性测试 `/tmp/kist-client-search-cover.log` 通过（2.415 秒）。下一步执行该阶段完整检查，并继续请求快照/HTTP 接入。
+
+
+搜索/封面阶段完整检查已启动：`/tmp/kist-client-search-cover-check.log`，会话 42837。上一提交 f4e1175 的 CI `39596164301` 与 Visual `39596164486` 已因后续推送取消，不记为通过；需要在继承该修改的新提交 42d5f86 对应运行收齐 Windows/check/Visual 结果。
+
+
+在独立 worktree 补客户端请求级只读快照：新增 client_view.go/test.go，client_read.go 增加受作用域保护的同事务读取分支。Client.View 在一次 overlay 刷新后固定 SQLite 事务与时区，ClientView 仅暴露目录读取方法，回调结束后读取返回 ErrRequestScope，并发读取由作用域锁串行，回调错误仍释放锁。避免详情 DTO 每个字段重新获取客户端锁/重建 overlay。针对性 race `/tmp/kist-client-view.log` 已通过（5.175 秒）；首次测试错误地固定 UTC，已改为验证继承 NAS 时区。此增量尚未合入 main，仅在 `/tmp/kist-offline-saved-search`；后续只复制 client_view.go/test.go 与 client_read.go 增量，不覆盖 worktree 上旧版其他文件。主完整检查会话 42837 仍在运行，42d5f86 的 CI/Visual 尚待收齐。
+
+
+搜索/标签条件/封面编辑阶段完整 `VITEST_MAX_WORKERS=2 make check` 已通过（会话 42837 退出 0，日志 `/tmp/kist-client-search-cover-check.log`）。提交该阶段；等待前一提交 CI/Visual 完成后再推送，避免连续取消尚未收齐的跨平台结果。

@@ -236,8 +236,12 @@ func (l *Library) ResolveBox(ctx context.Context, ref string) (domain.Box, error
 // ResolveTag accepts a full id or a name. Names are globally unique, so this
 // one cannot be ambiguous (spec 1.6).
 func (l *Library) ResolveTag(ref string) (domain.Tag, error) {
+	return resolveTag(l.db, ref)
+}
+
+func resolveTag(q store.Queryer, ref string) (domain.Tag, error) {
 	if id, err := domain.ParseID(ref); err == nil {
-		tag, ok, err := store.TagByID(l.db, domain.TagID{ID: id})
+		tag, ok, err := store.TagByID(q, domain.TagID{ID: id})
 		if err != nil {
 			return domain.Tag{}, err
 		}
@@ -245,7 +249,7 @@ func (l *Library) ResolveTag(ref string) (domain.Tag, error) {
 			return tag, nil
 		}
 	}
-	tag, ok, err := store.TagByName(l.db, ref)
+	tag, ok, err := store.TagByName(q, ref)
 	if err != nil {
 		return domain.Tag{}, err
 	}
