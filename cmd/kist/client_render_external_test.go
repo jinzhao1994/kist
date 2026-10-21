@@ -167,3 +167,19 @@ func TestClientRendererExternalProcessRecovery(t *testing.T) {
 		})
 	}
 }
+
+func TestClientRendererParentCrashClosesControlPipe(t *testing.T) {
+	root := t.TempDir()
+	parent := renderHelperCommand(t.Context(), "parent")
+	parent.Env = append(parent.Env, "KIST_TEST_RENDER_ROOT="+root)
+	if err := parent.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = parent.Process.Kill() }()
+	waitRenderMarker(t, root, "worker-ready")
+	if err := parent.Process.Kill(); err != nil {
+		t.Fatal(err)
+	}
+	_ = parent.Wait()
+	waitRenderMarker(t, root, "worker-stopped")
+}

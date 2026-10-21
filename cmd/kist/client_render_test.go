@@ -34,6 +34,41 @@ func TestClientRenderSubprocess(t *testing.T) {
 	// Bound helper lifetime even if a broken pipe implementation would leak it.
 	time.AfterFunc(15*time.Second, func() { os.Exit(3) })
 	switch mode {
+	case "job-parent":
+		_, _ = runClientRendererCommand(context.Background(), library.ClientRenderRequest{Root: os.Getenv("KIST_TEST_RENDER_ROOT")}, renderHelperCommand(context.Background(), "job-worker"))
+	case "job-worker", "job-worker-exit", "job-worker-crash":
+		var request library.ClientRenderRequest
+		if err := json.NewDecoder(os.Stdin).Decode(&request); err != nil {
+			os.Exit(1)
+		}
+		child := renderHelperCommand(context.Background(), "job-converter")
+		if err := child.Start(); err != nil {
+			os.Exit(1)
+		}
+		waitRenderMarker(t, request.Root, "job-converter-ready")
+		if mode == "job-worker-crash" {
+			os.Exit(7)
+		}
+		if mode == "job-worker" {
+			_, _ = io.Copy(io.Discard, os.Stdin)
+		}
+		_ = json.NewEncoder(os.Stdout).Encode(clientRenderReply{})
+		// Deliberately leave the child alive: the enclosing job must reap it.
+	case "job-converter":
+		conn, err := net.Dial("tcp", os.Getenv("KIST_TEST_RENDER_SOCKET"))
+		if err != nil {
+			os.Exit(1)
+		}
+		defer conn.Close()
+		if _, err = io.WriteString(conn, "ready\n"); err != nil {
+			os.Exit(1)
+		}
+		if err = os.WriteFile(filepath.Join(os.Getenv("KIST_TEST_RENDER_ROOT"), "job-converter-ready"), []byte("ready"), 0600); err != nil {
+			os.Exit(1)
+		}
+		for {
+			time.Sleep(time.Second)
+		}
 	case "converter":
 		conn, err := net.Dial("tcp", os.Getenv("KIST_TEST_RENDER_SOCKET"))
 		if err != nil {
@@ -131,22 +166,6 @@ func TestClientRendererCancellationJoinsSupervisor(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, "worker-stopped")); err != nil {
 		t.Fatal("returned before supervisor cleanup", err)
 	}
-}
-
-func TestClientRendererParentCrashClosesControlPipe(t *testing.T) {
-	root := t.TempDir()
-	parent := renderHelperCommand(t.Context(), "parent")
-	parent.Env = append(parent.Env, "KIST_TEST_RENDER_ROOT="+root)
-	if err := parent.Start(); err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = parent.Process.Kill() }()
-	waitRenderMarker(t, root, "worker-ready")
-	if err := parent.Process.Kill(); err != nil {
-		t.Fatal(err)
-	}
-	_ = parent.Wait()
-	waitRenderMarker(t, root, "worker-stopped")
 }
 
 func TestClientRendererConvertsPendingPhotoInSubprocess(t *testing.T) {

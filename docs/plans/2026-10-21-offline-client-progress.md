@@ -556,3 +556,9 @@ c86910b 原文件迁移阶段已推送，CI 39624124913 与 Secret scan 39624124
 监督 worker 自身被 SIGKILL 仍是独立未收口边界：现有外部工具不独立持有工作目录租约，不能用本次“主服务退出 → worker 收到 EOF”证据证明它们在 worker 自身消失后必然退出。Windows 的外部进程树、这一路强杀与其配额保护继续列入完整验收，不把本次测试阶段算作整个故障矩阵完成。
 
 外部转换故障回归完整 make check 已通过（84262 退出 0，`/tmp/kist-external-render-complete-check.log`），新增实际进程用例纳入默认 Unix 测试，其他平台仍编译现有 helper。该阶段只增加验收证据，没有改变产品故障语义；上述监督进程自身强杀风险仍未解决，Goal 保持进行中。
+
+Windows 监督进程故障保护阶段：在 worker 启动且尚未收到渲染请求时，将其加入不继承句柄、不允许 breakaway、KILL_ON_JOB_CLOSE 的 Job Object。加入失败则杀掉尚未执行任务的 worker 并返回错误；正常/异常结束后终止 Job 残留后代并轮询内核 ActiveProcesses 归零，调用方才释放缓存租约。主服务崩溃由内核关闭 Job 句柄终止进程树。机制依据 [Microsoft Job Objects](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects)，不采用 PID 存活猜测或通用任务平台。Unix 使用明确空实现，仍待其独立安全方案，未静默声称问题全部解决。
+
+新增 Windows 原生四场景测试：取消、worker 返回成功但遗留后代、worker 异常退出、父进程强杀，使用独立子进程 TCP EOF 验证后代退出；旧“父死后 worker 必须来得及写 stopped 标记”的测试移到 Unix，因为 Windows 内核直接终止 Job 不承诺运行用户态清理，改由新测试验证更强的终止条件。Windows amd64 交叉编译通过；本地 Unix renderer race 8.297 秒通过（`/tmp/kist-render-job-unix-tests.log`）。完整 make check（53963，`/tmp/kist-windows-job-complete-check.log`）退出 0，cmd race 24.634 秒；Windows 运行测试仍待推送后 CI，不能以编译替代。
+
+同步复查批量手机视觉场景：新增用例不能在页面顶部等待所有虚拟卡片已挂载，补上现有 mobile-grid 使用的稳定 file-scroll 边界等待，再检查缩略图。仅更正前提，不改变产品渲染/阈值。后续 `check:visual`（37464，`/tmp/kist-job-visual-tools.log`）通过；前序 4e169a0 的 Visual 39650365159 仍在采集，尚无最终结果。

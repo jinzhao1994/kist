@@ -81,15 +81,27 @@ func runClientRendererCommand(ctx context.Context, request library.ClientRenderR
 		return reply.Result, err
 	}
 	input.Close()
+	cleanup, err := containClientRenderer(command)
+	if err != nil {
+		control.Close()
+		_ = command.Process.Kill()
+		_ = command.Wait()
+		return reply.Result, err
+	}
 	if err = json.NewEncoder(control).Encode(request); err != nil {
 		control.Close()
 		_ = command.Wait()
-		return reply.Result, err
+		cleanupErr := cleanup()
+		return reply.Result, errors.Join(err, cleanupErr)
 	}
 	decodeErr := json.NewDecoder(io.LimitReader(output, 64<<10)).Decode(&reply)
 	// Closing after a complete reply is safe: rendering has already stopped.
 	control.Close()
 	waitErr := command.Wait()
+	cleanupErr := cleanup()
+	if cleanupErr != nil {
+		return reply.Result, cleanupErr
+	}
 	if ctx.Err() != nil {
 		return reply.Result, ctx.Err()
 	}

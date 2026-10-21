@@ -3311,6 +3311,22 @@ for (const mode of ["grid", "list", "mobile", "dark", "prepare"] as const) {
       }),
     );
     await page.goto("/files");
+    if (mode === "mobile") {
+      // Off-screen virtual cards are not mounted. Use the same stable scroll
+      // boundary as the existing mobile grid before waiting for its previews.
+      await page.evaluate(() => document.fonts.ready);
+      await expect
+        .poll(() =>
+          page.locator(".file-scroll").evaluate((element) => {
+            window.scrollTo(
+              0,
+              element.getBoundingClientRect().top + window.scrollY,
+            );
+            return Math.abs(element.getBoundingClientRect().top);
+          }),
+        )
+        .toBeLessThan(1);
+    }
     await grid(page, mode === "list" ? 0 : 4);
     await page
       .getByRole("button", { name: "选择离线文件", exact: true })
