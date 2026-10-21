@@ -375,3 +375,13 @@ Visual 39596936245 attempt 2 已通过，基准未更改；attempt 1 的单行�
 
 
 网页续传阶段完整 make check 已通过：会话 2160 退出 0，日志 `/tmp/kist-client-upload-complete-check.log`。本阶段提交；870ff31 的 CI/Visual 尚在运行。独立 worktree 新增 client_extraction.go/test.go 和 API client_extraction.go/test.go，共用 extractionChange 事实差量逻辑；按单次快照捕获原文件/metadata/版本/时区，读取本地原文件并持缓存租约，提交 extractor origin 与内容前提。`/tmp/kist-client-extraction-http.log` API/library race 通过（3.113/8.303 秒），含本地回执、重复请求、未缓存返回、内容替换拒绝、同步/rebuild/Undo。尚未合入，仅这四个新文件、extract.go 小增量及 server 路由注册待合入，不得复制旧 worktree server.go 覆盖主线续传。
+
+
+续传阶段提交 4060034 已推送；870ff31 CI 39603894207 与 Visual 39603894360 均通过。4060034 的 CI 39605157381、Visual 39605157438 正在运行，Secret scan 39605157405 已通过。
+
+离线提取四个新文件、extract.go 的 extractionChange 共用逻辑以及 clientExtractionRoutes 注册已合入 main，重新生成客户端 API 类型。`/tmp/kist-client-extraction-boundaries-final.log` race 9.825 秒通过，新增不匹配 EXIF 时保留捕获时间、提取后隐藏媒体事实与再次提取不恢复；首次测试在尚不存在的 metadata 上调用删除，按原有契约修正为先提取再隐藏。`/tmp/kist-client-extraction-merged.log` 主线合入后 API/library race 通过（3.132/10.080 秒）。开始完整检查 `/tmp/kist-client-extraction-complete-check.log`。上述 worktree 提取增量均已合入，不要重复复制。提取目前使用既有单文件 API 与当前版本幂等语义；客户端媒体派生、历史读取、同步管理 UI 与受保护空间统计仍待完成。
+
+
+离线提取阶段完整 make check 已通过：会话 63805 退出 0，日志 `/tmp/kist-client-extraction-complete-check.log`。本阶段提交；4060034 的远端 CI/Visual 尚在运行。
+
+独立 worktree 完成文本/表格预览增量：新增 openCurrentContent 共用读取，sheetpreview.Source 抽象只保留 Read/Seek/ReadAt/Stat，接受缓存租约句柄；客户端注册既有 text/sheet 路由，未缓存返回 not_cached。新增 client_preview_test.go 使用真实可逐出缓存验证文本与 CSV，`/tmp/kist-client-text-sheet.log` API race 2.959 秒通过、sheetpreview 全格式回归通过。另新增 client_storage.go/test.go，提供 local-blobs 与 pending 日志独立实际字节统计，包括尚未清理的已确认原文件，不冒充待同步字节；`/tmp/kist-client-storage.log` race 2.485 秒通过，验证去重及清理隔离。上述预览与统计增量尚未合入。

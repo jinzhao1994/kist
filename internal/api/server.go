@@ -141,6 +141,7 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 	if c != nil {
 		s.clientReadRoutes()
 		s.clientWriteRoutes()
+		s.clientExtractionRoutes()
 		s.uploadSessionRoutes()
 		s.contentRoutes()
 	} else {

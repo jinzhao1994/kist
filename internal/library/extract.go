@@ -269,6 +269,11 @@ func (l *Library) diffExtraction(
 	if err != nil {
 		return nil, err
 	}
+	return extractionChange(e, file, found, stored, l.zone()), nil
+}
+
+// extractionChange resolves observed facts against one captured metadata snapshot.
+func extractionChange(e extract.Extractor, file domain.File, found []extract.KV, stored []store.MetadataRow, zone *time.Location) *oplog.FileExtraction {
 	owned := map[string]bool{}
 	for _, ns := range e.Namespaces() {
 		owned[ns] = true
@@ -316,7 +321,7 @@ func (l *Library) diffExtraction(
 	// extractor's: a GPS extractor contributing geo:timezone has to be able to
 	// change a conclusion drawn from EXIF (spec 1.5.2).
 	merged := mergedTags(stored, e.ID(), found)
-	captured := extract.ResolveCaptured(merged, l.zone())
+	captured := extract.ResolveCaptured(merged, zone)
 	var at domain.Instant
 	if captured.Known {
 		at = domain.NewInstant(captured.UnixNano)
@@ -328,7 +333,7 @@ func (l *Library) diffExtraction(
 		change.CapturedAt = at
 		change.CapturedWas = at
 	}
-	return &change, nil
+	return &change
 }
 
 // mergedTags is every row this file will have once this extraction lands.
