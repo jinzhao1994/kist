@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/jinzhao1994/kist/internal/blob"
 )
@@ -22,18 +23,33 @@ func (c *Client) OpenOriginal(ctx context.Context, key string) (io.ReadSeekClose
 	if err != nil {
 		return nil, ErrInvalidRequest
 	}
+	initialize, err := c.cacheLock(ctx)
+	if err != nil {
+		return nil, err
+	}
+	initialize()
+	release, err := c.cacheObjectLock(key, true).Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
 	reader, err := c.blobs.Get(ctx, parsed)
 	if err == nil {
 		if err := verifyCachedFile(ctx, reader, key, size); err != nil {
 			reader.Close()
+			release()
 			return nil, err
 		}
-		return reader, nil
+		return &localOriginalReader{ReadSeekCloser: reader, release: release}, nil
 	}
 	if !errors.Is(err, os.ErrNotExist) {
+		release()
 		return nil, err
 	}
-	return c.OpenCachedOriginal(ctx, key)
+	reader, err = c.openCachedLeased(ctx, key, release)
+	if err != nil {
+		release()
+	}
+	return reader, err
 }
 
 type ClientOfflineStatus struct {
@@ -142,4 +158,17 @@ func (c *Client) PrepareOffline(ctx context.Context, owner string, source Origin
 		}
 	}
 	return c.OfflineStatus(ctx, owner)
+}
+
+// localOriginalReader shares the cache object's lease across ownership changes.
+type localOriginalReader struct {
+	io.ReadSeekCloser
+	release func()
+	once    sync.Once
+	err     error
+}
+
+func (r *localOriginalReader) Close() error {
+	r.once.Do(func() { r.err = r.ReadSeekCloser.Close(); r.release() })
+	return r.err
 }

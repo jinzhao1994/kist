@@ -182,6 +182,17 @@ func TestHTTPClientResumesDurableBlocksAndLostCommit(t *testing.T) {
 	if err != nil || !bytes.Equal(tail, content[8<<20:]) {
 		t.Fatalf("resumed download mismatch: %v", err)
 	}
+	// Synchronization now adopts acknowledged originals into the cache. Evict
+	// that verified copy before exercising an actual interrupted NAS download.
+	if _, err := client.SetCacheLimits(t.Context(), 24*time.Hour, 1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.OpenCachedOriginal(t.Context(), string(stored.Key)); !errors.Is(err, library.ErrNotCached) {
+		t.Fatalf("cache was not evicted: %v", err)
+	}
+	if _, err := client.SetCacheLimits(t.Context(), 24*time.Hour, 10<<30); err != nil {
+		t.Fatal(err)
+	}
 	dropDownload.Store(true)
 	if err := client.CacheOriginal(t.Context(), string(stored.Key), peer); err == nil {
 		t.Fatal("interrupted cache download unexpectedly completed")

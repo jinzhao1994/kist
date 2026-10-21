@@ -83,6 +83,11 @@ func (c *Client) Import(ctx context.Context, src string, opt ClientImportOptions
 }
 
 func (c *Client) prepareImport(ctx context.Context, candidates []scanned, opt ClientImportOptions) (*PreparedClientImport, error) {
+	release, leaseErr := c.localPreparationLease(ctx)
+	if leaseErr != nil {
+		return nil, leaseErr
+	}
+	defer release()
 	if opt.ConflictMode != "" && opt.ConflictMode != "keep_both" && opt.ConflictMode != "overwrite" {
 		return nil, ErrInvalidRequest
 	}

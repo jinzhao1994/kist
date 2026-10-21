@@ -344,6 +344,11 @@ func (c *Client) checkNewBlobs(ctx context.Context, tx *sql.Tx, targets oplog.Ta
 
 // PutOriginal stores new local content outside the evictable cache.
 func (c *Client) PutOriginal(ctx context.Context, r io.Reader) (blob.PutResult, error) {
+	release, err := c.localPreparationLease(ctx)
+	if err != nil {
+		return blob.PutResult{}, err
+	}
+	defer release()
 	return c.blobs.Put(ctx, r)
 }
 

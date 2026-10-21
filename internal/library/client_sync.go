@@ -158,6 +158,9 @@ func (c *Client) Synchronize(ctx context.Context, peer SyncPeer) (ClientSyncResu
 		}
 	}
 	result.Complete = result.Remaining == 0
+	if err := c.AdoptConfirmedOriginals(ctx); err != nil {
+		return result, err
+	}
 	return result, nil
 }
 

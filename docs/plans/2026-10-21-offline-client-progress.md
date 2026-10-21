@@ -464,3 +464,15 @@ e363130 与 2d40fb6 已推送。原 a5658fb 视觉 attempt 2 一直排队，后�
 本地历史网页阶段完整 make check 已通过（45666 退出 0）。已确认合成客户端 PID 9158 后重启新二进制（33547，19592）；NAS 仍关闭。真实 Chrome 新建独立本地操作、打开详情、确认撤销并返回列表看到撤销事件，无 pageerror（59080 退出 0），截图 `/tmp/kist-local-history-without-nas.png` 已查看。1676133 CI 39619903077 通过；Visual 39619903105 是采集失败而非比较失败，candidate 138 通过/1 失败，box-tags-dialog 的菜单在视口下方导致点击超时，trace 反复报告 element is outside of the viewport。报告 `/tmp/kist-menu-motion-visual-39619903105`。减少动画修正引出了菜单定位问题，须继续修复，不能接受该不完整候选。
 
 本地历史 UI 提交 ecfa19e。已撤回 1676133 的 ContextMenu reduced-motion 改动，恢复原菜单定位/动画路径；该尝试没有证明原 1px 差异根因，却在正式采集中引出边缘菜单不可点击，因此不保留。恢复后完整 make check 通过（57718 退出 0，`/tmp/kist-menu-position-restore-check.log`）。下一次正式视觉仍须完整采集并审阅，原菜单像素差异与新增本地历史场景均未接受。
+
+ab09afa（含 ecfa19e 本地历史 UI）已推送；CI 39622009090 已通过，Visual 39622009268 与 Secret scan 39622009050 仍在运行。
+
+确认后本地原文件生命周期阶段实现中：新增 AdoptConfirmedOriginals，只依据确认日志前缀的 blob 引用迁移，active pending 内容继续受保护；导入准备持共享本地内容租约，迁移非阻塞尝试独占，活跃读取复用对象租约。同步最终拉取目录后执行迁移，同盘重命名且 fsync 两侧目录，再按配额/LRU 清理，离线保留超限不自动删除。未知或未确认原件不动。针对性原有同步/导入测试通过（`/tmp/kist-cache-adopt-initial.log` 16.676 秒），租约增量通过；新迁移测试覆盖未同步保护、活跃读者/导入准备、配额逐出、保留超限、NAS 提交但客户端未确认、重复迁移与受保护体积归零。
+
+检查恢复实现发现：迁移未完成记录若 offset=0，会被缓存重建按续传规则截断已重命名的完整文件；已将初始 offset 记录为已 fsync 原文件的完整大小，Complete 仍为 false，重命名及目录 fsync 后才置 true。新增就绪标记前恢复验证；`/tmp/kist-cache-adopt-recovery-tests.log` race 9.574 秒通过。首次完整检查 `/tmp/kist-cache-adopt-complete-check.log`（11357）仍运行旧偏移代码，不能作为修正后最终验收；待其结束后运行修正后的完整检查。尚未提交本阶段。
+
+首次迁移完整检查（11357）结束为失败：TestHTTPClientResumesDurableBlocksAndLostCommit 假设上传后尚无缓存，但新生命周期已自动转入缓存，故未发生它预期的断线下载。已通过 SetCacheLimits 的真实逐出路径清除已确认缓存，再恢复配额执行 HTTP 续传；针对性 race 4.271 秒通过（`/tmp/kist-cache-adopt-http.log`）。修正后的完整 make check `/tmp/kist-cache-adopt-final-check.log`（12259）运行中，不复用失败结果。
+
+ab09afa 的 Visual 39622009268 完整采集 140 张，5 处差异仅为两个新增历史场景及三个既有离线面板新增本地操作 tab。已查看六张联系表覆盖全部候选，并逐张查看五个差异原尺寸图；entry-menu-box 与所有其余场景匹配，原 1px 差异此次未复现。报告 `/tmp/kist-local-history-visual-39622009268/report/index.html`，接受流程 39623400722 成功。机器人 b724a01 已本地快进，CI 39623456359、Visual 39623459202 运行中，Secret scan 39623461350 通过。先前菜单减动画尝试已完整撤回，不能归因它修复了噪声。
+
+原文件迁移最终完整 make check 已通过（12259 退出 0，`/tmp/kist-cache-adopt-final-check.log`，library race 192.036 秒）。包括修正后的完整偏移记录、导入/读取租约、确认边界、配额/保留与真实 HTTP 续传。接下来提交本阶段并继续跟进 b724a01 的 CI/Visual；尚未完成派生媒体缓存、完整冲突编辑 UI、最终端到端矩阵与使用文档，目标继续保持实施中。
