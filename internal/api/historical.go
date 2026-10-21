@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"io"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -37,9 +38,26 @@ type historicalFile struct {
 	Tags []wire.Tag `json:"tags"`
 }
 
+type historyReader interface {
+	fileReader
+	Box(context.Context, domain.BoxID) (domain.Box, bool, error)
+	BoxTags(context.Context, domain.BoxID) ([]domain.TagID, error)
+	File(context.Context, domain.FileID) (domain.File, bool, error)
+	Files(context.Context, query.Query) ([]domain.File, string, error)
+	Folders(context.Context, domain.BoxID) ([]domain.Folder, error)
+	TagTreeCounts(context.Context) (*library.TagTree, map[domain.TagID]library.TagCounts, error)
+	OpenContent(context.Context, domain.FileID) (domain.File, io.ReadSeekCloser, error)
+}
+
+type nasHistoryReader struct{ *library.HistoricalView }
+
+func (v nasHistoryReader) OpenContent(ctx context.Context, id domain.FileID) (domain.File, io.ReadSeekCloser, error) {
+	return v.HistoricalView.OpenContent(ctx, id)
+}
+
 // Bound concurrent replay work, including queue time in the deadline. The
 // semaphore only limits resources; it contains no cached archive state.
-func (s *Server) withHistory(ctx context.Context, target int64, fn func(context.Context, *library.HistoricalView) error) (err error) {
+func (s *Server) withHistory(ctx context.Context, target int64, fn func(context.Context, historyReader) error) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	defer func() {
@@ -53,10 +71,13 @@ func (s *Server) withHistory(ctx context.Context, target int64, fn func(context.
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-	return s.library.ViewAt(ctx, target, func(view *library.HistoricalView) error { return fn(ctx, view) })
+	if s.client != nil {
+		return s.client.ViewAt(ctx, target, func(view *library.ClientHistoricalView) error { return fn(ctx, view) })
+	}
+	return s.library.ViewAt(ctx, target, func(view *library.HistoricalView) error { return fn(ctx, nasHistoryReader{view}) })
 }
 
-func historicalTags(ctx context.Context, view *library.HistoricalView) ([]wire.Tag, error) {
+func historicalTags(ctx context.Context, view historyReader) ([]wire.Tag, error) {
 	tree, counts, err := view.TagTreeCounts(ctx)
 	if err != nil {
 		return nil, err
@@ -81,7 +102,7 @@ func (s *Server) historicalRoutes() {
 			}
 		}
 		out := historicalBox{Op: in.Op, Files: []wire.File{}, Folders: []wire.Folder{}}
-		err = s.withHistory(ctx, in.Op, func(ctx context.Context, view *library.HistoricalView) error {
+		err = s.withHistory(ctx, in.Op, func(ctx context.Context, view historyReader) error {
 			box, found, err := view.Box(ctx, boxID)
 			if err != nil {
 				return err
@@ -130,7 +151,7 @@ func (s *Server) historicalRoutes() {
 			return nil, err
 		}
 		out := historicalFile{Op: in.Op}
-		err = s.withHistory(ctx, in.Op, func(ctx context.Context, view *library.HistoricalView) error {
+		err = s.withHistory(ctx, in.Op, func(ctx context.Context, view historyReader) error {
 			file, found, err := view.File(ctx, domain.FileID{ID: id})
 			if err != nil {
 				return err

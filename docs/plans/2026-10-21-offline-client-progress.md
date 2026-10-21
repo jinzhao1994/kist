@@ -426,3 +426,17 @@ Windows 合成源时区修正及 UI 小调整完整 make check 已通过：会�
 保留入口完整 make check 已通过（83787 退出 0，`/tmp/kist-offline-retention-complete-check.log`）。真实 Chrome 在合成客户端完成手动同步、文件右键保留、下载就绪，截图 `/tmp/kist-offline-retention-ready.png` 已审阅。确认测试 NAS PID 99570 后停止该进程，再打开客户端 travel.txt，正文仍可读、pageerror 为空（43052 退出 0），截图 `/tmp/kist-offline-text-without-nas.png`。未操作个人库。ce1d92b 的 CI 39609825023 与 Visual 39609825069 均已通过。本 UI 阶段提交后仍须审阅四个新增正式视觉场景，不能将本地 Chrome 作为基准验收。
 
 独立 worktree 的 client_history_view.go/test.go 提供仅确认 NAS 前缀的历史只读视图，临时数据库重放不包含 pending，打开历史内容保留缓存读租约。`/tmp/kist-client-history-view.log` 针对性 race 已通过，尚未合入、尚未接 API；完整历史列表、摘要、撤销映射等仍未完成。
+
+网页管理与保留阶段提交 91abf03 已推送；CI 39612150951、Visual 39612151105 运行中，Secret scan 39612150968 已通过。
+
+历史视图已合入 main，并通过共享只读 historyReader 接入原有历史文件/盒详情与 content?at= API；不包含 pending，未缓存内容返回 not_cached，Range 与历史文件名保持正确。`/tmp/kist-client-history-api.log` API/library race 通过（4.626/3.085 秒）。完整检查 `/tmp/kist-client-history-complete-check.log` 发现取消请求在锁空闲时可能竞争成功而返回 ErrNoSuchOp；已补入口 ctx.Err 检查，与 NAS ViewAt 保持一致。重复 20 次验证取消场景后继续完整检查 `/tmp/kist-client-history-final-check.log`（会话 96959），尚未提交。
+
+独立 worktree 新增 client_history.go/test.go 与 API client_history_list_test.go；共享 readHistory/readHistoryOp，只暴露确认前缀的历史分页/摘要/详情，并通过既有客户端请求回执对正式 op 执行离线 Undo。API history.go 已抽只读接口，server.go 仅新增客户端 historyRoutes 注册；不要复制旧 server 覆盖主线。`/tmp/kist-client-history-list-final.log` library race 通过；API 初次测试将 call 的 key/body 参数写反，已修正。该历史列表增量尚未合入；pending 历史展示、接纳时间及完整同步后历史验收仍待完成。
+
+历史视图取消场景重复 20 次通过（`/tmp/kist-client-history-cancellation.log`），修正后完整 make check 通过（96959 退出 0，`/tmp/kist-client-history-final-check.log`）。91abf03 CI 39612150951 已通过；Visual 39612151105 完整采集、候选校验通过，比较失败，报告下载会话 32874，待审阅后接受或修正，尚未接受基准。
+
+worktree 的历史列表 API race `/tmp/kist-client-history-list-api-final.log` 2.689 秒通过；新增接受时间读取（store.OpAcceptedAt、HistoryEntry.AcceptedAt、wire accepted_at）保持原始 TS 与正式 ID 排序，NAS rebuild 和客户端重放测试通过（`/tmp/kist-client-history-acceptance-final.log`）。首次测试误用带空格的提案 ID，被协议正确拒绝，已修正。历史列表 API 与既有历史版本查询共享并发/超时预算，`/tmp/kist-client-history-list-bounds.log` race 4.209 秒通过。上述均尚未合入；worktree API historical.go/content.go/historical_test.go 已复制主线基底再增量重构，合入时只取新增预算抽取，不重复旧基底。
+
+91abf03 正式视觉报告已完整审阅：baseline 134、candidate 138，均无跳过/失败/重试，134 个已有场景完全匹配，仅四个新增离线面板/保留场景缺基准。六张联系表覆盖全部候选，并逐一查看四张新增原尺寸图，无溢出或布局异常。报告 `/tmp/kist-offline-visual-39612151105/report/index.html`，已发起 Accept visual baselines（run_id=39612151105）；待机器人提交后的 CI/Visual 与本地快进确认。
+
+视觉接受 39614102685 成功，机器人提交 a5658fb 已本地快进；其 CI 39614170713 queued、Visual 39614174487 运行中、Secret scan 39614178163 通过。历史版本阶段仅新增客户端历史 API 契约，不更改页面像素，已完成完整检查后提交，等待基准提交检查完成再推送。

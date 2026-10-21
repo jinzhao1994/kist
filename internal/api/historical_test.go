@@ -109,19 +109,19 @@ func TestHistoricalAPIBoundsAndCancellation(t *testing.T) {
 	s.historySlots <- struct{}{}
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	if err := s.withHistory(ctx, 1, func(context.Context, *library.HistoricalView) error { t.Fatal("cancelled callback"); return nil }); !errors.Is(err, context.Canceled) {
+	if err := s.withHistory(ctx, 1, func(context.Context, historyReader) error { t.Fatal("cancelled callback"); return nil }); !errors.Is(err, context.Canceled) {
 		t.Fatal(err)
 	}
 	ctx, cancel = context.WithDeadline(t.Context(), time.Now().Add(-time.Second))
 	defer cancel()
-	err := s.withHistory(ctx, 1, func(context.Context, *library.HistoricalView) error { t.Fatal("expired callback"); return nil })
+	err := s.withHistory(ctx, 1, func(context.Context, historyReader) error { t.Fatal("expired callback"); return nil })
 	var status huma.StatusError
 	if !errors.As(err, &status) || status.GetStatus() != 503 {
 		t.Fatalf("deadline: %v", err)
 	}
 	<-s.historySlots
 	<-s.historySlots
-	if err := s.withHistory(t.Context(), 1, func(context.Context, *library.HistoricalView) error { return nil }); !errors.Is(err, library.ErrNoSuchOp) {
+	if err := s.withHistory(t.Context(), 1, func(context.Context, historyReader) error { return nil }); !errors.Is(err, library.ErrNoSuchOp) {
 		t.Fatal(err)
 	}
 	if len(s.historySlots) != 0 {

@@ -10,7 +10,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/jinzhao1994/kist/internal/domain"
-	"github.com/jinzhao1994/kist/internal/library"
 )
 
 type contentInput struct {
@@ -45,16 +44,10 @@ func (s *Server) contentRoutes() {
 				var file domain.File
 				var handle io.ReadSeekCloser
 				var err error
-				if s.client != nil {
-					if in.At != 0 {
-						writeFailure(w, huma.Error400BadRequest("Historical client content is not available"))
-						return
-					}
-					file, handle, err = s.client.OpenContent(ctx, domain.FileID{ID: id})
-				} else if in.At == 0 {
-					file, handle, err = s.library.OpenContent(ctx, domain.FileID{ID: id})
+				if in.At == 0 {
+					file, handle, err = s.openCurrentContent(ctx, domain.FileID{ID: id})
 				} else {
-					err = s.withHistory(ctx, in.At, func(ctx context.Context, view *library.HistoricalView) error {
+					err = s.withHistory(ctx, in.At, func(ctx context.Context, view historyReader) error {
 						var err error
 						file, handle, err = view.OpenContent(ctx, domain.FileID{ID: id})
 						return err
