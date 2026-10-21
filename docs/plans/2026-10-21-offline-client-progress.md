@@ -454,3 +454,5 @@ e363130 与 2d40fb6 已推送。原 a5658fb 视觉 attempt 2 一直排队，后�
 本地意图历史四个新文件已合入 main（client_local_history.go/test.go，API 同名两文件及 clientLocalHistoryRoutes 注册）：按独立本地 ID 分页并读取原始 proposal，保留撤销/操作组引用、替换及放弃决定、已确认 NAS 回执；提交结果未知仍为 awaiting_receipt，不伪装成失败或可放弃状态。分页按追加位置，替换操作虽沿用逻辑队列位置仍有独立游标。新增本地 ID 撤销 HTTP 接口，复用持久请求回执。主线针对性 race `/tmp/kist-client-local-history-merged.log` API/library 通过（1.885/3.050 秒），完整检查 `/tmp/kist-client-local-history-complete-check.log` 会话 9639 进行中。worktree 对应增量全部已合入，不要重复覆盖。测试初次漏传 OpenClient context，随后误以为创建同名归档盒必冲突，已改为同字段并发改名，覆盖真实冲突和替换决定。尚未接本地历史网页详情/撤销入口。
 
 本地意图历史 API 阶段完整 make check 已通过（9639 退出 0，`/tmp/kist-client-local-history-complete-check.log`）。本阶段先提交；2d40fb6 Visual 39616792737 为完整采集后的比较失败（139 张、2 处差异），报告下载会话 40063，尚未审阅/接受。
+
+2d40fb6 的正式视觉报告已复查：完整 139 张，仅新增接纳时间历史场景与既有菜单文字 1px 位移（326 像素）。未接受菜单差异。共享 ContextMenu 现遵循系统 reduced motion，与 Dialog 一致；针对性菜单测试 4 项通过，完整检查日志 `/tmp/kist-context-menu-motion-complete-check.log` 已运行至最终单二进制构建，无失败记录。原终端会话已回收，接下来以该提交的 CI 和正式视觉采集复核，尚不能声称菜单差异已解决。
