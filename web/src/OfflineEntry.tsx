@@ -103,6 +103,14 @@ export function OfflineEntry({
                 })}
           </Text>
         )}
+        {!!status.data?.previews?.length && (
+          <Text size="sm" c="dimmed">
+            {t("clientOfflinePreviews", {
+              ready: status.data.previews_available,
+              total: status.data.previews.length,
+            })}
+          </Text>
+        )}
         {status.error && (
           <Text role="alert">{errorMessage(status.error, t)}</Text>
         )}

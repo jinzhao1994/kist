@@ -53,11 +53,13 @@ func (c *Client) OpenOriginal(ctx context.Context, key string) (io.ReadSeekClose
 }
 
 type ClientOfflineStatus struct {
-	Catalog   ClientCatalogStatus     `json:"catalog"`
-	Originals []ClientOfflineOriginal `json:"originals"`
-	Available int                     `json:"available"`
-	Missing   []string                `json:"missing"`
-	Ready     bool                    `json:"ready"`
+	Previews          []ClientOfflinePreview  `json:"previews"`
+	PreviewsAvailable int                     `json:"previews_available"`
+	Catalog           ClientCatalogStatus     `json:"catalog"`
+	Originals         []ClientOfflineOriginal `json:"originals"`
+	Available         int                     `json:"available"`
+	Missing           []string                `json:"missing"`
+	Ready             bool                    `json:"ready"`
 }
 
 // offlineSelectionSnapshot refreshes retained content and captures its catalog
@@ -89,6 +91,10 @@ func (c *Client) offlineSelectionSnapshot(ctx context.Context, owner string) (Cl
 	if err != nil {
 		return status, err
 	}
+	status.Previews, err = c.offlinePreviewsLocked(ctx, status.Originals)
+	if err != nil {
+		return status, err
+	}
 	status.Catalog, err = c.catalogStatusLocked()
 	if err != nil {
 		return status, err
@@ -105,7 +111,7 @@ func (c *Client) offlineSelectionSnapshot(ctx context.Context, owner string) (Cl
 	return status, nil
 }
 
-// OfflineStatus verifies every currently selected original. Ready describes
+// OfflineStatus verifies selected originals and required previews. Ready describes
 // the captured local view; it does not assert that an unreachable NAS has no
 // newer edits. Missing bytes and integrity failures remain distinct.
 func (c *Client) OfflineStatus(ctx context.Context, owner string) (ClientOfflineStatus, error) {
@@ -127,14 +133,28 @@ func (c *Client) OfflineStatus(ctx context.Context, owner string) (ClientOffline
 		}
 		status.Available++
 	}
-	status.Ready = len(status.Originals) > 0 && len(status.Missing) == 0
+	for i, preview := range status.Previews {
+		_, reader, err := c.OpenDerived(ctx, preview.Key, preview.Recipe)
+		if errors.Is(err, ErrNotCached) {
+			continue
+		}
+		if err != nil {
+			return status, err
+		}
+		if err := reader.Close(); err != nil {
+			return status, err
+		}
+		status.Previews[i].Available = true
+		status.PreviewsAvailable++
+	}
+	status.Ready = len(status.Originals) > 0 && len(status.Missing) == 0 && status.PreviewsAvailable == len(status.Previews)
 	return status, nil
 }
 
-// PrepareOffline downloads missing originals, retaining partial progress on
+// PrepareOffline prepares originals and previews, retaining partial progress on
 // failure. It rechecks the current selection after network I/O so changes made
 // during a download cannot inherit an obsolete readiness result.
-func (c *Client) PrepareOffline(ctx context.Context, owner string, source OriginalSource) (ClientOfflineStatus, error) {
+func (c *Client) PrepareOffline(ctx context.Context, owner string, source OriginalSource, renderers ...ClientRenderer) (ClientOfflineStatus, error) {
 	status, err := c.offlineSelectionSnapshot(ctx, owner)
 	if err != nil {
 		return status, err
@@ -154,6 +174,16 @@ func (c *Client) PrepareOffline(ctx context.Context, owner string, source Origin
 			return status, ErrNotCached
 		}
 		if err := c.CacheOriginal(ctx, original.Key, source); err != nil {
+			return status, err
+		}
+	}
+	var renderer ClientRenderer
+	if len(renderers) > 0 {
+		renderer = renderers[0]
+	}
+	derived, _ := source.(DerivedSource)
+	for _, preview := range status.Previews {
+		if err := c.prepareOfflinePreview(ctx, preview, derived, renderer); err != nil {
 			return status, err
 		}
 	}

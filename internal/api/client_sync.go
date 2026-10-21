@@ -83,11 +83,7 @@ func (s *Server) clientSyncRoutes() {
 		Owner string `path:"owner" minLength:"1" maxLength:"4096"`
 		Body  struct{}
 	}) (*output[library.ClientOfflineStatus], error) {
-		peer, err := s.clientPeer(ctx)
-		if err != nil {
-			return nil, failure(err)
-		}
-		status, err := s.client.PrepareOffline(ctx, in.Owner, peer)
+		status, err := s.client.PrepareOffline(ctx, in.Owner, syncclient.NewClientSource(s.client), s.clientRenderer)
 		return response(status, err)
 	})
 }

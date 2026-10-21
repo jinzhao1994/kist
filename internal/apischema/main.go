@@ -3,15 +3,20 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http/httptest"
 	"os"
 
 	"github.com/jinzhao1994/kist/internal/api"
+	"github.com/jinzhao1994/kist/internal/derive"
 	"github.com/jinzhao1994/kist/internal/library"
 )
 
 func run() error {
+	if len(os.Args) > 1 && os.Args[1] == "--preview-profiles" {
+		return json.NewEncoder(os.Stdout).Encode(derive.PreviewProfiles())
+	}
 	root, err := os.MkdirTemp("", "kist-schema-*")
 	if err != nil {
 		return err

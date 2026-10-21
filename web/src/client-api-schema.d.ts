@@ -1144,6 +1144,12 @@ export interface components {
             /** Format: int64 */
             size: number;
         };
+        ClientOfflinePreview: {
+            available: boolean;
+            files: string[] | null;
+            key: string;
+            recipe: string;
+        };
         ClientOfflineSelection: {
             files: string[] | null;
             filesets: string[] | null;
@@ -1154,6 +1160,9 @@ export interface components {
             catalog: components["schemas"]["ClientCatalogStatus"];
             missing: string[] | null;
             originals: components["schemas"]["ClientOfflineOriginal"][] | null;
+            previews: components["schemas"]["ClientOfflinePreview"][] | null;
+            /** Format: int64 */
+            previews_available: number;
             ready: boolean;
         };
         ClientPendingStatus: {

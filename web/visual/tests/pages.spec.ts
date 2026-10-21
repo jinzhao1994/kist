@@ -3043,6 +3043,15 @@ test("offline-retention-file", async ({ page }, info) => {
         json: {
           ready,
           available: ready ? 1 : 0,
+          previews_available: ready ? 1 : 0,
+          previews: [
+            {
+              key: "photo",
+              recipe: "thumb_512_v1",
+              files: ["file-1"],
+              available: ready,
+            },
+          ],
           originals: [{ key: "photo", size: 1024, files: ["file-1"] }],
           missing: ready ? [] : ["photo"],
           catalog: { complete: true },
@@ -3064,7 +3073,9 @@ test("offline-retention-file", async ({ page }, info) => {
     dialog.getByRole("button", { name: "保留并下载" }),
   ).toBeEnabled();
   await dialog.getByRole("button", { name: "保留并下载" }).click();
-  await expect(dialog).toContainText("所需原文件已全部准备好，可离线使用。");
+  await expect(dialog).toContainText(
+    "所需原文件和预览已全部准备好，可离线使用。",
+  );
   await expect(
     dialog
       .locator(".actions")

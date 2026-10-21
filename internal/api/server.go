@@ -42,6 +42,7 @@ type Server struct {
 	client         *library.Client
 	media          *library.Media
 	previews       mediaBackend
+	clientRenderer library.ClientRenderer
 	mux            *http.ServeMux
 	contract       huma.API
 	hosts          map[string]bool
@@ -146,6 +147,7 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 		s.clientLocalHistoryRoutes()
 		s.historyRoutes()
 		s.historicalRoutes()
+		s.clientRenderer = opt.ClientRenderer
 		s.previews = c.Media(func(ctx context.Context) (library.DerivedSource, error) { return s.clientPeer(ctx) }, opt.ClientRenderer)
 		s.mediaRoutes()
 		s.clientManagementRoutes()

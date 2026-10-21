@@ -1,3 +1,4 @@
+import { mediaProfile } from "./media-profile";
 import livePhotoIcon from "./assets/live-photo.svg?no-inline";
 import { Button } from "@mantine/core";
 import {
@@ -28,35 +29,22 @@ const SheetPreview = lazy(() => import("./SheetPreview"));
 const PDFReader = lazy(() => import("./PDFReader"));
 const GPXPreview = lazy(() => import("./GPXPreview"));
 function isGPX(file: ArchiveFile) {
-  return file.media_type === "application/gpx+xml" || /\.gpx$/i.test(file.name);
+  return mediaProfile(file)?.id === "gpx";
 }
-
 function isSTL(file: ArchiveFile) {
-  return file.media_type === "model/stl" || /\.stl$/i.test(file.name);
+  return mediaProfile(file)?.id === "stl";
 }
-
 export function isWord(file: ArchiveFile) {
-  return (
-    /\.docx?$/i.test(file.name) ||
-    file.media_type === "application/msword" ||
-    file.media_type ===
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-  );
+  return mediaProfile(file)?.id === "word";
 }
-
 function isPresentation(file: ArchiveFile) {
-  return (
-    /\.pptx?$/i.test(file.name) ||
-    file.media_type === "application/vnd.ms-powerpoint" ||
-    file.media_type ===
-      "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-  );
+  return mediaProfile(file)?.id === "slides";
 }
 function isOffice(file: ArchiveFile) {
   return isWord(file) || isPresentation(file);
 }
 export function usesPDFReader(file: ArchiveFile) {
-  return file.media_type === "application/pdf" || isOffice(file);
+  return mediaProfile(file)?.id === "pdf" || isOffice(file);
 }
 function officePDFRecipe(file: ArchiveFile) {
   return isPresentation(file) ? "slides_pdf_v1" : "office_pdf_v1";
@@ -65,17 +53,8 @@ function mediaKey(file: ArchiveFile, recipe: string) {
   return ["media", file.id, file.blob_key, recipe];
 }
 
-// Keep this aligned with the content endpoint's passive image allowlist.
-const originalImageTypes = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "image/bmp",
-  "image/x-icon",
-]);
 function usesOriginalImage(file: ArchiveFile) {
-  return file.kind === "image" && originalImageTypes.has(file.media_type || "");
+  return mediaProfile(file)?.id === "native-image";
 }
 function OriginalImage({ file }: { file: ArchiveFile }) {
   const { t } = useI18n();
@@ -120,14 +99,7 @@ export function OpenMediaButton({ file }: { file: ArchiveFile }) {
 }
 
 export function hasDerivedMedia(file: ArchiveFile) {
-  return (
-    file.kind === "image" ||
-    file.kind === "video" ||
-    file.media_type === "application/pdf" ||
-    isSTL(file) ||
-    isGPX(file) ||
-    isOffice(file)
-  );
+  return !!mediaProfile(file);
 }
 const audioTypes = new Set([
   "audio/mpeg",
@@ -344,25 +316,9 @@ export function Media({
     player.current = node;
   }, []);
   const client = useQueryClient();
-  const recipe = isOffice(file)
-    ? detail
-      ? officePDFRecipe(file)
-      : isPresentation(file)
-        ? "slides_thumb_512_v1"
-        : "office_thumb_512_v1"
-    : isGPX(file)
-      ? "gpx_map_v1"
-      : isSTL(file)
-        ? detail
-          ? "stl_preview_2048_v1"
-          : "stl_thumb_512_v1"
-        : detail
-          ? file.kind === "video"
-            ? "preview_1080p_v1"
-            : "preview_2048_v1"
-          : file.kind === "video"
-            ? "video_thumb_512_v2"
-            : "thumb_512_v1";
+  const profile = mediaProfile(file);
+  const recipe =
+    (detail ? profile?.detail : profile?.thumbnail) || "thumb_512_v1";
   const path = mediaPath(file, recipe);
   const key = mediaKey(file, recipe);
   const readerPDF = detail && file.media_type === "application/pdf";

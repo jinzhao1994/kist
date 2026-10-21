@@ -103,10 +103,11 @@ can be checked by a later rebuild. Offline selections, pending operations and
 protected local originals are not removed by cache pruning or rebuilding.
 
 These byte totals describe the disposable content cache, not total laptop disk
-usage. Accounting and lifecycle management of protected local originals, offline
-preview derivatives and the web interface remain under development.
+usage. Preview outputs and conversion workspaces share the cache budget. Protected
+local originals are counted separately in client status. The complete offline
+workflow and fault-recovery acceptance are still under development.
 
-## Prepare selected originals for offline use
+## Prepare selected content for offline use
 
 Save a named selection using IDs from the synchronized catalog. Files can belong
 to different boxes; a fileset uses its folder ID. Repeat either flag as needed:
@@ -125,7 +126,9 @@ explicit primary, including all Live Photo components and subtitle tracks.
 Unrelated files in the same directory are not included automatically. Overlapping
 selections share content; removing one does not cancel another's retention.
 
-`prepare` resumes missing downloads and verifies complete content. New local
+`prepare` resumes missing original downloads and prepares the thumbnail and detail
+previews used by the web interface. It uses local conversion tools when available
+and can fetch derived previews from the NAS otherwise. New local
 originals awaiting upload are already usable and are not duplicated into cache.
 `status` works offline and reports verified availability against the captured
 local view and its catalog boundary. It does not assert that the NAS has no newer
@@ -136,6 +139,10 @@ bytes, so newly selected cached members remain protected without another prepare
 A missing target is an error, not an empty successful selection; its previous
 retention is preserved until the selection is corrected or removed.
 
-Readiness currently covers original bytes, not every derived preview format.
+Readiness requires both originals and required previews to be available. The
+status reports their counts separately. Missing conversion tools or an unreachable
+NAS can leave preparation incomplete; retry after providing either. Already
+prepared content needs no NAS connection. This includes nested fileset members,
+while external map backgrounds may still be unavailable offline.
 Removing a selection leaves its cached bytes eligible for normal pruning; it does
 not delete archive files or unsynchronized originals.

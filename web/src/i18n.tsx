@@ -13,9 +13,11 @@ export const en = {
     "Retain every configured member, including nested file sets and Live Photo video.",
   clientKeepFileHint: "Retain this original on the laptop for offline use.",
   clientRetentionSaved: "Offline retention is enabled.",
-  clientOfflineReady: "All required originals are available offline.",
+  clientOfflinePreviews: "{ready} of {total} previews available.",
+  clientOfflineReady:
+    "All required originals and previews are available offline.",
   clientOfflineMissing:
-    "{ready} of {total} originals available. More content needs downloading.",
+    "{ready} of {total} originals available. More content still needs preparing.",
   clientPrepareAgain: "Check and download",
   clientKeepAndPrepare: "Retain and download",
   clientStopKeeping: "Stop retaining offline",
@@ -619,8 +621,9 @@ export const zh: Record<MessageKey, string> = {
     "保留组合配置中的全部成员，包括嵌套组合和实况照片的视频。",
   clientKeepFileHint: "将此原文件保留在笔记本上，以便断网时使用。",
   clientRetentionSaved: "已启用离线保留。",
-  clientOfflineReady: "所需原文件已全部准备好，可离线使用。",
-  clientOfflineMissing: "已准备 {ready} / {total} 个原文件，仍有内容需要下载。",
+  clientOfflinePreviews: "已准备 {ready} / {total} 个预览。",
+  clientOfflineReady: "所需原文件和预览已全部准备好，可离线使用。",
+  clientOfflineMissing: "已准备 {ready} / {total} 个原文件，仍有内容需要准备。",
   clientPrepareAgain: "检查并下载",
   clientKeepAndPrepare: "保留并下载",
   clientStopKeeping: "取消离线保留",
@@ -1228,6 +1231,7 @@ export function initializeLanguage() {
 }
 interface Parameters {
   clientOfflineMissing: { ready: number; total: number };
+  clientOfflinePreviews: { ready: number; total: number };
   clientPending: { count: number };
   clientCacheUsed: { size: string };
   clientPinnedUsed: { size: string };

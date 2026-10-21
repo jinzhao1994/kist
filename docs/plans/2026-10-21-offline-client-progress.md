@@ -506,3 +506,10 @@ c86910b 原文件迁移阶段已推送，CI 39624124913 与 Secret scan 39624124
 真实 Chrome 离线验收通过：NAS 19591 无监听，合成客户端 19592 上传 PNG 与 `pattern.heic`，网格缩略图均解码显示；HEIC 详情 ready、engine=libheif，页面错误为空，转换后 partial/reserved 都为 0。随后上传 FFmpeg 生成的 1 秒 MP4，客户端 engine=ffmpeg、ready，Chrome 实际播放时间推进到 0.127859 秒，页面错误为空。日志 `/tmp/kist-local-previews-browser.log`、`/tmp/kist-local-video-browser.log`；截图 `/tmp/kist-local-previews-offline.png`、`/tmp/kist-local-video-offline.png` 已逐张查看。隔离演示 box 为 `01a15f42-dbc4-7d84-9a61-7bb6a7cec8c6`，HEIC 为 `01a15f42-dd09-7850-9ac7-6bae1829da34`，视频为 `01a15f43-ac63-74e5-9f80-4523fbb894fc`；原客户端旧进程 14598 已正常停止，新服务会话 94665 继续运行。
 
 20c33e0 的 CI 39631069067 首次失败原因是 macOS arm64 作业未获得 hosted runner（steps 为空），其他代码、平台和容器任务通过；已仅重跑失败作业，尚排队。Visual 39631069081 全部通过。下一步仍须将派生依赖纳入“准备离线”的完整就绪判断，继续冲突编辑 UI 与完整故障/回归矩阵，不把本地预览阶段当作 Goal 完成。
+
+
+离线预览准备阶段：将原件和缩略图/详情预览共同纳入 OfflineStatus 与 PrepareOffline；网页增加预览完成数量，CLI 同步输出。共享 derive 规则表生成前端选择表，原件同哈希但不同格式名称的依赖取并集；本地可生成时不读取连接凭据，远端排队等待可取消。补充本地 PNG 原件已在但缩略图未就绪、生成后保留/降低配额、缓存字节丢失、准备期间取消选择、GPX 配方去重与跨格式共享内容、NAS 预览下载及断网复用测试。前端 Media/profile/OfflineEntry 39 项通过，包括原件已齐全而预览缺少时仍发起准备。完整检查与正式视觉仍待执行。
+
+546ec99 的 CI 39634360031、Visual 39634360137、Secret scan 39634360094 均通过。20c33e0 的失败作业重试被新提交取消；最新完整 CI 已包含其全部代码并通过。
+
+离线预览准备完整 make check 通过（16778 退出 0，`/tmp/kist-offline-previews-complete-check.log`），前端 274 项、library race 213.726 秒。真实 Chrome 隔离验收通过：NAS 19591 无监听，客户端 19592 更新构建后，通过缓存配额清理可逐出预览；HEIC 初始原件 1/1、预览 0/2、ready=false，经“检查并下载”在本机生成后显示预览 2/2、ready=true，pageErrors 为空。日志 `/tmp/kist-offline-preparation-browser.log`，截图 `/tmp/kist-offline-preparation-browser.png` 已查看；新版演示服务会话 29059。正式视觉待本阶段推送后验证，Goal 仍有冲突编辑、批量准备与完整故障验收等未完成范围。

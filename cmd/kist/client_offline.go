@@ -57,7 +57,7 @@ func newClientOfflineCmd() *cobra.Command {
 			count = 1
 			use = action + " DIRECTORY"
 		}
-		root.AddCommand(&cobra.Command{Use: use, Short: map[string]string{"list": "List saved offline selections", "remove": "Cancel one selection's retention without deleting files", "status": "Verify selected content available on this laptop", "prepare": "Download missing selected originals from the configured NAS"}[action], Args: cobra.ExactArgs(count), RunE: func(cmd *cobra.Command, args []string) error {
+		root.AddCommand(&cobra.Command{Use: use, Short: map[string]string{"list": "List saved offline selections", "remove": "Cancel one selection's retention without deleting files", "status": "Verify selected content available on this laptop", "prepare": "Prepare selected originals and previews for offline use"}[action], Args: cobra.ExactArgs(count), RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := library.OpenClient(cmd.Context(), args[0])
 			if err != nil {
 				return err
@@ -97,21 +97,13 @@ func newClientOfflineCmd() *cobra.Command {
 					return err
 				}
 				if action == "prepare" && !status.Ready {
-					connection, token, err := client.Connection(cmd.Context())
-					if err != nil {
-						return err
-					}
-					peer, err := syncclient.New(connection.Server, token, syncclient.Options{AllowHTTP: connection.AllowHTTP})
-					if err != nil {
-						return err
-					}
-					status, err = client.PrepareOffline(cmd.Context(), args[1], peer)
+					status, err = client.PrepareOffline(cmd.Context(), args[1], syncclient.NewClientSource(client), runClientRenderer)
 					if err != nil {
 						return err
 					}
 				}
 				return emit(cmd, status, func(w io.Writer) error {
-					_, err := fmt.Fprintf(w, "Ready: %t\nAvailable originals: %d / %d\nMissing originals: %d\n", status.Ready, status.Available, len(status.Originals), len(status.Missing))
+					_, err := fmt.Fprintf(w, "Ready: %t\nAvailable originals: %d / %d\nMissing originals: %d\nAvailable previews: %d / %d\n", status.Ready, status.Available, len(status.Originals), len(status.Missing), status.PreviewsAvailable, len(status.Previews))
 					return err
 				})
 			}

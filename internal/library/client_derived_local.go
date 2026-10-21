@@ -54,6 +54,11 @@ func (c *Client) GenerateDerived(ctx context.Context, original, recipe string, r
 		return SyncDerived{}, err
 	}
 	defer release()
+	if d, r, err := c.OpenDerived(ctx, original, recipe); err == nil {
+		return d, r.Close()
+	} else if !errors.Is(err, ErrNotCached) {
+		return d, err
+	}
 	reader, err := c.OpenOriginal(ctx, original)
 	if err != nil {
 		return SyncDerived{}, err

@@ -7,6 +7,7 @@ import { I18nProvider, storageKey } from "./i18n";
 import { ThemeProvider } from "./theme";
 let pins: Record<string, unknown>;
 let available: boolean;
+let previewsAvailable: boolean;
 let fail: boolean;
 let writes: { path: string; method: string; body: any }[];
 beforeEach(() => {
@@ -22,6 +23,7 @@ beforeEach(() => {
   );
   pins = {};
   available = false;
+  previewsAvailable = false;
   fail = false;
   writes = [];
   vi.stubGlobal(
@@ -44,13 +46,22 @@ beforeEach(() => {
               { status: 503 },
             );
           available = true;
+          previewsAvailable = true;
         }
       }
       const body = path.endsWith("/offline")
         ? pins
         : {
-            ready: available,
+            ready: available && previewsAvailable,
             available: available ? 2 : 0,
+            previews_available: previewsAvailable ? 1 : 0,
+            previews: [
+              {
+                key: "video",
+                recipe: "preview_1080p_v1",
+                available: previewsAvailable,
+              },
+            ],
             originals: [{ key: "photo" }, { key: "video" }],
             missing: available ? [] : ["photo", "video"],
             catalog: { complete: true },
@@ -93,7 +104,9 @@ it("retains the fileset identity before downloading its members", async () => {
     "/api/v1/client/offline/fileset%3Aentry-1/prepare",
   );
   expect(
-    await screen.findByText("All required originals are available offline."),
+    await screen.findByText(
+      "All required originals and previews are available offline.",
+    ),
   ).toBeVisible();
 });
 it("keeps retention after a failed download without claiming readiness", async () => {
@@ -105,7 +118,9 @@ it("keeps retention after a failed download without claiming readiness", async (
   expect(await screen.findByText(/NAS unavailable/)).toBeVisible();
   expect(screen.getByText("Offline retention is enabled.")).toBeVisible();
   expect(
-    screen.queryByText("All required originals are available offline."),
+    screen.queryByText(
+      "All required originals and previews are available offline.",
+    ),
   ).not.toBeInTheDocument();
   await userEvent.click(
     screen.getByRole("button", { name: "Stop retaining offline" }),
@@ -115,12 +130,15 @@ it("keeps retention after a failed download without claiming readiness", async (
 });
 it("does not contact the NAS for an already available local file", async () => {
   available = true;
+  previewsAvailable = true;
   setup(false);
   await userEvent.click(
     await screen.findByRole("button", { name: "Retain and download" }),
   );
   expect(
-    await screen.findByText("All required originals are available offline."),
+    await screen.findByText(
+      "All required originals and previews are available offline.",
+    ),
   ).toBeVisible();
   expect(writes).toEqual([
     {
@@ -129,4 +147,25 @@ it("does not contact the NAS for an already available local file", async () => {
       body: { files: ["entry-1"], filesets: [] },
     },
   ]);
+});
+
+it("prepares previews even when every original is already local", async () => {
+  available = true;
+  pins["fileset:entry-1"] = { files: [], filesets: ["entry-1"] };
+  setup();
+  expect(await screen.findByText("0 of 1 previews available.")).toBeVisible();
+  expect(
+    screen.queryByText(
+      "All required originals and previews are available offline.",
+    ),
+  ).not.toBeInTheDocument();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Check and download" }),
+  );
+  expect(
+    await screen.findByText(
+      "All required originals and previews are available offline.",
+    ),
+  ).toBeVisible();
+  expect(writes.some((write) => write.path.endsWith("/prepare"))).toBe(true);
 });
