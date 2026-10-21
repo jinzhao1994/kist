@@ -7,6 +7,7 @@ import (
 	"image"
 	"image/png"
 	"io"
+	"net"
 	"os"
 	osexec "os/exec"
 	"path/filepath"
@@ -33,6 +34,40 @@ func TestClientRenderSubprocess(t *testing.T) {
 	// Bound helper lifetime even if a broken pipe implementation would leak it.
 	time.AfterFunc(15*time.Second, func() { os.Exit(3) })
 	switch mode {
+	case "converter":
+		conn, err := net.Dial("tcp", os.Getenv("KIST_TEST_RENDER_SOCKET"))
+		if err != nil {
+			os.Exit(1)
+		}
+		defer conn.Close()
+		output := os.Getenv("KIST_TEST_RENDER_OUTPUT")
+		file, err := os.Create(output)
+		if err != nil {
+			os.Exit(1)
+		}
+		defer file.Close()
+		if _, err = file.Write([]byte("partial preview")); err != nil {
+			os.Exit(1)
+		}
+		if _, err = io.WriteString(conn, output+"\n"); err != nil {
+			os.Exit(1)
+		}
+		// The parent test observes socket EOF when the real renderer kills this
+		// external process. No PID polling or shell child lifetime assumptions.
+		for {
+			time.Sleep(time.Second)
+		}
+	case "render-parent":
+		ctx := context.Background()
+		c, err := library.OpenClient(ctx, os.Getenv("KIST_TEST_RENDER_ROOT"))
+		if err != nil {
+			os.Exit(1)
+		}
+		defer c.Close()
+		render := func(ctx context.Context, request library.ClientRenderRequest) (derive.Result, error) {
+			return runClientRendererCommand(ctx, request, renderHelperCommand(ctx, "worker"))
+		}
+		_, _ = c.GenerateDerived(ctx, os.Getenv("KIST_TEST_RENDER_ORIGINAL"), derive.Video, render)
 	case "worker":
 		if err := newClientRenderCmd().Execute(); err != nil {
 			os.Exit(1)

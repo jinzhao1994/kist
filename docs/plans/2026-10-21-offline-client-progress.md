@@ -550,3 +550,9 @@ c86910b 原文件迁移阶段已推送，CI 39624124913 与 Secret scan 39624124
 3385714 的 CI 39643218000 和 Secret scan 39643218032 均已通过。Visual 39643218095 的两套采集完整（candidate 142、baseline 141，无失败/跳过/重试），仅 offline-client-cache 的预期内容变化与新增 fileset-conflict，旧菜单差异本轮未出现。缓存页全尺寸审阅发现 900px 高度下底部关闭按钮需要滚动，故未立即接受；将保留项名称/数量合为紧凑一行，随本批量阶段重新采集。新增深色批量选择场景；最终完整检查 `/tmp/kist-batch-final-check.log`（31286）正在运行。
 
 本批量阶段最终 make check 已通过（31286 退出 0，`/tmp/kist-batch-final-check.log`）。紧凑缓存布局已用最终二进制在真实 Chrome 1280×900 验证，两个保留项的名称与数量同行，关闭按钮完整处于视口内（`/tmp/kist-retention-compact-browser.log`，截图已查看）；隔离客户端最新会话 30380。准备提交本阶段，正式批量五场景和缓存布局仍需新提交的 Visual 核验。
+
+外部转换进程故障验收：此前取消/主服务崩溃测试仅用模拟 control worker，不足以证明实际 RenderWorkspace 会停止外部工具。新增 `cmd/kist/client_render_external_test.go`：经真实 worker、真实租约/预算与 derive 的 ffprobe/ffmpeg 调用路径，启动受控独立转换进程，TCP 连接仅用于观察进程句柄关闭（不轮询 PID）。分别取消调用和强杀主服务，验证外部转换器退出、返回前加入退出、其他客户端不能清理活跃工作目录、退出后 partial/reserved 清零、半成品未发布、pending 原件仍可读。测试仅 Unix（shell 使用 exec 转交到测试二进制，不留下额外 shell 子进程），不冒充 Windows 进程树保证。针对性 race 5.311 秒通过（`/tmp/kist-external-render-recovery.log`）；完整检查 `/tmp/kist-external-render-complete-check.log`（84262）正在执行。
+
+监督 worker 自身被 SIGKILL 仍是独立未收口边界：现有外部工具不独立持有工作目录租约，不能用本次“主服务退出 → worker 收到 EOF”证据证明它们在 worker 自身消失后必然退出。Windows 的外部进程树、这一路强杀与其配额保护继续列入完整验收，不把本次测试阶段算作整个故障矩阵完成。
+
+外部转换故障回归完整 make check 已通过（84262 退出 0，`/tmp/kist-external-render-complete-check.log`），新增实际进程用例纳入默认 Unix 测试，其他平台仍编译现有 helper。该阶段只增加验收证据，没有改变产品故障语义；上述监督进程自身强杀风险仍未解决，Goal 保持进行中。
