@@ -252,6 +252,11 @@ func TestAPICannotWriteDirectly(t *testing.T) {
 		"The HTTP API must write through library, preserving journal ordering and request deduplication.")
 }
 
+func TestSyncTransportCannotWriteDirectly(t *testing.T) {
+	forbid(t, "internal/syncclient", []string{"internal/store", "internal/oplog", "internal/journal", "internal/upload", "internal/projection"},
+		"Sync transport exchanges protocol messages; library alone owns archive and pending state transitions.")
+}
+
 // Media decoders cannot alter archive semantics or inspect materialized views.
 func TestDeriveIsIndependent(t *testing.T) {
 	if got := imports(t, "internal/derive"); len(got) != 0 {
