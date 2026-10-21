@@ -74,6 +74,7 @@ export function Select({
     return (
       <Combobox
         store={store}
+        keepMounted={false}
         withinPortal
         returnFocus
         onOptionSubmit={(next) => {

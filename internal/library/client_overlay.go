@@ -206,5 +206,12 @@ func clientPendingRow(tx *sql.Tx, p SyncProposal, id int64, localIDs map[string]
 		}
 		row.Action, row.Payload, row.RevertsID = string(action), raw, &targetID
 	}
+	if p.Deletion != nil {
+		var err error
+		row.Payload, err = rebaseSyncDeletion(store.NewViewTx(tx, row.TS), p.Deletion, oplog.Action(row.Action), row.Payload, references)
+		if err != nil {
+			return row, err
+		}
+	}
 	return row, nil
 }

@@ -1431,6 +1431,7 @@ export interface components {
         };
         SyncCapabilities: {
             actions: string[] | null;
+            deletion_snapshots: boolean;
             /** Format: int64 */
             journal_version: number;
             library_id: string;
@@ -1457,6 +1458,10 @@ export interface components {
             /** Format: int64 */
             next: number;
         };
+        SyncDeletionBasis: {
+            box: string;
+            last: string;
+        };
         SyncFileState: {
             blob_key: string;
             id: string;
@@ -1478,6 +1483,7 @@ export interface components {
         };
         SyncProposal: {
             action?: string;
+            deletion?: components["schemas"]["SyncDeletionBasis"];
             files?: components["schemas"]["SyncFileState"][] | null;
             group?: components["schemas"]["SyncReference"];
             id: string;

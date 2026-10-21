@@ -3,6 +3,8 @@ package library
 import (
 	"context"
 	"fmt"
+	"github.com/jinzhao1994/kist/internal/config"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -29,6 +31,14 @@ func openTestLibrary(t *testing.T) *Library {
 	root := t.TempDir()
 	if _, err := Create(context.Background(), root); err != nil {
 		t.Fatalf("Create: %v", err)
+	}
+	cfg, err := config.Load(filepath.Join(root, "kist.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Library.Timezone = "UTC"
+	if err := config.Save(filepath.Join(root, "kist.toml"), cfg); err != nil {
+		t.Fatal(err)
 	}
 	l, err := Open(root, WithClock(fixedClock()))
 	if err != nil {

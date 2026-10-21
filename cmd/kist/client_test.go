@@ -23,6 +23,9 @@ func clientNAS(t *testing.T, timezone ...string) (*library.Library, *httptest.Se
 	if _, err := library.Create(t.Context(), root); err != nil {
 		t.Fatal(err)
 	}
+	if len(timezone) == 0 {
+		timezone = []string{"UTC"}
+	}
 	if len(timezone) > 0 {
 		path := filepath.Join(root, "kist.toml")
 		cfg, err := config.Load(path)

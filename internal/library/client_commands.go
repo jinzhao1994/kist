@@ -13,23 +13,34 @@ import (
 // commandLock shares the enclosing request lock when present. Holding the scope
 // mutex also prevents concurrent callbacks from generating two different edits.
 func (c *Client) commandLock(ctx context.Context) (*clientRequestScope, func(), error) {
+	scope, _, release, err := c.commandViewLock(ctx)
+	return scope, release, err
+}
+
+func (c *Client) commandViewLock(ctx context.Context) (*clientRequestScope, clientOverlay, func(), error) {
 	if scope, ok := ctx.Value(clientRequestContextKey{}).(*clientRequestScope); ok {
 		scope.mu.Lock()
 		if !scope.active || scope.client != c || scope.attempted {
 			scope.mu.Unlock()
-			return nil, nil, ErrRequestScope
+			return nil, clientOverlay{}, nil, ErrRequestScope
 		}
-		return scope, scope.mu.Unlock, nil
+		view, err := c.rebuildLocked(ctx)
+		if err != nil {
+			scope.mu.Unlock()
+			return nil, view, nil, err
+		}
+		return scope, view, scope.mu.Unlock, nil
 	}
 	release, err := c.lock.Acquire(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, clientOverlay{}, nil, err
 	}
-	if _, err := c.rebuildLocked(ctx); err != nil {
+	view, err := c.rebuildLocked(ctx)
+	if err != nil {
 		release()
-		return nil, nil, err
+		return nil, view, nil, err
 	}
-	return nil, release, nil
+	return nil, view, release, nil
 }
 
 func (c *Client) commandWriteLocked(ctx context.Context, scope *clientRequestScope, action oplog.Action, payload any) error {

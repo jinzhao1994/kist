@@ -40,47 +40,54 @@ func (l *Library) SetFileset(ctx context.Context, box domain.BoxID, id domain.Fo
 func (l *Library) entryFilesetChanges(ctx context.Context, s domain.EntryContents) ([]oplog.FilesetPayload, error) {
 	var changes []oplog.FilesetPayload
 	err := l.readTx(ctx, func(tx *store.ViewTx) error {
-		all, err := store.Filesets(tx.Queryer())
-		if err != nil {
-			return err
-		}
-		removedFiles := map[domain.FileID]bool{}
-		removedFolders := map[domain.FolderID]bool{}
-		for _, f := range s.Files {
-			removedFiles[f.File.ID] = true
-		}
-		for _, f := range s.Folders {
-			removedFolders[f.ID] = true
-		}
-		for _, before := range all {
-			if removedFolders[before.FolderID] {
-				continue
-			}
-			if removedFiles[before.Primary] {
-				return fmt.Errorf("choose another primary file before deleting it: %w", ErrInvalidRequest)
-			}
-			after := before
-			after.Members = nil
-			for _, m := range before.Members {
-				if !removedFiles[m.FileID] && !removedFolders[m.FolderID] {
-					after.Members = append(after.Members, m)
-				}
-			}
-			if domain.EqualFileset(&before, &after) {
-				continue
-			}
-			owner, ok, err := tx.EntryContents(s.BoxID, before.FolderID.ID, true)
-			if err != nil {
-				return err
-			}
-			if !ok {
-				return ErrInvalidRequest
-			}
-			changes = append(changes, oplog.FilesetPayload{BoxID: s.BoxID, FolderID: before.FolderID, Ancestors: append([]domain.FolderID{before.FolderID}, owner.Ancestors...), Before: &before, After: &after})
-		}
-		return nil
+		var err error
+		changes, err = entryFilesetChanges(tx, s)
+		return err
 	})
 	return changes, err
+}
+
+func entryFilesetChanges(tx *store.ViewTx, s domain.EntryContents) ([]oplog.FilesetPayload, error) {
+	var changes []oplog.FilesetPayload
+	all, err := store.Filesets(tx.Queryer())
+	if err != nil {
+		return nil, err
+	}
+	removedFiles := map[domain.FileID]bool{}
+	removedFolders := map[domain.FolderID]bool{}
+	for _, f := range s.Files {
+		removedFiles[f.File.ID] = true
+	}
+	for _, f := range s.Folders {
+		removedFolders[f.ID] = true
+	}
+	for _, before := range all {
+		if removedFolders[before.FolderID] {
+			continue
+		}
+		if removedFiles[before.Primary] {
+			return nil, fmt.Errorf("choose another primary file before deleting it: %w", ErrInvalidRequest)
+		}
+		after := before
+		after.Members = nil
+		for _, m := range before.Members {
+			if !removedFiles[m.FileID] && !removedFolders[m.FolderID] {
+				after.Members = append(after.Members, m)
+			}
+		}
+		if domain.EqualFileset(&before, &after) {
+			continue
+		}
+		owner, ok, err := tx.EntryContents(s.BoxID, before.FolderID.ID, true)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, ErrInvalidRequest
+		}
+		changes = append(changes, oplog.FilesetPayload{BoxID: s.BoxID, FolderID: before.FolderID, Ancestors: append([]domain.FolderID{before.FolderID}, owner.Ancestors...), Before: &before, After: &after})
+	}
+	return changes, nil
 }
 
 // BrowseEntry carries the stable presentation identity separately from the primary.

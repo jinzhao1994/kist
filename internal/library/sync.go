@@ -91,16 +91,17 @@ type SyncFileState struct {
 // SyncProposal is an immutable offline intent, not a copied NAS log line.
 // Undo carries only a reference: the NAS computes the exact authoritative inverse.
 type SyncProposal struct {
-	Version    int             `json:"version"`
-	ID         string          `json:"id"`
-	OccurredAt time.Time       `json:"occurred_at"`
-	Action     string          `json:"action,omitempty"`
-	Origin     string          `json:"origin"`
-	Payload    json.RawMessage `json:"payload,omitempty"`
-	Undo       *SyncReference  `json:"undo,omitempty"`
-	Group      *SyncReference  `json:"group,omitempty"`
-	Requires   []string        `json:"requires,omitempty"`
-	Files      []SyncFileState `json:"files,omitempty"`
+	Deletion   *SyncDeletionBasis `json:"deletion,omitempty"`
+	Version    int                `json:"version"`
+	ID         string             `json:"id"`
+	OccurredAt time.Time          `json:"occurred_at"`
+	Action     string             `json:"action,omitempty"`
+	Origin     string             `json:"origin"`
+	Payload    json.RawMessage    `json:"payload,omitempty"`
+	Undo       *SyncReference     `json:"undo,omitempty"`
+	Group      *SyncReference     `json:"group,omitempty"`
+	Requires   []string           `json:"requires,omitempty"`
+	Files      []SyncFileState    `json:"files,omitempty"`
 }
 
 type SyncResult struct {
@@ -135,8 +136,18 @@ func SyncActions() []string {
 }
 
 func (p SyncProposal) digest() (string, error) {
-	if p.Version != 1 {
+	if (p.Version != 1 || p.Deletion != nil) && (p.Version != 2 || p.Deletion == nil) {
 		return "", ErrSyncVersion
+	}
+	if p.Deletion != nil {
+		if p.Undo != nil || p.Deletion.Box.IsZero() || p.Deletion.Last == "" || p.Origin != "user" {
+			return "", ErrInvalidRequest
+		}
+		switch oplog.Action(p.Action) {
+		case oplog.ActionDeleteBoxContents, oplog.ActionDeleteEntryContents, oplog.ActionDeleteFilesetEntry:
+		default:
+			return "", ErrInvalidRequest
+		}
 	}
 	if p.OccurredAt.IsZero() || !time.Unix(0, p.OccurredAt.UnixNano()).Equal(p.OccurredAt) {
 		return "", ErrInvalidRequest
@@ -248,6 +259,16 @@ func (l *Library) AcceptSync(ctx context.Context, p SyncProposal) (result SyncRe
 			return SyncResult{}, ErrSyncVersion
 		}
 		opt.RevertsID = &id
+	}
+	if p.Deletion != nil {
+		err = l.readTx(ctx, func(tx *store.ViewTx) error {
+			var err error
+			raw, err = rebaseSyncDeletion(tx, p.Deletion, action, raw, nil)
+			return err
+		})
+		if err != nil {
+			return SyncResult{}, err
+		}
 	}
 	if err = l.checkSyncFileStates(ctx, action, raw, p.Files, p.Undo != nil); err != nil {
 		return SyncResult{}, err

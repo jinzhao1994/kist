@@ -7,6 +7,9 @@ BIN     := bin/kist
 DIST    := dist
 PKG     := github.com/jinzhao1994/kist
 
+# The complete SQLite replay race suite can exceed Go's default package deadline.
+GO_TEST_TIMEOUT ?= 20m
+
 # Release builds inject the git tag; local builds report "dev" plus the commit
 # that the Go toolchain stamps in automatically.
 VERSION ?=
@@ -48,7 +51,7 @@ vet:
 
 .PHONY: test
 test:
-	go test -race ./...
+	go test -race -timeout=$(GO_TEST_TIMEOUT) ./...
 
 .PHONY: build
 build: web-build ## Build for the host platform into bin/

@@ -207,3 +207,59 @@
 3. 按需内容缓存、配额/年龄、租用保护、离线保留、fileset 依赖及未上传内容独立统计。
 4. 网页离线提示、准备离线、同步进度、冲突解决与历史。
 5. NAS/客户端双实例完整验收、跨平台 CI、视觉审阅、操作文档与逐项完成审计。
+
+
+### 离线删除与恢复（实施中，尚未提交）
+
+时区阶段 `ff029d5` 已提交并推送；CI `39546249948`、Visual `39546249957` 仍在运行，Secret scan 已通过。旧 Visual 重跑 `39545303426` 被新提交取消，没有通过证据，继续以新提交的完整采集结果为准。
+
+新增客户端条目/整盒删除预览与命令，revision 绑定库、对象、语义快照、fileset 变更及最近 box 操作的稳定身份；复用 NAS 成员删除规则及现有严格撤销。同步接纳重算的创建/更新时间不参与 revision，但仍保留在真实删除 payload。`/tmp/kist-client-deletion-targeted.log` 的三项测试通过：确认跨接纳稳定、同 box 后续修改使确认失效、整盒删除与本地恢复后同步。
+
+新增更严格的连续离线操作回归 `TestClientDeletionAfterPendingRenameSynchronizes` 后发现尚未解决的问题：rename 接纳时间改变文件 UpdatedAt，后续 delete 的完整快照仍是原始本地时间；NAS 拒绝自身连续意图。复现日志 `/tmp/kist-client-deletion-pending-time.log`，当前失败，不提交、不宣称删除功能完成。下一步需在合并与本地 rebase 层依据稳定前提生成合法快照，保留原提案及摘要，不放宽旧 Apply 的严格状态比较，也不能简单忽略所有时间而掩盖实际并发修改。需追加 NAS 并发修改、nested fileset、reopen 与恢复检查，再运行完整 make check。
+
+
+删除时间回归已修复：新增仅用于删除快照的提案 v2 与 deletion_snapshots 能力，NAS/客户端共用稳定 box 前提与完整语义比较后生成当前快照；不修改旧 Apply。`/tmp/kist-client-deletion-rebase.log` 与 `/tmp/kist-client-deletion-race.log` 均通过，后者覆盖 NAS 改后又改回仍冲突、嵌套 Live Photo 页删除/撤销恢复及 NAS rebuild。API 类型重新生成成功。
+
+时区提交的 CI `39546249948` 在 Windows 失败，原因是测试默认库依赖系统探测，而 Windows fixture 未设置可移植时区；明确 Local 拒绝语义没有改变。已将 library、CLI、真实 HTTP 传输测试库配置为显式 UTC，保留专门的非 UTC 与非法时区覆盖。Visual `39546249957` 仍待结果。开始包含上述修复的完整检查 `/tmp/kist-client-deletion-full-check.log`，本阶段尚未提交。
+
+
+Visual `39546249957` 已通过完整采集比较，旧菜单单行像素差异未复现，未修改基准。删除阶段首次完整检查 `/tmp/kist-client-deletion-full-check.log` 退出 2，前端 248 测试中 16 项超时，未报告断言失败；当时多个 Vitest worker 同时高 CPU。已确认该进程结束后，以工具支持的 `VITEST_MAX_WORKERS=2 make check` 重跑完整流程，日志 `/tmp/kist-client-deletion-limited-check.log`。未增加超时、修改测试断言或跳过测试；待结果验证资源争用假设。
+
+
+降低并发的完整检查已退出 2：37/38 文件、246/248 测试通过，仅 theme.test.tsx 前两项超时。单独 `--maxWorkers=1` 运行仍为相同两项超时（`/tmp/kist-theme-isolated.log`）；因此不能仅归因并发争用。相关 Settings/theme 源码及依赖无本阶段差异。已采集独立 worker CPU profile：`/tmp/kist-theme-profile/CPU.20261021.130704.67187.0.001.cpuprofile`，主要自耗时在 React 开发 JSX 创建、Mantine Box 和 DOM selector，尚未作根因结论；未扩大超时、弱化断言或提交当前阶段。所有检查进程已结束，下一步继续定位两项测试耗时并恢复完整验收。
+
+
+设置页超时根因进一步定位到共享可搜索 Select：Mantine Combobox 默认 keepMounted=true，关闭时仍渲染数百个时区选项。复用组件自带 keepMounted=false，保留原搜索、焦点与关闭过渡实现，不新增样式或提高超时。单独原 theme 测试 `/tmp/kist-theme-unmount.log` 全部 4 项通过（此前相同单 worker 为 2 项超时）；完整检查继续使用两个 worker，并需由视觉 CI 验证共享选择器各场景。开始 `/tmp/kist-client-deletion-final-check.log`。
+
+
+`/tmp/kist-client-deletion-final-check.log` 的完整前端测试已通过：38 个文件、248 项测试全部通过，保留默认超时与原断言。整个 make check 进程仍在执行后续构建/Go 检查，尚不能记为完整通过；继续等待同一进程。
+
+
+最终完整检查在 Go library 包累计 10 分钟总时限处被中止（退出 2），其余包通过；当前 TestRebuildReloadsTheTagTree 仅运行 6 秒，堆栈在 SQLite 解析/重放，文件访问记录一直推进，无已报告断言/race 失败。该包现有 277 项测试。对该包单独执行 `go test -race -timeout=20m ./internal/library`，日志 `/tmp/kist-client-deletion-library-race.log`，保留全套测试与断言，仅增加整包累计时限。之后再执行 make check，Go 文档确认成功缓存可跨 timeout 值复用，不跳过任何检查。
+
+
+为避免等待期间改动受检代码，下一阶段收藏搜索在独立 worktree `/tmp/kist-offline-saved-search`、分支 `codex/offline-saved-search`（基于 ff029d5）推进。已抽取共用更新 payload 校验并补客户端 SavedSearches/Create/Update/Delete，添加请求重试、noop、删除撤销、同步重建及 NAS 并发冲突测试；针对性测试日志 `/tmp/kist-client-saved-search-targeted.log` 正在执行。该工作目录尚未提交，也未合入 main；主工作树仍在运行库层完整 race 验证。合入时须保留 main 的时区测试库修复及删除阶段变化，不用旧分支覆盖它们。
+
+
+独立收藏搜索工作目录的针对性测试已通过：`/tmp/kist-client-saved-search-targeted.log`。随后补上共用客户端 readView：普通读取持客户端锁刷新叠加视图后读取 SQLite 快照；请求内部共享锁并允许读取刚完成的写入，过期 scope 拒绝。Client.Box 不再构造只有 db 的临时 Library。跨句柄读取、请求内写后读、过期 scope 和已有 Box 命令测试 `/tmp/kist-client-saved-search-reads.log` 已通过。上述代码仍仅在独立 worktree，待主阶段完成后合入与完整验证。
+
+
+独立 worktree 继续补齐基础目录读取：File/Folders/Boxes、文件和盒标签、metadata、位置、Files/Browse/Filesets、TagTreeCounts，全部经客户端 readView，查询复用现有 store 及 NAS 时区。`/tmp/kist-client-catalog-reads.log` 通过，验证未缓存原文件仍参与标签检索并可读取元数据，原文件接口明确 ErrNotCached。该分支尚未接入 HTTP/UI，也未做完整阶段验收；主工作树删除阶段的完整 race 仍独立运行。
+
+
+独立 worktree 的收藏搜索、目录读取及 Box 命令针对性 race 检查 `/tmp/kist-client-catalog-race.log` 已通过（24.824 秒）。尚未合入，完整验证与提交需在主阶段收口后进行；未把针对性通过作为整个客户端完成的证据。
+
+
+主工作树 library 完整 race 检查已通过：`/tmp/kist-client-deletion-library-race.log`，退出码 0，735.236 秒。证实此前是整包累计 10 分钟上限，并非单个测试挂起。保持同一代码，执行最后 `VITEST_MAX_WORKERS=2 make check`，日志 `/tmp/kist-client-deletion-complete-check.log`，让 Go 复用已通过的有效测试缓存并完成全部门禁与二进制构建。
+
+
+最后检查未命中 library 测试缓存，已观测到实际新进程仍使用 10m 总上限，因此停止该重复执行，不把缓存复用当作验证前提。Makefile 显式增加可覆盖的 GO_TEST_TIMEOUT（默认 20m），用于完整 Go race 检查；依据是同一代码的全套库层测试已通过但实际需要 735 秒。未改变测试集合、断言或单项等待条件，避免开发机正常执行的整包被默认 10m 截断。将按该命令重新完成完整检查，日志 `/tmp/kist-client-deletion-timeout-check.log`。
+
+
+独立 worktree 已提取 readFilesetDetail/readMediaInfo/readCapturedInfo 供 NAS 与客户端共用，NAS 路径也改为同一读事务快照。客户端补 FilesetDetail、MediaInfo、CapturedInfo；未缓存原文件的测试对比 NAS 与客户端媒体事实/时间来源完全一致。`/tmp/kist-client-detail-reads.log` 针对性检查通过（第一次编译作用域错误已修正），完整验收仍待合入后执行。
+
+
+独立 worktree 的整个 library 普通测试已通过：`/tmp/kist-client-catalog-library.log`，退出码 0，143.004 秒，覆盖共用详情读取重构后的现有 NAS 库层功能。该分支仍待最终完整 make check 与合入；主工作树 `/tmp/kist-client-deletion-timeout-check.log` 已进入显式 20m 整包时限的完整 race 检查。
+
+
+删除阶段最终完整 `VITEST_MAX_WORKERS=2 make check` 已通过（进程退出 0，日志 `/tmp/kist-client-deletion-timeout-check.log`），包含全部前端测试、契约、格式、构建、Go vet、全包 race 及单二进制构建。现在提交该阶段并检查远端 CI；独立 worktree 的收藏搜索与目录读取仍待下一阶段合入。

@@ -17,12 +17,13 @@ import (
 )
 
 type SyncCapabilities struct {
-	Timezone       string    `json:"timezone"`
-	Version        int       `json:"version"`
-	LibraryID      domain.ID `json:"library_id"`
-	JournalVersion int       `json:"journal_version"`
-	Actions        []string  `json:"actions"`
-	UndoReferences bool      `json:"undo_references"`
+	DeletionSnapshots bool      `json:"deletion_snapshots"`
+	Timezone          string    `json:"timezone"`
+	Version           int       `json:"version"`
+	LibraryID         domain.ID `json:"library_id"`
+	JournalVersion    int       `json:"journal_version"`
+	Actions           []string  `json:"actions"`
+	UndoReferences    bool      `json:"undo_references"`
 }
 
 func ValidateSyncCapabilities(caps SyncCapabilities) error {
@@ -109,7 +110,7 @@ func (c *Client) Synchronize(ctx context.Context, peer SyncPeer) (ClientSyncResu
 		}
 		p := entry.Proposal
 		result.BlockedID = p.ID
-		if p.Undo == nil && !slices.Contains(caps.Actions, p.Action) {
+		if (p.Version == 2 && !caps.DeletionSnapshots) || (p.Undo == nil && !slices.Contains(caps.Actions, p.Action)) {
 			return result, ErrSyncVersion
 		}
 		if !entry.Sending {

@@ -45,7 +45,7 @@ func (s *Server) syncRoutes() {
 		if err != nil {
 			return nil, failure(err)
 		}
-		return response(library.SyncCapabilities{Timezone: s.library.Zone().String(), Version: 1, LibraryID: head.LibraryID, JournalVersion: journal.Version, Actions: library.SyncActions(), UndoReferences: true}, nil)
+		return response(library.SyncCapabilities{DeletionSnapshots: true, Timezone: s.library.Zone().String(), Version: 1, LibraryID: head.LibraryID, JournalVersion: journal.Version, Actions: library.SyncActions(), UndoReferences: true}, nil)
 	})
 	huma.Register(s.contract, syncOperation("sync-head", "GET", "head"), func(ctx context.Context, _ *struct{}) (*output[library.SyncBoundary], error) {
 		return response(s.library.SyncHead(ctx))

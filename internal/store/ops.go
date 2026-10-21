@@ -391,3 +391,13 @@ func InsertOpFilesets(tx *sql.Tx, opID int64, ids []domain.FolderID) error {
 	}
 	return nil
 }
+
+// OpSyncIdentity returns the original offline identity of a confirmed event.
+func OpSyncIdentity(q Queryer, opID int64) (string, error) {
+	var id string
+	err := q.QueryRow(`SELECT local_id FROM op_sync WHERE op_id = ?`, opID).Scan(&id)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	return id, err
+}

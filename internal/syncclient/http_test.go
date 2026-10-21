@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/jinzhao1994/kist/internal/api"
+	"github.com/jinzhao1994/kist/internal/config"
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/library"
 	"github.com/jinzhao1994/kist/internal/oplog"
@@ -22,6 +23,14 @@ import (
 func TestHTTPClientResumesDurableBlocksAndLostCommit(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "nas")
 	if _, err := library.Create(t.Context(), root); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load(filepath.Join(root, "kist.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Library.Timezone = "UTC"
+	if err := config.Save(filepath.Join(root, "kist.toml"), cfg); err != nil {
 		t.Fatal(err)
 	}
 	nas, err := library.Open(root)
