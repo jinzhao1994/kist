@@ -206,6 +206,18 @@ func (c *Client) Stage(ctx context.Context, p SyncProposal) error {
 	if view.Conflict != nil {
 		return fmt.Errorf("%w: resolve pending %s first", ErrSyncConflict, view.BlockedID)
 	}
+	if err := c.validateIntentLocked(ctx, p, view, state); err != nil {
+		return err
+	}
+	if err := c.queue.appendLocked(ctx, "pending_enqueue", pendingEvent{Proposal: &p}); err != nil {
+		return err
+	}
+	_, err = c.rebuildLocked(ctx)
+	return err
+}
+
+// validateIntentLocked tests an intent against the already rebuilt valid prefix.
+func (c *Client) validateIntentLocked(ctx context.Context, p SyncProposal, view clientOverlay, state pendingState) error {
 	localIDs := map[string]int64{}
 	var last int64
 	for id, ref := range view.References {
@@ -270,11 +282,7 @@ func (c *Client) Stage(ctx context.Context, p SyncProposal) error {
 	if err := tx.Rollback(); err != nil {
 		return err
 	}
-	if err := c.queue.appendLocked(ctx, "pending_enqueue", pendingEvent{Proposal: &p}); err != nil {
-		return err
-	}
-	_, err = c.rebuildLocked(ctx)
-	return err
+	return nil
 }
 
 func (c *Client) checkNewBlobs(ctx context.Context, tx *sql.Tx, targets oplog.Targets, existing map[string]syncBlobClaim) error {

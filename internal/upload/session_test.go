@@ -13,6 +13,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/jinzhao1994/kist/internal/lockfile"
 )
 
 func digest(b []byte) string { return fmt.Sprintf("%x", sha256.Sum256(b)) }
@@ -247,11 +249,24 @@ func TestIndependentServersSerializeDuplicateBlocks(t *testing.T) {
 	a := newStore(t, path, 100)
 	b := newStore(t, path, 100)
 	state := create(t, a, "request", manifest([]byte("abcd")))
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
 	var wg sync.WaitGroup
 	for i := 0; i < 12; i++ {
 		wg.Go(func() {
-			if err := appendBlock(b, t.Context(), state.ID, 0, []byte("abcd")); err != nil {
-				t.Error(err)
+			for {
+				err := appendBlock(b, ctx, state.ID, 0, []byte("abcd"))
+				if err == nil {
+					return
+				}
+				// Busy is a retryable protocol response, not lost serialization.
+				// Twelve fsync-heavy Windows requests need not all acquire the
+				// lock inside a single five-second wait on a shared CI runner.
+				var busy *lockfile.BusyError
+				if !errors.As(err, &busy) || ctx.Err() != nil {
+					t.Error(err)
+					return
+				}
 			}
 		})
 	}
