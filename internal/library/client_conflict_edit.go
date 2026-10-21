@@ -12,17 +12,27 @@ import (
 // ClientConflictField describes an editable value without exposing a JSON editor.
 // Path points to the intended value in the replacement payload.
 type ClientConflictField struct {
-	Key      string   `json:"key" enum:"name,description"`
+	Key      string   `json:"key" enum:"name,description,start_at,end_at"`
 	Path     []string `json:"path"`
 	Before   string   `json:"before"`
 	Current  string   `json:"current"`
 	Proposed string   `json:"proposed"`
 }
 
+type ClientConflictFileset struct {
+	BoxID    domain.BoxID    `json:"box_id"`
+	FolderID domain.FolderID `json:"folder_id"`
+	Name     string          `json:"name"`
+	Before   *domain.Fileset `json:"before,omitempty"`
+	Current  *domain.Fileset `json:"current,omitempty"`
+	Proposed *domain.Fileset `json:"proposed,omitempty"`
+}
+
 type ClientConflictEdit struct {
-	Summary     *HistorySummary       `json:"summary,omitempty"`
-	Replacement *SyncProposal         `json:"replacement,omitempty"`
-	Fields      []ClientConflictField `json:"fields"`
+	Fileset     *ClientConflictFileset `json:"fileset,omitempty"`
+	Summary     *HistorySummary        `json:"summary,omitempty"`
+	Replacement *SyncProposal          `json:"replacement,omitempty"`
+	Fields      []ClientConflictField  `json:"fields"`
 }
 
 // ConflictEdit builds a replacement against the valid prefix before the blocked
@@ -59,6 +69,25 @@ func (c *Client) ConflictEdit(ctx context.Context, id string) (ClientConflictEdi
 		}
 		var payload any
 		switch oplog.Action(original.Action) {
+		case oplog.ActionSetFileset:
+			p, err := oplog.Payload[oplog.FilesetPayload](original.Payload)
+			if err != nil {
+				return err
+			}
+			folder, found, err := vtx.GetFolder(p.FolderID)
+			if err != nil || !found {
+				return err
+			}
+			current, err := vtx.GetFileset(p.FolderID)
+			if err != nil {
+				return err
+			}
+			updated, err := filesetCommandPayload(vtx, p.BoxID, p.FolderID, current, p.After)
+			if err != nil {
+				return err
+			}
+			result.Fileset = &ClientConflictFileset{BoxID: p.BoxID, FolderID: p.FolderID, Name: folder.Name, Before: p.Before, Current: current, Proposed: p.After}
+			payload = updated
 		case oplog.ActionRenameEntry:
 			p, err := oplog.Payload[oplog.RenameEntryPayload](original.Payload)
 			if err != nil {
@@ -91,8 +120,8 @@ func (c *Client) ConflictEdit(ctx context.Context, id string) (ClientConflictEdi
 			if err != nil {
 				return err
 			}
-			// Dates and cover references require their corresponding domain pickers.
-			if p.StartAt != nil || p.EndAt != nil || p.CoverFileID != nil {
+			// Cover references require a file picker.
+			if p.CoverFileID != nil {
 				return nil
 			}
 			current, found, err := vtx.GetBox(p.BoxID)
@@ -106,6 +135,14 @@ func (c *Client) ConflictEdit(ctx context.Context, id string) (ClientConflictEdi
 			if p.Description != nil {
 				field("description", []string{"description", "after"}, p.Description.Before, current.Description, p.Description.After)
 				p.Description.Before = current.Description
+			}
+			if p.StartAt != nil {
+				field("start_at", []string{"start_at", "after"}, p.StartAt.Before.String(), current.StartAt.String(), p.StartAt.After.String())
+				p.StartAt.Before = current.StartAt
+			}
+			if p.EndAt != nil {
+				field("end_at", []string{"end_at", "after"}, p.EndAt.Before.String(), current.EndAt.String(), p.EndAt.After.String())
+				p.EndAt.Before = current.EndAt
 			}
 			payload = p
 		default:

@@ -522,3 +522,12 @@ c86910b 原文件迁移阶段已推送，CI 39624124913 与 Secret scan 39624124
 1d36d5a 的 CI 39637017893 全部通过；Visual 39637018072 完整采集 140 张，138 张匹配。offline-retention-file 的 24299 像素变化对应新增预览数量和就绪文案，已查看符合预期；entry-menu-box 再次出现原有“在新标签页打开”一行的 326 像素变化，已查看但尚未定位原因，因此未接受基准。报告 `/tmp/kist-offline-previews-visual-39637018072/report/index.html`。下一次采集应补充菜单布局/字体诊断证据，不能放宽阈值或直接接受此非预期差异。
 
 菜单诊断只在截图之后附加各菜单项的 DOM/text 矩形、字体、行高与 transform，不修改等待条件或像素阈值。最终 make check `/tmp/kist-conflict-diagnostics-final-check.log`（92667）退出 0，未变化的 Go 代码复用此前完整 race 缓存；全部前端契约、格式、测试与构建通过。此前 diagnostics-check 的格式提示已修正，不能算作通过证据。本阶段可提交；复杂动作的领域编辑和菜单偶发像素差异仍未收口。
+
+
+日期与 fileset 冲突编辑实施中：草稿增加 start_at/end_at 字符串前提，界面复用 PartialDateInput，保持原精度；fileset 草稿保存原配置、有效前缀的当前配置及原本地期望配置，复用 FilesetEditor 的主文件、成员、角色与拖动排序，提交走同一 Resolve。增加只读配置对照，不复制第二套编辑控件；未找到成员不能被复活或静默丢弃。共享编辑器在未知提交结果期间禁止另建写请求。针对性 library 4.609 秒、前端 17 项通过；新增完整缺失成员拒绝与正式 fileset-conflict 视觉场景。`/tmp/kist-conflict-fields-complete-check.log`（22779）正在运行；尚未提交或宣称完成最终验收。
+
+日期/组合完整检查通过：`/tmp/kist-conflict-fields-complete-check.log`（22779 退出 0），library race 220.660 秒。实际 Chrome 双实例验收也通过：在隔离客户端 19594 对组合拖动页序、保留独立主文件并手动选定 NAS 布局，最终 NAS 配置与选择一致，pageErrors 为空（`/tmp/kist-fileset-conflict-browser.log`，截图同名 .png 已查看）。日期冲突从本地年精度 2026 与 NAS 日精度 2026-10-22，明确改为 2026-11；同步后仍为月份精度，页面错误为空（`/tmp/kist-date-conflict-browser.log`，截图已查看）。新版客户端服务会话 27577；未操作个人库。
+
+601901b 的 CI 39639091847 全部通过。Visual 39639091637 完整采集 141 张，无失败/跳过/重试；139 张匹配，只有新增 offline-client-conflict 与已审阅的 offline-retention-file 变化。完整候选通过六张联系表 `/tmp/kist-conflict-review-{1..6}.png` 扫描，新冲突页及变化区域全尺寸查看；旧菜单 326 像素差异本轮未出现，仍不声称已根治。已接受精确运行，Accept visual baselines 39640663501 成功，bot 提交 0282bec 已 ff-only 合入且保留当前工作树；其 CI 39640731826、Visual 39640734918 尚在执行。当前新增组合场景需随下一提交继续正式验收。
+
+包含最终视觉定位文案与已接受基准的 make check 再次通过（59940 退出 0，`/tmp/kist-conflict-fields-final-check.log`）。组合普通编辑入口仍通过原有排序/删除/主文件测试；冲突入口新增日期精度和组合完整 before/after 的前端回归。此阶段可提交，新增组合视觉场景的正式结果需推送后跟进。

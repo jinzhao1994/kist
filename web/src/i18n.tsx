@@ -16,6 +16,7 @@ export const en = {
   clientOfflinePreviews: "{ready} of {total} previews available.",
   clientOfflineReady:
     "All required originals and previews are available offline.",
+  clientConflictOrdinaryFolder: "Ordinary folder",
   clientConflictReview: "Review local change",
   clientConflictReviewHint:
     "Compare your original change with the current state on this laptop. Saving creates a new local intention; synchronization will check the NAS again.",
@@ -632,6 +633,7 @@ export const zh: Record<MessageKey, string> = {
   clientRetentionSaved: "已启用离线保留。",
   clientOfflinePreviews: "已准备 {ready} / {total} 个预览。",
   clientOfflineReady: "所需原文件和预览已全部准备好，可离线使用。",
+  clientConflictOrdinaryFolder: "普通目录",
   clientConflictReview: "查看本地修改",
   clientConflictReviewHint:
     "对照原始修改和笔记本当前状态。保存会创建新的本地修改，同步时仍会重新核对 NAS。",

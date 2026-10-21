@@ -1103,6 +1103,7 @@ export interface components {
         };
         ClientConflictEdit: {
             fields: components["schemas"]["ClientConflictField"][] | null;
+            fileset?: components["schemas"]["ClientConflictFileset"];
             replacement?: components["schemas"]["SyncProposal"];
             summary?: components["schemas"]["HistorySummary"];
         };
@@ -1110,9 +1111,17 @@ export interface components {
             before: string;
             current: string;
             /** @enum {string} */
-            key: "name" | "description";
+            key: "name" | "description" | "start_at" | "end_at";
             path: string[] | null;
             proposed: string;
+        };
+        ClientConflictFileset: {
+            before?: components["schemas"]["Fileset"];
+            box_id: string;
+            current?: components["schemas"]["Fileset"];
+            folder_id: string;
+            name: string;
+            proposed?: components["schemas"]["Fileset"];
         };
         ClientConnectInputBody: {
             allow_http: boolean;

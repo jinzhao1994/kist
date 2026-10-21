@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createWrite, get } from "./api";
 import type { components } from "./client-api-schema";
+import { FilesetEditor, type Fileset } from "./Filesets";
+import { PartialDateInput } from "./PartialDateInput";
 import { describeHistory } from "./History";
 import { useI18n } from "./i18n";
 import { errorMessage, useWrites, WriteFeedback } from "./mutations";
@@ -35,10 +37,11 @@ export function ClientConflictEditor({
   }, [snapshot, draft.isFetching, draft.data]);
   const [values, setValues] = useState<Record<string, string>>({});
   const writes = useWrites(close);
+  const [domainLocked, setDomainLocked] = useState(false);
   useEffect(() => {
-    onLocked(writes.busy || writes.locked);
+    onLocked(writes.busy || writes.locked || domainLocked);
     return () => onLocked(false);
-  }, [writes.busy, writes.locked, onLocked]);
+  }, [writes.busy, writes.locked, domainLocked, onLocked]);
   function submit() {
     const data = snapshot;
     if (!data?.replacement) return;
@@ -61,11 +64,16 @@ export function ClientConflictEditor({
   return (
     <Stack gap="md">
       <Group>
-        <Button disabled={writes.busy || writes.locked} onClick={close}>
+        <Button
+          disabled={writes.busy || writes.locked || domainLocked}
+          onClick={close}
+        >
           {t("clientHistoryBack")}
         </Button>
         <Button
-          disabled={writes.busy || writes.locked || draft.isFetching}
+          disabled={
+            writes.busy || writes.locked || domainLocked || draft.isFetching
+          }
           onClick={() => {
             setValues({});
             setSnapshot(undefined);
@@ -86,10 +94,28 @@ export function ClientConflictEditor({
           {!snapshot.replacement && (
             <Text>{t("clientConflictUnsupported")}</Text>
           )}
+          {snapshot.fileset && snapshot.replacement && (
+            <FilesetConflictEditor
+              key={snapshot.replacement.id}
+              draft={snapshot}
+              id={id}
+              close={close}
+              onLocked={setDomainLocked}
+            />
+          )}
           {(snapshot.fields || []).map((field) => (
             <Stack gap="xs" key={field.key}>
               <Text size="sm" fw={600}>
-                {t(field.key === "name" ? "name" : "description")}
+                {t(
+                  (
+                    {
+                      name: "name",
+                      description: "description",
+                      start_at: "startAt",
+                      end_at: "endAt",
+                    } as const
+                  )[field.key],
+                )}
               </Text>
               <Text size="sm" c="dimmed">
                 {t("clientConflictBefore")} · {field.before || "—"}
@@ -97,7 +123,21 @@ export function ClientConflictEditor({
               <Text size="sm">
                 {t("clientConflictCurrent")} · {field.current || "—"}
               </Text>
-              {field.key === "description" ? (
+              {field.key === "start_at" || field.key === "end_at" ? (
+                <fieldset disabled={writes.busy || writes.locked}>
+                  <PartialDateInput
+                    id={`conflict-${id}-${field.key}`}
+                    label={t("clientConflictChosen")}
+                    value={values[field.key] ?? field.proposed}
+                    onChange={(value) =>
+                      setValues({ ...values, [field.key]: value })
+                    }
+                  />
+                  <Text size="xs" c="dimmed">
+                    {t("dateHint")}
+                  </Text>
+                </fieldset>
+              ) : field.key === "description" ? (
                 <Textarea
                   label={t("clientConflictChosen")}
                   value={values[field.key] ?? field.proposed}
@@ -120,7 +160,7 @@ export function ClientConflictEditor({
               )}
             </Stack>
           ))}
-          {snapshot.replacement && (
+          {snapshot.replacement && !snapshot.fileset && (
             <Group>
               <Button disabled={writes.busy || writes.locked} onClick={submit}>
                 {t("clientConflictSave")}
@@ -131,5 +171,65 @@ export function ClientConflictEditor({
       )}
       <WriteFeedback state={writes} />
     </Stack>
+  );
+}
+
+function FilesetConflictEditor({
+  draft,
+  id,
+  close,
+  onLocked,
+}: {
+  draft: Draft;
+  id: string;
+  close: () => void;
+  onLocked: (locked: boolean) => void;
+}) {
+  const { t } = useI18n();
+  const sets = useQuery({
+    queryKey: ["filesets"],
+    queryFn: ({ signal }) => get<{ filesets: Fileset[] }>("/filesets", signal),
+  });
+  if (sets.isPending) return <Text role="status">{t("loading")}</Text>;
+  if (sets.error)
+    return <Text role="alert">{errorMessage(sets.error, t)}</Text>;
+  const config = draft.fileset!;
+  const currentSets = (sets.data.filesets || []).filter(
+    (set) => set.folder_id !== config.folder_id,
+  );
+  if (config.current) currentSets.push(config.current);
+  return (
+    <FilesetEditor
+      folder={{ id: config.folder_id, name: config.name }}
+      box={config.box_id}
+      sets={currentSets}
+      close={close}
+      edit={{
+        initial: config.proposed || null,
+        comparison: [
+          { label: t("clientConflictBefore"), value: config.before || null },
+          { label: t("clientConflictCurrent"), value: config.current || null },
+          ...(!config.proposed
+            ? [{ label: t("clientConflictChosen"), value: null }]
+            : []),
+        ],
+        onLocked,
+        createWrite: (after) => {
+          const replacement = structuredClone(draft.replacement!);
+          const payload = replacement.payload as Record<string, unknown>;
+          if (after) payload.after = after;
+          else delete payload.after;
+          return createWrite(
+            "POST",
+            `/client/pending/${encodeURIComponent(id)}/resolve`,
+            {
+              replacement,
+              reason:
+                "User reviewed and edited the conflicting fileset configuration",
+            },
+          );
+        },
+      }}
+    />
   );
 }

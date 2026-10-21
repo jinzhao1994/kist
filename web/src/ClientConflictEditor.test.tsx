@@ -1,13 +1,21 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  waitFor,
+  fireEvent,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ClientConflictEditor } from "./ClientConflictEditor";
 import { I18nProvider, storageKey } from "./i18n";
+import { zeroID } from "./Filesets";
 import { ThemeProvider } from "./theme";
 let bodies: any[];
 let fail: boolean;
 let supported: boolean;
+let draftOverride: any;
 beforeEach(() => {
   localStorage.clear();
   localStorage.setItem(
@@ -22,6 +30,7 @@ beforeEach(() => {
   bodies = [];
   fail = false;
   supported = true;
+  draftOverride = undefined;
   vi.stubGlobal(
     "fetch",
     vi.fn(async (_path: string, options?: RequestInit) => {
@@ -33,6 +42,22 @@ beforeEach(() => {
         }
         return new Response(JSON.stringify({}), { status: 200 });
       }
+      if (_path.endsWith("/filesets"))
+        return Response.json({ filesets: [draftOverride.fileset.current] });
+      if (_path.includes("/folders"))
+        return Response.json({
+          folders: [{ id: "set", name: "Pages", parent_id: "root" }],
+        });
+      if (_path.includes("/files?"))
+        return Response.json({
+          files: ["first", "second"].map((id) => ({
+            id,
+            name: `${id}.png`,
+            folder_id: "set",
+            box_id: "box",
+          })),
+        });
+      if (draftOverride) return Response.json(draftOverride);
       return new Response(
         JSON.stringify({
           summary: {},
@@ -126,4 +151,106 @@ it("does not offer an unsafe generic overwrite for unsupported changes", async (
     screen.queryByRole("button", { name: "Save revised change" }),
   ).not.toBeInTheDocument();
   expect(bodies).toEqual([]);
+});
+
+it("uses the partial-date editor without expanding month precision", async () => {
+  draftOverride = {
+    fields: [
+      {
+        key: "start_at",
+        path: ["start_at", "after"],
+        before: "2026",
+        current: "2026-10-22",
+        proposed: "2026-10",
+      },
+    ],
+    replacement: {
+      version: 1,
+      id: "date-replacement",
+      occurred_at: "2026-10-21T10:00:00Z",
+      action: "update_box",
+      origin: "user",
+      payload: {
+        box_id: "box",
+        start_at: { before: "2026-10-22", after: "2026-10" },
+      },
+    },
+  };
+  setup();
+  const input = await screen.findByLabelText("Value to submit");
+  expect(input).toHaveValue("2026-10");
+  fireEvent.change(input, { target: { value: "2026-11" } });
+  await userEvent.click(
+    screen.getByRole("button", { name: "Save revised change" }),
+  );
+  await waitFor(() => expect(bodies).toHaveLength(1));
+  expect(bodies[0].replacement.payload.start_at).toEqual({
+    before: "2026-10-22",
+    after: "2026-11",
+  });
+});
+it("reuses page ordering while submitting a reviewed fileset replacement", async () => {
+  const members = ["first", "second"].map((file_id) => ({
+    file_id,
+    folder_id: zeroID,
+    role: "page",
+    language: "",
+    default: false,
+  }));
+  const before = {
+    folder_id: "set",
+    kind: "document_pages",
+    layout: "flat",
+    primary: zeroID,
+    members,
+  };
+  const current = { ...before, layout: "directory" };
+  const proposed = {
+    ...before,
+    primary: "second",
+    members: [...members].reverse(),
+  };
+  draftOverride = {
+    fields: [],
+    fileset: {
+      box_id: "box",
+      folder_id: "set",
+      name: "Pages",
+      before,
+      current,
+      proposed,
+    },
+    replacement: {
+      version: 1,
+      id: "fileset-replacement",
+      occurred_at: "2026-10-21T10:00:00Z",
+      action: "set_fileset",
+      origin: "user",
+      payload: {
+        box_id: "box",
+        folder_id: "set",
+        ancestors: ["set", "root"],
+        before: current,
+        after: proposed,
+      },
+    },
+  };
+  const { close } = setup();
+  const handle = await screen.findByRole("button", {
+    name: "Reorder second.png",
+  });
+  const list = screen.getByRole("list", { name: "Pages" });
+  expect(within(list).getAllByRole("listitem")[0]).toHaveTextContent(
+    "second.png",
+  );
+  fireEvent.keyDown(handle, { key: "ArrowDown" });
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+  await waitFor(() => expect(close).toHaveBeenCalledOnce());
+  expect(bodies).toHaveLength(1);
+  expect(bodies[0].replacement.payload.before).toEqual(current);
+  expect(bodies[0].replacement.payload.after.primary).toBe("second");
+  expect(
+    bodies[0].replacement.payload.after.members.map((m: any) => m.file_id),
+  ).toEqual(["first", "second"]);
+  expect(bodies[0].replacement.payload.after.layout).toBe("flat");
 });

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/oplog"
 )
 
@@ -134,5 +135,48 @@ func TestClientConflictEditRenameTargets(t *testing.T) {
 				t.Fatal(err)
 			}
 		})
+	}
+}
+
+func TestClientConflictDateEditPreservesPartialPrecision(t *testing.T) {
+	nas, box := openWithBox(t)
+	c := newSyncClient(t, nas)
+	ctx := t.Context()
+	year, _ := domain.ParseLocalDate("2026")
+	month, _ := domain.ParseLocalDate("2026-10")
+	day, _ := domain.ParseLocalDate("2026-10-22")
+	before, _, err := c.Box(ctx, box)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = c.UpdateBox(ctx, box, BoxFields{Name: before.Name, StartAt: year}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = nas.UpdateBox(ctx, box, BoxFields{Name: before.Name, StartAt: day}); err != nil {
+		t.Fatal(err)
+	}
+	result, err := c.Synchronize(ctx, &testSyncPeer{nas: nas})
+	if !errors.Is(err, ErrSyncConflict) {
+		t.Fatal(err)
+	}
+	draft, err := c.ConflictEdit(ctx, result.BlockedID)
+	if err != nil || len(draft.Fields) != 1 || draft.Fields[0].Proposed != "2026" || draft.Fields[0].Current != "2026-10-22" {
+		t.Fatal(draft, err)
+	}
+	p, err := oplog.Payload[oplog.UpdateBoxPayload](draft.Replacement.Payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.StartAt.After = month
+	draft.Replacement.Payload, _ = oplog.Marshal(p)
+	if err = c.Resolve(ctx, result.BlockedID, draft.Replacement, "choose month precision"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = c.Synchronize(ctx, &testSyncPeer{nas: nas}); err != nil {
+		t.Fatal(err)
+	}
+	got, _, err := nas.Box(ctx, box)
+	if err != nil || got.StartAt.String() != "2026-10" {
+		t.Fatal(got, err)
 	}
 }

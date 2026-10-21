@@ -2889,9 +2889,56 @@ for (const panel of [
   "connection",
   "history",
   "conflict",
+  "fileset-conflict",
 ] as const) {
   test(`offline-client-${panel}`, async ({ page }, info) => {
     const errors = await prepare(page);
+    const conflict = panel === "conflict" || panel === "fileset-conflict";
+    const config = {
+      folder_id: "conflict-pages",
+      kind: "document_pages",
+      layout: "flat",
+      primary: "00000000-0000-0000-0000-000000000000",
+      members: ["one", "two"].map((file_id) => ({
+        file_id,
+        folder_id: "00000000-0000-0000-0000-000000000000",
+        role: "page",
+        language: "",
+        default: false,
+      })),
+    };
+    const currentConfig = { ...config, layout: "directory" };
+    const proposedConfig = {
+      ...config,
+      members: [...config.members].reverse(),
+    };
+    if (panel === "fileset-conflict") {
+      await page.route("**/api/v1/filesets", (route) =>
+        route.fulfill({ json: { filesets: [currentConfig] } }),
+      );
+      await page.route("**/api/v1/files?**", (route) =>
+        route.fulfill({
+          json: {
+            files: ["one", "two"].map((id, i) => ({
+              id,
+              name: i === 0 ? "正面.png" : "背面.png",
+              folder_id: "conflict-pages",
+              box_id: "box-1",
+            })),
+          },
+        }),
+      );
+      await page.route("**/api/v1/boxes/box-1/folders", (route) =>
+        route.fulfill({
+          json: {
+            folders: [
+              { id: "root", parent_id: null, name: "" },
+              { id: "conflict-pages", parent_id: "root", name: "证件" },
+            ],
+          },
+        }),
+      );
+    }
     await page.route("**/api/v1/info", (route) =>
       route.fulfill({
         json: {
@@ -2929,20 +2976,52 @@ for (const panel of [
               downloaded: 42,
             },
             connection: { server: "https://nas.example", allow_http: false },
-            blocked_id:
-              panel === "conflict"
-                ? "01a15921-bef1-76e5-bddc-7c6b1024ff5b"
-                : undefined,
+            blocked_id: conflict
+              ? "01a15921-bef1-76e5-bddc-7c6b1024ff5b"
+              : undefined,
             pending: [
               {
                 id: "01a15921-bef1-76e5-bddc-7c6b1024ff5b",
                 sequence: 1,
                 occurred_at: time,
-                action: panel === "conflict" ? "update_box" : "create_box",
-                conflict: panel === "conflict" ? "名称已被修改" : undefined,
+                action:
+                  panel === "fileset-conflict"
+                    ? "set_fileset"
+                    : panel === "conflict"
+                      ? "update_box"
+                      : "create_box",
+                conflict: conflict ? "配置已被修改" : undefined,
                 awaiting_receipt: false,
               },
             ],
+          },
+        });
+      if (path.endsWith("/edit") && panel === "fileset-conflict")
+        return route.fulfill({
+          json: {
+            fields: [],
+            summary: { name: "证件", count: 1, current_names: true },
+            fileset: {
+              box_id: "box-1",
+              folder_id: config.folder_id,
+              name: "证件",
+              before: config,
+              current: currentConfig,
+              proposed: proposedConfig,
+            },
+            replacement: {
+              version: 1,
+              id: "fileset-replacement",
+              occurred_at: time,
+              action: "set_fileset",
+              origin: "user",
+              payload: {
+                box_id: "box-1",
+                folder_id: config.folder_id,
+                before: currentConfig,
+                after: proposedConfig,
+              },
+            },
           },
         });
       if (path.endsWith("/edit"))
@@ -3024,7 +3103,17 @@ for (const panel of [
     await expect(
       dialog.getByRole("button", { name: "立即同步" }),
     ).toBeEnabled();
-    if (panel === "conflict") {
+    if (panel === "fileset-conflict") {
+      await dialog
+        .getByRole("button", { name: "查看本地修改", exact: true })
+        .click();
+      await expect(
+        dialog.getByRole("button", { name: "调整 背面.png 的顺序" }),
+      ).toBeVisible();
+      await expect(
+        dialog.getByRole("button", { name: "保存", exact: true }),
+      ).toBeEnabled();
+    } else if (panel === "conflict") {
       await dialog
         .getByRole("button", { name: "查看本地修改", exact: true })
         .click();

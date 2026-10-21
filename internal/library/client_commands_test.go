@@ -137,6 +137,42 @@ func TestClientFilesetCommandRejectsStaleAndConcurrentConfiguration(t *testing.T
 	if err != nil || len(got) != 1 || !domain.EqualFileset(&got[0], &remote) {
 		t.Fatalf("overwrote NAS config=%+v %v", got, err)
 	}
+	draft, err := c.ConflictEdit(ctx, ref.LocalID)
+	if err != nil || draft.Fileset == nil || draft.Replacement == nil || !domain.EqualFileset(draft.Fileset.Before, &before) || !domain.EqualFileset(draft.Fileset.Current, &remote) || !domain.EqualFileset(draft.Fileset.Proposed, &local) {
+		t.Fatal(draft, err)
+	}
+	p, err := oplog.Payload[oplog.FilesetPayload](draft.Replacement.Payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Keep the explicitly reviewed remote layout and local ordering. No fields
+	// are merged until the user supplies this complete replacement configuration.
+	p.After.Layout = remote.Layout
+	invalid := *draft.Replacement
+	invalidPayload := p
+	invalidConfig := *p.After
+	invalidConfig.Members = append([]domain.FilesetMember{}, p.After.Members...)
+	invalidConfig.Members[0].FileID = domain.NewFileID()
+	invalidPayload.After = &invalidConfig
+	invalid.Payload, _ = oplog.Marshal(invalidPayload)
+	if err = c.Resolve(ctx, ref.LocalID, &invalid, "missing member must not be resurrected"); err == nil {
+		t.Fatal("invalid member accepted")
+	}
+	original, err := c.LocalHistoryOp(ctx, ref.LocalID)
+	if err != nil || original.State != "conflict" {
+		t.Fatal(original, err)
+	}
+	draft.Replacement.Payload, _ = oplog.Marshal(p)
+	if err = c.Resolve(ctx, ref.LocalID, draft.Replacement, "reviewed order and layout"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = c.Synchronize(ctx, &testSyncPeer{nas: nas}); err != nil {
+		t.Fatal(err)
+	}
+	got, err = nas.Filesets(ctx)
+	if err != nil || len(got) != 1 || !domain.EqualFileset(&got[0], p.After) {
+		t.Fatal(got, err)
+	}
 }
 
 func TestClientFolderCommandPreservesOwnershipAndDuplicateChecks(t *testing.T) {
