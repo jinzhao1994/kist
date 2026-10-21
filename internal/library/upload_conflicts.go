@@ -26,11 +26,15 @@ type UploadConflicts struct {
 
 // PreviewUpload binds confirmation to existing file state and absent names.
 func (l *Library) PreviewUpload(ctx context.Context, box domain.BoxID, into domain.FolderID, paths []string) (UploadConflicts, error) {
+	return previewUpload(func(fn func(*store.ViewTx) error) error { return l.readTx(ctx, fn) }, box, into, paths)
+}
+
+func previewUpload(readView func(func(*store.ViewTx) error) error, box domain.BoxID, into domain.FolderID, paths []string) (UploadConflicts, error) {
 	result := UploadConflicts{Paths: []string{}, CanOverwrite: true, entries: map[string]domain.EntryContents{}}
 	paths = append([]string(nil), paths...)
 	sort.Strings(paths)
 	snapshots := map[string]any{}
-	err := l.readTx(ctx, func(tx *store.ViewTx) error {
+	err := readView(func(tx *store.ViewTx) error {
 		folders, err := store.FoldersOfBox(tx.Queryer(), box)
 		if err != nil {
 			return err
@@ -115,6 +119,10 @@ func (l *Library) PreviewUpload(ctx context.Context, box domain.BoxID, into doma
 }
 
 func (l *Library) replacementAfter(before domain.EntryContents, file oplog.ImportedFile) domain.EntryContents {
+	return replacementAfter(before, file, l.resolveCaptured)
+}
+
+func replacementAfter(before domain.EntryContents, file oplog.ImportedFile, resolve func([]extract.KV) domain.Instant) domain.EntryContents {
 	after := before
 	archived := before.Files[0]
 	archived.File.BlobKey = file.BlobKey
@@ -152,7 +160,7 @@ func (l *Library) replacementAfter(before domain.EntryContents, file oplog.Impor
 			facts = append(facts, extract.KV{Key: m.Key, Value: *m.Value, Type: extract.Type(*m.Type)})
 		}
 	}
-	archived.File.CapturedAt = l.resolveCaptured(facts)
+	archived.File.CapturedAt = resolve(facts)
 	after.Files = []domain.ArchivedFile{archived}
 	return after
 }

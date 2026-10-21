@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jinzhao1994/kist/internal/blob"
 	"github.com/jinzhao1994/kist/internal/domain"
@@ -267,6 +268,14 @@ func (l *Library) PrepareFiles(ctx context.Context, sources []ImportSource, opt 
 	if ctx.Value(requestContextKey{}) != nil {
 		return nil, ErrRequestScope
 	}
+	candidates, err := importCandidates(sources)
+	if err != nil {
+		return nil, err
+	}
+	return l.prepareCandidates(ctx, candidates, opt)
+}
+
+func importCandidates(sources []ImportSource) ([]scanned, error) {
 	candidates := make([]scanned, 0, len(sources))
 	seen := map[string]bool{}
 	for _, source := range sources {
@@ -297,7 +306,7 @@ func (l *Library) PrepareFiles(ctx context.Context, sources []ImportSource, opt 
 		}
 		candidates = append(candidates, scanned{abs: source.Path, rel: source.RelativePath, expected: expected})
 	}
-	return l.prepareCandidates(ctx, candidates, opt)
+	return candidates, nil
 }
 
 func (l *Library) prepareCandidates(ctx context.Context, candidates []scanned, opt ImportOptions) (*PreparedImport, error) {
@@ -454,6 +463,18 @@ func (l *Library) importOne(
 	payload *oplog.ImportFilesPayload,
 	keepBoth bool,
 ) FileResult {
+	return prepareImportFile(ctx, l.blobs, l.zone(), c, tree, taken, payload, keepBoth)
+}
+
+func prepareImportFile(
+	ctx context.Context,
+	blobs *blob.Dir, zone *time.Location,
+	c scanned,
+	tree *importTree,
+	taken map[domain.FolderID]map[string]string,
+	payload *oplog.ImportFilesPayload,
+	keepBoth bool,
+) FileResult {
 	r := FileResult{Source: c.abs, Rel: c.rel, Name: path.Base(c.rel), Status: FileFailed}
 	if c.err != nil {
 		r.Err = c.err
@@ -492,12 +513,12 @@ func (l *Library) importOne(
 
 	var put blob.PutResult
 	if c.expected != nil {
-		put, err = l.blobs.PutVerified(ctx, f, blob.ExpectedContent{SHA256: c.expected.SHA256, Size: c.expected.Size})
+		put, err = blobs.PutVerified(ctx, f, blob.ExpectedContent{SHA256: c.expected.SHA256, Size: c.expected.Size})
 		if errors.Is(err, blob.ErrIntegrityMismatch) {
 			err = ErrImportIntegrity
 		}
 	} else {
-		put, err = l.blobs.Put(ctx, f)
+		put, err = blobs.Put(ctx, f)
 	}
 	if err != nil {
 		r.Err = err
@@ -525,7 +546,7 @@ func (l *Library) importOne(
 		Sha256:     put.Key.Hex(),
 		Size:       put.Size,
 		MTime:      mtime,
-		CapturedAt: l.capturedFromFacts(put.Size, mtime),
+		CapturedAt: captureImportTime(zone, put.Size, mtime),
 	})
 	r.Status = FileImported
 	return r
@@ -662,6 +683,10 @@ func (t *importTree) folderFor(rel string, payload *oplog.ImportFilesPayload) (d
 // read configuration during a replay would break invariant 3. `kist extract`
 // overwrites this the moment it finds something better.
 func (l *Library) capturedFromFacts(size, mtime int64) domain.Instant {
+	return captureImportTime(l.zone(), size, mtime)
+}
+
+func captureImportTime(zone *time.Location, size, mtime int64) domain.Instant {
 	if mtime == 0 {
 		return domain.Instant{}
 	}
@@ -669,7 +694,7 @@ func (l *Library) capturedFromFacts(size, mtime int64) domain.Instant {
 		{Key: "file:size", Value: strconv.FormatInt(size, 10), Type: extract.TypeInt},
 		{Key: "file:mtime", Value: strconv.FormatInt(mtime, 10), Type: extract.TypeInt},
 	}
-	c := extract.ResolveCaptured(facts, l.zone())
+	c := extract.ResolveCaptured(facts, zone)
 	if !c.Known {
 		return domain.Instant{}
 	}

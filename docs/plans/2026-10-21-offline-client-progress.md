@@ -349,3 +349,19 @@ Visual 39596936245 attempt 2 已通过，基准未更改；attempt 1 的单行�
 内容读取/归档盒搜索阶段完整 make check 已通过：会话 32111 退出 0，日志 `/tmp/kist-client-content-search-check.log`。提交本阶段，前序 CI/Visual 仍运行。
 
 独立 worktree 继续抽取导入共用逻辑：import.go 新增 importCandidates（路径/重复/常规文件校验）、prepareImportFile（指定 blob.Dir 与时区，保留 expected hash/size 和命名规则）、captureImportTime；NAS 原方法委托这些函数。upload_conflicts.go 提取 replacementAfter，捕获时间解析由传入函数决定。`/tmp/kist-import-shared-preparation.log` 针对 NAS Import/VerifiedImport/Prepared/Upload 的 race 回归通过（12.690 秒）。这些增量与 client_upload_target 仍未合入 main；客户端 PreparedImport 与上传接入尚未实现，不能把共用逻辑抽取视为离线导入完成。
+
+
+3b27401 的 CI 39601290465 与 Visual 39601290493 均通过，已推送至 c475528；新 CI 39602617485、Visual 39602617462、Secret scan 39602617421 已运行。
+
+独立 worktree 完成首版 Client.PrepareFiles/PrepareImport/Import/PreparedClientImport：使用共用候选/单文件准备，原文件落 protected local-blobs，独立 ClientImportOptions.Group/ClientImportResult.Reference，不暴露 view ordinal；读快照收集目标/名称/时区，提交锁内复核目标及显式冲突 token，再生成 pending import_files/upload_files。支持 skip/编号、keep_both、overwrite、expected hash/size 回读、取消的准备结果、替换保留用户事实。`/tmp/kist-client-import.log` race 通过（5.698 秒），验证 pending 新盒导入、重复请求、缓存上限不逐出新原文件、同步及撤销、目标变更/坏 hash 拒绝、覆盖保留 ID。`/tmp/kist-client-import-pending-replacement.log` 验证先 pending rename 后覆盖也顺序同步通过（1.182 秒）。
+
+现已合入 main：import.go/upload_target.go/upload_conflicts.go 增量与 client_upload_target/client_import 共四个新文件。后续需扩大覆盖 group/取消/冲突/strict 批次，并接 HTTP 上传流程与 protected blobs 生命周期统计；尚不能宣称用户已能在网页离线导入。
+
+
+客户端导入合入后的针对性 race `/tmp/kist-client-import-merged.log` 已通过（18.323 秒），覆盖新客户端导入及现有 NAS 导入/上传准备回归；本阶段仍待扩大关键边界测试与完整 make check，未提交。
+
+
+导入边界测试新增：Group 引用在准备时复制，两个离线导入同步后 NAS RootOpID 映射正确；严格批次第二文件坏 hash 时第一文件也不进入可见目录；已取消准备返回 context.Canceled；NAS 并发新增文件标签使离线覆盖显式冲突，客户端 Status.BlockedID 指向原导入且 NAS 原文件/标签保留。`/tmp/kist-client-import-boundaries.log` race 已通过（9.376 秒）。首次测试误假设冲突仅通过 result 返回，已按既有 ErrSyncConflict 加 Status 的契约断言，未放宽数据保留检查。开始导入阶段完整 make check，日志 `/tmp/kist-client-import-complete-check.log`。
+
+
+离线导入阶段完整 `make check` 已通过：会话 66217 退出 0，日志 `/tmp/kist-client-import-complete-check.log`。前序 c475528 的 CI 39602617485 已通过，Visual 39602617462 尚在运行。本阶段提交导入内核；网页续传接入、提取与受保护空间统计仍待完成。

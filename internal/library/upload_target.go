@@ -17,6 +17,10 @@ var ErrUploadTargetChanged = errors.New("upload target changed; select the desti
 // chain in one read snapshot. Descendant changes and propagated UpdatedAt do
 // not invalidate a long upload. Recheck inside ExecuteRequest before Commit.
 func (l *Library) UploadTarget(ctx context.Context, box domain.BoxID, folder domain.FolderID) (string, error) {
+	return uploadTarget(func(fn func(*store.ViewTx) error) error { return l.readTx(ctx, fn) }, box, folder)
+}
+
+func uploadTarget(readView func(func(*store.ViewTx) error) error, box domain.BoxID, folder domain.FolderID) (string, error) {
 	type ancestor struct {
 		ID     domain.FolderID
 		Parent *domain.FolderID
@@ -29,7 +33,7 @@ func (l *Library) UploadTarget(ctx context.Context, box domain.BoxID, folder dom
 		Start, End        domain.LocalDate
 		Ancestors         []ancestor
 	}
-	err := l.readTx(ctx, func(tx *store.ViewTx) error {
+	err := readView(func(tx *store.ViewTx) error {
 		b, found, err := tx.GetBox(box)
 		if err != nil {
 			return err
