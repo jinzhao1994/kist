@@ -54,6 +54,9 @@ func (c *Client) RebuildCache(ctx context.Context) (ClientCacheRebuildResult, er
 	}
 	_, _, err = c.cachePinsLocked()
 	if err == nil {
+		_, err = c.workspaceEntriesLocked()
+	}
+	if err == nil {
 		_, derived, e := c.derivedRecordsLocked()
 		err = e
 		for key, size := range derived {

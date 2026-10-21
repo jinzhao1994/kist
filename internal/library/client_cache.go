@@ -44,6 +44,7 @@ type cachePins struct {
 }
 
 type cacheEntry struct {
+	workspace bool
 	cachedOriginal
 	bytes  int64
 	exists bool
@@ -214,7 +215,11 @@ func (c *Client) cacheEntriesLocked() ([]cacheEntry, error) {
 			return nil, ErrCacheMetadata
 		}
 	}
-	return entries, nil
+	workspaces, err := c.workspaceEntriesLocked()
+	if err != nil {
+		return nil, err
+	}
+	return append(entries, workspaces...), nil
 }
 
 func cacheUsage(entries []cacheEntry, pins map[string]bool, limit int64) (ClientCacheStatus, error) {
@@ -308,7 +313,7 @@ func (c *Client) pruneCacheLocked(ctx context.Context, reserve int64, skip strin
 			return status, err
 		}
 		evict := entry.AccessedAt.Before(cutoff) || reserve > settings.CacheMaxBytes-budget
-		if !evict || pins[entry.Key] || entry.Key == skip {
+		if entry.workspace || !evict || pins[entry.Key] || entry.Key == skip {
 			retained = append(retained, entry)
 			continue
 		}
