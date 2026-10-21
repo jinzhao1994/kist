@@ -69,83 +69,102 @@ func (s *Server) filesetRoutes() {
 		})
 	})
 	huma.Get(s.contract, Prefix+"/entries", func(ctx context.Context, in *entryQueryInput) (*output[fileSearchResult], error) {
-		cursor := in.Cursor
-		in.Cursor = ""
-		q, err := s.fileQuery(&in.FileQueryInput)
+		q, err := buildEntryQuery(in, s.library.TagCondition, s.library.ExcludeTags)
 		if err != nil {
 			return nil, err
 		}
-		if cursor != "" {
-			prefix := "entries-v1:false:"
-			if in.IncludeMembers {
-				prefix = "entries-v1:true:"
-			}
-			if !strings.HasPrefix(cursor, prefix) {
-				return nil, huma.Error400BadRequest("cursor belongs to another result mode")
-			}
-			if _, _, err := query.DecodeCursor(q.Sort, strings.TrimPrefix(cursor, prefix)); err != nil {
-				return nil, huma.Error400BadRequest("invalid cursor")
-			}
-		}
-		q.Cursor = cursor
+
 		entries, next, err := s.library.Browse(ctx, q, in.IncludeMembers)
 		if err != nil {
 			return nil, failure(err)
 		}
-		out := fileSearchResult{Files: []fileSearchItem{}, Cursor: next}
-		for _, e := range entries {
-			var item wire.File
-			if !e.Primary.IsZero() {
-				f, ok, err := s.library.File(ctx, e.Primary)
-				if err != nil {
-					return nil, failure(err)
-				}
-				if !ok {
-					continue
-				}
-				item, err = renderFile(ctx, s.library, f)
-				if err != nil {
-					return nil, failure(err)
-				}
-			} else {
-				box, path, err := s.library.FileLocation(ctx, e.File)
-				if err != nil {
-					return nil, failure(err)
-				}
-				item = wire.NewFile(e.File, box.String(), path, s.library.Zone())
-			}
-			result := fileSearchItem{File: item}
-			if !e.Fileset.IsZero() {
-				result.FilesetID = e.Fileset.String()
-				result.PrimaryID = e.Primary.String()
-				result.NoPrimary = e.Primary.IsZero()
-				result.Name = e.File.Name
-				result.FolderID = e.File.FolderID.String()
-				result.UpdatedAt = e.File.UpdatedAt
-				result.Size = &e.Size
-				_, logicalPath, err := s.library.FileLocation(ctx, e.File)
-				if err != nil {
-					return nil, failure(err)
-				}
-				result.Path = logicalPath
-			}
-			if !e.Primary.IsZero() {
-				tags, err := s.library.FileTags(ctx, e.Primary)
-				if err != nil {
-					return nil, failure(err)
-				}
-				for _, id := range tags {
-					tag, err := s.library.ResolveTag(id.String())
-					if err != nil {
-						return nil, failure(err)
-					}
-					{
-						result.DisplayTags = append(result.DisplayTags, displayTag{ID: tag.ID.String(), Name: tag.Name})
-					}
-				}
-			}
-			out.Files = append(out.Files, result)
-		}
-		return response(out, nil)
+		return renderEntries(ctx, s.library, entries, next, s.library.ResolveTag)
 	})
+}
+
+func buildEntryQuery(in *entryQueryInput, include, exclude func([]string) (query.TagExpr, error)) (query.Query, error) {
+	cursor := in.Cursor
+	input := in.FileQueryInput
+	input.Cursor = ""
+	q, err := buildFileQuery(&input, include, exclude)
+	if err != nil {
+		return query.Query{}, err
+	}
+	if cursor != "" {
+		prefix := "entries-v1:false:"
+		if in.IncludeMembers {
+			prefix = "entries-v1:true:"
+		}
+		if !strings.HasPrefix(cursor, prefix) {
+			return query.Query{}, huma.Error400BadRequest("cursor belongs to another result mode")
+		}
+		if _, _, err := query.DecodeCursor(q.Sort, strings.TrimPrefix(cursor, prefix)); err != nil {
+			return query.Query{}, huma.Error400BadRequest("invalid cursor")
+		}
+	}
+	q.Cursor = cursor
+	return q, nil
+}
+
+type entryReader interface {
+	fileReader
+	File(context.Context, domain.FileID) (domain.File, bool, error)
+}
+
+func renderEntries(ctx context.Context, reader entryReader, entries []library.BrowseEntry, next string, resolve func(string) (domain.Tag, error)) (*output[fileSearchResult], error) {
+	out := fileSearchResult{Files: []fileSearchItem{}, Cursor: next}
+	for _, e := range entries {
+		var item wire.File
+		if !e.Primary.IsZero() {
+			f, ok, err := reader.File(ctx, e.Primary)
+			if err != nil {
+				return nil, failure(err)
+			}
+			if !ok {
+				continue
+			}
+			item, err = renderFile(ctx, reader, f)
+			if err != nil {
+				return nil, failure(err)
+			}
+		} else {
+			box, path, err := reader.FileLocation(ctx, e.File)
+			if err != nil {
+				return nil, failure(err)
+			}
+			item = wire.NewFile(e.File, box.String(), path, reader.Zone())
+		}
+		result := fileSearchItem{File: item}
+		if !e.Fileset.IsZero() {
+			result.FilesetID = e.Fileset.String()
+			result.PrimaryID = e.Primary.String()
+			result.NoPrimary = e.Primary.IsZero()
+			result.Name = e.File.Name
+			result.FolderID = e.File.FolderID.String()
+			result.UpdatedAt = e.File.UpdatedAt
+			result.Size = &e.Size
+			_, logicalPath, err := reader.FileLocation(ctx, e.File)
+			if err != nil {
+				return nil, failure(err)
+			}
+			result.Path = logicalPath
+		}
+		if !e.Primary.IsZero() {
+			tags, err := reader.FileTags(ctx, e.Primary)
+			if err != nil {
+				return nil, failure(err)
+			}
+			for _, id := range tags {
+				tag, err := resolve(id.String())
+				if err != nil {
+					return nil, failure(err)
+				}
+				{
+					result.DisplayTags = append(result.DisplayTags, displayTag{ID: tag.ID.String(), Name: tag.Name})
+				}
+			}
+		}
+		out.Files = append(out.Files, result)
+	}
+	return response(out, nil)
 }

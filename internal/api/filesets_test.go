@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -71,6 +72,14 @@ func TestFilesetHTTPConfigurationAndSearch(t *testing.T) {
 	}
 	if got := decodeBody[fileSearchResult](t, s, "/files"); len(got.Files) != 2 {
 		t.Fatal("legacy files changed")
+	}
+	clientServer := clientServerFromNAS(t, l)
+	for _, route := range []string{"/filesets", "/filesets/" + folder.String(), "/entries?name_equals=episode", "/entries?keyword=sub.srt", "/entries?include_members=true&keyword=sub.srt"} {
+		want := decodeBody[map[string]any](t, s, route)
+		got := decodeBody[map[string]any](t, clientServer, route)
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("client route %s=%+v NAS=%+v", route, got, want)
+		}
 	}
 	body, _ = json.Marshal(map[string]any{"box": box.ID.String(), "before": set})
 	mustWrite(t, s, "PUT", "/filesets/"+folder.String(), "fileset-remove-001", string(body))

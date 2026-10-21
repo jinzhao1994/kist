@@ -306,3 +306,16 @@ ClientView 阶段已提交 2621e99，尚未推送；dbc1abb 也仍待推送。�
 
 
 HTTP 基础读取与共用搜索解析阶段完整检查已通过：会话 60611 退出 0，日志 `/tmp/kist-client-http-complete-check.log`。阶段提交，前序视觉报告下载会话 85446 仍运行，暂未推送覆盖远端待审阅 SHA。
+
+
+已合入 client_box_reads 两个新文件及注册调用。main 新增 `client serve DIRECTORY`，默认 127.0.0.1:8474，复用 serveOptions/serveHTTP、嵌入网页、信号关闭，启动不读取连接凭据/联系 NAS；真实 HTTP 测试在未配置连接的客户端读取 pending 新盒并验证关闭。新增 client_filesets.go，接入 filesets 列表/详情与 entries，抽取 buildEntryQuery/renderEntries 给 NAS 和客户端共用，保持成员过滤与游标模式校验；现有 NAS fileset HTTP 测试增加客户端对照。`/tmp/kist-client-browse-serve.log` race 通过（API 4.227 秒、cmd 2.163 秒）。尚未实现完整页面编辑/上传/预览/历史/同步 UI，不能宣称客户端网页完整。正在跑完整检查 `/tmp/kist-client-browse-serve-check.log`。视觉报告下载会话 85446 仍 live。
+
+
+本地启动/组合读取完整检查失败于 TestEveryPrintingCommandIsCovered：新增 client serve 未列入长运行 transport 例外，其他包通过。按已有 serve 的 stderr-only 规则补一行 covered["client serve"]，不改变 JSON 输出要求；针对性 `/tmp/kist-client-serve-output.log` 已通过，重新完整检查日志 `/tmp/kist-client-browse-serve-final-check.log`。
+
+视觉报告下载 85446 已完成。已查看 expected/current/diff，134 张仅 entry-menu-box 的“在新标签页打开”文字 326 像素差异，布局其余部分一致，与此前出现过的同尺寸差异一致；没有已确认的预期 UI 改动可据此接受。已请求重跑 Visual 39596936245 的失败 job，等待 attempt 2，未更新基准。报告目录 `/tmp/kist-visual-39596936245`。
+
+独立 worktree 新增 client_request_status.go/test.go，提供 RequestStatus/CheckRequest，从持久 pending 回执恢复 lost-response 结果，保持 NAS 接纳前后 localID 不变，校验 digest、noop 与不存在请求。`/tmp/kist-client-request-lookup.log` race 通过（2.987 秒）；尚未合入 main，仅这两个新文件待复制。
+
+
+本地 serve/组合目录阶段最终完整 make check 已通过：会话 67465 退出 0，日志 `/tmp/kist-client-browse-serve-final-check.log`。阶段提交；Visual 39596936245 attempt 2 仍运行，等待结论后推送后续已验证提交。

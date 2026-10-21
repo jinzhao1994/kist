@@ -13,6 +13,8 @@ import (
 
 // Client reads use request-scoped snapshots and never instantiate a NAS Library.
 func (s *Server) clientReadRoutes() {
+	s.clientBoxReadRoutes()
+	s.clientFilesetReadRoutes()
 	huma.Get(s.contract, Prefix+"/files", func(ctx context.Context, in *FileQueryInput) (*output[fileSearchResult], error) {
 		out := fileSearchResult{Files: []fileSearchItem{}}
 		err := s.client.View(ctx, func(v *library.ClientView) error {

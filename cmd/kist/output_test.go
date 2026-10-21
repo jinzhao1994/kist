@@ -250,6 +250,7 @@ func TestEveryPrintingCommandIsCovered(t *testing.T) {
 	covered["client init"] = true
 	// serve is a long-running transport, with diagnostics only on stderr.
 	covered["serve"] = true
+	covered["client serve"] = true
 
 	var walk func(cmd *cobra.Command, path []string)
 	walk = func(cmd *cobra.Command, path []string) {

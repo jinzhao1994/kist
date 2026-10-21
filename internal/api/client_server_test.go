@@ -67,3 +67,36 @@ func TestClientServerCatalogAndAccessProtection(t *testing.T) {
 		t.Fatal("nil client accepted")
 	}
 }
+
+func clientServerFromNAS(t *testing.T, nas *library.Library) *Server {
+	t.Helper()
+	ctx := t.Context()
+	head, err := nas.SyncHead(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := library.CreateClient(ctx, t.TempDir(), library.ClientSettings{LibraryID: head.LibraryID, Timezone: nas.Zone().String()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { client.Close() })
+	var after int64
+	for {
+		page, err := nas.SyncCatalog(ctx, head, after, 2, 1<<20)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := client.ReceiveCatalogPage(ctx, page); err != nil {
+			t.Fatal(err)
+		}
+		if page.Done {
+			break
+		}
+		after = page.Next
+	}
+	server, err := NewClient(client, Options{AllowedHosts: []string{"localhost:8473"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return server
+}
