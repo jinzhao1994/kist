@@ -1,5 +1,4 @@
 import { Menu, Portal } from "@mantine/core";
-import { useReducedMotion } from "@mantine/hooks";
 import {
   useState,
   type KeyboardEvent,
@@ -49,7 +48,6 @@ export function ContextMenu({
   close: () => void;
   children: ReactNode;
 }) {
-  const reducedMotion = useReducedMotion();
   // Keep the exit frame anchored to the last trigger, not the viewport origin.
   const [position, setPosition] = useState(anchor);
   if (anchor && (anchor.x !== position?.x || anchor.y !== position?.y)) {
@@ -57,11 +55,7 @@ export function ContextMenu({
   }
   return (
     <Menu
-      transitionProps={{
-        transition: "fade",
-        duration: reducedMotion ? 0 : 100,
-        exitDuration: 0,
-      }}
+      transitionProps={{ transition: "fade", duration: 100, exitDuration: 0 }}
       returnFocus={false}
       withinPortal
       position="bottom-start"
