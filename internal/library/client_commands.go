@@ -37,19 +37,23 @@ func (c *Client) commandWriteLocked(ctx context.Context, scope *clientRequestSco
 	return err
 }
 
-func (c *Client) commandIntentLocked(ctx context.Context, scope *clientRequestScope, action oplog.Action, payload any) (SyncReference, error) {
+func (c *Client) commandIntentLocked(ctx context.Context, scope *clientRequestScope, action oplog.Action, payload any, files ...SyncFileState) (SyncReference, error) {
 	raw, err := oplog.Marshal(payload)
 	if err != nil {
 		return SyncReference{}, err
 	}
-	p := SyncProposal{Version: 1, ID: domain.NewID().String(), OccurredAt: time.Now().UTC(), Action: string(action), Origin: "user", Payload: raw}
+	p := SyncProposal{Version: 1, ID: domain.NewID().String(), OccurredAt: time.Now().UTC(), Action: string(action), Origin: "user", Payload: raw, Files: files}
+	return c.stageCommandLocked(ctx, scope, p)
+}
+
+func (c *Client) stageCommandLocked(ctx context.Context, scope *clientRequestScope, p SyncProposal) (SyncReference, error) {
 	var request *Request
 	if scope != nil {
 		scope.attempted = true
 		scope.localID = p.ID
 		request = &scope.request
 	}
-	err = c.stageLocked(ctx, p, request)
+	err := c.stageLocked(ctx, p, request)
 	if scope != nil {
 		scope.err = err
 	}

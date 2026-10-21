@@ -180,6 +180,18 @@
 
 标签阶段完整 `/tmp/kist-client-tags-check.log` 已通过（退出码 0），准备提交。网页文件详情已有 `fileReader` 读取接口可复用，客户端内容句柄必须保留缓存租用，不能直接套用 NAS 的 `*os.File` 假设。
 
+标签阶段已提交并推送 `df2e928`；CI `39544479746`、Visual `39544479872`、Secret scan `39544479839` 待核对最终结果。
+
+### 文件改名与 metadata 删除
+
+新增客户端 `RenameEntry` 和 `RemoveMetadata`，与 NAS 共享改名 payload、metadata tombstone 和 captured_at 重算逻辑；客户端 metadata 操作附带原内容身份前提。针对性 race 检查通过（`/tmp/kist-client-file-commands-targeted.log`），覆盖无原文件缓存时删除已知属性、无变化回执、NAS 独立改名合并、重新提取不能复活 tombstone，以及改名同步后的严格撤销。开始固定代码完整检查 `/tmp/kist-client-file-commands-check.log`；删除/恢复与客户端历史仍待实现。
+
+新增客户端 `Undo` 业务入口，使用 `SyncReference` 明确区分 NAS op 与本地意图，不删除原 pending。命令入队和普通写入共用请求作用域，严格状态检查继续由既有重放/接纳路径执行。针对性 race 检查通过（`/tmp/kist-client-undo-final-targeted.log`），覆盖离线创建后撤销、同步后使用原本地引用重做、NAS 引用撤销、后续修改阻挡及请求作用域错误分类。当前完整检查启动早于撤销入口，结束后需对包含该入口的最终代码再次完整检查；历史列表、操作组 UI 和删除恢复仍待接入。
+
+`/tmp/kist-client-file-commands-check.log` 已通过（退出码 0），包含撤销入口的最终检查运行于 `/tmp/kist-client-file-undo-final-check.log`。标签阶段 `df2e928` 的 CI `39544479746` 已通过，Visual `39544479872` 仍在运行。后续配置审计需检查首次连接的时区继承：当前 `CreateClient` 默认 UTC，而同步能力未携带 NAS 时区；不能将当前 tombstone 测试当作非 UTC 内容时间一致性的证明。
+
+文件编辑与撤销最终完整检查 `/tmp/kist-client-file-undo-final-check.log` 已通过（退出码 0）。下一步补齐 NAS 时区能力与客户端继承，已有 pending payload 不随配置刷新重写；随后继续稳定删除 revision、恢复和历史/网页接入。
+
 - `internal/api/server.go` 当前持有具体 `*library.Library`，初始化还直接根据 NAS 布局创建上传暂存与媒体服务。不能只替换数据库连接就声称支持客户端。
 - `library.ExecuteRequest` 的幂等结果是 NAS 数字 op ID，且无业务修改也记录 request receipt；客户端需要独立持久化请求回执并保留无操作重试语义，不能遗漏或暴露客户端视图序号。
 - 现有领域命令负责生成 before/after payload，`write`/`writeLocked` 承担正式日志与投影。后续抽取共享命令生成及读视图边界，分别接入 NAS 写入口和客户端 pending 入口；上传、历史、撤销与错误结果中的操作引用须一并审计，不以只读浏览替代离线编辑要求。

@@ -25,43 +25,9 @@ var ErrNoSuchMetadata = fmt.Errorf("no such metadata key")
 func (l *Library) RemoveMetadata(ctx context.Context, id domain.FileID, key string) (bool, error) {
 	var change *oplog.FileMetadataChange
 	err := l.readTx(ctx, func(vtx *store.ViewTx) error {
-		file, ok, err := vtx.GetFile(id)
-		if err != nil {
-			return err
-		}
-		if !ok {
-			return fmt.Errorf("%s: %w", id, ErrNoSuchFile)
-		}
-		rows, err := store.FileMetadata(vtx.SQL(), id)
-		if err != nil {
-			return err
-		}
-
-		var before *oplog.MetadataState
-		for _, r := range rows {
-			if r.Key != key {
-				continue
-			}
-			if r.Tombstone {
-				return nil // already suppressed
-			}
-			before = &oplog.MetadataState{Value: r.Value, Type: r.Type, Source: r.Source}
-		}
-		if before == nil {
-			return fmt.Errorf("%s on %s: %w", key, id, ErrNoSuchMetadata)
-		}
-
-		change = &oplog.FileMetadataChange{
-			FileID: id,
-			Keys: []oplog.KeyChange{{
-				Key:    key,
-				Before: before,
-				After:  &oplog.MetadataState{Source: extract.UserSource, Tombstone: true},
-			}},
-			CapturedAt:  l.resolveCaptured(withoutKey(rows, key)),
-			CapturedWas: file.CapturedAt,
-		}
-		return nil
+		var err error
+		change, err = removeMetadataChange(vtx, id, key, l.zone())
+		return err
 	})
 	if err != nil || change == nil {
 		return false, err
@@ -90,9 +56,5 @@ func withoutKey(rows []store.MetadataRow, key string) []extract.KV {
 
 // resolveCaptured draws the kernel's conclusion from a set of observations.
 func (l *Library) resolveCaptured(kvs []extract.KV) domain.Instant {
-	captured := extract.ResolveCaptured(kvs, l.zone())
-	if !captured.Known {
-		return domain.Instant{}
-	}
-	return domain.NewInstant(captured.UnixNano)
+	return capturedFrom(kvs, l.zone())
 }

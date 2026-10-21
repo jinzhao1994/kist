@@ -75,16 +75,28 @@ func (l *Library) RenameEntry(ctx context.Context, box domain.BoxID, id domain.I
 	if err != nil {
 		return 0, err
 	}
-	if s.Name != before {
-		return 0, oplog.ErrStaleBefore
+	p, err := renameEntryPayload(s, before, name)
+	if err != nil {
+		return 0, err
 	}
-	ancestors := s.Ancestors
-	if folder {
-		ancestors = append(ancestors, domain.FolderID{ID: id})
-	}
-	raw, err := oplog.Marshal(oplog.RenameEntryPayload{BoxID: box, ID: id, Folder: folder, Parent: s.Parent, Before: before, After: name, Ancestors: ancestors})
+	raw, err := oplog.Marshal(p)
 	if err != nil {
 		return 0, err
 	}
 	return l.write(ctx, oplog.ActionRenameEntry, raw, oplog.OriginUser, writeOptions{})
+}
+
+func renameEntryPayload(s domain.EntryContents, before, name string) (oplog.RenameEntryPayload, error) {
+	name = domain.Normalize(name)
+	if err := domain.ValidateName(name); err != nil {
+		return oplog.RenameEntryPayload{}, err
+	}
+	if s.Name != before {
+		return oplog.RenameEntryPayload{}, oplog.ErrStaleBefore
+	}
+	ancestors := append([]domain.FolderID{}, s.Ancestors...)
+	if s.Folder {
+		ancestors = append(ancestors, domain.FolderID{ID: s.ID})
+	}
+	return oplog.RenameEntryPayload{BoxID: s.BoxID, ID: s.ID, Folder: s.Folder, Parent: s.Parent, Before: before, After: name, Ancestors: ancestors}, nil
 }
