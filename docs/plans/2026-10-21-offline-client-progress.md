@@ -263,3 +263,14 @@ Visual `39546249957` 已通过完整采集比较，旧菜单单行像素差异�
 
 
 删除阶段最终完整 `VITEST_MAX_WORKERS=2 make check` 已通过（进程退出 0，日志 `/tmp/kist-client-deletion-timeout-check.log`），包含全部前端测试、契约、格式、构建、Go vet、全包 race 及单二进制构建。现在提交该阶段并检查远端 CI；独立 worktree 的收藏搜索与目录读取仍待下一阶段合入。
+
+
+删除阶段已提交并推送 `f4e1175`；CI `39596164301`、Visual `39596164486` 已启动，Secret scan `39596164485` 已通过。收藏搜索及目录读取工作目录的 tracked diff 经 `git apply --check` 后合入 main，并复制 6 个新增文件，保留删除阶段全部变化。正在执行合入后的 `VITEST_MAX_WORKERS=2 make check`，日志 `/tmp/kist-client-catalog-complete-check.log`（会话 14593）。独立工作目录仍保留，不能重复应用其补丁。
+
+下一步 HTTP 接入的源码核查：`api.Server.library` 仍是具体 `*Library`，构造函数创建 NAS media、uploads、sync-uploads 并注册同步服务端；不可仅传入一个拥有 client.db 的空 Library。`fileReader` 当前要求无错误返回的 `Zone()`，而客户端时区属于带锁读取的持久设置；应在客户端请求快照中固定时区并复用同一读取视图，避免每个 DTO 字段都重建叠加层。另需接齐 FilesWithTags、SearchBoxes、标签条件、封面、请求去重状态、历史/撤销映射、导入/提取和带缓存租约的内容句柄。现有 `OpenContent` 的 `*os.File` 契约也不能丢弃缓存读租约。上述是后续实现工作，不表示网页已经可用。
+
+
+为保持主工作树完整检查输入不变，后续检索补齐仍在 `/tmp/kist-offline-saved-search`：新增 `client_search.go` 与 `client_search_test.go`，实现 FilesWithTags、SearchBoxes、BoxCover，每次在同一 SQLite 读取快照中获取对象与标签/封面引用。测试验证 pending 标签分配及重命名反映到结果、封面未缓存仍可解析、不存在盒明确报错；`/tmp/kist-client-search-reads.log` 已通过（0.764 秒）。这两个文件尚未复制到 main，后续仅复制这两个新文件，不能重复应用此前已合入的 worktree diff。主检查会话 14593 仍在运行；f4e1175 的容器 amd64/arm64、平台 Linux ARM/macOS 已通过，Windows/check/Visual 仍在运行。
+
+
+目录读取和收藏搜索阶段完整 `VITEST_MAX_WORKERS=2 make check` 已通过（会话 14593 退出 0，日志 `/tmp/kist-client-catalog-complete-check.log`）。按阶段提交当前 main 内容。独立 worktree 另新增 client_tag_query.go/test.go，并从 commands.go 抽取共用 resolveTag 查询函数；验证 pending 子标签移动、改名后的包含/排除条件与名称/ID 解析，`/tmp/kist-client-tag-query.log` 通过（1.480 秒）。这批标签查询和此前 client_search 两个文件尚未合入；后续合入仅取 commands.go 增量及这 4 个新文件。

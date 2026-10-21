@@ -110,24 +110,33 @@ func (l *Library) FilesetDetail(ctx context.Context, id domain.FolderID) (domain
 	var folder domain.Folder
 	var box domain.BoxID
 	err := l.readTx(ctx, func(tx *store.ViewTx) error {
-		current, err := tx.GetFileset(id)
-		if err != nil {
-			return err
-		}
-		if current == nil {
-			return ErrNoSuchFile
-		}
-		set = *current
-		var found bool
-		folder, found, err = store.FolderForDisplay(tx.Queryer(), id)
-		if err != nil {
-			return err
-		}
-		if !found {
-			return ErrNoSuchFile
-		}
-		box, _, err = store.FolderChain(tx.Queryer(), id)
+		var err error
+		set, folder, box, err = readFilesetDetail(tx, id)
 		return err
 	})
+	return set, folder, box, err
+}
+
+func readFilesetDetail(tx *store.ViewTx, id domain.FolderID) (domain.Fileset, domain.Folder, domain.BoxID, error) {
+	var set domain.Fileset
+	var folder domain.Folder
+	var box domain.BoxID
+	current, err := tx.GetFileset(id)
+	if err != nil {
+		return set, folder, box, err
+	}
+	if current == nil {
+		return set, folder, box, ErrNoSuchFile
+	}
+	set = *current
+	var found bool
+	folder, found, err = store.FolderForDisplay(tx.Queryer(), id)
+	if err != nil {
+		return set, folder, box, err
+	}
+	if !found {
+		return set, folder, box, ErrNoSuchFile
+	}
+	box, _, err = store.FolderChain(tx.Queryer(), id)
 	return set, folder, box, err
 }

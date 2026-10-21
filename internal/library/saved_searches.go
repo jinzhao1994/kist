@@ -7,7 +7,6 @@ import (
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/oplog"
 	"github.com/jinzhao1994/kist/internal/store"
-	"reflect"
 )
 
 var ErrNoSuchSavedSearch = errors.New("no such saved search")
@@ -31,29 +30,11 @@ func (l *Library) CreateSavedSearch(ctx context.Context, name string, definition
 	return s, err
 }
 func (l *Library) UpdateSavedSearch(ctx context.Context, expected domain.SavedSearch, name string, definition domain.SearchDefinition) error {
-	id := expected.ID
-	before, err := domain.NewSavedSearch(id, expected.Name, expected.Definition)
-	if err != nil {
-		return fmt.Errorf("%w: %v", ErrInvalidRequest, err)
-	}
-	current, ok, err := store.SavedSearchByID(l.db, id)
-	if err != nil {
+	payload, err := savedSearchUpdatePayload(l.db, expected, name, definition)
+	if err != nil || payload == nil {
 		return err
 	}
-	if !ok {
-		return ErrNoSuchSavedSearch
-	}
-	if !reflect.DeepEqual(current, before) {
-		return oplog.ErrStaleBefore
-	}
-	after, err := domain.NewSavedSearch(id, name, definition)
-	if err != nil {
-		return fmt.Errorf("%w: %v", ErrInvalidRequest, err)
-	}
-	if reflect.DeepEqual(before, after) {
-		return nil
-	}
-	raw, err := oplog.Marshal(oplog.SavedSearchPayload{Before: &before, After: &after})
+	raw, err := oplog.Marshal(payload)
 	if err != nil {
 		return err
 	}

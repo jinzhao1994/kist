@@ -348,7 +348,14 @@ func (c *Client) PutOriginal(ctx context.Context, r io.Reader) (blob.PutResult, 
 }
 
 func (c *Client) Box(ctx context.Context, id domain.BoxID) (domain.Box, bool, error) {
-	return (&Library{db: c.db}).Box(ctx, id)
+	var result domain.Box
+	var found bool
+	err := c.readView(ctx, func(tx *store.ViewTx) error {
+		var err error
+		result, found, err = store.DisplayBox(tx.Queryer(), id)
+		return err
+	})
+	return result, found, err
 }
 
 func readClientJSON(path string, value any) error {

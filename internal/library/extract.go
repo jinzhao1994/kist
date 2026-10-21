@@ -8,6 +8,7 @@ import (
 	"os"
 	"slices"
 	"sort"
+	"time"
 
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/extract"
@@ -401,7 +402,17 @@ type CapturedInfo struct {
 
 // CapturedInfo resolves the provenance of one file's capture time.
 func (l *Library) CapturedInfo(ctx context.Context, f domain.File) (CapturedInfo, error) {
-	seen, err := store.Extractions(l.db, f.ID)
+	var result CapturedInfo
+	err := l.readTx(ctx, func(tx *store.ViewTx) error {
+		var err error
+		result, err = readCapturedInfo(tx.Queryer(), l.zone(), f)
+		return err
+	})
+	return result, err
+}
+
+func readCapturedInfo(q store.Queryer, zone *time.Location, f domain.File) (CapturedInfo, error) {
+	seen, err := store.Extractions(q, f.ID)
 	if err != nil {
 		return CapturedInfo{}, err
 	}
@@ -411,14 +422,14 @@ func (l *Library) CapturedInfo(ctx context.Context, f domain.File) (CapturedInfo
 	}
 	slices.Sort(info.Extracted)
 
-	if _, ok := f.CapturedAt.Time(l.zone()); !ok {
+	if _, ok := f.CapturedAt.Time(zone); !ok {
 		return info, nil
 	}
-	rows, err := store.FileMetadata(l.db, f.ID)
+	rows, err := store.FileMetadata(q, f.ID)
 	if err != nil {
 		return CapturedInfo{}, err
 	}
-	c := extract.ResolveCaptured(observations(rows), l.zone())
+	c := extract.ResolveCaptured(observations(rows), zone)
 	info.From, info.Zone = c.From, string(c.Zone)
 	return info, nil
 }

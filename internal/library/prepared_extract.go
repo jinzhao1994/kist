@@ -71,8 +71,18 @@ type MediaInfo struct {
 }
 
 func (l *Library) MediaInfo(ctx context.Context, id domain.FileID) (MediaInfo, error) {
+	var result MediaInfo
+	err := l.readTx(ctx, func(tx *store.ViewTx) error {
+		var err error
+		result, err = readMediaInfo(tx.Queryer(), id)
+		return err
+	})
+	return result, err
+}
+
+func readMediaInfo(q store.Queryer, id domain.FileID) (MediaInfo, error) {
 	out := MediaInfo{Pending: []string{}}
-	rows, err := l.FileMetadata(ctx, id)
+	rows, err := store.FileMetadata(q, id)
 	if err != nil {
 		return out, err
 	}
@@ -91,7 +101,7 @@ func (l *Library) MediaInfo(ctx context.Context, id domain.FileID) (MediaInfo, e
 			out.Kind = row.Value
 		}
 	}
-	versions, err := store.Extractions(l.db, id)
+	versions, err := store.Extractions(q, id)
 	if err != nil {
 		return out, err
 	}
