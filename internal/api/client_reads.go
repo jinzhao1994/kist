@@ -8,6 +8,7 @@ import (
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/library"
 	"github.com/jinzhao1994/kist/internal/query"
+	staging "github.com/jinzhao1994/kist/internal/upload"
 	"github.com/jinzhao1994/kist/internal/wire"
 )
 
@@ -44,7 +45,7 @@ func (s *Server) clientReadRoutes() {
 		return response(out, err)
 	})
 	huma.Get(s.contract, Prefix+"/info", func(ctx context.Context, _ *struct{}) (*output[libraryInfo], error) {
-		out := libraryInfo{Version: buildinfo.Get().Version, MaxUploadBytes: s.maxUploadBytes, MaxUploadFiles: s.maxUploadFiles}
+		out := libraryInfo{Version: buildinfo.Get().Version, MaxUploadBytes: s.maxUploadBytes, MaxUploadFiles: s.maxUploadFiles, ResumableUploadVersion: staging.ProtocolVersion, UploadChunkBytes: staging.ChunkBytes}
 		err := s.client.View(ctx, func(v *library.ClientView) error { out.Timezone = v.Zone().String(); return nil })
 		return response(out, err)
 	})

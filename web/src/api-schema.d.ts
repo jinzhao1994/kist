@@ -1395,6 +1395,8 @@ export interface components {
         };
         SessionStatus: {
             conflicts?: components["schemas"]["UploadConflicts"];
+            local_id?: string;
+            noop?: boolean;
             /** Format: int64 */
             op_id?: number;
             session?: components["schemas"]["UploadState"];
@@ -1566,7 +1568,9 @@ export interface components {
             /** Format: date-time */
             expires: string;
             id: string;
+            local_id?: string;
             manifest: components["schemas"]["UploadManifest"];
+            noop?: boolean;
             offsets: number[] | null;
             /** Format: int64 */
             op_id?: number;

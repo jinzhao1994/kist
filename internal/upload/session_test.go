@@ -519,3 +519,43 @@ func TestCanceledBlockDoesNotAdvanceProgress(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestLocalCompletionSurvivesRestartAndAllowsCleanup(t *testing.T) {
+	for _, noop := range []bool{false, true} {
+		t.Run(fmt.Sprint(noop), func(t *testing.T) {
+			root := t.TempDir()
+			s := newStore(t, root, 100)
+			state := create(t, s, "local", manifest(nil))
+			localID := "01a15921-bef1-76e5-bddc-7c6b1024ff5b"
+			if noop {
+				localID = ""
+			}
+			if err := s.With(t.Context(), state.ID, func(v *Session) error {
+				checkKind(t, v.CompleteLocal("invalid", false), "conflict")
+				checkKind(t, v.CompleteLocal("", false), "conflict")
+				if err := v.CompleteLocal(localID, noop); err != nil {
+					return err
+				}
+				if err := v.CompleteLocal(localID, noop); err != nil {
+					return err
+				}
+				checkKind(t, v.Complete(42), "conflict")
+				checkKind(t, v.CompleteLocal("01a15921-becf-7d69-90b8-f6fe59515f02", false), "conflict")
+				checkKind(t, v.Cancel(), "completed")
+				checkKind(t, v.Append(t.Context(), 0, 0, []byte("x"), ""), "completed")
+				return nil
+			}); err != nil {
+				t.Fatal(err)
+			}
+			reopened := newStore(t, root, 100)
+			got := progress(t, reopened, state.ID)
+			if !got.Completed() || got.OpID != 0 || got.LocalID != localID || got.Noop != noop {
+				t.Fatal(got)
+			}
+			if err := reopened.Sweep(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			checkKind(t, reopened.With(t.Context(), state.ID, func(*Session) error { return nil }), "not_found")
+		})
+	}
+}

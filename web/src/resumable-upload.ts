@@ -158,6 +158,10 @@ export function resumableUpload(
       clear();
       return { op_id: status.op_id };
     }
+    if (status.local_id || status.noop) {
+      clear();
+      return { local_id: status.local_id, noop: !!status.noop };
+    }
     return undefined;
   }
   function stateOf(status: Status): State {

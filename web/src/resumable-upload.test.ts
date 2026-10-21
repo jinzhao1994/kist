@@ -560,3 +560,25 @@ it("cancels a conflict without creating a staging session", async () => {
   expect(upload.pending()).toBeUndefined();
   expect(sent).toHaveLength(0);
 });
+
+it.each([
+  { local_id: "01a15921-bef1-76e5-bddc-7c6b1024ff5b", noop: false },
+  { noop: true },
+])("recovers a durable client receipt %j", async (receipt) => {
+  const operation = resumableUpload("box", "folder", 4);
+  operation.select([original()]);
+  loseResponse = true;
+  await expect(
+    operation.run(
+      () => {},
+      () => {},
+    ),
+  ).rejects.toThrow();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => response(receipt)),
+  );
+  const restored = resumableUpload("box", "folder", 4);
+  expect(await restored.check()).toEqual({ receipt });
+  expect(loadUpload("box", "folder")).toBeUndefined();
+});

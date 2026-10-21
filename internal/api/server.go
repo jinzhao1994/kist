@@ -124,6 +124,13 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 			return nil, err
 		}
 	}
+	if c != nil {
+		s.uploads, err = staging.New(c.UploadStagingPath(), opt.MaxUploadBytes, opt.MaxUploadFiles)
+		if err != nil {
+			return nil, err
+		}
+		s.uploadSlots = make(chan struct{}, staging.MaxSessions)
+	}
 	cfg.OpenAPIPath = Prefix + "/openapi"
 	cfg.DocsPath = "" // An embedded UI will link to the offline JSON contract.
 	cfg.SchemasPath = ""
@@ -134,6 +141,7 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 	if c != nil {
 		s.clientReadRoutes()
 		s.clientWriteRoutes()
+		s.uploadSessionRoutes()
 		s.contentRoutes()
 	} else {
 		s.readRoutes()

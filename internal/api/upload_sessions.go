@@ -25,7 +25,11 @@ type sessionStatus struct {
 	Conflicts *library.UploadConflicts `json:"conflicts,omitempty"`
 	Session   *staging.State           `json:"session,omitempty"`
 	OpID      int64                    `json:"op_id,omitempty"`
+	LocalID   string                   `json:"local_id,omitempty"`
+	Noop      bool                     `json:"noop,omitempty"`
 }
+
+func (s sessionStatus) completed() bool { return s.OpID != 0 || s.LocalID != "" || s.Noop }
 
 type sessionInput struct {
 	ID string `path:"id" minLength:"64" maxLength:"64" pattern:"^[0-9a-f]{64}$"`
@@ -107,12 +111,12 @@ func (s *Server) uploadSessionRoutes() {
 			m.Protocol = 2
 		}
 		id := staging.ID(in.Key)
-		receipt, found, err := s.library.CheckRequest(ctx, sessionRequest(id, m))
+		receipt, found, err := s.checkUploadRequest(ctx, sessionRequest(id, m))
 		if err != nil {
 			return nil, failure(err)
 		}
 		if found {
-			return response(sessionStatus{OpID: receipt.OpID}, nil)
+			return response(receipt, nil)
 		}
 		// A lost creation response must return the original snapshot, even if
 		// the target changed since then. The final commit rechecks that snapshot.
@@ -135,7 +139,7 @@ func (s *Server) uploadSessionRoutes() {
 		for i, f := range files {
 			paths[i] = f.Path
 		}
-		preview, err := s.library.PreviewUpload(ctx, domain.BoxID{ID: box}, domain.FolderID{ID: folder}, paths)
+		preview, err := s.previewUpload(ctx, domain.BoxID{ID: box}, domain.FolderID{ID: folder}, paths)
 		if err != nil {
 			return nil, failure(err)
 		}
@@ -150,7 +154,7 @@ func (s *Server) uploadSessionRoutes() {
 		}
 		// Retain an absent-name snapshot too, so a late collision is never silently overwritten.
 		m.DestinationToken = preview.Token
-		m.Target, err = s.library.UploadTarget(ctx, domain.BoxID{ID: box}, domain.FolderID{ID: folder})
+		m.Target, err = s.uploadTarget(ctx, domain.BoxID{ID: box}, domain.FolderID{ID: folder})
 		if err != nil {
 			return nil, failure(err)
 		}
@@ -169,7 +173,7 @@ func (s *Server) uploadSessionRoutes() {
 		status, err := s.sessionAction(ctx, in.ID, func(v *staging.Session) error { return v.Cancel() })
 		var p *staging.Problem
 		gone := errors.As(err, &p) && (p.Kind == "not_found" || p.Kind == "canceled" || p.Kind == "expired")
-		if (err == nil || gone) && status.OpID == 0 {
+		if (err == nil || gone) && !status.completed() {
 			// The cancellation marker is durable even if cleanup fails. Periodic
 			// cleanup retries it; an archived receipt is never canceled.
 			if sweepErr := s.uploads.Sweep(ctx); sweepErr != nil {
@@ -203,20 +207,20 @@ func (s *Server) uploadSessionRoutes() {
 // may be lost after commit but before the local completion marker was saved.
 func (s *Server) sessionAction(ctx context.Context, id string, fn func(*staging.Session) error) (sessionStatus, error) {
 	var status sessionStatus
-	receipt, found, err := s.library.RequestStatus(ctx, "upload."+id)
+	receipt, found, err := s.uploadReceipt(ctx, "upload."+id, nil)
 	if err != nil {
 		return status, err
 	}
 	if found {
-		return sessionStatus{OpID: receipt.OpID}, nil
+		return receipt, nil
 	}
 	err = s.uploads.With(ctx, id, func(v *staging.Session) error {
-		receipt, found, err := s.library.CheckRequest(ctx, sessionRequest(id, v.State().Manifest))
+		receipt, found, err := s.checkUploadRequest(ctx, sessionRequest(id, v.State().Manifest))
 		if err != nil {
 			return err
 		}
 		if found {
-			status.OpID = receipt.OpID
+			status = receipt
 			return nil
 		}
 		if err := fn(v); err != nil {
@@ -224,15 +228,15 @@ func (s *Server) sessionAction(ctx context.Context, id string, fn func(*staging.
 		}
 		state := v.State()
 		status.Session = &state
-		status.OpID = state.OpID
+		status.OpID, status.LocalID, status.Noop = state.OpID, state.LocalID, state.Noop
 		return nil
 	})
 	if err != nil {
 		// Cleanup can remove a completed session while this request waits for
 		// the lock. The archive receipt takes precedence over missing staging.
-		receipt, found, lookupErr := s.library.RequestStatus(ctx, "upload."+id)
+		receipt, found, lookupErr := s.uploadReceipt(ctx, "upload."+id, nil)
 		if lookupErr == nil && found {
-			return sessionStatus{OpID: receipt.OpID}, nil
+			return receipt, nil
 		}
 	}
 	return status, err
@@ -264,7 +268,7 @@ func (s *Server) completeSession(ctx context.Context, v *staging.Session) error 
 		}
 		sources[i] = library.ImportSource{Path: path, RelativePath: file.Path, Expected: &library.ImportIntegrity{Size: file.Size, SHA256: file.SHA256}}
 	}
-	checkDestinations := func() error {
+	checkDestinations := func(ctx context.Context) error {
 		if state.Manifest.DestinationToken == "" {
 			return nil
 		}
@@ -272,7 +276,7 @@ func (s *Server) completeSession(ctx context.Context, v *staging.Session) error 
 		for i, f := range sources {
 			paths[i] = f.RelativePath
 		}
-		preview, err := s.library.PreviewUpload(ctx, domain.BoxID{ID: box}, domain.FolderID{ID: folder}, paths)
+		preview, err := s.previewUpload(ctx, domain.BoxID{ID: box}, domain.FolderID{ID: folder}, paths)
 		if err != nil {
 			return err
 		}
@@ -281,10 +285,10 @@ func (s *Server) completeSession(ctx context.Context, v *staging.Session) error 
 		}
 		return nil
 	}
-	if err := checkDestinations(); err != nil {
+	if err := checkDestinations(ctx); err != nil {
 		return err
 	}
-	prepared, err := s.library.PrepareFiles(ctx, sources, library.ImportOptions{Box: domain.BoxID{ID: box}, Into: domain.FolderID{ID: folder}, Hidden: true, ConflictMode: state.Manifest.ConflictMode})
+	prepared, err := s.prepareUpload(ctx, sources, library.ImportOptions{Box: domain.BoxID{ID: box}, Into: domain.FolderID{ID: folder}, Hidden: true, ConflictMode: state.Manifest.ConflictMode})
 	if err != nil {
 		return err
 	}
@@ -293,19 +297,18 @@ func (s *Server) completeSession(ctx context.Context, v *staging.Session) error 
 			return err
 		}
 	}
-	result, err := s.library.ExecuteRequest(ctx, sessionRequest(state.ID, state.Manifest), func(ctx context.Context) error {
-		target, err := s.library.UploadTarget(ctx, domain.BoxID{ID: box}, domain.FolderID{ID: folder})
+	result, err := s.executeUpload(ctx, sessionRequest(state.ID, state.Manifest), func(ctx context.Context) error {
+		target, err := s.uploadTarget(ctx, domain.BoxID{ID: box}, domain.FolderID{ID: folder})
 		if err != nil {
 			return err
 		}
 		if target != state.Manifest.Target {
 			return library.ErrUploadTargetChanged
 		}
-		if err := checkDestinations(); err != nil {
+		if err := checkDestinations(ctx); err != nil {
 			return err
 		}
-		_, err = prepared.Commit(ctx)
-		return err
+		return prepared(ctx)
 	})
 	if err != nil {
 		return err
@@ -314,6 +317,9 @@ func (s *Server) completeSession(ctx context.Context, v *staging.Session) error 
 		if err := s.uploadFault("after_commit"); err != nil {
 			return err
 		}
+	}
+	if s.client != nil {
+		return v.CompleteLocal(result.LocalID, result.Noop)
 	}
 	return v.Complete(result.OpID)
 }
@@ -376,8 +382,10 @@ func (s *Server) RunUploads(ctx context.Context) {
 		if err := s.uploads.Sweep(ctx); err != nil && ctx.Err() == nil {
 			slog.Warn("upload cleanup", "error", err)
 		}
-		if err := s.syncUploads.Sweep(ctx); err != nil && ctx.Err() == nil {
-			slog.Warn("sync upload cleanup", "error", err)
+		if s.syncUploads != nil {
+			if err := s.syncUploads.Sweep(ctx); err != nil && ctx.Err() == nil {
+				slog.Warn("sync upload cleanup", "error", err)
+			}
 		}
 		select {
 		case <-ctx.Done():

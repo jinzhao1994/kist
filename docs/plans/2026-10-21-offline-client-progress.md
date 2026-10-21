@@ -365,3 +365,13 @@ Visual 39596936245 attempt 2 已通过，基准未更改；attempt 1 的单行�
 
 
 离线导入阶段完整 `make check` 已通过：会话 66217 退出 0，日志 `/tmp/kist-client-import-complete-check.log`。前序 c475528 的 CI 39602617485 已通过，Visual 39602617462 尚在运行。本阶段提交导入内核；网页续传接入、提取与受保护空间统计仍待完成。
+
+
+离线导入阶段已提交并推送 870ff31；前序 c475528 的 CI/Visual 均通过。新 CI 39603894207、Visual 39603894360 运行中，Secret scan 39603894278 已通过。
+
+网页续传接入：upload_backend.go 统一两端目标/冲突检查、准备提交及持久回执查询，复用原有分块/Seal/最终校验协议；客户端启用 uploads 暂存与定期清理，info 声明协议 v2。暂存状态新增互斥 local_id/noop，完成后的重试、取消保护与清理保持原语义；正式 op_id 不伪造。目标检查显式使用 ExecuteRequest 回调 context，避免客户端锁内重新获取锁。网页共用续传恢复 local_id/noop，生成两端契约。
+
+`/tmp/kist-upload-local-receipt.log` upload race 通过（6.322 秒）；`/tmp/kist-client-upload-http-final.log` API race 通过（5.904 秒）、cmd 通过；`/tmp/kist-client-upload-web.log` 18 项通过。HTTP 新测试覆盖未连接 NAS 的客户端上传、中途换句柄恢复偏移、提交回执保存前故障、重复请求同一 local_id、内容读取与 NAS 零写入。首次测试遗漏 v2 最终 digests 并误认为服务端不会主动恢复回执，已按既有协议修正；旧客户端服务器测试改为允许自身 uploads 目录，仍禁止 ops/blobs/sync-uploads。当前开始完整检查，尚未提交该阶段；客户端提取/预览等后续范围仍未完成。
+
+
+网页续传阶段完整 make check 已通过：会话 2160 退出 0，日志 `/tmp/kist-client-upload-complete-check.log`。本阶段提交；870ff31 的 CI/Visual 尚在运行。独立 worktree 新增 client_extraction.go/test.go 和 API client_extraction.go/test.go，共用 extractionChange 事实差量逻辑；按单次快照捕获原文件/metadata/版本/时区，读取本地原文件并持缓存租约，提交 extractor origin 与内容前提。`/tmp/kist-client-extraction-http.log` API/library race 通过（3.113/8.303 秒），含本地回执、重复请求、未缓存返回、内容替换拒绝、同步/rebuild/Undo。尚未合入，仅这四个新文件、extract.go 小增量及 server 路由注册待合入，不得复制旧 worktree server.go 覆盖主线续传。

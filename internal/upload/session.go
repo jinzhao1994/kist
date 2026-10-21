@@ -72,6 +72,32 @@ type State struct {
 	Expires  time.Time `json:"expires"`
 	Canceled bool      `json:"canceled,omitempty"`
 	OpID     int64     `json:"op_id,omitempty"`
+	LocalID  string    `json:"local_id,omitempty"`
+	Noop     bool      `json:"noop,omitempty"`
+}
+
+// Completed distinguishes durable receipts from an unfinished upload.
+func (s State) Completed() bool { return s.OpID != 0 || s.LocalID != "" || s.Noop }
+
+func (s State) validReceipt() bool {
+	if s.OpID < 0 {
+		return false
+	}
+	count := 0
+	if s.OpID != 0 {
+		count++
+	}
+	if s.Noop {
+		count++
+	}
+	if s.LocalID != "" {
+		id, err := domain.ParseID(s.LocalID)
+		if err != nil || id.String() != s.LocalID {
+			return false
+		}
+		count++
+	}
+	return count <= 1
 }
 
 // Store is safe to reopen in another process. Limits apply to new sessions;
@@ -381,7 +407,7 @@ func readState(root *os.Root, name string) (State, error) {
 	if _, err := manifestBytes(state.Manifest); err != nil {
 		return state, problem("corrupt")
 	}
-	if !validDigest(state.ID) || state.Expires.IsZero() || state.OpID < 0 || len(state.Offsets) != len(state.Manifest.Files) {
+	if !validDigest(state.ID) || state.Expires.IsZero() || !state.validReceipt() || len(state.Offsets) != len(state.Manifest.Files) {
 		return state, problem("corrupt")
 	}
 	if len(state.Digests) > 0 {
@@ -501,7 +527,7 @@ func (s *Session) Renew() error {
 // Append confirms a block only after data and progress are durable. Retrying
 // an already confirmed range verifies actual disk bytes, not an old digest.
 func (s *Session) Append(ctx context.Context, index int, offset int64, data []byte, digest string) error {
-	if s.state.OpID != 0 {
+	if s.state.Completed() {
 		return problem("completed")
 	}
 	if index < 0 || index >= len(s.state.Offsets) || offset < 0 || len(data) == 0 || len(data) > ChunkBytes || !validDigest(digest) {
@@ -631,17 +657,28 @@ func (r contextReader) Read(p []byte) (int, error) {
 // Complete records a receipt only after library has durably committed it.
 // The archive's receipt remains authoritative if this save fails.
 func (s *Session) Complete(opID int64) error {
-	if opID <= 0 || s.state.OpID != 0 && s.state.OpID != opID {
+	if opID <= 0 || s.state.Completed() && s.state.OpID != opID {
 		return problem("conflict")
 	}
 	s.state.OpID = opID
 	return s.save()
 }
 
+// CompleteLocal records a durable client request receipt. It is not a NAS op ID.
+// The client's pending journal remains authoritative if this save fails.
+func (s *Session) CompleteLocal(localID string, noop bool) error {
+	receipt := State{LocalID: localID, Noop: noop}
+	if !receipt.Completed() || !receipt.validReceipt() || s.state.Completed() && (s.state.LocalID != localID || s.state.Noop != noop) {
+		return problem("conflict")
+	}
+	s.state.LocalID, s.state.Noop = localID, noop
+	return s.save()
+}
+
 // Cancel marks staging for cleanup. The caller first checks the archive receipt
 // under this same session lock; cancel must never undo an already committed op.
 func (s *Session) Cancel() error {
-	if s.state.OpID != 0 {
+	if s.state.Completed() {
 		return problem("completed")
 	}
 	s.state.Canceled = true
@@ -742,7 +779,7 @@ func (s *Store) sweep(ctx context.Context) error {
 			}
 			state := session.state
 			session.root.Close()
-			if !state.Canceled && state.OpID == 0 && s.now().Before(state.Expires) {
+			if !state.Canceled && !state.Completed() && s.now().Before(state.Expires) {
 				return nil
 			}
 			// Publish removal before recursive cleanup. If deletion is interrupted,

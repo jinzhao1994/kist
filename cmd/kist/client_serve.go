@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -37,6 +38,10 @@ func newClientServeCmd() *cobra.Command {
 		}
 		ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
+		uploadCtx, cancelUploads := context.WithCancel(ctx)
+		uploadDone := make(chan struct{})
+		go func() { handler.RunUploads(uploadCtx); close(uploadDone) }()
+		defer func() { cancelUploads(); <-uploadDone }()
 		fmt.Fprintf(cmd.ErrOrStderr(), "Serving kist offline client on %s\n", listener.Addr())
 		return serveHTTP(ctx, listener, handler)
 	}}
