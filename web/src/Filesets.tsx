@@ -82,6 +82,43 @@ export function filesetPageIndex(set: Fileset, page = 1) {
     ? page - 1
     : 0;
 }
+export function readingPagination(
+  set: Fileset,
+  sets: Fileset[],
+  path: number[],
+) {
+  const paths: number[][] = [];
+  let index = 0;
+  const visit = (
+    current: Fileset,
+    prefix: number[],
+    selected: boolean,
+    ancestors: Set<string>,
+  ) => {
+    const seen = new Set(ancestors).add(current.folder_id);
+    const currentIndex = filesetPageIndex(current, path[prefix.length]);
+    (current.members || []).forEach((member, position) => {
+      const next = [...prefix, position + 1];
+      const active = selected && position === currentIndex;
+      const child = sets.find(
+        (candidate) => candidate.folder_id === member.folder_id,
+      );
+      if (
+        child?.kind === "document_pages" &&
+        child.members?.length &&
+        !seen.has(child.folder_id)
+      ) {
+        visit(child, next, active, seen);
+      } else {
+        if (active) index = paths.length;
+        paths.push(next);
+      }
+    });
+  };
+  if (set.kind === "document_pages") visit(set, [], true, new Set());
+  return { paths, index };
+}
+
 export function readingFile(
   set: Fileset,
   sets: Fileset[],
@@ -760,19 +797,24 @@ export function FilesetPreview({
   files,
   pagePath,
   changePage,
+  ancestors = [],
 }: {
   set: Fileset;
   sets: Fileset[];
   files: ArchiveFile[];
   pagePath?: number[];
   changePage?: (path: number[]) => void;
+  ancestors?: string[];
 }) {
   const { t } = useI18n();
   const extraction = useExtraction();
   const [localPath, setLocalPath] = useState<number[]>([]);
   const path = pagePath || localPath;
   const updatePath = changePage || setLocalPath;
-  const setPage = (index: number) => updatePath([index + 1]);
+  const pagination = readingPagination(set, sets, path);
+  const setPage = (index: number) => {
+    if (pagination.paths[index]) updatePath(pagination.paths[index]);
+  };
   const subtitles = useMemo(
     () =>
       set.kind !== "video_subtitles"
@@ -821,24 +863,24 @@ export function FilesetPreview({
           event.stopPropagation();
       }}
     >
-      {set.kind === "document_pages" && (
+      {set.kind === "document_pages" && ancestors.length === 0 && (
         <div
           className="pdf-toolbar fileset-page-toolbar"
           role="toolbar"
           aria-label={t("filesetPageTools")}
         >
           <Button
-            disabled={index === 0 || !pages.length}
-            onClick={() => setPage(index - 1)}
+            disabled={pagination.index === 0 || !pagination.paths.length}
+            onClick={() => setPage(pagination.index - 1)}
           >
             {t("filesetPrevious")}
           </Button>
           <span role="status" aria-label={t("pdfPage")}>
-            {`${pages.length ? index + 1 : 0} / ${pages.length}`}
+            {`${pagination.paths.length ? pagination.index + 1 : 0} / ${pagination.paths.length}`}
           </span>
           <Button
-            disabled={index + 1 >= pages.length}
-            onClick={() => setPage(index + 1)}
+            disabled={pagination.index + 1 >= pagination.paths.length}
+            onClick={() => setPage(pagination.index + 1)}
           >
             {t("filesetNext")}
           </Button>
@@ -846,9 +888,12 @@ export function FilesetPreview({
       )}
       {file && <ExtractionStatus files={[file]} state={extraction} />}
       {captions.error && <p role="alert">{t("filesetSubtitleError")}</p>}
-      {set.kind === "document_pages" && child ? (
+      {set.kind === "document_pages" &&
+      child &&
+      ![...ancestors, set.folder_id].includes(child.folder_id) ? (
         <FilesetPreview
           key={child.folder_id}
+          ancestors={[...ancestors, set.folder_id]}
           pagePath={path.slice(1)}
           changePage={(childPath) => updatePath([index + 1, ...childPath])}
           set={child}

@@ -5,6 +5,7 @@ import {
   FilesetPreview,
   primaryFile,
   readingFile,
+  readingPagination,
   captionText,
   zeroID,
   type Fileset,
@@ -187,4 +188,100 @@ it("loads all subtitle tracks, preserves the default and tolerates a broken subt
   unmount();
   expect(revoke).toHaveBeenCalledWith("blob:en");
   expect(revoke).toHaveBeenCalledWith("blob:zh");
+});
+
+it("uses one continuous pager across nested page groups and retains hierarchical paths", () => {
+  const group = (id: string, ids: string[]): Fileset => ({
+    ...parent,
+    folder_id: id,
+    members: ids.map((id) => member(id)),
+  });
+  const first = group("first", ["a", "b"]);
+  const second = group("second", ["c", "d"]);
+  const root: Fileset = {
+    ...parent,
+    members: [first, second].map((s) => ({
+      ...member(zeroID),
+      folder_id: s.folder_id,
+    })),
+  };
+  const sets = [root, first, second];
+  expect(readingPagination(root, sets, [2, 1])).toEqual({
+    paths: [
+      [1, 1],
+      [1, 2],
+      [2, 1],
+      [2, 2],
+    ],
+    index: 2,
+  });
+  expect(readingPagination(root, sets, [99, 99]).index).toBe(0);
+  const files = ["a", "b", "c", "d"].map(
+    (id) => ({ id, name: id }) as ArchiveFile,
+  );
+  const changePage = vi.fn();
+  const { rerender } = render(
+    <QueryClientProvider client={new QueryClient()}>
+      <ThemeProvider env="test">
+        <I18nProvider>
+          <FilesetPreview
+            set={root}
+            sets={sets}
+            files={files}
+            pagePath={[1, 2]}
+            changePage={changePage}
+          />
+        </I18nProvider>
+      </ThemeProvider>
+    </QueryClientProvider>,
+  );
+  expect(
+    screen.getAllByRole("toolbar", { name: "Page navigation" }),
+  ).toHaveLength(1);
+  expect(screen.getByRole("status", { name: "Page number" })).toHaveTextContent(
+    "2 / 4",
+  );
+  expect(screen.getByTestId("media")).toHaveTextContent("b");
+  fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+  expect(changePage).toHaveBeenLastCalledWith([2, 1]);
+  rerender(
+    <QueryClientProvider client={new QueryClient()}>
+      <ThemeProvider env="test">
+        <I18nProvider>
+          <FilesetPreview
+            set={root}
+            sets={sets}
+            files={files}
+            pagePath={[2, 1]}
+            changePage={changePage}
+          />
+        </I18nProvider>
+      </ThemeProvider>
+    </QueryClientProvider>,
+  );
+  expect(
+    screen.getAllByRole("toolbar", { name: "Page navigation" }),
+  ).toHaveLength(1);
+  expect(screen.getByRole("status", { name: "Page number" })).toHaveTextContent(
+    "3 / 4",
+  );
+  expect(screen.getByTestId("media")).toHaveTextContent("c");
+  fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
+  expect(changePage).toHaveBeenLastCalledWith([1, 2]);
+});
+
+it("keeps empty nested groups reachable and terminates cyclic page references", () => {
+  const empty = { ...child, kind: "document_pages", members: [] };
+  expect(readingPagination(parent, [empty], [1])).toEqual({
+    paths: [[1], [2]],
+    index: 0,
+  });
+  const cycle: Fileset = {
+    ...parent,
+    members: [{ ...member(zeroID), folder_id: parent.folder_id }],
+  };
+  expect(readingPagination(cycle, [cycle], [1, 1])).toEqual({
+    paths: [[1]],
+    index: 0,
+  });
 });

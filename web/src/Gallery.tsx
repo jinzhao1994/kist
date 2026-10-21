@@ -4,7 +4,7 @@ import {
   FilesetPreview,
   primaryFile,
   readingFile,
-  filesetPageIndex,
+  readingPagination,
   boxFiles,
 } from "./Filesets";
 import { DialogPresence } from "./Dialog";
@@ -489,7 +489,12 @@ export function Gallery({
                   </h2>
                   <p className="supporting-text">
                     {t("filesetCurrentPage", {
-                      page: filesetPageIndex(selectedSet, pagePath[0]) + 1,
+                      page:
+                        readingPagination(
+                          selectedSet,
+                          sets.data?.filesets || [],
+                          pagePath,
+                        ).index + 1,
                     })}
                     {detailID === primary && <> · {t("filesetPrimary")}</>}
                   </p>
