@@ -3,6 +3,7 @@ package library
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/query"
@@ -104,5 +105,111 @@ func TestOfflineSelectionRejectsCycleAndMissingFileset(t *testing.T) {
 	}
 	if _, err := offlineSelectionFiles(selection, nil); !errors.Is(err, ErrInvalidRequest) {
 		t.Fatalf("missing=%v", err)
+	}
+}
+
+func TestClientOfflineSelectionPersistsAndProtectsOverlappingOwners(t *testing.T) {
+	nas, box := openWithBox(t)
+	f := importOneFile(t, nas, box, "kept.txt", "keep this content")
+	c := newSyncClient(t, nas)
+	ctx := t.Context()
+	selection := ClientOfflineSelection{Files: []domain.FileID{f.ID}}
+	for _, owner := range []string{"trip", "favorites"} {
+		if err := c.SetOfflineSelection(ctx, owner, selection); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := c.CacheOriginal(ctx, f.BlobKey, &cacheTestSource{nas: nas, content: "keep this content"}); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := OpenClient(ctx, c.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	selections, err := reopened.OfflineSelections(ctx)
+	if err != nil || len(selections) != 2 || len(selections["trip"].Files) != 1 || selections["trip"].Files[0] != f.ID {
+		t.Fatalf("selection lost: %+v %v", selections, err)
+	}
+	if err := reopened.SetOfflineSelection(ctx, "trip", ClientOfflineSelection{Files: []domain.FileID{{}}}); !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("invalid replacement=%v", err)
+	}
+	selections, err = reopened.OfflineSelections(ctx)
+	if err != nil || len(selections) != 2 {
+		t.Fatalf("failed replacement lost intent: %+v %v", selections, err)
+	}
+	if err := reopened.SetOfflineSelection(ctx, "trip", ClientOfflineSelection{}); err != nil {
+		t.Fatal(err)
+	}
+	status, err := reopened.SetCacheLimits(ctx, time.Hour, 1)
+	if err != nil || !status.OverLimit || status.PinnedBytes == 0 {
+		t.Fatalf("overlapping pin lost: %+v %v", status, err)
+	}
+	if err := reopened.SetOfflineSelection(ctx, "favorites", ClientOfflineSelection{}); err != nil {
+		t.Fatal(err)
+	}
+	status, err = reopened.PruneCache(ctx)
+	if err != nil || status.CachedBytes != 0 {
+		t.Fatalf("unselected content not reclaimable: %+v %v", status, err)
+	}
+}
+
+func TestClientCachePruningRefreshesChangedFilesetRetention(t *testing.T) {
+	nas, box := openWithBox(t)
+	ctx := t.Context()
+	if _, err := nas.Import(ctx, writeTree(t, map[string]string{"pages/old.txt": "old", "pages/new.txt": "newer"}), ImportOptions{Box: box}); err != nil {
+		t.Fatal(err)
+	}
+	folders, err := nas.Folders(ctx, box)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var folder domain.FolderID
+	for _, f := range folders {
+		if f.Name == "pages" {
+			folder = f.ID
+		}
+	}
+	files, _, err := nas.Files(ctx, query.Query{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]domain.File{}
+	for _, f := range files {
+		byName[f.Name] = f
+	}
+	before := domain.Fileset{FolderID: folder, Kind: "document_pages", Layout: "flat", Members: []domain.FilesetMember{{FileID: byName["old.txt"].ID, Role: "page"}}}
+	if _, err := nas.SetFileset(ctx, box, folder, nil, &before); err != nil {
+		t.Fatal(err)
+	}
+	c := newSyncClient(t, nas)
+	for name, content := range map[string]string{"old.txt": "old", "new.txt": "newer"} {
+		if err := c.CacheOriginal(ctx, byName[name].BlobKey, &cacheTestSource{nas: nas, content: content}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := c.SetOfflineSelection(ctx, "pages", ClientOfflineSelection{Filesets: []domain.FolderID{folder}}); err != nil {
+		t.Fatal(err)
+	}
+	after := before
+	after.Members = []domain.FilesetMember{{FileID: byName["new.txt"].ID, Role: "page"}}
+	if _, err := nas.SetFileset(ctx, box, folder, &before, &after); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Synchronize(ctx, &testSyncPeer{nas: nas}); err != nil {
+		t.Fatal(err)
+	}
+	// Do not call prepare/status: eviction itself must refresh the retention.
+	usage, err := c.SetCacheLimits(ctx, time.Hour, 5)
+	if err != nil || usage.CachedBytes != 5 || usage.PinnedBytes != 5 || usage.OverLimit {
+		t.Fatalf("stale retention=%+v %v", usage, err)
+	}
+	reader, err := c.OpenCachedOriginal(ctx, byName["new.txt"].BlobKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader.Close()
+	if _, err := c.OpenCachedOriginal(ctx, byName["old.txt"].BlobKey); !errors.Is(err, ErrNotCached) {
+		t.Fatalf("old content not released: %v", err)
 	}
 }

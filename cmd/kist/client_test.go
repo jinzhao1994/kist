@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/jinzhao1994/kist/internal/query"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -107,5 +109,61 @@ func TestClientCLIConnectionAndSynchronization(t *testing.T) {
 	}
 	if _, err := runKist(t, "", "client", "sync", root); err == nil {
 		t.Fatal("offline sync unexpectedly succeeded")
+	}
+}
+
+func TestClientOfflineCLIRealDownloadAndDisconnectedStatus(t *testing.T) {
+	nas, server, credential := clientNAS(t)
+	ctx := t.Context()
+	box, err := nas.CreateBox(ctx, "offline CLI files", "", domain.LocalDate{}, domain.LocalDate{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := filepath.Join(t.TempDir(), "note.txt")
+	if err := os.WriteFile(source, []byte("download this original"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := nas.Import(ctx, source, library.ImportOptions{Box: box.ID}); err != nil {
+		t.Fatal(err)
+	}
+	files, _, err := nas.Files(ctx, query.Query{})
+	if err != nil || len(files) != 1 {
+		t.Fatalf("files=%v %v", files, err)
+	}
+	root := filepath.Join(t.TempDir(), "client")
+	if _, err := runKist(t, credential.Token, "--json", "client", "init", root, "--server", server.URL, "--token-stdin"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runKist(t, "", "--json", "client", "sync", root); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runKist(t, "", "--json", "client", "offline", "select", root, "trip", "--file", files[0].ID.String()); err != nil {
+		t.Fatal(err)
+	}
+	out, err := runKist(t, "", "--json", "client", "offline", "status", root, "trip")
+	var status library.ClientOfflineStatus
+	if err != nil || json.Unmarshal([]byte(out), &status) != nil || status.Ready || len(status.Missing) != 1 {
+		t.Fatalf("before=%s %v", out, err)
+	}
+	out, err = runKist(t, "", "--json", "client", "offline", "prepare", root, "trip")
+	if err != nil || json.Unmarshal([]byte(out), &status) != nil || !status.Ready {
+		t.Fatalf("prepare=%s %v", out, err)
+	}
+	server.Close()
+	for _, action := range []string{"status", "prepare"} {
+		out, err = runKist(t, "", "--json", "client", "offline", action, root, "trip")
+		if err != nil || json.Unmarshal([]byte(out), &status) != nil || !status.Ready {
+			t.Fatalf("disconnected %s=%s %v", action, out, err)
+		}
+	}
+	if _, err := runKist(t, "", "--json", "client", "offline", "remove", root, "trip"); err != nil {
+		t.Fatal(err)
+	}
+	out, err = runKist(t, "", "--json", "client", "offline", "list", root)
+	var result struct {
+		Selections map[string]library.ClientOfflineSelection `json:"selections"`
+	}
+	if err != nil || json.Unmarshal([]byte(out), &result) != nil || len(result.Selections) != 0 {
+		t.Fatalf("remaining=%s %v", out, err)
 	}
 }

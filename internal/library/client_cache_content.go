@@ -66,7 +66,7 @@ func (c *Client) saveCacheRecord(ctx context.Context, record cachedOriginal) err
 	return writeClientJSON(c.cachePath(record.Key, ".json"), record)
 }
 
-func verifyCachedFile(ctx context.Context, file *os.File, key string, size int64) error {
+func verifyCachedFile(ctx context.Context, file io.ReadSeeker, key string, size int64) error {
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ func (c *Client) CacheOriginal(ctx context.Context, key string, source OriginalS
 		return err
 	}
 	defer unlock()
-	release, err := c.cacheLock(ctx)
+	release, err := c.cacheEvictionLock(ctx)
 	if err != nil {
 		return err
 	}

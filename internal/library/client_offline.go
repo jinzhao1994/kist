@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"path/filepath"
+	"slices"
 
 	"github.com/jinzhao1994/kist/internal/blob"
 	"github.com/jinzhao1994/kist/internal/domain"
@@ -37,6 +39,10 @@ func (c *Client) OfflineOriginals(ctx context.Context, selection ClientOfflineSe
 	if _, err := c.rebuildLocked(ctx); err != nil {
 		return nil, err
 	}
+	return c.offlineOriginalsLocked(ctx, selection)
+}
+
+func (c *Client) offlineOriginalsLocked(ctx context.Context, selection ClientOfflineSelection) ([]ClientOfflineOriginal, error) {
 	sets, err := store.Filesets(c.db)
 	if err != nil {
 		return nil, err
@@ -68,6 +74,69 @@ func (c *Client) OfflineOriginals(ctx context.Context, selection ClientOfflineSe
 		}
 	}
 	return out, nil
+}
+
+// SetOfflineSelection atomically retains both logical targets and their current
+// content dependencies. Empty selections remove only this owner's retention.
+// It does not download content or claim readiness.
+func (c *Client) SetOfflineSelection(ctx context.Context, owner string, selection ClientOfflineSelection) error {
+	if owner == "" || len(owner) > 4096 {
+		return ErrInvalidRequest
+	}
+	release, err := c.lock.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
+	if _, err := c.rebuildLocked(ctx); err != nil {
+		return err
+	}
+	originals, err := c.offlineOriginalsLocked(ctx, selection)
+	if err != nil {
+		return err
+	}
+	unlock, err := c.cacheLock(ctx)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	pins, _, err := c.cachePinsLocked()
+	if err != nil {
+		return err
+	}
+	if pins.Selections == nil {
+		pins.Selections = map[string]ClientOfflineSelection{}
+	}
+	if len(selection.Files) == 0 && len(selection.Filesets) == 0 {
+		delete(pins.Selections, owner)
+		delete(pins.Owners, owner)
+	} else {
+		keys := make([]string, 0, len(originals))
+		for _, original := range originals {
+			keys = append(keys, original.Key)
+		}
+		pins.Selections[owner] = selection
+		pins.Owners[owner] = keys
+	}
+	return writeClientJSON(filepath.Join(c.root, "cache-pins.json"), pins)
+}
+
+// OfflineSelections returns durable retention intent without requiring a network
+// connection or resolving targets that may since have been deleted on the NAS.
+func (c *Client) OfflineSelections(ctx context.Context) (map[string]ClientOfflineSelection, error) {
+	release, err := c.cacheLock(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+	pins, _, err := c.cachePinsLocked()
+	if err != nil {
+		return nil, err
+	}
+	if pins.Selections == nil {
+		return map[string]ClientOfflineSelection{}, nil
+	}
+	return pins.Selections, nil
 }
 
 func offlineSelectionFiles(selection ClientOfflineSelection, sets []domain.Fileset) ([]domain.FileID, error) {
@@ -143,4 +212,56 @@ func offlineSelectionFiles(selection ClientOfflineSelection, sets []domain.Files
 		}
 	}
 	return files, nil
+}
+
+// cacheEvictionLock holds editing and cache locks until the eviction decision
+// completes. Logical selections are refreshed before any bytes can be removed.
+// Invalidated targets retain their previous pins until the user resolves or
+// removes the selection; they must not silently lose offline retention.
+func (c *Client) cacheEvictionLock(ctx context.Context) (func(), error) {
+	release, err := c.lock.Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := c.rebuildLocked(ctx); err != nil {
+		release()
+		return nil, err
+	}
+	unlock, err := c.cacheLock(ctx)
+	if err != nil {
+		release()
+		return nil, err
+	}
+	done := func() { unlock(); release() }
+	pins, _, err := c.cachePinsLocked()
+	if err != nil {
+		done()
+		return nil, err
+	}
+	changed := false
+	for owner, selection := range pins.Selections {
+		originals, err := c.offlineOriginalsLocked(ctx, selection)
+		if errors.Is(err, ErrInvalidRequest) {
+			continue
+		}
+		if err != nil {
+			done()
+			return nil, err
+		}
+		keys := make([]string, 0, len(originals))
+		for _, original := range originals {
+			keys = append(keys, original.Key)
+		}
+		if !slices.Equal(keys, pins.Owners[owner]) {
+			pins.Owners[owner] = keys
+			changed = true
+		}
+	}
+	if changed {
+		if err := writeClientJSON(filepath.Join(c.root, "cache-pins.json"), pins); err != nil {
+			done()
+			return nil, err
+		}
+	}
+	return done, nil
 }

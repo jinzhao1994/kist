@@ -97,4 +97,38 @@ protected local originals are not removed by cache pruning or rebuilding.
 
 These byte totals describe the disposable content cache, not total laptop disk
 usage. Accounting and lifecycle management of protected local originals, offline
-selection controls and the web interface remain under development.
+preview derivatives and the web interface remain under development.
+
+## Prepare selected originals for offline use
+
+Save a named selection using IDs from the synchronized catalog. Files can belong
+to different boxes; a fileset uses its folder ID. Repeat either flag as needed:
+
+```sh
+kist client offline select /path/to/laptop-client trip --file FILE_UUID --fileset FILESET_FOLDER_UUID
+kist client offline prepare /path/to/laptop-client trip
+kist --json client offline status /path/to/laptop-client trip
+kist client offline list /path/to/laptop-client
+kist client offline remove /path/to/laptop-client trip
+```
+
+`select` replaces that name's selection and retains its current originals without
+downloading them. Filesets include configured members, nested filesets and an
+explicit primary, including all Live Photo components and subtitle tracks.
+Unrelated files in the same directory are not included automatically. Overlapping
+selections share content; removing one does not cancel another's retention.
+
+`prepare` resumes missing downloads and verifies complete content. New local
+originals awaiting upload are already usable and are not duplicated into cache.
+`status` works offline and reports verified availability against the captured
+local view and its catalog boundary. It does not assert that the NAS has no newer
+changes. Both commands resolve logical targets again; run them after syncing or
+editing a selection's members to check or download newly required originals.
+Eviction also refreshes logical selections under the editing lock before removing
+bytes, so newly selected cached members remain protected without another prepare.
+A missing target is an error, not an empty successful selection; its previous
+retention is preserved until the selection is corrected or removed.
+
+Readiness currently covers original bytes, not every derived preview format.
+Removing a selection leaves its cached bytes eligible for normal pruning; it does
+not delete archive files or unsynchronized originals.

@@ -145,6 +145,21 @@
 
 阶段 6d 正在实现逻辑离线选择：新增 `OfflineOriginals` 从当前客户端视图展开独立文件与嵌套 fileset，包含所有角色成员和独立主文件，按内容去重，不将同目录无关文件自动纳入。针对性测试通过，覆盖多页嵌套实况、多字幕、独立主文件、NAS 更新后重新解析、循环和缺失目标拒绝。当前只提供依赖解析，不代表选择持久化、下载及就绪状态已经完成。
 
+- 依赖解析完整 `make check` 通过（`/tmp/kist-offline-selection-check.log`），已提交并推送 `48efdb3`。CI `39541492051`、Visual `39541492077` 尚未完成，Secret scan `39541492070` 通过。前一阶段 `53e247d` 的 CI `39541042567` 已通过。
+- 继续加入逻辑选择持久化：与 owner 的内容保留列表写入同一个原子文件，空选择取消保留，无效替换不覆盖旧意图；低层直接设置内容列表会清除同 owner 的逻辑选择，避免两种意图矛盾。重开恢复、重叠保留和取消后可逐出的 race 测试通过（`/tmp/kist-offline-retention-targeted.log`）。尚需接入自动重新解析、下载、就绪状态与实际命令/网页。
+- 新增 `OpenOriginal`、`PrepareOffline` 和 `OfflineStatus`：优先校验读取受保护本地原文件，再读取缓存；准备前刷新选择的内容保留列表，网络期间不持编辑锁，下载结束重新解析当前选择后判断就绪。返回目录同步状态，未缓存与校验损坏保持不同错误。针对性 race 测试通过（`/tmp/kist-offline-prepare-targeted.log`、`/tmp/kist-offline-prepare-race.log`），覆盖续传、部分内容不就绪、完全离线复查、未同步新原文件不重复占用缓存，以及下载中选择改变不误报就绪。尚未接入 CLI/网页、每次编辑后的自动保留刷新及本地原文件确认后的生命周期管理。
+- `/tmp/kist-offline-retention-check.log` 的完整检查仍在运行；它启动于本轮准备流程改动之前，不能用其结果覆盖后加的准备流程，待结束后对最终代码运行完整检查。`53e247d` 的 Visual `39541042559` 已被更新提交取消，应验收最新运行。
+- 上述 retention 检查已以退出码 0 完成。新增 `client offline select/list/remove/status/prepare`，已通过实际 HTTP 导入内容下载、断开 NAS 后就绪查询/复查、取消选择和统一 JSON 契约测试（`/tmp/kist-offline-cli-targeted.log`）。使用说明同步更新，明确当前就绪只涵盖原文件，自动保留刷新和网页仍待完成。开始对包含准备流程与 CLI 的最终代码执行 `/tmp/kist-offline-prepare-final-check.log` 完整检查。
+- 自动保留刷新已接入所有逐出入口（手动清理和下载容量预留）：持编辑锁与缓存锁解析当前逻辑选择，失效目标保留旧集合，循环/索引损坏阻止删除。针对性 race 测试通过（`/tmp/kist-offline-refresh-targeted.log`），验证 NAS 更换成员后不调用准备/状态仍保护新成员并释放旧成员。现有完整检查启动早于该修改，完成后需对最终代码再次验证；未将运行中检查当作新改动的完成证据。
+- `/tmp/kist-offline-prepare-final-check.log` 已通过（退出码 0）；包含自动刷新的最终完整检查改用 `/tmp/kist-offline-retention-final-check.log`，正在运行。
+- 包含自动刷新的最终完整检查 `/tmp/kist-offline-retention-final-check.log` 已通过（退出码 0）。前一提交 `48efdb3` 的 CI `39541492051`、Visual `39541492077`、Secret scan `39541492070` 均已通过。
+
+### 网页接入前的源码核对
+
+- `internal/api/server.go` 当前持有具体 `*library.Library`，初始化还直接根据 NAS 布局创建上传暂存与媒体服务。不能只替换数据库连接就声称支持客户端。
+- `library.ExecuteRequest` 的幂等结果是 NAS 数字 op ID，且无业务修改也记录 request receipt；客户端需要独立持久化请求回执并保留无操作重试语义，不能遗漏或暴露客户端视图序号。
+- 现有领域命令负责生成 before/after payload，`write`/`writeLocked` 承担正式日志与投影。后续抽取共享命令生成及读视图边界，分别接入 NAS 写入口和客户端 pending 入口；上传、历史、撤销与错误结果中的操作引用须一并审计，不以只读浏览替代离线编辑要求。
+
 1. 缓存阶段完整检查、提交及 CI；扩展真实网络故障与长文件传输的最终验收。
 2. 客户端命令和网页接入现有读写能力，完整逐 action patch、冲突处理、历史与撤销引用审计。
 3. 按需内容缓存、配额/年龄、租用保护、离线保留、fileset 依赖及未上传内容独立统计。

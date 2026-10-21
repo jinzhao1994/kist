@@ -39,7 +39,8 @@ type cachePins struct {
 	Version int `json:"version"`
 	// Owners allow two offline selections to retain the same original without
 	// one selection's removal silently unpinning the other's content.
-	Owners map[string][]string `json:"owners"`
+	Owners     map[string][]string               `json:"owners"`
+	Selections map[string]ClientOfflineSelection `json:"selections,omitempty"`
 }
 
 type cacheEntry struct {
@@ -99,6 +100,21 @@ func (c *Client) cachePinsLocked() (cachePins, map[string]bool, error) {
 		pins.Owners = map[string][]string{}
 	}
 	keys := map[string]bool{}
+	for owner, selection := range pins.Selections {
+		if _, ok := pins.Owners[owner]; !ok || len(selection.Files)+len(selection.Filesets) == 0 {
+			return pins, nil, ErrCacheMetadata
+		}
+		for _, id := range selection.Files {
+			if id.IsZero() {
+				return pins, nil, ErrCacheMetadata
+			}
+		}
+		for _, id := range selection.Filesets {
+			if id.IsZero() {
+				return pins, nil, ErrCacheMetadata
+			}
+		}
+	}
 	for owner, members := range pins.Owners {
 		if owner == "" {
 			return pins, nil, ErrCacheMetadata
@@ -142,6 +158,7 @@ func (c *Client) SetOfflineOriginals(ctx context.Context, owner string, keys []s
 	} else {
 		pins.Owners[owner] = keys
 	}
+	delete(pins.Selections, owner)
 	return writeClientJSON(filepath.Join(c.root, "cache-pins.json"), pins)
 }
 
@@ -241,7 +258,7 @@ func (c *Client) CacheStatus(ctx context.Context) (ClientCacheStatus, error) {
 // PruneCache never enters local-blobs or pending. Reader and transfer leases
 // are kernel locks, so eviction skips live users and survives process death.
 func (c *Client) PruneCache(ctx context.Context) (ClientCacheStatus, error) {
-	release, err := c.cacheLock(ctx)
+	release, err := c.cacheEvictionLock(ctx)
 	if err != nil {
 		return ClientCacheStatus{}, err
 	}
