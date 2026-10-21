@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/jinzhao1994/kist/internal/domain"
@@ -112,61 +111,6 @@ func (l *Library) writeLocked(ctx context.Context, action oplog.Action, payload 
 		return 0, err
 	}
 
-	if action == oplog.ActionUpdateBox && opt.RevertsID == nil {
-		p, err := oplog.Payload[oplog.UpdateBoxPayload](payload)
-		if err != nil {
-			return 0, err
-		}
-		if p.CoverFileID != nil {
-			if err := l.checkBoxCover(ctx, p.BoxID, p.CoverFileID.After); err != nil {
-				return 0, err
-			}
-		}
-	}
-
-	// Recheck state-dependent constraints after recovery, while no writer can
-	// invalidate them. This also covers inverse ops, which bypass commands.
-	if opt.RevertsID != nil {
-		if by, done, err := store.RevertedBy(l.db, *opt.RevertsID); err != nil {
-			return 0, err
-		} else if done {
-			return 0, &AlreadyRevertedError{OpID: *opt.RevertsID, RevertedBy: by}
-		}
-		if action == oplog.ActionUndoUploadFiles {
-			p, err := oplog.Payload[oplog.UploadFilesPayload](payload)
-			if err != nil {
-				return 0, err
-			}
-			raw, err := oplog.Marshal(p.Import)
-			if err != nil {
-				return 0, err
-			}
-			if err := l.checkImportUndoMetadata(ctx, raw, *opt.RevertsID); err != nil {
-				return 0, err
-			}
-		}
-		if action == oplog.ActionDeleteFiles {
-			if err := l.checkImportUndoMetadata(ctx, payload, *opt.RevertsID); err != nil {
-				return 0, err
-			}
-		}
-	}
-	if action == oplog.ActionMoveTag {
-		p, err := oplog.Payload[oplog.MoveTagPayload](payload)
-		if err != nil {
-			return 0, err
-		}
-		if p.NewParent != nil {
-			above, err := store.TagAncestors(l.db, *p.NewParent)
-			if err != nil {
-				return 0, err
-			}
-			if slices.Contains(above, p.TagID) {
-				return 0, ErrTagCycle
-			}
-		}
-	}
-
 	last, ok, err := l.ops.Last()
 	if err != nil {
 		return 0, err
@@ -205,6 +149,10 @@ func (l *Library) writeLocked(ctx context.Context, action oplog.Action, payload 
 	check, err := l.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, fmt.Errorf("begin validation: %w", err)
+	}
+	if err := validateWriteState(store.NewViewTx(check, row.TS), row); err != nil {
+		check.Rollback()
+		return 0, err
 	}
 	checkedTargets, err := applyOp(check, row)
 	if err != nil {

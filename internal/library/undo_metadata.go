@@ -1,7 +1,6 @@
 package library
 
 import (
-	"context"
 	"strconv"
 
 	"github.com/jinzhao1994/kist/internal/extract"
@@ -12,24 +11,24 @@ import (
 // checkImportUndoMetadata runs after catch-up under the writer lock. Legacy
 // delete events did not assert metadata and must remain replayable; this guard
 // only refuses new undo commands, never changes the meaning of recorded events.
-func (l *Library) checkImportUndoMetadata(ctx context.Context, payload []byte, target int64) error {
+func checkImportUndoMetadata(tx *store.ViewTx, payload []byte, target int64) error {
 	p, err := oplog.Payload[oplog.ImportFilesPayload](payload)
 	if err != nil {
 		return err
 	}
 	for _, f := range p.Files {
-		got, ok, err := l.File(ctx, f.FileID)
+		got, ok, err := tx.GetFile(f.FileID)
 		if err != nil {
 			return err
 		}
 		if !ok {
 			continue // The existing Apply assertion explains missing files.
 		}
-		rows, err := store.FileMetadata(l.db, f.FileID)
+		rows, err := store.FileMetadata(tx.Queryer(), f.FileID)
 		if err != nil {
 			return err
 		}
-		versions, err := store.Extractions(l.db, f.FileID)
+		versions, err := store.Extractions(tx.Queryer(), f.FileID)
 		if err != nil {
 			return err
 		}
@@ -48,7 +47,7 @@ func (l *Library) checkImportUndoMetadata(ctx context.Context, payload []byte, t
 			continue
 		}
 		// A later rename or tag edit in the box does not explain this failure.
-		ops, err := store.ListOps(l.db, store.ListOpsOptions{
+		ops, err := store.ListOps(tx.Queryer(), store.ListOpsOptions{
 			File: &f.FileID, Limit: 1,
 			Actions: []string{string(oplog.ActionExtractMetadata), string(oplog.ActionSetMetadata)},
 		})

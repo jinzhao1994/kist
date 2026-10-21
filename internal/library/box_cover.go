@@ -6,6 +6,7 @@ import (
 
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/oplog"
+	"github.com/jinzhao1994/kist/internal/store"
 )
 
 // SetBoxCover changes only the soft reference, preserving it while a file is trashed.
@@ -30,18 +31,18 @@ func (l *Library) SetBoxCover(ctx context.Context, box domain.BoxID, file domain
 
 // checkBoxCover runs under the writer lock, after catch-up and before append.
 // Undo may restore a reference to a trashed file, so it deliberately skips this check.
-func (l *Library) checkBoxCover(ctx context.Context, box domain.BoxID, file domain.FileID) error {
+func checkBoxCover(tx *store.ViewTx, box domain.BoxID, file domain.FileID) error {
 	if file.IsZero() {
 		return nil
 	}
-	f, found, err := l.File(ctx, file)
+	f, found, err := tx.GetFile(file)
 	if err != nil {
 		return err
 	}
 	if !found {
 		return ErrNoSuchFile
 	}
-	owner, _, err := l.FileLocation(ctx, f)
+	owner, _, err := store.FolderChain(tx.Queryer(), f.FolderID)
 	if err != nil {
 		return err
 	}

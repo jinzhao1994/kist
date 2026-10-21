@@ -282,15 +282,17 @@ func (l *Library) syncReference(ref SyncReference) (int64, error) {
 }
 
 func (l *Library) checkSyncFileStates(ctx context.Context, action oplog.Action, raw []byte, states []SyncFileState, undo bool) error {
+	return l.readTx(ctx, func(tx *store.ViewTx) error { return checkSyncFileStates(tx, action, raw, states, undo) })
+}
+
+func checkSyncFileStates(tx *store.ViewTx, action oplog.Action, raw []byte, states []SyncFileState, undo bool) error {
 	seen := map[domain.FileID]bool{}
 	for _, s := range states {
 		if seen[s.ID] {
 			return ErrInvalidRequest
 		}
 		seen[s.ID] = true
-		var f domain.File
-		var found bool
-		err := l.readTx(ctx, func(tx *store.ViewTx) error { var err error; f, found, err = tx.GetFile(s.ID); return err })
+		f, found, err := tx.GetFile(s.ID)
 		if err != nil {
 			return err
 		}
