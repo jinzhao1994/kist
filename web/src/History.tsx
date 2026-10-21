@@ -372,6 +372,12 @@ function OperationDetail({
           <p className="supporting-text operation-time">
             <time>{formatInstant(op.ts, prefs)}</time>
           </p>
+          {op.accepted_at && (
+            <p className="supporting-text operation-time">
+              {t("historyAcceptedAt")} ·{" "}
+              <time>{formatInstant(op.accepted_at, prefs)}</time>
+            </p>
+          )}
           {op.reverts_id && (
             <Button onClick={() => select(op.reverts_id!)}>
               {t("reverts", { id: op.reverts_id })}

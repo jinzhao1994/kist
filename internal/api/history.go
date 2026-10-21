@@ -45,11 +45,23 @@ type undoInput struct {
 }
 
 func renderHistory(entry library.HistoryEntry) HistoryOp {
-	return HistoryOp{Op: wire.Op{ID: entry.ID, TS: entry.TS, Action: string(entry.Action), Origin: string(entry.Origin), RevertsID: entry.RevertsID, RootOpID: entry.RootOpID, UndoneBy: entry.UndoneBy}, Undoable: entry.Undoable}
+	return HistoryOp{Op: wire.Op{ID: entry.ID, TS: entry.TS, AcceptedAt: entry.AcceptedAt, Action: string(entry.Action), Origin: string(entry.Origin), RevertsID: entry.RevertsID, RootOpID: entry.RootOpID, UndoneBy: entry.UndoneBy}, Undoable: entry.Undoable}
 }
+
+type historyBackend interface {
+	History(context.Context, library.ListOpsOptions) ([]library.HistoryEntry, int64, error)
+	HistoryOp(context.Context, int64) (library.HistoryEntry, error)
+	HistorySummary(context.Context, int64) (library.HistorySummary, error)
+}
+
 func (s *Server) historyRoutes() {
+	var history historyBackend = s.library
+	if s.client != nil {
+		history = clientHistoryBackend{s}
+	}
+
 	huma.Get(s.contract, Prefix+"/ops/{id}/summary", func(ctx context.Context, in *opInput) (*output[library.HistorySummary], error) {
-		summary, err := s.library.HistorySummary(ctx, in.ID)
+		summary, err := history.HistorySummary(ctx, in.ID)
 		return response(summary, err)
 	})
 
@@ -85,7 +97,7 @@ func (s *Server) historyRoutes() {
 			file := domain.FileID{ID: id}
 			opt.File = &file
 		}
-		entries, before, err := s.library.History(ctx, opt)
+		entries, before, err := history.History(ctx, opt)
 		out := historyList{Ops: make([]HistoryOp, 0, len(entries)), Before: before}
 		for _, entry := range entries {
 			out.Ops = append(out.Ops, renderHistory(entry))
@@ -93,7 +105,7 @@ func (s *Server) historyRoutes() {
 		return response(out, err)
 	})
 	huma.Get(s.contract, Prefix+"/ops/{id}", func(ctx context.Context, in *opInput) (*output[historyDetail], error) {
-		entry, err := s.library.HistoryOp(ctx, in.ID)
+		entry, err := history.HistoryOp(ctx, in.ID)
 		if err != nil {
 			return nil, failure(err)
 		}
@@ -117,6 +129,15 @@ func (s *Server) historyRoutes() {
 		}
 		return response(out, nil)
 	})
+	if s.client != nil {
+		huma.Post(s.contract, Prefix+"/ops/{id}/undo", func(ctx context.Context, in *undoInput) (*output[library.ClientRequestResult], error) {
+			return s.clientMutate(ctx, in.Key, "POST", Prefix+"/ops/"+strconv.FormatInt(in.ID, 10)+"/undo", in.Body, func(ctx context.Context) error {
+				_, err := s.client.Undo(ctx, library.SyncReference{OpID: in.ID})
+				return err
+			})
+		})
+		return
+	}
 	huma.Post(s.contract, Prefix+"/ops/{id}/undo", func(ctx context.Context, in *undoInput) (*output[library.RequestResult], error) {
 		return s.mutate(ctx, in.Key, "POST", Prefix+"/ops/"+strconv.FormatInt(in.ID, 10)+"/undo", in.Body, func(ctx context.Context) error {
 			_, err := s.library.Undo(ctx, in.ID)

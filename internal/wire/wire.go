@@ -180,9 +180,10 @@ func NewTagCounted(t domain.Tag, count int) Tag {
 // list query because it is unbounded and nothing may query into it
 // (invariant 4). Reading one op can carry it.
 type Op struct {
-	ID     int64     `json:"id"`
-	TS     time.Time `json:"ts"`
-	Action string    `json:"action"`
+	ID         int64      `json:"id"`
+	TS         time.Time  `json:"ts"`
+	AcceptedAt *time.Time `json:"accepted_at,omitempty"`
+	Action     string     `json:"action"`
 	// Origin is the class of executor, not the identity of one. Metadata rows
 	// carry a "source" that names a specific extractor; these are two axes and
 	// deliberately not the same word.

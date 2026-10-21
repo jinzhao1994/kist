@@ -57,7 +57,7 @@ func (v nasHistoryReader) OpenContent(ctx context.Context, id domain.FileID) (do
 
 // Bound concurrent replay work, including queue time in the deadline. The
 // semaphore only limits resources; it contains no cached archive state.
-func (s *Server) withHistory(ctx context.Context, target int64, fn func(context.Context, historyReader) error) (err error) {
+func (s *Server) withHistoryBudget(ctx context.Context, fn func(context.Context) error) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	defer func() {
@@ -71,10 +71,16 @@ func (s *Server) withHistory(ctx context.Context, target int64, fn func(context.
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-	if s.client != nil {
-		return s.client.ViewAt(ctx, target, func(view *library.ClientHistoricalView) error { return fn(ctx, view) })
-	}
-	return s.library.ViewAt(ctx, target, func(view *library.HistoricalView) error { return fn(ctx, nasHistoryReader{view}) })
+	return fn(ctx)
+}
+
+func (s *Server) withHistory(ctx context.Context, target int64, fn func(context.Context, historyReader) error) error {
+	return s.withHistoryBudget(ctx, func(ctx context.Context) error {
+		if s.client != nil {
+			return s.client.ViewAt(ctx, target, func(view *library.ClientHistoricalView) error { return fn(ctx, view) })
+		}
+		return s.library.ViewAt(ctx, target, func(view *library.HistoricalView) error { return fn(ctx, nasHistoryReader{view}) })
+	})
 }
 
 func historicalTags(ctx context.Context, view historyReader) ([]wire.Tag, error) {

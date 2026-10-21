@@ -3019,3 +3019,30 @@ test("offline-retention-file", async ({ page }, info) => {
   ).toBeEnabled();
   await capture(page, errors, info.title);
 });
+
+test("history-synced-operation", async ({ page }, info) => {
+  const errors = await prepare(page);
+  await page.route("**/api/v1/ops/12", (route) =>
+    route.fulfill({
+      json: {
+        id: 12,
+        action: "delete_files",
+        ts: time,
+        accepted_at: "2026-01-09T08:00:00Z",
+        origin: "user",
+        reverts_id: 10,
+        undone_by: null,
+        undoable: true,
+        boxes: [box.id],
+        files: [files[0].id],
+        payload: { files: [{ file_id: files[0].id, name: files[0].name }] },
+      },
+    }),
+  );
+  await page.goto("/history");
+  await page.locator(".history-entry").first().click();
+  await expect(
+    page.getByRole("dialog").getByText(/NAS 接纳时间/),
+  ).toBeVisible();
+  await capture(page, errors, info.title);
+});

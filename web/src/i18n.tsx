@@ -178,6 +178,7 @@ export const en = {
   historyCurrentNamesHint:
     "This older operation stores object IDs; referenced objects are shown using their current names, or IDs if unavailable.",
   historySummaryUnavailable: "Summary unavailable",
+  historyAcceptedAt: "Accepted by NAS",
   history: "History",
   trash: "Recycle bin",
   historyEmpty: "No operations here yet.",
@@ -727,6 +728,7 @@ export const zh: Record<MessageKey, string> = {
   historyCurrentNamesHint:
     "此操作只记录了对象 ID，引用的对象使用当前名称展示；名称不可用时保留 ID。",
   historySummaryUnavailable: "摘要暂不可用",
+  historyAcceptedAt: "NAS 接纳时间",
   history: "操作历史",
   trash: "回收站",
   historyEmpty: "暂无操作记录。",

@@ -353,3 +353,23 @@ it("loads a readable summary in the list without fetching the operation payload"
     false,
   );
 });
+
+it("shows NAS acceptance separately from the original operation time", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string) => {
+      if (path === "/api/v1/ops/5")
+        return json({ ...detail, accepted_at: "2026-02-03T14:00:00Z" });
+      if (path.endsWith("/summary"))
+        return json({ name: "old.txt", count: 1, current_names: false });
+      return json({ ops: [op] });
+    }),
+  );
+  mount();
+  await userEvent
+    .setup()
+    .click((await screen.findAllByRole("button", { name: /Delete files/ }))[0]);
+  const dialog = await screen.findByRole("dialog");
+  expect(within(dialog).getByText(/Accepted by NAS/)).toBeVisible();
+  expect(dialog.querySelectorAll("time")).toHaveLength(2);
+});

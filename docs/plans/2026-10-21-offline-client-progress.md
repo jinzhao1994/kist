@@ -440,3 +440,9 @@ worktree 的历史列表 API race `/tmp/kist-client-history-list-api-final.log` 
 91abf03 正式视觉报告已完整审阅：baseline 134、candidate 138，均无跳过/失败/重试，134 个已有场景完全匹配，仅四个新增离线面板/保留场景缺基准。六张联系表覆盖全部候选，并逐一查看四张新增原尺寸图，无溢出或布局异常。报告 `/tmp/kist-offline-visual-39612151105/report/index.html`，已发起 Accept visual baselines（run_id=39612151105）；待机器人提交后的 CI/Visual 与本地快进确认。
 
 视觉接受 39614102685 成功，机器人提交 a5658fb 已本地快进；其 CI 39614170713 queued、Visual 39614174487 运行中、Secret scan 39614178163 通过。历史版本阶段仅新增客户端历史 API 契约，不更改页面像素，已完成完整检查后提交，等待基准提交检查完成再推送。
+
+历史版本阶段已提交 e363130（尚待 a5658fb 检查通过后推送）。历史列表/摘要/正式引用撤销、接纳时间字段及详情展示已合入 main：新 store 查询只读 op_sync 的独立列，旧本机事件不填接纳时间；客户端确认前缀按正式 ID 分页，不泄漏 pending 的临时序号或 undone_by。主线 API/library 针对性 race `/tmp/kist-client-history-list-merged.log` 通过（4.395/6.966 秒），History UI 11 项通过。worktree 类型检查因其较旧 API 导出的 schema 缺主线管理字段而失败，未复制这些旧生成文件；主线重新生成两端契约并开始完整检查 `/tmp/kist-client-history-list-complete-check.log`（66379）。所有本节历史列表 worktree 增量现已合入，不能重复覆盖；新 history-synced-operation 视觉场景待本阶段推送后正式采集。
+
+历史列表阶段完整 make check 已通过（66379 退出 0，`/tmp/kist-client-history-list-complete-check.log`）。用新二进制重启已确认身份的合成客户端（19592，会话 84196），合成 NAS（19591，会话 39554）；通过网页同源 API 生成本地创建回执，再手动同步成功。确认测试 NAS PID 9160 后关闭，Chrome 仍可打开最新正式操作及 NAS 接纳时间、无 pageerror。截图 `/tmp/kist-offline-history-detail-without-nas.png` 在等待弹窗透明度稳定后已审阅。浏览器脚本初次断言误加句号，第二次名称同时匹配摘要和对象列表，均修正定位后通过；未改产品行为。合成 NAS 当前关闭，客户端仍运行。
+
+a5658fb CI 39614170713 已通过，但 Visual 39614174487 失败，正在读取失败日志；不能把接受后的检查视为已通过。

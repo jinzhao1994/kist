@@ -1195,6 +1195,8 @@ export interface components {
             tags: components["schemas"]["Tag"][] | null;
         };
         HistoryDetail: {
+            /** Format: date-time */
+            accepted_at?: string;
             action: string;
             boxes: string[] | null;
             files: string[] | null;
@@ -1220,6 +1222,8 @@ export interface components {
             ops: components["schemas"]["HistoryOp"][] | null;
         };
         HistoryOp: {
+            /** Format: date-time */
+            accepted_at?: string;
             action: string;
             /** Format: int64 */
             id: number;
