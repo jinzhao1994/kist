@@ -573,6 +573,20 @@ async function capture(page: Page, errors: string[], name: string) {
     ).toHaveAttribute("target", "_blank");
   }
   await page.evaluate(() => document.fonts.ready);
+  // Wait for the menu's natural fade before screenshot animation disabling
+  // can fast-forward it while its compositing layer is still changing.
+  for (const menu of await page.getByRole("menu").all()) {
+    await expect(menu).toHaveCSS("opacity", "1");
+    await expect
+      .poll(() =>
+        menu.evaluate((element) =>
+          element
+            .getAnimations({ subtree: true })
+            .every((animation) => animation.playState === "finished"),
+        ),
+      )
+      .toBe(true);
+  }
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(page).toHaveScreenshot(`${name}.png`, {
     fullPage: (await page.locator(".gallery").count()) === 0,
