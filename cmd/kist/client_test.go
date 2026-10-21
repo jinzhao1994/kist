@@ -82,6 +82,18 @@ func TestClientCLIConnectionAndSynchronization(t *testing.T) {
 		t.Fatal("connection output exposed secret")
 	}
 	server.Close()
+	for _, action := range []string{"status", "prune", "rebuild"} {
+		out, err := runKist(t, "", "--json", "client", "cache", action, root)
+		if err != nil {
+			t.Fatalf("offline cache %s: %v", action, err)
+		}
+		mustJSON(t, out)
+	}
+	out, err = runKist(t, "", "--json", "client", "cache", "configure", root, "--max-bytes", "1024", "--max-age", "24h")
+	var cache library.ClientCacheStatus
+	if err != nil || json.Unmarshal([]byte(out), &cache) != nil || cache.LimitBytes != 1024 {
+		t.Fatalf("cache configure=%s %v", out, err)
+	}
 	out, err = runKist(t, "", "--json", "client", "status", root)
 	status = library.ClientStatus{}
 	if err != nil || json.Unmarshal([]byte(out), &status) != nil || !status.Catalog.Complete || len(status.Pending) != 0 {
@@ -89,6 +101,9 @@ func TestClientCLIConnectionAndSynchronization(t *testing.T) {
 	}
 	if strings.Contains(out, replacement.Token) {
 		t.Fatal("status output exposed secret")
+	}
+	if status.Settings.CacheMaxAge != "24h0m0s" || status.Settings.CacheMaxBytes != 1024 {
+		t.Fatal("cache configuration was not persisted")
 	}
 	if _, err := runKist(t, "", "client", "sync", root); err == nil {
 		t.Fatal("offline sync unexpectedly succeeded")

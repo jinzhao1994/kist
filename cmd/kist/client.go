@@ -14,6 +14,7 @@ import (
 func newClientCmd() *cobra.Command {
 	root := &cobra.Command{Use: "client", Short: "Manage a laptop offline client"}
 	root.AddCommand(newClientConnectCmd(true), newClientConnectCmd(false))
+	root.AddCommand(newClientCacheCmd())
 	root.AddCommand(&cobra.Command{Use: "status DIRECTORY", Short: "Show local catalog and pending synchronization state", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := library.OpenClient(cmd.Context(), args[0])
 		if err != nil {

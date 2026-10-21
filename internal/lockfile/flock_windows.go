@@ -22,9 +22,12 @@ func overlapped() *windows.Overlapped {
 	return &windows.Overlapped{OffsetHigh: lockOffsetHigh}
 }
 
-func tryLock(f *os.File) (bool, error) {
-	err := windows.LockFileEx(windows.Handle(f.Fd()),
-		windows.LOCKFILE_EXCLUSIVE_LOCK|windows.LOCKFILE_FAIL_IMMEDIATELY,
+func tryLock(f *os.File, shared bool) (bool, error) {
+	flags := uint32(windows.LOCKFILE_FAIL_IMMEDIATELY)
+	if !shared {
+		flags |= windows.LOCKFILE_EXCLUSIVE_LOCK
+	}
+	err := windows.LockFileEx(windows.Handle(f.Fd()), flags,
 		0, lockLength, 0, overlapped())
 	switch {
 	case err == nil:

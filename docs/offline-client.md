@@ -71,3 +71,30 @@ a nonzero exit status; use `status` to inspect local pending work.
 
 The NAS can continue to change independently while the laptop is offline. Merge
 uses operation order and explicit preconditions, not timestamp-based overwrites.
+
+## Manage the content cache
+
+These commands work without contacting the NAS:
+
+```sh
+kist client cache status /path/to/laptop-client
+kist client cache configure /path/to/laptop-client --max-age 720h --max-bytes 10737418240
+kist client cache prune /path/to/laptop-client
+kist client cache rebuild /path/to/laptop-client
+```
+
+Capacity includes actual cached bytes and the remaining space reserved for partial
+downloads. Retention age is measured from the last access. Pruning removes expired
+or least recently used eligible content, while skipping active readers, transfers
+and explicitly retained selections. Lowering the limit can therefore report
+`over_limit` without deleting protected content.
+
+`rebuild` recovers tracking records from known original facts and cache files.
+It reports verified, partial, corrupt, missing and in-use objects separately.
+Corrupt content stays unavailable until fetched again; skipped active objects
+can be checked by a later rebuild. Offline selections, pending operations and
+protected local originals are not removed by cache pruning or rebuilding.
+
+These byte totals describe the disposable content cache, not total laptop disk
+usage. Accounting and lifecycle management of protected local originals, offline
+selection controls and the web interface remain under development.

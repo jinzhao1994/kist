@@ -104,6 +104,9 @@ const (
 	CodeRequestConflict       Code = "request_conflict"
 	CodeRequestScope          Code = "request_scope"
 	CodeSyncConflict          Code = "sync_conflict"
+	CodeNotCached             Code = "not_cached"
+	CodeCacheQuota            Code = "cache_quota"
+	CodeCacheMetadata         Code = "cache_metadata_invalid"
 	CodeSyncDependency        Code = "sync_dependency"
 	CodeSyncVersion           Code = "sync_version"
 	CodeNotUndoable           Code = "not_undoable"
@@ -166,6 +169,9 @@ var table = []struct {
 	{library.ErrMediaNotReady, CodeMediaNotReady},
 	{library.ErrInvalidRequest, CodeInvalidRequest},
 	{library.ErrSyncConflict, CodeSyncConflict},
+	{library.ErrNotCached, CodeNotCached},
+	{library.ErrCacheQuota, CodeCacheQuota},
+	{library.ErrCacheMetadata, CodeCacheMetadata},
 	{library.ErrSyncDependency, CodeSyncDependency},
 	{library.ErrSyncVersion, CodeSyncVersion},
 	{library.ErrRequestConflict, CodeRequestConflict},
@@ -217,6 +223,9 @@ var table = []struct {
 // which is checked by the same test that checks completeness.
 var classes = map[Code]Class{
 	CodeStorageFull:           ClassUnavailable,
+	CodeNotCached:             ClassUnavailable,
+	CodeCacheQuota:            ClassUnavailable,
+	CodeCacheMetadata:         ClassInternal,
 	CodeUploadTargetChanged:   ClassConflict,
 	CodeUploadSessionMissing:  ClassNotFound,
 	CodeUploadSessionExpired:  ClassConflict,

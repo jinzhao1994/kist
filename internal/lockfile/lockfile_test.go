@@ -259,6 +259,9 @@ func TestHelperHoldsTheLock(t *testing.T) {
 		t.Skip("not the helper process")
 	}
 	l := New(path)
+	if os.Getenv("KIST_LOCK_SHARED") == "1" {
+		l = NewShared(path)
+	}
 	release, err := l.Acquire(context.Background())
 	if err != nil {
 		t.Fatalf("helper could not take the lock: %v", err)
@@ -267,4 +270,88 @@ func TestHelperHoldsTheLock(t *testing.T) {
 
 	os.Stdout.WriteString("locked\n")
 	io.Copy(io.Discard, os.Stdin)
+}
+
+func TestSharedLeasesExcludeEvictionUntilAllClose(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "cache.lock")
+	first, err := NewShared(path).Acquire(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, ok, err := NewShared(path).TryAcquire()
+	if err != nil || !ok {
+		first()
+		t.Fatalf("readers serialized: %v", err)
+	}
+	writer := New(path)
+	if release, ok, err := writer.TryAcquire(); err != nil || ok {
+		if ok {
+			release()
+		}
+		first()
+		second()
+		t.Fatalf("writer bypassed readers: %v", err)
+	}
+	first()
+	if release, ok, err := writer.TryAcquire(); err != nil || ok {
+		if ok {
+			release()
+		}
+		second()
+		t.Fatalf("writer bypassed remaining reader: %v", err)
+	}
+	second()
+	release, ok, err := writer.TryAcquire()
+	if err != nil || !ok {
+		t.Fatalf("released readers left a lock: %v", err)
+	}
+	defer release()
+	if reader, ok, err := NewShared(path).TryAcquire(); err != nil || ok {
+		if ok {
+			reader()
+		}
+		t.Fatalf("reader bypassed writer: %v", err)
+	}
+}
+
+func TestSharedLeaseReleasedAfterProcessDeath(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "cache.lock")
+	cmd := exec.Command(os.Args[0], "-test.run=TestHelperHoldsTheLock", "-test.timeout=60s")
+	cmd.Env = append(os.Environ(), "KIST_LOCK_HELPER="+path, "KIST_LOCK_SHARED=1")
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stdin.Close()
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = cmd.Process.Kill() }()
+	if line, err := bufio.NewReader(stdout).ReadString('\n'); err != nil || strings.TrimSpace(line) != "locked" {
+		t.Fatalf("helper did not acquire lease: %q %v", line, err)
+	}
+	reader, ok, err := NewShared(path).TryAcquire()
+	if err != nil || !ok {
+		t.Fatalf("shared lease blocked another process reader: %v", err)
+	}
+	reader()
+	if release, ok, err := New(path).TryAcquire(); err != nil || ok {
+		if ok {
+			release()
+		}
+		t.Fatalf("evicted a live process reader: %v", err)
+	}
+	if err := cmd.Process.Kill(); err != nil {
+		t.Fatal(err)
+	}
+	_ = cmd.Wait()
+	release, ok, err := New(path).TryAcquire()
+	if err != nil || !ok {
+		t.Fatalf("dead process retained lease: %v", err)
+	}
+	release()
 }

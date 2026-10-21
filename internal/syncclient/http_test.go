@@ -38,7 +38,7 @@ func TestHTTPClientResumesDurableBlocksAndLostCommit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var dropSubmit, dropBlock atomic.Bool
+	var dropSubmit, dropBlock, dropDownload atomic.Bool
 	var mu sync.Mutex
 	var offsets []string
 	server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -48,7 +48,8 @@ func TestHTTPClientResumesDurableBlocksAndLostCommit(t *testing.T) {
 			offsets = append(offsets, r.URL.Query().Get("offset"))
 			mu.Unlock()
 		}
-		drop := block && dropBlock.CompareAndSwap(true, false) || strings.HasSuffix(r.URL.Path, "/submit") && dropSubmit.CompareAndSwap(true, false)
+		partialDownload := strings.HasSuffix(r.URL.Path, "/content") && dropDownload.CompareAndSwap(true, false)
+		drop := partialDownload || block && dropBlock.CompareAndSwap(true, false) || strings.HasSuffix(r.URL.Path, "/submit") && dropSubmit.CompareAndSwap(true, false)
 		if !drop {
 			apiServer.ServeHTTP(w, r)
 			return
@@ -58,6 +59,14 @@ func TestHTTPClientResumesDurableBlocksAndLostCommit(t *testing.T) {
 		apiServer.ServeHTTP(recorder, r)
 		if recorder.Code != 200 {
 			t.Errorf("fault injection intercepted a failure: %d %s", recorder.Code, recorder.Body)
+		}
+		if partialDownload {
+			for key, values := range recorder.Header() {
+				w.Header()[key] = values
+			}
+			w.WriteHeader(recorder.Code)
+			_, _ = w.Write(recorder.Body.Bytes()[:7])
+			w.(http.Flusher).Flush()
 		}
 		connection, _, err := w.(http.Hijacker).Hijack()
 		if err != nil {
@@ -162,6 +171,29 @@ func TestHTTPClientResumesDurableBlocksAndLostCommit(t *testing.T) {
 	download.Close()
 	if err != nil || !bytes.Equal(tail, content[8<<20:]) {
 		t.Fatalf("resumed download mismatch: %v", err)
+	}
+	dropDownload.Store(true)
+	if err := client.CacheOriginal(t.Context(), string(stored.Key), peer); err == nil {
+		t.Fatal("interrupted cache download unexpectedly completed")
+	}
+	if err := client.Close(); err != nil {
+		t.Fatal(err)
+	}
+	client, err = library.OpenClient(t.Context(), clientRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := client.CacheOriginal(t.Context(), string(stored.Key), peer); err != nil {
+		t.Fatalf("cache resume: %v", err)
+	}
+	cached, err := client.OpenCachedOriginal(t.Context(), string(stored.Key))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cachedBytes, err := io.ReadAll(cached)
+	cached.Close()
+	if err != nil || !bytes.Equal(cachedBytes, content) {
+		t.Fatalf("resumed cache differs from NAS: %v", err)
 	}
 	if result, err := client.Synchronize(t.Context(), peer); err != nil || !result.Complete || result.Accepted != 0 {
 		t.Fatalf("repeat sync: %+v %v", result, err)

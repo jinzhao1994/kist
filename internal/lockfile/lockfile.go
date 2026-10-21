@@ -48,9 +48,10 @@ const (
 // live concern rather than a hypothetical: two browser tabs submitting at once
 // are two concurrent writes.
 type Locker struct {
-	path string
-	wait time.Duration
-	sem  chan struct{}
+	path   string
+	wait   time.Duration
+	sem    chan struct{}
+	shared bool
 }
 
 // New returns a Locker for the given lock file. The file is created on first
@@ -58,6 +59,40 @@ type Locker struct {
 // process create a fresh one and lock that instead.
 func New(path string) *Locker {
 	return &Locker{path: path, wait: DefaultWait, sem: make(chan struct{}, 1)}
+}
+
+// NewShared creates a reader lease. Independent shared lockers may coexist;
+// an exclusive locker on the same path excludes all of them. As with New,
+// never remove the lock file while it could be in use.
+func NewShared(path string) *Locker {
+	l := New(path)
+	l.shared = true
+	return l
+}
+
+// TryAcquire attempts a lock without waiting. A busy lock is not an error;
+// callers such as cache eviction can skip an object leased by another process.
+func (l *Locker) TryAcquire() (func(), bool, error) {
+	select {
+	case l.sem <- struct{}{}:
+	default:
+		return nil, false, nil
+	}
+	f, err := os.OpenFile(l.path, os.O_RDWR|os.O_CREATE, 0o644)
+	if err != nil {
+		<-l.sem
+		return nil, false, err
+	}
+	ok, err := tryLock(f, l.shared)
+	if err != nil || !ok {
+		f.Close()
+		<-l.sem
+		return nil, false, err
+	}
+	if !l.shared {
+		l.describe(f)
+	}
+	return func() { unlock(f); f.Close(); <-l.sem }, true, nil
 }
 
 // BusyError reports that someone else is writing.
@@ -117,13 +152,15 @@ func (l *Locker) acquireFile(ctx context.Context, deadline time.Time) (func(), e
 	}
 
 	for delay := pollStart; ; {
-		ok, err := tryLock(f)
+		ok, err := tryLock(f, l.shared)
 		if err != nil {
 			f.Close()
 			return nil, fmt.Errorf("lock %s: %w", l.path, err)
 		}
 		if ok {
-			l.describe(f)
+			if !l.shared {
+				l.describe(f)
+			}
 			return func() {
 				// Unlock before close so the window where the file is open but
 				// unlocked belongs to us rather than to the kernel's cleanup.

@@ -66,6 +66,10 @@ var jsonCommands = [][]string{
 	{"client", "status", "@client"},
 	{"client", "sync", "@client"},
 	{"client", "connect", "@client"},
+	{"client", "cache", "status", "@client"},
+	{"client", "cache", "prune", "@client"},
+	{"client", "cache", "rebuild", "@client"},
+	{"client", "cache", "configure", "@client", "--max-bytes", "1024"},
 	{"version"},
 	// init deliberately absent: it takes a path argument rather than
 	// --library, so a table entry would create a library at the default
