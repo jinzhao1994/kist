@@ -140,6 +140,7 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 	s.mapRoutes(provider)
 	if c != nil {
 		s.clientReadRoutes()
+		s.clientLocalHistoryRoutes()
 		s.historyRoutes()
 		s.historicalRoutes()
 		s.clientManagementRoutes()

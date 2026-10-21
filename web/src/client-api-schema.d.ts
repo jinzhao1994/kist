@@ -244,6 +244,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/client/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 client history */
+        get: operations["get-api-v1-client-history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/client/history/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 client history by ID */
+        get: operations["get-api-v1-client-history-by-id"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/client/history/{id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 client history by ID undo */
+        post: operations["post-api-v1-client-history-by-id-undo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/client/offline": {
         parameters: {
             query?: never;
@@ -1016,6 +1067,39 @@ export interface components {
         ClientEntryDeleteInputBody: {
             revision: string;
         };
+        ClientLocalHistoryDetail: {
+            action: string;
+            group?: components["schemas"]["SyncReference"];
+            id: string;
+            /** Format: date-time */
+            occurred_at: string;
+            origin: string;
+            proposal: components["schemas"]["SyncProposal"];
+            reason?: string;
+            receipt?: components["schemas"]["SyncResult"];
+            replaced_by?: string;
+            /** @enum {string} */
+            state: "pending" | "awaiting_receipt" | "conflict" | "accepted" | "discarded" | "replaced";
+            undo?: components["schemas"]["SyncReference"];
+        };
+        ClientLocalHistoryEntry: {
+            action: string;
+            group?: components["schemas"]["SyncReference"];
+            id: string;
+            /** Format: date-time */
+            occurred_at: string;
+            origin: string;
+            reason?: string;
+            receipt?: components["schemas"]["SyncResult"];
+            replaced_by?: string;
+            /** @enum {string} */
+            state: "pending" | "awaiting_receipt" | "conflict" | "accepted" | "discarded" | "replaced";
+            undo?: components["schemas"]["SyncReference"];
+        };
+        ClientLocalHistoryList: {
+            before?: string;
+            entries: components["schemas"]["ClientLocalHistoryEntry"][] | null;
+        };
         ClientOfflineOriginal: {
             files: string[] | null;
             key: string;
@@ -1327,6 +1411,7 @@ export interface components {
             parent?: string;
         };
         "Post-api-v1-client-cache-pruneRequest": Record<string, never>;
+        "Post-api-v1-client-history-by-id-undoRequest": Record<string, never>;
         "Post-api-v1-client-offline-by-owner-prepareRequest": Record<string, never>;
         "Post-api-v1-client-pending-by-id-resolveRequest": {
             reason: string;
@@ -1471,6 +1556,12 @@ export interface components {
             local_id?: string;
             /** Format: int64 */
             op_id?: number;
+        };
+        SyncResult: {
+            /** Format: date-time */
+            accepted_at: string;
+            /** Format: int64 */
+            op_id: number;
         };
         Tag: {
             /** Format: int64 */
@@ -2215,6 +2306,106 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClientStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-client-history": {
+        parameters: {
+            query?: {
+                before?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientLocalHistoryList"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-client-history-by-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientLocalHistoryDetail"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-client-history-by-id-undo": {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-client-history-by-id-undoRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientRequestResult"];
                 };
             };
             /** @description Error */

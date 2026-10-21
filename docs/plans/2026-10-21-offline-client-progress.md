@@ -446,3 +446,11 @@ worktree 的历史列表 API race `/tmp/kist-client-history-list-api-final.log` 
 历史列表阶段完整 make check 已通过（66379 退出 0，`/tmp/kist-client-history-list-complete-check.log`）。用新二进制重启已确认身份的合成客户端（19592，会话 84196），合成 NAS（19591，会话 39554）；通过网页同源 API 生成本地创建回执，再手动同步成功。确认测试 NAS PID 9160 后关闭，Chrome 仍可打开最新正式操作及 NAS 接纳时间、无 pageerror。截图 `/tmp/kist-offline-history-detail-without-nas.png` 在等待弹窗透明度稳定后已审阅。浏览器脚本初次断言误加句号，第二次名称同时匹配摘要和对象列表，均修正定位后通过；未改产品行为。合成 NAS 当前关闭，客户端仍运行。
 
 a5658fb CI 39614170713 已通过，但 Visual 39614174487 失败，正在读取失败日志；不能把接受后的检查视为已通过。
+
+历史列表阶段已提交 2d40fb6，尚未推送。a5658fb 视觉复查报告 `/tmp/kist-offline-visual-39614174487/report/index.html`：138 个完整场景，仅既有 entry-menu-box 的“在新标签页打开”文字 326 像素差异，离线四场景及其余场景完全匹配。已查看 expected/current/diff 和文字放大图；a5658fb 与批准的 91abf03 仅 baseline.json 不同，无该菜单产品代码变化。未接受此噪声差异，发起同 SHA 完整重新采集（39614174487 attempt 2），以确认是否为采集不稳定；若重现继续定位。a5658fb 跨平台 CI 已全部通过。
+
+e363130 与 2d40fb6 已推送。原 a5658fb 视觉 attempt 2 一直排队，后被最新 main 的完整检查取代，取消不作为通过证据。最新 CI 39616792702 已通过，Visual 39616792737 失败，正在读取日志/下载报告，需同时确认新增 history-synced-operation 场景和此前菜单渲染差异。
+
+本地意图历史四个新文件已合入 main（client_local_history.go/test.go，API 同名两文件及 clientLocalHistoryRoutes 注册）：按独立本地 ID 分页并读取原始 proposal，保留撤销/操作组引用、替换及放弃决定、已确认 NAS 回执；提交结果未知仍为 awaiting_receipt，不伪装成失败或可放弃状态。分页按追加位置，替换操作虽沿用逻辑队列位置仍有独立游标。新增本地 ID 撤销 HTTP 接口，复用持久请求回执。主线针对性 race `/tmp/kist-client-local-history-merged.log` API/library 通过（1.885/3.050 秒），完整检查 `/tmp/kist-client-local-history-complete-check.log` 会话 9639 进行中。worktree 对应增量全部已合入，不要重复覆盖。测试初次漏传 OpenClient context，随后误以为创建同名归档盒必冲突，已改为同字段并发改名，覆盖真实冲突和替换决定。尚未接本地历史网页详情/撤销入口。
+
+本地意图历史 API 阶段完整 make check 已通过（9639 退出 0，`/tmp/kist-client-local-history-complete-check.log`）。本阶段先提交；2d40fb6 Visual 39616792737 为完整采集后的比较失败（139 张、2 处差异），报告下载会话 40063，尚未审阅/接受。
