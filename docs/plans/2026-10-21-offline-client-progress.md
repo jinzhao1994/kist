@@ -456,3 +456,9 @@ e363130 与 2d40fb6 已推送。原 a5658fb 视觉 attempt 2 一直排队，后�
 本地意图历史 API 阶段完整 make check 已通过（9639 退出 0，`/tmp/kist-client-local-history-complete-check.log`）。本阶段先提交；2d40fb6 Visual 39616792737 为完整采集后的比较失败（139 张、2 处差异），报告下载会话 40063，尚未审阅/接受。
 
 2d40fb6 的正式视觉报告已复查：完整 139 张，仅新增接纳时间历史场景与既有菜单文字 1px 位移（326 像素）。未接受菜单差异。共享 ContextMenu 现遵循系统 reduced motion，与 Dialog 一致；针对性菜单测试 4 项通过，完整检查日志 `/tmp/kist-context-menu-motion-complete-check.log` 已运行至最终单二进制构建，无失败记录。原终端会话已回收，接下来以该提交的 CI 和正式视觉采集复核，尚不能声称菜单差异已解决。
+
+1676133（含 d086910 本地历史 API）已推送；Secret scan 39619903062 通过，CI 39619903077 排队，Visual 39619903105 采集中。
+
+本地历史网页阶段已接入独立 tab：按本地 ID 翻页、原始时间与同步状态、回执正式编号/接纳时间、替换/撤销/操作组关联、本地撤销确认与幂等重试。未打开 tab 时不请求历史；写入未确认时阻止关闭或切换 tab，复用 useWrites/WriteFeedback。详情摘要复用后端 summarizeHistory，不在前端解析 payload；新增摘要字段和测试已从旧 worktree 按文件增量合入，旧 worktree 现无剩余未合入功能。针对性 UI 6 项通过（`/tmp/kist-local-history-ui-tests.log`），API/library race 2.106/3.384 秒通过（`/tmp/kist-local-history-summary-merged.log`）。首次 UI 测试错误使用了非项目的 Retry 文案与精确文本定位，修正为现有 Try again 和包含状态文字后通过，未更改业务行为。完整 make check `/tmp/kist-local-history-ui-complete-check.log`（45666）进行中；新增 offline-client-history 正式视觉场景，尚未浏览器验收/提交。
+
+本地历史网页阶段完整 make check 已通过（45666 退出 0）。已确认合成客户端 PID 9158 后重启新二进制（33547，19592）；NAS 仍关闭。真实 Chrome 新建独立本地操作、打开详情、确认撤销并返回列表看到撤销事件，无 pageerror（59080 退出 0），截图 `/tmp/kist-local-history-without-nas.png` 已查看。1676133 CI 39619903077 通过；Visual 39619903105 是采集失败而非比较失败，candidate 138 通过/1 失败，box-tags-dialog 的菜单在视口下方导致点击超时，trace 反复报告 element is outside of the viewport。报告 `/tmp/kist-menu-motion-visual-39619903105`。减少动画修正引出了菜单定位问题，须继续修复，不能接受该不完整候选。

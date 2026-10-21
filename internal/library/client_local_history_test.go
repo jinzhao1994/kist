@@ -28,7 +28,7 @@ func TestClientLocalHistoryRetainsIntentUndoAndAcceptance(t *testing.T) {
 		t.Fatal(older, end, err)
 	}
 	detail, err := c.LocalHistoryOp(t.Context(), original.ID)
-	if err != nil || string(detail.Proposal.Payload) != string(original.Payload) || !detail.OccurredAt.Equal(original.OccurredAt) {
+	if err != nil || detail.Summary == nil || detail.Summary.Name != original.ID || string(detail.Proposal.Payload) != string(original.Payload) || !detail.OccurredAt.Equal(original.OccurredAt) {
 		t.Fatal(detail, err)
 	}
 	if _, err := c.Synchronize(t.Context(), &testSyncPeer{nas: nas}); err != nil {

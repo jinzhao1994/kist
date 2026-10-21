@@ -2838,7 +2838,7 @@ test("fileset-gallery-navigation", async ({ page }, info) => {
   await capture(page, errors, info.title);
 });
 
-for (const panel of ["sync", "cache", "connection"] as const) {
+for (const panel of ["sync", "cache", "connection", "history"] as const) {
   test(`offline-client-${panel}`, async ({ page }, info) => {
     const errors = await prepare(page);
     await page.route("**/api/v1/info", (route) =>
@@ -2905,6 +2905,34 @@ for (const panel of ["sync", "cache", "connection"] as const) {
         return route.fulfill({
           json: { originals_bytes: 10485760, pending_journal_bytes: 4096 },
         });
+      if (path.endsWith("/history"))
+        return route.fulfill({
+          json: {
+            entries: [
+              {
+                id: "local-travel",
+                action: "create_box",
+                origin: "user",
+                state: "accepted",
+                occurred_at: time,
+                receipt: { op_id: 42, accepted_at: time },
+              },
+            ],
+          },
+        });
+      if (path.endsWith("/history/local-travel"))
+        return route.fulfill({
+          json: {
+            id: "local-travel",
+            action: "create_box",
+            origin: "user",
+            state: "accepted",
+            occurred_at: time,
+            receipt: { op_id: 42, accepted_at: time },
+            summary: { name: "旅行记录", count: 1, current_names: false },
+            proposal: {},
+          },
+        });
       errors.push(`Unexpected client API: ${path}`);
       return route.abort();
     });
@@ -2927,6 +2955,14 @@ for (const panel of ["sync", "cache", "connection"] as const) {
       await expect(dialog.getByLabel("同步凭据", { exact: true })).toHaveValue(
         "",
       );
+    } else if (panel === "history") {
+      await dialog.getByRole("tab", { name: "本地操作", exact: true }).click();
+      await expect(dialog).toContainText("NAS 已接纳");
+      await dialog
+        .getByRole("button", { name: "创建归档箱", exact: true })
+        .click();
+      await expect(dialog).toContainText("旅行记录");
+      await expect(dialog).toContainText("NAS 操作 #42");
     } else await expect(dialog).toContainText("待同步修改 · 1");
     await capture(page, errors, info.title);
   });

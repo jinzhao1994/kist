@@ -27,6 +27,22 @@ export const en = {
   clientInterrupted:
     "Network request stopped. Local progress is retained; sync again to confirm the result.",
   clientTitle: "Offline client",
+  clientHistory: "Local operations",
+  clientHistoryHint:
+    "Local operations keep their original identity. NAS history contains only accepted operations.",
+  clientHistoryBack: "Back to local operations",
+  clientHistoryEmpty: "No local operations yet.",
+  clientHistoryPending: "Pending sync",
+  clientHistoryAwaiting: "Awaiting confirmation",
+  clientHistoryConflict: "Conflict",
+  clientHistoryAccepted: "Accepted by NAS",
+  clientHistoryDiscarded: "Discarded",
+  clientHistoryReplaced: "Replaced",
+  clientFormalOperation: "NAS operation #{id}",
+  clientHistoryUndoTarget: "Undo target",
+  clientHistoryGroup: "Operation group",
+  clientHistoryRelated: "View related local operation",
+  clientHistoryReplacement: "View replacement",
   clientSync: "Sync",
   clientCache: "Cache",
   clientConnection: "Connection",
@@ -605,6 +621,21 @@ export const zh: Record<MessageKey, string> = {
 
   clientInterrupted: "已停止网络请求，本地进度已保留，请重新同步以核对结果。",
   clientTitle: "离线客户端",
+  clientHistory: "本地操作",
+  clientHistoryHint: "本地操作保留原始身份；NAS 正式历史只包含已接纳的操作。",
+  clientHistoryBack: "返回本地操作",
+  clientHistoryEmpty: "暂无本地操作。",
+  clientHistoryPending: "待同步",
+  clientHistoryAwaiting: "等待确认",
+  clientHistoryConflict: "存在冲突",
+  clientHistoryAccepted: "NAS 已接纳",
+  clientHistoryDiscarded: "已放弃",
+  clientHistoryReplaced: "已替换",
+  clientFormalOperation: "NAS 操作 #{id}",
+  clientHistoryUndoTarget: "撤销目标",
+  clientHistoryGroup: "操作组",
+  clientHistoryRelated: "查看关联本地操作",
+  clientHistoryReplacement: "查看替换方案",
   clientSync: "同步",
   clientCache: "缓存",
   clientConnection: "连接",
@@ -1210,6 +1241,7 @@ interface Parameters {
   filesetReordered: { page: number };
   collapseTag: { name: string };
   operation: { id: number };
+  clientFormalOperation: { id: number };
   undoneBy: { id: number };
   reverts: { id: number };
   blockedBy: { id: number };

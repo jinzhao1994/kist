@@ -12,6 +12,7 @@ import {
 } from "@mantine/core";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { LocalHistory } from "./LocalHistory";
 import { Dialog } from "./Dialog";
 import { actionLabel } from "./History";
 import { errorMessage } from "./mutations";
@@ -39,6 +40,8 @@ export function OfflineClient({ close }: { close: () => void }) {
     queryFn: ({ signal }) => offlineClient.storage(signal),
   });
   const [busy, setBusy] = useState(false);
+  const [historyLocked, setHistoryLocked] = useState(false);
+  const [tab, setTab] = useState<string | null>("sync");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [decision, setDecision] = useState("");
@@ -66,7 +69,7 @@ export function OfflineClient({ close }: { close: () => void }) {
     <Dialog
       open
       onOpenChange={(open) => {
-        if (!open && !busy) close();
+        if (!open && !busy && !historyLocked) close();
       }}
       title={t("clientTitle")}
       size="lg"
@@ -81,10 +84,16 @@ export function OfflineClient({ close }: { close: () => void }) {
         )}
         {notice && <Text role="status">{notice}</Text>}
         {data && (
-          <Tabs defaultValue="sync">
+          <Tabs
+            value={tab}
+            onChange={(value) => {
+              if (!busy && !historyLocked) setTab(value);
+            }}
+          >
             <Tabs.List>
               <Tabs.Tab value="sync">{t("clientSync")}</Tabs.Tab>
               <Tabs.Tab value="cache">{t("clientCache")}</Tabs.Tab>
+              <Tabs.Tab value="history">{t("clientHistory")}</Tabs.Tab>
               <Tabs.Tab value="connection">{t("clientConnection")}</Tabs.Tab>
             </Tabs.List>
             <Tabs.Panel value="sync" pt="md">
@@ -255,6 +264,12 @@ export function OfflineClient({ close }: { close: () => void }) {
                 </Group>
               </Stack>
             </Tabs.Panel>
+            <Tabs.Panel value="history" pt="md">
+              <LocalHistory
+                active={tab === "history"}
+                onLocked={setHistoryLocked}
+              />
+            </Tabs.Panel>
             <Tabs.Panel value="connection" pt="md">
               <ConnectionForm
                 key={data.connection?.server || "none"}
@@ -276,7 +291,7 @@ export function OfflineClient({ close }: { close: () => void }) {
               {t("cancel")}
             </Button>
           )}
-          <Button disabled={busy} onClick={close}>
+          <Button disabled={busy || historyLocked} onClick={close}>
             {t("close")}
           </Button>
         </div>

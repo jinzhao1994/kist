@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/jinzhao1994/kist/internal/oplog"
 	"github.com/jinzhao1994/kist/internal/query"
 	"github.com/jinzhao1994/kist/internal/store"
 )
@@ -25,7 +26,8 @@ type ClientLocalHistoryEntry struct {
 
 type ClientLocalHistoryDetail struct {
 	ClientLocalHistoryEntry
-	Proposal SyncProposal `json:"proposal"`
+	Proposal SyncProposal    `json:"proposal"`
+	Summary  *HistorySummary `json:"summary,omitempty"`
 }
 
 // LocalHistory pages immutable intentions in reverse append order. A replacement
@@ -76,6 +78,18 @@ func (c *Client) LocalHistoryOp(ctx context.Context, id string) (ClientLocalHist
 		var err error
 		detail.ClientLocalHistoryEntry, err = c.localHistoryEntry(entry, view)
 		detail.Proposal = entry.Proposal
+		if err != nil || entry.Proposal.Undo != nil {
+			return err
+		}
+		tx, err := c.db.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback()
+		summary, err := summarizeHistory(store.NewViewTx(tx, time.Time{}), oplog.Action(entry.Proposal.Action), entry.Proposal.Payload)
+		if err == nil {
+			detail.Summary = &summary
+		}
 		return err
 	})
 	return detail, err
