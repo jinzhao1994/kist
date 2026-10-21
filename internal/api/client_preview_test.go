@@ -22,8 +22,9 @@ type previewOriginalSource struct {
 }
 
 func (s previewOriginalSource) Capabilities(ctx context.Context) (library.SyncCapabilities, error) {
+	// The synthetic byte source advertises a portable timezone, independent of the host.
 	head, err := s.nas.SyncHead(ctx)
-	return library.SyncCapabilities{Version: 1, LibraryID: head.LibraryID, Timezone: s.nas.Zone().String(), JournalVersion: journal.Version, Actions: library.SyncActions(), UndoReferences: true}, err
+	return library.SyncCapabilities{Version: 1, LibraryID: head.LibraryID, Timezone: "UTC", JournalVersion: journal.Version, Actions: library.SyncActions(), UndoReferences: true}, err
 }
 func (s previewOriginalSource) OpenOriginal(_ context.Context, _ string, _ int64, offset int64) (io.ReadCloser, error) {
 	return io.NopCloser(strings.NewReader(s.data[offset:])), nil

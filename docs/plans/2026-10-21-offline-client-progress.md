@@ -404,3 +404,16 @@ Visual 39596936245 attempt 2 已通过，基准未更改；attempt 1 的单行�
 客户端管理接口最终完整 make check 已通过：会话 75711 退出 0，日志 `/tmp/kist-client-management-final-check.log`。本阶段提交；预览提交 1827dbf 已推送，CI 39608119224、Visual 39608119289 运行中，Secret scan 39608119052 通过。
 
 独立 worktree 网页面板：新增 OfflineClient.tsx / offline-client.ts / OfflineClient.test.tsx，App 客户端侧栏入口与目录未完整同步的提示；复用 Dialog/Mantine 控件，分同步/缓存/连接，待同步与未确认回执分别展示，放弃冲突需明确选择，停止网络保留进度。新增中英文文案/参数类型、pending 行样式，以及三个确定性视觉场景。复制了主线 web 源文件到该旧 worktree 作为开发基底，node_modules 链接根依赖；不要将基底差异误当新改动。`/tmp/kist-offline-ui-types-final.log` 类型检查通过；`/tmp/kist-offline-ui-workflows.log` 23 项通过；`/tmp/kist-offline-ui-visual-contract.log` 视觉场景契约通过。初次错误断言使用完整错误文字的子串，改为匹配既有 errorMessage 格式。实际浏览器视觉审阅尚未完成，UI 尚未合入。
+
+
+客户端管理已提交 72dc466，等待前序 CI/Visual 后推送。网页面板已合入主线，仅复制上述三个新文件及 App/i18n/style/视觉场景四个文件，未复制 worktree 的 API/契约/其他基底差异。合入后 `/tmp/kist-offline-ui-merged.log` 23 项通过。开始完整检查 `/tmp/kist-offline-ui-complete-check.log`；新增视觉场景仍需真实浏览器/CI 候选审阅，不能在尚未渲染时宣称 UI 验收完成。尚未提供文件/fileset 的保留离线选择入口、完整冲突替换编辑器、历史与媒体派生预览，目标未完成。
+
+
+面板首次完整 make check 通过（71709 退出 0，`/tmp/kist-offline-ui-complete-check.log`）。实际浏览器使用隔离 `/tmp/kist-offline-ui-i_9gm0ti`：NAS 回环 19591（会话 10482）、客户端 19592（11252），凭据仅保存 fixture 内 0600 文件。内置 iab 不可用且 Playwright 对应浏览器未安装，因此用已安装 Chrome 作开发验收，不替代正式 CI 视觉环境。首次同步成功、pageerror 为空；截图 `/tmp/kist-offline-client-before-sync.png`、`...-synced.png`、`...-cache.png` 已查看。截图捕获同步完成通知早于按钮状态收敛，后续截图应等待关闭按钮重新启用及 tab 选中状态。发现三项侧栏入口挤压版本文字，已调整客户端 footer 换行，并按已有表单去除必填星号。`/tmp/kist-offline-ui-polish.log` 相关 23 项通过。
+
+1827dbf 的 Visual 39608119289 通过，但 CI 39608119224 的 Windows TestClientCachedTextAndSheetPreviews 失败于 unsupported offline operation version；其合成 OriginalSource 使用 nas.Zone().String() 在 Windows 得到 Local，触发协议正确拒绝。测试源改为明确 UTC（不修改生产 ValidateSyncCapabilities），日志 `/tmp/kist-preview-portable-timezone.log` 针对性 race 通过。下一次完整检查覆盖该测试修正和 UI 小调整，日志 `/tmp/kist-offline-ui-final-check.log`。文件/fileset 保留离线入口尚未动代码，当前本轮主要完成实际浏览器验收和 CI 根因修正。
+
+
+Windows 合成源时区修正及 UI 小调整完整 make check 已通过：会话 55635 退出 0，日志 `/tmp/kist-offline-ui-final-check.log`。先单独提交测试修正并推送，以恢复跨平台 CI；网页面板仍留待正式视觉候选审阅。
+
+独立 worktree 新增 OfflineEntry.tsx/test.tsx：文件/组合稳定 owner 保留，先保存逻辑选择再下载，失败保留选择与部分进度，已有本地原文件直接就绪不联系 NAS，取消保留只改变保留配置。FileGrid 右键与 Gallery 详情共享对话框，仅 client 模式显示。`/tmp/kist-offline-entry-tests.log` 30 项通过；类型检查发现 Gallery 的 primary 可能为空，正在修正为用已加载文件身份。该增量尚未合入。
