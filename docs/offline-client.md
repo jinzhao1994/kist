@@ -146,3 +146,14 @@ prepared content needs no NAS connection. This includes nested fileset members,
 while external map backgrounds may still be unavailable offline.
 Removing a selection leaves its cached bytes eligible for normal pruning; it does
 not delete archive files or unsynchronized originals.
+
+
+The web client's **Offline client → Cache** tab lists retained selections,
+including named selections created with the CLI. Selections created from a file
+menu display the current filename. If a target can no longer be resolved, the
+selection remains visible and can still be removed. **Check availability**
+verifies originals and previews on demand, rather than scanning all content when
+the tab opens. **Check and download** resumes the existing selection without
+changing its members. **Stop retaining offline** removes only that selection's
+protection; other selections may still retain shared content, and archive files
+are not deleted.

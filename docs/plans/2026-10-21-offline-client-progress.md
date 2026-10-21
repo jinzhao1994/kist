@@ -531,3 +531,11 @@ c86910b 原文件迁移阶段已推送，CI 39624124913 与 Secret scan 39624124
 601901b 的 CI 39639091847 全部通过。Visual 39639091637 完整采集 141 张，无失败/跳过/重试；139 张匹配，只有新增 offline-client-conflict 与已审阅的 offline-retention-file 变化。完整候选通过六张联系表 `/tmp/kist-conflict-review-{1..6}.png` 扫描，新冲突页及变化区域全尺寸查看；旧菜单 326 像素差异本轮未出现，仍不声称已根治。已接受精确运行，Accept visual baselines 39640663501 成功，bot 提交 0282bec 已 ff-only 合入且保留当前工作树；其 CI 39640731826、Visual 39640734918 尚在执行。当前新增组合场景需随下一提交继续正式验收。
 
 包含最终视觉定位文案与已接受基准的 make check 再次通过（59940 退出 0，`/tmp/kist-conflict-fields-final-check.log`）。组合普通编辑入口仍通过原有排序/删除/主文件测试；冲突入口新增日期精度和组合完整 before/after 的前端回归。此阶段可提交，新增组合视觉场景的正式结果需推送后跟进。
+
+离线保留管理阶段：缓存页列出持久选择，兼容文件菜单创建的单项与 CLI 的命名混合选择；单项读取当前名称，解析失败仍保留身份和取消入口。校验按需执行，不随打开列表批量哈希内容；重新准备直接调用现有 prepare，不以旧 UI 状态 PUT 覆盖成员；删除仅解除指定 owner。就绪文案复用单文件入口组件，保留原布局。新增前端四项回归，三文件共 11 项通过（`/tmp/kist-retention-targeted.log`）。首轮完整检查暴露新增 i18n 参数类型遗漏，修正后 `/tmp/kist-retention-final-check.log`（9483）退出 0；最终保留原布局后的交付检查 `/tmp/kist-retention-delivery-check.log`（67631）仍在运行。
+
+实际 Chrome 已通过命名混合选择准备、取消及共享保留不受影响的验证（`/tmp/kist-retention-browser-final.log`），pageErrors 为空，截图 `/tmp/kist-retention-browser.png` 已查看。仅使用既有合成双实例，客户端新会话 65046。初次脚本用了不准确的按钮文案，修正为实际“取消离线保留”后重跑通过；不是产品失败。网页批量选择创建入口仍待实现，本阶段只完成集中管理现有选择。
+
+180e9c7 的 CI 39641189898 与 Secret scan 39641189894 均通过。Visual 39641189893 完整候选 142 张：新增 offline-client-fileset-conflict 已全尺寸查看，配置对照/拖动列表正常；仍有既有 entry-menu-box 的 326 像素差异，因此未接受基准。新增 menu-layout 附件首次确认：该菜单 baseline/candidate 所有项的元素与文字矩形、字体、行高、transform、zoom 完全相同，不能再把差异简单归因于 DOM 布局位置，需继续排查栅格化/合成因素。报告 `/tmp/kist-fileset-fields-visual-39641189893/report/index.html`。
+
+保留管理最终 make check 已通过（67631 退出 0，`/tmp/kist-retention-delivery-check.log`），前端 282 项通过，未修改 Go 逻辑复用通过的 race 缓存。真实浏览器已验收上述行为；本次缓存页的正式视觉差异待推送采集后审阅。批量创建选择、其他领域冲突与完整故障矩阵继续属于未完成 Goal，不在此阶段缩减范围。

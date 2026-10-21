@@ -3094,6 +3094,13 @@ for (const panel of [
             proposal: {},
           },
         });
+      if (path.endsWith("/offline"))
+        return route.fulfill({
+          json: {
+            "file:file-1": { files: ["file-1"], filesets: [] },
+            旅行资料: { files: ["file-1", "file-2"], filesets: [] },
+          },
+        });
       errors.push(`Unexpected client API: ${path}`);
       return route.abort();
     });
@@ -3124,6 +3131,10 @@ for (const panel of [
       ).toBeEnabled();
     } else if (panel === "cache") {
       await dialog.getByRole("tab", { name: "缓存", exact: true }).click();
+      await expect(
+        dialog.getByText("山间清晨.jpg", { exact: true }),
+      ).toBeVisible();
+      await expect(dialog.getByText("旅行资料", { exact: true })).toBeVisible();
       await expect(dialog.getByLabel("缓存体积上限（MiB）")).toHaveValue(
         "10240",
       );

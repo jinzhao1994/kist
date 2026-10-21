@@ -13,6 +13,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ClientConflictEditor } from "./ClientConflictEditor";
+import { OfflineRetention } from "./OfflineRetention";
 import { LocalHistory } from "./LocalHistory";
 import { Dialog } from "./Dialog";
 import { actionLabel } from "./History";
@@ -266,6 +267,11 @@ export function OfflineClient({ close }: { close: () => void }) {
                     })}
                   </Text>
                 )}
+                <OfflineRetention
+                  active={tab === "cache"}
+                  busy={busy}
+                  run={run}
+                />
                 <CacheForm
                   key={`${data.settings.cache_max_age}:${data.settings.cache_max_bytes}`}
                   status={data}

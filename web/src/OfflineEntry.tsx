@@ -93,24 +93,7 @@ export function OfflineEntry({
           <Text role="alert">{errorMessage(selections.error, t)}</Text>
         )}
         {retained && <Text size="sm">{t("clientRetentionSaved")}</Text>}
-        {status.data && (
-          <Text role="status">
-            {status.data.ready
-              ? t("clientOfflineReady")
-              : t("clientOfflineMissing", {
-                  ready: status.data.available,
-                  total: (status.data.originals || []).length,
-                })}
-          </Text>
-        )}
-        {!!status.data?.previews?.length && (
-          <Text size="sm" c="dimmed">
-            {t("clientOfflinePreviews", {
-              ready: status.data.previews_available,
-              total: status.data.previews.length,
-            })}
-          </Text>
-        )}
+        {status.data && <OfflineReadiness status={status.data} />}
         {status.error && (
           <Text role="alert">{errorMessage(status.error, t)}</Text>
         )}
@@ -144,5 +127,29 @@ export function OfflineEntry({
         </div>
       </Stack>
     </Dialog>
+  );
+}
+
+export function OfflineReadiness({ status }: { status: Status }) {
+  const { t } = useI18n();
+  return (
+    <>
+      <Text role="status">
+        {status.ready
+          ? t("clientOfflineReady")
+          : t("clientOfflineMissing", {
+              ready: status.available,
+              total: (status.originals || []).length,
+            })}
+      </Text>
+      {!!status.previews?.length && (
+        <Text size="sm" c="dimmed">
+          {t("clientOfflinePreviews", {
+            ready: status.previews_available,
+            total: status.previews.length,
+          })}
+        </Text>
+      )}
+    </>
   );
 }

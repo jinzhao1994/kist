@@ -63,7 +63,8 @@ beforeEach(() => {
           state = { ...state, pending: [], blocked_id: undefined };
           body = state;
         } else body = state;
-      } else if (path.endsWith("/status")) body = state;
+      } else if (path.endsWith("/offline")) body = {};
+      else if (path.endsWith("/status")) body = state;
       else if (path.endsWith("/protected-storage"))
         body = { originals_bytes: 100, pending_journal_bytes: 20 };
       else

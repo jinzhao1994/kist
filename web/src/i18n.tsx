@@ -8,6 +8,11 @@ import {
 } from "react";
 
 export const en = {
+  clientRetainedItems: "Retained offline",
+  clientRetainedEmpty:
+    "No offline selections yet. Use Keep offline in a file or file set menu.",
+  clientRetainedCount: "{files} files · {filesets} file sets",
+  clientRetainedDetails: "Check availability",
   clientKeepOffline: "Keep offline",
   clientKeepFilesetHint:
     "Retain every configured member, including nested file sets and Live Photo video.",
@@ -626,6 +631,10 @@ export const en = {
 } as const;
 export type MessageKey = keyof typeof en;
 export const zh: Record<MessageKey, string> = {
+  clientRetainedItems: "离线保留项",
+  clientRetainedEmpty: "尚未保留内容，可在文件或组合的菜单中选择“保留离线”。",
+  clientRetainedCount: "{files} 个文件 · {filesets} 个组合",
+  clientRetainedDetails: "检查可用状态",
   clientKeepOffline: "保留离线",
   clientKeepFilesetHint:
     "保留组合配置中的全部成员，包括嵌套组合和实况照片的视频。",
@@ -1250,6 +1259,7 @@ export function initializeLanguage() {
   applyDocumentLanguage(initialPreferences());
 }
 interface Parameters {
+  clientRetainedCount: { files: number; filesets: number };
   clientOfflineMissing: { ready: number; total: number };
   clientOfflinePreviews: { ready: number; total: number };
   clientPending: { count: number };
