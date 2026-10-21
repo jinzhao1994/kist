@@ -1,3 +1,4 @@
+import livePhotoIcon from "./assets/live-photo.svg?no-inline";
 import { Button } from "@mantine/core";
 import {
   lazy,
@@ -288,15 +289,14 @@ function LivePhotoPlayer({
               : undefined
         }
       >
-        {playing ? (
-          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-            <path fill="currentColor" d="M3 2h2v8H3zm4 0h2v8H7z" />
-          </svg>
-        ) : (
-          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-            <path fill="currentColor" d="M3 1.5 10 6l-7 4.5z" />
-          </svg>
-        )}
+        <span
+          className="live-photo-icon"
+          aria-hidden="true"
+          style={{
+            maskImage: `url(${livePhotoIcon})`,
+            WebkitMaskImage: `url(${livePhotoIcon})`,
+          }}
+        />
         {t("filesetLive")}
         {((!src && !retry) || waiting) && (
           <span className="live-photo-loading" aria-hidden="true">
