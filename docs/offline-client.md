@@ -175,3 +175,12 @@ Manual cache cleanup also retries migration of NAS-confirmed originals that were
 still being read during sync. Once those readers close, the bytes become eligible
 for the configured cache policy without another network sync. Retained items stay
 protected even above the limit; unconfirmed local originals remain outside eviction.
+
+When synchronization stops on a conflicting box cover, choose **Review local
+change**. The editor shows the previous and current references and starts with
+your local choice. Select an available compared file or **No cover**; unavailable
+files cannot be submitted. Save, then synchronize again. A newer NAS edit can
+invalidate the reviewed choice and requires another review. The original local
+intention stays in history, and retrying an uncertain save sends the same decision.
+To use a different file, use its existing **Set as box cover** action after
+resolving the blocked change.

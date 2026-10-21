@@ -135,3 +135,54 @@ it("uses the current name for a file retained from its menu", async () => {
   expect(await screen.findByText("Passport.png")).toBeVisible();
   expect(requests.some((r) => r.path.includes("/offline/"))).toBe(false);
 });
+
+it("refreshes an in-flight availability check after preparation", async () => {
+  const originalFetch = globalThis.fetch;
+  let prepared = false;
+  let started = false;
+  let release!: () => void;
+  const delayed = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string, options?: RequestInit) => {
+      if (path.endsWith("/prepare")) prepared = true;
+      const response = await originalFetch(path, options);
+      if (!options?.method && path.includes("/offline/")) {
+        if (!prepared) {
+          started = true;
+          await delayed;
+        } else {
+          return Response.json({
+            ready: true,
+            available: 2,
+            originals: [{ key: "one" }, { key: "two" }],
+            previews: [],
+            previews_available: 0,
+          });
+        }
+      }
+      return response;
+    }),
+  );
+  setup();
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Check availability" }),
+  );
+  await waitFor(() => expect(started).toBe(true));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Check and download" }),
+  );
+  expect(
+    await screen.findByText(
+      "All required originals and previews are available offline.",
+    ),
+  ).toBeVisible();
+  release();
+  await waitFor(() =>
+    expect(
+      screen.queryByText(/1 of 2 originals available/),
+    ).not.toBeInTheDocument(),
+  );
+});

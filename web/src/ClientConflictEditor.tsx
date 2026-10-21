@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createWrite, get } from "./api";
 import type { components } from "./client-api-schema";
-import { FilesetEditor, type Fileset } from "./Filesets";
+import { Select } from "./Select";
+import { FilesetEditor, zeroID, type Fileset } from "./Filesets";
 import { PartialDateInput } from "./PartialDateInput";
 import { describeHistory } from "./History";
 import { useI18n } from "./i18n";
@@ -42,9 +43,22 @@ export function ClientConflictEditor({
     onLocked(writes.busy || writes.locked || domainLocked);
     return () => onLocked(false);
   }, [writes.busy, writes.locked, domainLocked, onLocked]);
+  const cover = snapshot?.cover;
+  const coverValue = values.cover_file_id ?? cover?.proposed.id;
+  const coverCandidates = cover
+    ? [cover.proposed, cover.current, cover.before]
+    : [];
+  const coverValid =
+    !cover ||
+    coverValue === zeroID ||
+    coverCandidates.some((file) => file.id === coverValue && file.available);
+  const coverName = (file: NonNullable<Draft["cover"]>["before"]) =>
+    file.id === zeroID
+      ? t("clientConflictNoCover")
+      : `${file.name || file.id}${file.available ? "" : ` · ${t("clientConflictUnavailableCover")}`}`;
   function submit() {
     const data = snapshot;
-    if (!data?.replacement) return;
+    if (!data?.replacement || !coverValid) return;
     const replacement = structuredClone(data.replacement);
     // Paths are supplied by the server's domain editor. Only intended values
     // change; reviewed before-values, IDs and timestamp stay fixed on retries.
@@ -53,6 +67,10 @@ export function ClientConflictEditor({
       for (const part of (field.path || []).slice(0, -1))
         parent = parent[part] as Record<string, unknown>;
       parent[(field.path || []).at(-1)!] = values[field.key] ?? field.proposed;
+    }
+    if (data.cover) {
+      const payload = replacement.payload as Record<string, unknown>;
+      (payload.cover_file_id as Record<string, unknown>).after = coverValue;
     }
     writes.run([
       createWrite("POST", `/client/pending/${encodeURIComponent(id)}/resolve`, {
@@ -102,6 +120,50 @@ export function ClientConflictEditor({
               close={close}
               onLocked={setDomainLocked}
             />
+          )}
+          {cover && (
+            <Stack gap="xs">
+              <Text size="sm" fw={600}>
+                {t("clientConflictCover")}
+              </Text>
+              <Text size="sm" c="dimmed">
+                {t("clientConflictBefore")} · {coverName(cover.before)}
+              </Text>
+              <Text size="sm">
+                {t("clientConflictCurrent")} · {coverName(cover.current)}
+              </Text>
+              <Select
+                label={t("clientConflictChosen")}
+                value={coverValue!}
+                disabled={writes.busy || writes.locked}
+                onValueChange={(value) =>
+                  setValues({ ...values, cover_file_id: value })
+                }
+                options={[
+                  {
+                    value: zeroID,
+                    label: t("clientConflictNoCover"),
+                    special: true,
+                  },
+                  ...coverCandidates
+                    .filter(
+                      (file, i, all) =>
+                        file.id !== zeroID &&
+                        all.findIndex((other) => other.id === file.id) === i,
+                    )
+                    .map((file) => ({
+                      value: file.id,
+                      label: coverName(file),
+                      disabled: !file.available,
+                    })),
+                ]}
+              />
+              {!coverValid && (
+                <Text size="sm" c="dimmed">
+                  {t("clientConflictChooseCover")}
+                </Text>
+              )}
+            </Stack>
           )}
           {(snapshot.fields || []).map((field) => (
             <Stack gap="xs" key={field.key}>
@@ -162,7 +224,10 @@ export function ClientConflictEditor({
           ))}
           {snapshot.replacement && !snapshot.fileset && (
             <Group>
-              <Button disabled={writes.busy || writes.locked} onClick={submit}>
+              <Button
+                disabled={writes.busy || writes.locked || !coverValid}
+                onClick={submit}
+              >
                 {t("clientConflictSave")}
               </Button>
             </Group>

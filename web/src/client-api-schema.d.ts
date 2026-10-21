@@ -1101,7 +1101,18 @@ export interface components {
             downloaded: number;
             transfer?: components["schemas"]["SyncBoundary"];
         };
+        ClientConflictCover: {
+            before: components["schemas"]["ClientConflictCoverFile"];
+            current: components["schemas"]["ClientConflictCoverFile"];
+            proposed: components["schemas"]["ClientConflictCoverFile"];
+        };
+        ClientConflictCoverFile: {
+            available: boolean;
+            id: string;
+            name: string;
+        };
         ClientConflictEdit: {
+            cover?: components["schemas"]["ClientConflictCover"];
             fields: components["schemas"]["ClientConflictField"][] | null;
             fileset?: components["schemas"]["ClientConflictFileset"];
             replacement?: components["schemas"]["SyncProposal"];

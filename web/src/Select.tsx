@@ -27,7 +27,12 @@ export function Select({
   "aria-label"?: string;
   value: string;
   onValueChange: (value: string) => void;
-  options: { value: string; label: string; special?: boolean }[];
+  options: {
+    value: string;
+    label: string;
+    special?: boolean;
+    disabled?: boolean;
+  }[];
   disabled?: boolean;
   label?: string;
   searchable?: boolean;
@@ -140,6 +145,7 @@ export function Select({
                     value={option.value}
                     aria-label={option.label}
                     active={option.value === value}
+                    disabled={option.disabled}
                   >
                     {renderItem({ option, checked: option.value === value })}
                   </Combobox.Option>

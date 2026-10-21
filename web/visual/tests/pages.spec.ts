@@ -2883,10 +2883,14 @@ for (const panel of [
   "history",
   "conflict",
   "fileset-conflict",
+  "cover-conflict",
+  "cover-missing-conflict",
 ] as const) {
   test(`offline-client-${panel}`, async ({ page }, info) => {
     const errors = await prepare(page);
-    const conflict = panel === "conflict" || panel === "fileset-conflict";
+    const conflict = panel.endsWith("conflict");
+    const coverConflict =
+      panel === "cover-conflict" || panel === "cover-missing-conflict";
     const config = {
       folder_id: "conflict-pages",
       kind: "document_pages",
@@ -2980,13 +2984,40 @@ for (const panel of [
                 action:
                   panel === "fileset-conflict"
                     ? "set_fileset"
-                    : panel === "conflict"
+                    : panel === "conflict" || coverConflict
                       ? "update_box"
                       : "create_box",
                 conflict: conflict ? "配置已被修改" : undefined,
                 awaiting_receipt: false,
               },
             ],
+          },
+        });
+      if (path.endsWith("/edit") && coverConflict)
+        return route.fulfill({
+          json: {
+            fields: [],
+            summary: { name: "旅行归档", count: 1, current_names: true },
+            cover: {
+              before: { id: "previous", name: "出发前.png", available: true },
+              current: { id: "current", name: "山间清晨.jpg", available: true },
+              proposed: {
+                id: "proposed",
+                name: panel === "cover-conflict" ? "归途.jpg" : "",
+                available: panel === "cover-conflict",
+              },
+            },
+            replacement: {
+              version: 1,
+              id: "cover-replacement",
+              occurred_at: time,
+              action: "update_box",
+              origin: "user",
+              payload: {
+                box_id: "box-1",
+                cover_file_id: { before: "current", after: "proposed" },
+              },
+            },
           },
         });
       if (path.endsWith("/edit") && panel === "fileset-conflict")
@@ -3103,7 +3134,22 @@ for (const panel of [
     await expect(
       dialog.getByRole("button", { name: "立即同步" }),
     ).toBeEnabled();
-    if (panel === "fileset-conflict") {
+    if (coverConflict) {
+      await dialog
+        .getByRole("button", { name: "查看本地修改", exact: true })
+        .click();
+      await expect(dialog).toContainText("当前值 · 山间清晨.jpg");
+      const save = dialog.getByRole("button", { name: "保存调整后的修改" });
+      if (panel === "cover-missing-conflict") {
+        await expect(save).toBeDisabled();
+        await expect(dialog).toContainText("此文件已不可用");
+      } else {
+        await expect(save).toBeEnabled();
+        await expect(
+          dialog.getByRole("combobox", { name: "准备提交的值" }),
+        ).toHaveValue("归途.jpg");
+      }
+    } else if (panel === "fileset-conflict") {
       await dialog
         .getByRole("button", { name: "查看本地修改", exact: true })
         .click();

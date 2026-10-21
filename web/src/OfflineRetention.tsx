@@ -1,5 +1,5 @@
 import { Button, Group, Stack, Text } from "@mantine/core";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, get } from "./api";
 import type { components } from "./client-api-schema";
@@ -63,6 +63,7 @@ function RetentionItem({
   selection: Selection;
 }) {
   const { t } = useI18n();
+  const queries = useQueryClient();
   const [expanded, setExpanded] = useState(false);
   const files = selection.files || [];
   const filesets = selection.filesets || [];
@@ -126,7 +127,15 @@ function RetentionItem({
           disabled={busy}
           onClick={() =>
             run(async (signal) => {
-              await clientCommand(`${path}/prepare`, {}, "POST", signal);
+              try {
+                await clientCommand(`${path}/prepare`, {}, "POST", signal);
+              } finally {
+                // Do not let a pre-download availability check win the refresh.
+                await queries.cancelQueries({
+                  queryKey: ["client", "offline-status", owner],
+                  exact: true,
+                });
+              }
               setExpanded(true);
             })
           }

@@ -579,3 +579,13 @@ Windows Job 阶段 a4346a2 的 CI 39651563666 全部通过，包括 Windows 原�
 Visual 39653754299 已完成：baseline 141 / candidate 147，零采集失败、跳过和重试。差异仅新批量五场景、fileset 冲突场景、缓存管理页，以及单项离线弹窗背景工具栏新增批量入口（144 像素）；旧 entry-menu-box 本轮完全相同。全尺寸审阅上述变化时发现批量手机全页截图缺少最后一张虚拟卡片：选择卡片时 Playwright 自动滚动，使之前等待过的后续行再次卸载。不能接受这张候选；提取既有稳定 scrollToFileGrid 边界供场景复用，在手机批量选择完成后重新滚到该边界，并再次要求四个预览全部解码。保留原虚拟化行为和零差异阈值；正式修正待下轮完整采集。报告 `/tmp/kist-batch-final-visual-39653754299/report/index.html`，本轮未接受基准。
 
 手机批量截图就绪修正后的完整 make check（90035）退出 0，`/tmp/kist-travel-mobile-final-check.log`；check:visual 独立检查亦通过。与已提交的双库旅行验收一起等待推送。
+
+封面冲突编辑阶段：ConflictEdit 从固定有效前缀给出修改前/当前/本地候选的文件名称与可用性，替代提案保持当前引用为精确 before；网页复用 Select，允许选择有效对照候选或无封面，缺失项禁用，保存后仍需同步。新增回归覆盖 NAS 再次变更、已删除候选、幂等 Resolve、原意图保留与同步后撤销；针对性 race 8.143 秒通过（`/tmp/kist-cover-conflict-test.log`）。前端含丢失响应原样重试的 14 项测试通过（`/tmp/kist-cover-conflict-ui-verified-tests.log`）。初次测试 locator 错把 Mantine combobox 当 textbox/唯一 label，改为实际 combobox 语义后通过，未改变控件实现来适配错误断言。新增正常/缺失封面两个正式视觉场景。
+
+真实 Chrome 封面冲突验收通过（`/tmp/kist-cover-conflict-browser.log`）：仅在合成双实例制造 front.txt → 本地 back.txt / NAS Packing-list.txt 的竞争，经界面选择 front.txt、保存并同步后 NAS cover_file_id 精确对应，pageErrors 为空。截图 `/tmp/kist-cover-conflict-browser.png` 已查看；演示客户端使用 `/tmp/kist-cover-preview`，会话 34901。完整检查 `/tmp/kist-cover-conflict-complete-check.log`（30304）仍在运行。
+
+封面阶段完整 make check（30304）已退出 0。随后审阅 Visual 39655537685：baseline 141 / candidate 146 通过、1 失败；手机批量场景通过，但单项离线准备在 POST 成功后仍显示旧的 0/1 状态。trace 确认 observer GET 于 18:51:38.503 发起、POST 于 .504 发起、finally 未产生新状态 GET；初次读取未返回时 invalidateQueries 加入旧请求而没有重读。新增确定延迟响应回归修复前失败（`/tmp/kist-offline-status-race-before.log`），修复后 19 项相关测试通过（`/tmp/kist-offline-status-final-tests.log`）。单项入口与缓存管理入口在准备完成/失败后取消同 owner 的旧状态查询，再由现有刷新流程读取当前状态；不修改视觉夹具 ready 值、不加等待或重试。正式 Visual 仍不完整，未接受基准。
+
+8960c81 的 CI 39655537948 全部通过（含 Windows、macOS、Linux ARM、主检查和双架构容器）；Secret scan 39655537703 通过。已查看本轮手机批量截图，四张卡片与预览完整，上一轮虚拟行空白已消除。视觉唯一阻塞为上述真实状态竞态，待产品修复后完整重采；没有接受部分候选。
+
+最终 make check（78339）退出 0，`/tmp/kist-cover-and-status-final-check.log`，包括封面草稿/组件/两种正式场景和单项、缓存列表的状态竞态修复。前端 290 项通过；Go race、构建与契约检查通过。准备提交此阶段，后续必须检查新 SHA 的完整 Visual，仍不把已有阶段证据当作整个 Goal 完成。

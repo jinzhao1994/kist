@@ -169,3 +169,45 @@ it("prepares previews even when every original is already local", async () => {
   ).toBeVisible();
   expect(writes.some((write) => write.path.endsWith("/prepare"))).toBe(true);
 });
+
+it("does not let an earlier availability read overwrite completed preparation", async () => {
+  pins["fileset:entry-1"] = { files: [], filesets: ["entry-1"] };
+  const originalFetch = globalThis.fetch;
+  let reads = 0;
+  let release!: () => void;
+  const delayed = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string, options?: RequestInit) => {
+      const response = await originalFetch(path, options);
+      if (
+        !options?.method &&
+        path.endsWith("/offline/fileset%3Aentry-1") &&
+        reads++ === 0
+      ) {
+        // Capture an old response before POST /prepare, then deliver it after
+        // the completed write has invalidated queries. Ignore abort deliberately.
+        await delayed;
+      }
+      return response;
+    }),
+  );
+  setup();
+  const button = await screen.findByRole("button", {
+    name: "Check and download",
+  });
+  await waitFor(() => expect(reads).toBe(1));
+  await userEvent.click(button);
+  await waitFor(() =>
+    expect(writes.some((write) => write.path.endsWith("/prepare"))).toBe(true),
+  );
+  await waitFor(() => expect(button).toBeEnabled());
+  release();
+  expect(
+    await screen.findByText(
+      "All required originals and previews are available offline.",
+    ),
+  ).toBeVisible();
+});

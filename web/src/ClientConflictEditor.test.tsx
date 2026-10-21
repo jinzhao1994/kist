@@ -254,3 +254,48 @@ it("reuses page ordering while submitting a reviewed fileset replacement", async
   ).toEqual(["first", "second"]);
   expect(bodies[0].replacement.payload.after.layout).toBe("flat");
 });
+
+it("requires a valid cover choice and retries the exact reviewed replacement", async () => {
+  fail = true;
+  draftOverride = {
+    fields: [],
+    cover: {
+      before: { id: "before", name: "Before.png", available: true },
+      current: { id: "current", name: "NAS.png", available: true },
+      proposed: { id: "missing", name: "", available: false },
+    },
+    replacement: {
+      version: 1,
+      id: "cover-replacement",
+      occurred_at: "2026-10-21T10:00:00Z",
+      action: "update_box",
+      origin: "user",
+      payload: {
+        box_id: "box",
+        cover_file_id: { before: "current", after: "missing" },
+      },
+    },
+  };
+  const { close } = setup();
+  const choice = await screen.findByRole("combobox", {
+    name: "Value to submit",
+  });
+  expect(screen.getByText("Current value · NAS.png")).toBeVisible();
+  const save = screen.getByRole("button", { name: "Save revised change" });
+  expect(save).toBeDisabled();
+  await userEvent.click(choice);
+  await userEvent.click(screen.getByRole("option", { name: "No cover" }));
+  expect(save).toBeEnabled();
+  await userEvent.click(save);
+  await screen.findByRole("alert");
+  expect(choice).toBeDisabled();
+  await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+  await waitFor(() => expect(close).toHaveBeenCalledOnce());
+  expect(bodies).toHaveLength(2);
+  expect(bodies[1]).toEqual(bodies[0]);
+  expect(bodies[0].replacement.payload.cover_file_id).toEqual({
+    before: "current",
+    after: zeroID,
+  });
+  expect(bodies[0].replacement.id).toBe("cover-replacement");
+});

@@ -68,6 +68,13 @@ export function OfflineEntry({
     } catch (err) {
       if (!controller.signal.aborted) setError(errorMessage(err, t));
     } finally {
+      // The first availability query can still be in flight when preparation
+      // finishes. Invalidation alone joins that old read; cancel it so the
+      // post-write refresh cannot publish its stale pre-download result.
+      await queries.cancelQueries({
+        queryKey: ["client", "offline-status", owner],
+        exact: true,
+      });
       active.current = null;
       setBusy(false);
       await queries.invalidateQueries({ queryKey: ["client"] });

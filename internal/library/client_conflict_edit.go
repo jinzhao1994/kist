@@ -28,7 +28,20 @@ type ClientConflictFileset struct {
 	Proposed *domain.Fileset `json:"proposed,omitempty"`
 }
 
+type ClientConflictCoverFile struct {
+	ID        domain.FileID `json:"id"`
+	Name      string        `json:"name"`
+	Available bool          `json:"available"`
+}
+
+type ClientConflictCover struct {
+	Before   ClientConflictCoverFile `json:"before"`
+	Current  ClientConflictCoverFile `json:"current"`
+	Proposed ClientConflictCoverFile `json:"proposed"`
+}
+
 type ClientConflictEdit struct {
+	Cover       *ClientConflictCover   `json:"cover,omitempty"`
 	Fileset     *ClientConflictFileset `json:"fileset,omitempty"`
 	Summary     *HistorySummary        `json:"summary,omitempty"`
 	Replacement *SyncProposal          `json:"replacement,omitempty"`
@@ -120,13 +133,39 @@ func (c *Client) ConflictEdit(ctx context.Context, id string) (ClientConflictEdi
 			if err != nil {
 				return err
 			}
-			// Cover references require a file picker.
-			if p.CoverFileID != nil {
-				return nil
-			}
 			current, found, err := vtx.GetBox(p.BoxID)
 			if err != nil || !found {
 				return err
+			}
+			if p.CoverFileID != nil {
+				describe := func(id domain.FileID) (ClientConflictCoverFile, error) {
+					value := ClientConflictCoverFile{ID: id, Available: id.IsZero()}
+					if id.IsZero() {
+						return value, nil
+					}
+					file, found, err := vtx.GetFile(id)
+					if err != nil || !found {
+						return value, err
+					}
+					owner, _, err := store.FolderChain(vtx.Queryer(), file.FolderID)
+					if err != nil {
+						return value, err
+					}
+					value.Name, value.Available = file.Name, owner == p.BoxID
+					return value, nil
+				}
+				cover := &ClientConflictCover{}
+				if cover.Before, err = describe(p.CoverFileID.Before); err != nil {
+					return err
+				}
+				if cover.Current, err = describe(current.CoverFileID); err != nil {
+					return err
+				}
+				if cover.Proposed, err = describe(p.CoverFileID.After); err != nil {
+					return err
+				}
+				result.Cover = cover
+				p.CoverFileID.Before = current.CoverFileID
 			}
 			if p.Name != nil {
 				field("name", []string{"name", "after"}, p.Name.Before, current.Name, p.Name.After)

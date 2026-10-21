@@ -32,6 +32,11 @@ export const en = {
   clientOfflinePreviews: "{ready} of {total} previews available.",
   clientOfflineReady:
     "All required originals and previews are available offline.",
+  clientConflictCover: "Box cover",
+  clientConflictNoCover: "No cover",
+  clientConflictUnavailableCover: "Unavailable",
+  clientConflictChooseCover:
+    "This file is no longer available. Choose another reviewed cover or remove the cover.",
   clientConflictOrdinaryFolder: "Ordinary folder",
   clientConflictReview: "Review local change",
   clientConflictReviewHint:
@@ -663,6 +668,10 @@ export const zh: Record<MessageKey, string> = {
   clientRetentionSaved: "已启用离线保留。",
   clientOfflinePreviews: "已准备 {ready} / {total} 个预览。",
   clientOfflineReady: "所需原文件和预览已全部准备好，可离线使用。",
+  clientConflictCover: "归档盒封面",
+  clientConflictNoCover: "无封面",
+  clientConflictUnavailableCover: "不可用",
+  clientConflictChooseCover: "此文件已不可用，请选择其他对照封面或移除封面。",
   clientConflictOrdinaryFolder: "普通目录",
   clientConflictReview: "查看本地修改",
   clientConflictReviewHint:
