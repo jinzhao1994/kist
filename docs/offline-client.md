@@ -72,6 +72,13 @@ a nonzero exit status; use `status` to inspect local pending work.
 The NAS can continue to change independently while the laptop is offline. Merge
 uses operation order and explicit preconditions, not timestamp-based overwrites.
 
+Initialization, reconnection and synchronization inherit the NAS library's
+timezone for future local commands. Existing pending payloads are not rewritten
+when that setting changes. The server must advertise an explicit portable zone
+such as `Asia/Shanghai` or `UTC`; a missing zone, `Local`, or an unavailable zone
+is rejected. Upgrade an older sync server or set an explicit NAS library timezone
+instead of relying on the laptop's machine timezone.
+
 ## Manage the content cache
 
 These commands work without contacting the NAS:

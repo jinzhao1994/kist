@@ -1434,6 +1434,7 @@ export interface components {
             /** Format: int64 */
             journal_version: number;
             library_id: string;
+            timezone: string;
             undo_references: boolean;
             /** Format: int64 */
             version: number;

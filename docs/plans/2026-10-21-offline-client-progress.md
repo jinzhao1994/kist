@@ -192,6 +192,12 @@
 
 文件编辑与撤销最终完整检查 `/tmp/kist-client-file-undo-final-check.log` 已通过（退出码 0）。下一步补齐 NAS 时区能力与客户端继承，已有 pending payload 不随配置刷新重写；随后继续稳定删除 revision、恢复和历史/网页接入。
 
+本阶段已提交并推送 `477690a`；CI `39545303457`、Secret scan `39545303406` 已通过。Visual `39545303426` 完整采集 134 张，仅 entry-menu-box 的“在新标签页打开”文字出现 326 个差异像素；已查看 expected/current/diff，产品前端源码相对基准无变更，未接纳基准，已重跑同一提交检查采集稳定性。
+
+### NAS 时区继承
+
+同步能力新增 timezone；初始化、重新连接与同步原子刷新客户端设置，缺失/Local/未知名称失败关闭。已记录 pending 不重写，后续 metadata 决策使用 NAS 时区。API 类型已再生成；针对性 race 检查通过（`/tmp/kist-client-timezone-targeted.log`），包含上海时区属性抑制后内容时间重算、设置刷新不改变 pending、东京时区真实 HTTP 初始化及能力拒绝。该正则未执行 syncclient 测试，后续完整检查需覆盖。固定代码完整检查 `/tmp/kist-client-timezone-check.log` 已通过（退出码 0），覆盖完整 race 测试与构建。
+
 - `internal/api/server.go` 当前持有具体 `*library.Library`，初始化还直接根据 NAS 布局创建上传暂存与媒体服务。不能只替换数据库连接就声称支持客户端。
 - `library.ExecuteRequest` 的幂等结果是 NAS 数字 op ID，且无业务修改也记录 request receipt；客户端需要独立持久化请求回执并保留无操作重试语义，不能遗漏或暴露客户端视图序号。
 - 现有领域命令负责生成 before/after payload，`write`/`writeLocked` 承担正式日志与投影。后续抽取共享命令生成及读视图边界，分别接入 NAS 写入口和客户端 pending 入口；上传、历史、撤销与错误结果中的操作引用须一并审计，不以只读浏览替代离线编辑要求。

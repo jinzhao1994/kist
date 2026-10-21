@@ -7,6 +7,7 @@ import (
 	"io"
 	"path/filepath"
 	"slices"
+	"time"
 
 	"github.com/jinzhao1994/kist/internal/blob"
 	"github.com/jinzhao1994/kist/internal/domain"
@@ -16,6 +17,7 @@ import (
 )
 
 type SyncCapabilities struct {
+	Timezone       string    `json:"timezone"`
 	Version        int       `json:"version"`
 	LibraryID      domain.ID `json:"library_id"`
 	JournalVersion int       `json:"journal_version"`
@@ -26,6 +28,12 @@ type SyncCapabilities struct {
 func ValidateSyncCapabilities(caps SyncCapabilities) error {
 	if caps.Version != 1 || caps.JournalVersion != journal.Version || !caps.UndoReferences {
 		return ErrSyncVersion
+	}
+	if caps.Timezone == "" || caps.Timezone == "Local" {
+		return ErrSyncVersion
+	}
+	if _, err := time.LoadLocation(caps.Timezone); err != nil {
+		return fmt.Errorf("%w: invalid NAS timezone", ErrSyncVersion)
 	}
 	if caps.LibraryID.IsZero() {
 		return ErrInvalidRequest
@@ -80,6 +88,9 @@ func (c *Client) Synchronize(ctx context.Context, peer SyncPeer) (ClientSyncResu
 		return result, ErrSyncConflict
 	}
 	if err := ValidateSyncCapabilities(caps); err != nil {
+		return result, err
+	}
+	if err := c.AdoptSyncSettings(ctx, caps); err != nil {
 		return result, err
 	}
 	if err := c.pullCatalog(ctx, peer); err != nil {

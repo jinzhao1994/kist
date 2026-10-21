@@ -92,7 +92,7 @@ func newClientConnectCmd(create bool) *cobra.Command {
 		}
 		var client *library.Client
 		if create {
-			client, err = library.CreateClient(cmd.Context(), args[0], library.ClientSettings{LibraryID: caps.LibraryID})
+			client, err = library.CreateClient(cmd.Context(), args[0], library.ClientSettings{LibraryID: caps.LibraryID, Timezone: caps.Timezone})
 		} else {
 			client, err = library.OpenClient(cmd.Context(), args[0])
 		}
@@ -101,6 +101,9 @@ func newClientConnectCmd(create bool) *cobra.Command {
 		}
 		defer client.Close()
 		if err := client.SetConnection(cmd.Context(), caps.LibraryID, connection, token); err != nil {
+			return err
+		}
+		if err := client.AdoptSyncSettings(cmd.Context(), caps); err != nil {
 			return err
 		}
 		status, err := client.Status(cmd.Context())

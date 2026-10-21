@@ -24,7 +24,7 @@ type testSyncPeer struct {
 
 func (p *testSyncPeer) Capabilities(ctx context.Context) (SyncCapabilities, error) {
 	head, err := p.nas.SyncHead(ctx)
-	return SyncCapabilities{Version: 1, LibraryID: head.LibraryID, JournalVersion: journal.Version, Actions: SyncActions(), UndoReferences: true}, err
+	return SyncCapabilities{Timezone: p.nas.Zone().String(), Version: 1, LibraryID: head.LibraryID, JournalVersion: journal.Version, Actions: SyncActions(), UndoReferences: true}, err
 }
 func (p *testSyncPeer) Head(ctx context.Context) (SyncBoundary, error) { return p.nas.SyncHead(ctx) }
 func (p *testSyncPeer) Catalog(ctx context.Context, head SyncBoundary, after int64, limit, bytes int) (SyncCatalogPage, error) {

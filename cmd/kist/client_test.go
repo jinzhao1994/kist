@@ -11,16 +11,28 @@ import (
 	"time"
 
 	"github.com/jinzhao1994/kist/internal/api"
+	"github.com/jinzhao1994/kist/internal/config"
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/library"
 	"github.com/jinzhao1994/kist/internal/oplog"
 )
 
-func clientNAS(t *testing.T) (*library.Library, *httptest.Server, library.NewSyncCredential) {
+func clientNAS(t *testing.T, timezone ...string) (*library.Library, *httptest.Server, library.NewSyncCredential) {
 	t.Helper()
 	root := filepath.Join(t.TempDir(), "nas")
 	if _, err := library.Create(t.Context(), root); err != nil {
 		t.Fatal(err)
+	}
+	if len(timezone) > 0 {
+		path := filepath.Join(root, "kist.toml")
+		cfg, err := config.Load(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cfg.Library.Timezone = timezone[0]
+		if err := config.Save(path, cfg); err != nil {
+			t.Fatal(err)
+		}
 	}
 	nas, err := library.Open(root)
 	if err != nil {
@@ -165,5 +177,15 @@ func TestClientOfflineCLIRealDownloadAndDisconnectedStatus(t *testing.T) {
 	}
 	if err != nil || json.Unmarshal([]byte(out), &result) != nil || len(result.Selections) != 0 {
 		t.Fatalf("remaining=%s %v", out, err)
+	}
+}
+
+func TestClientCLIInitializesWithNASTimezone(t *testing.T) {
+	_, server, credential := clientNAS(t, "Asia/Tokyo")
+	root := filepath.Join(t.TempDir(), "client")
+	out, err := runKist(t, credential.Token, "--json", "client", "init", root, "--server", server.URL, "--token-stdin")
+	var status library.ClientStatus
+	if err != nil || json.Unmarshal([]byte(out), &status) != nil || status.Settings.Timezone != "Asia/Tokyo" {
+		t.Fatalf("init timezone=%s %v", out, err)
 	}
 }
