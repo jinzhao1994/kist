@@ -50,6 +50,9 @@ type OpRow struct {
 	// RequestID and RequestDigest are projected into op_requests, not ops.
 	RequestID     string
 	RequestDigest string
+	SyncID        string
+	SyncDigest    string
+	AcceptedAt    time.Time
 }
 
 // InsertOp records an op that is already in the journal.
@@ -66,6 +69,11 @@ func InsertOp(tx *sql.Tx, r OpRow) error {
 		r.ID, FormatTime(r.TS), r.Action, r.Origin, string(r.Payload), r.RevertsID, r.RootOpID)
 	if err != nil {
 		return fmt.Errorf("insert op %d (%s): %w", r.ID, r.Action, err)
+	}
+	if r.SyncID != "" {
+		if _, err := tx.Exec(`INSERT INTO op_sync(op_id, local_id, digest, accepted_at) VALUES(?,?,?,?)`, r.ID, r.SyncID, r.SyncDigest, FormatTime(r.AcceptedAt)); err != nil {
+			return fmt.Errorf("index sync operation: %w", err)
+		}
 	}
 	if r.RequestID != "" {
 		if _, err := tx.Exec(`INSERT INTO op_requests (request_id, digest, op_id) VALUES (?, ?, ?)`, r.RequestID, r.RequestDigest, r.ID); err != nil {
@@ -344,7 +352,7 @@ func InsertOpBlobs(tx *sql.Tx, opID int64, blobs []string) error {
 // the payloads (spec 2.2.1). It does NOT touch ops itself — that table is the
 // authority and is never rewritten.
 func DeleteOpIndexes(tx *sql.Tx) error {
-	for _, table := range []string{"op_filesets", "op_boxes", "op_files", "op_blobs", "op_requests"} {
+	for _, table := range []string{"op_filesets", "op_boxes", "op_files", "op_blobs", "op_requests", "op_sync"} {
 		if _, err := tx.Exec(`DELETE FROM ` + table); err != nil {
 			return fmt.Errorf("clear %s: %w", table, err)
 		}
@@ -359,6 +367,20 @@ func RequestOp(q Queryer, id string) (digest string, opID int64, found bool, err
 		return "", 0, false, nil
 	}
 	return digest, opID, err == nil, err
+}
+
+// SyncOp resolves an offline identity independently of HTTP request receipts.
+// Its result is rebuilt from the checksummed journal envelope.
+func SyncOp(q Queryer, id string) (digest string, opID int64, acceptedAt time.Time, found bool, err error) {
+	var ns int64
+	err = q.QueryRow(`SELECT digest, op_id, accepted_at FROM op_sync WHERE local_id = ?`, id).Scan(&digest, &opID, &ns)
+	if err == sql.ErrNoRows {
+		return "", 0, time.Time{}, false, nil
+	}
+	if err != nil {
+		return "", 0, time.Time{}, false, err
+	}
+	return digest, opID, ParseTime(ns), true, nil
 }
 
 func InsertOpFilesets(tx *sql.Tx, opID int64, ids []domain.FolderID) error {

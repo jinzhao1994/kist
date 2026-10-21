@@ -36,6 +36,7 @@ var snapshotTables = []struct {
 	{"op_boxes", "op_id, hex(box_id)", "op_id, box_id"},
 	{"op_files", "op_id, hex(file_id)", "op_id, file_id"},
 	{"op_blobs", "op_id, blob_key", "op_id, blob_key"},
+	{"op_sync", "op_id, local_id, digest, accepted_at", "op_id"},
 	{"op_requests", "request_id, digest, op_id", "request_id"},
 }
 

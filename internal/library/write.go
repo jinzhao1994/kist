@@ -28,6 +28,15 @@ type writeOptions struct {
 	// updating an op.
 	RootOpID *int64
 	request  *Request
+	sync     *syncWrite
+}
+
+// syncWrite is supplied only by the offline acceptance path. Acceptance time
+// is assigned here under the library lock, never by the remote caller.
+type syncWrite struct {
+	ID         string
+	Digest     string
+	OccurredAt time.Time
 }
 
 // write is the single write path. Every change to a kist library goes through
@@ -177,6 +186,14 @@ func (l *Library) writeLocked(ctx context.Context, action oplog.Action, payload 
 		RootOpID:  opt.RootOpID,
 	}
 
+	if opt.sync != nil {
+		if opt.sync.OccurredAt.IsZero() {
+			return 0, fmt.Errorf("sync operation requires an original timestamp: %w", ErrInvalidRequest)
+		}
+		row.SyncID, row.SyncDigest = opt.sync.ID, opt.sync.Digest
+		row.AcceptedAt = row.TS
+		row.TS = opt.sync.OccurredAt.UTC()
+	}
 	if opt.request != nil {
 		row.RequestID = opt.request.ID
 		row.RequestDigest = opt.request.Digest

@@ -74,11 +74,12 @@ func (d *Dir) Check() ([]Problem, error) {
 					Detail: fmt.Sprintf("expected op %d here; the log skips from %d to %d", want, want-1, line.ID),
 				})
 			}
-			if len(line.TS) >= 10 && line.TS[:10] > day {
+			ts := line.CommitTimestamp()
+			if len(ts) >= 10 && ts[:10] > day {
 				problems = append(problems, Problem{
 					Bucket: bucket,
 					OpID:   line.ID,
-					Detail: fmt.Sprintf("timestamp %s is later than its bucket", line.TS),
+					Detail: fmt.Sprintf("timestamp %s is later than its bucket", ts),
 				})
 			}
 			want = line.ID + 1

@@ -20,6 +20,7 @@
 == op_boxes ==
 == op_files ==
 == op_blobs ==
+== op_sync ==
 == op_requests ==
 frozen-create-tag	0e5ed147fcf1df3301e4978c55b7ffe8b038d5f5d51aedc9784f95ac69a41023	1
 frozen-no-change	024c72914fe090919e27964ed0ad0aa2d469371d417a1bfba8515ad4301f1de6	2

@@ -35,7 +35,11 @@ func applyOp(tx *sql.Tx, row store.OpRow) (oplog.Targets, error) {
 		return targets, err
 	}
 
-	vtx := store.NewViewTx(tx, row.TS)
+	appliedAt := row.TS
+	if row.SyncID != "" {
+		appliedAt = row.AcceptedAt
+	}
+	vtx := store.NewViewTx(tx, appliedAt)
 
 	// The folder chain has to be sampled on both sides of Apply.
 	//
@@ -93,6 +97,13 @@ func rowFromLine(l journal.Line) (store.OpRow, error) {
 		RevertsID: l.RevertsID,
 		RootOpID:  l.RootOpID,
 	}
+	if l.Sync != nil {
+		row.SyncID, row.SyncDigest = l.Sync.ID, l.Sync.Digest
+		row.AcceptedAt, err = journal.ParseTime(l.Sync.AcceptedAt)
+		if err != nil {
+			return store.OpRow{}, err
+		}
+	}
 	if l.Request != nil {
 		row.RequestID = l.Request.ID
 		row.RequestDigest = l.Request.Digest
@@ -110,6 +121,9 @@ func lineFromRow(r store.OpRow) journal.Line {
 		RevertsID: r.RevertsID,
 		RootOpID:  r.RootOpID,
 		Payload:   r.Payload,
+	}
+	if r.SyncID != "" {
+		line.Sync = &journal.Sync{ID: r.SyncID, Digest: r.SyncDigest, AcceptedAt: journal.FormatTime(r.AcceptedAt)}
 	}
 	if r.RequestID != "" {
 		line.Request = &journal.Request{ID: r.RequestID, Digest: r.RequestDigest}

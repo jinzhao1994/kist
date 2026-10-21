@@ -23,3 +23,6 @@ unreleased development revision or every possible payload.
 
 Schema adaptation for M4: the expected snapshot adds the empty `op_requests`
 section. All historical event bytes and all previous expected rows are unchanged.
+
+Schema 8 adds an empty `op_sync` section for offline-operation receipts. No
+historical event bytes or existing expected rows change.

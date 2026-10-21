@@ -48,6 +48,7 @@ type Line struct {
 	RootOpID  *int64          `json:"root_op_id"`
 	Payload   json.RawMessage `json:"payload"`
 	Request   *Request        `json:"request,omitempty"`
+	Sync      *Sync           `json:"sync,omitempty"`
 	Sum       string          `json:"sum"`
 }
 
@@ -74,7 +75,13 @@ func checksum(l Line) (string, error) {
 
 // MarshalLine encodes a line, filling in V and Sum.
 func MarshalLine(l Line) ([]byte, error) {
-	l.V = Version
+	l.V = 2
+	if l.Sync != nil {
+		l.V = Version
+		if !l.Sync.Valid() {
+			return nil, fmt.Errorf("%w: invalid sync metadata", ErrCorrupt)
+		}
+	}
 	if l.Request != nil && !l.Request.Valid() {
 		return nil, fmt.Errorf("%w: invalid request metadata", ErrCorrupt)
 	}
@@ -96,12 +103,15 @@ func UnmarshalLine(b []byte) (Line, error) {
 	if err := json.Unmarshal(b, &l); err != nil {
 		return Line{}, fmt.Errorf("%w: cannot decode line: %v", ErrCorrupt, err)
 	}
-	if l.V != 1 && l.V != Version {
+	if l.V < 1 || l.V > Version {
 		return Line{}, fmt.Errorf("%w: line format v%d, this build writes v%d",
 			ErrUnsupportedVersion, l.V, Version)
 	}
 	if l.Request != nil && (l.V < 2 || !l.Request.Valid()) {
 		return Line{}, fmt.Errorf("%w: invalid request metadata", ErrCorrupt)
+	}
+	if l.Sync != nil && (l.V < 3 || !l.Sync.Valid()) {
+		return Line{}, fmt.Errorf("%w: invalid sync metadata", ErrCorrupt)
 	}
 	want, err := checksum(l)
 	if err != nil {
@@ -132,4 +142,29 @@ func (r Request) Valid() bool {
 	}
 	_, err := hex.DecodeString(r.Digest)
 	return err == nil
+}
+
+// Sync preserves the identity of an offline operation and its acceptance time.
+// Digest binds the original intent, even when an explicit resolution is needed.
+type Sync struct {
+	ID         string `json:"id"`
+	Digest     string `json:"digest"`
+	AcceptedAt string `json:"accepted_at"`
+}
+
+func (s Sync) Valid() bool {
+	if !(Request{ID: s.ID, Digest: s.Digest}).Valid() {
+		return false
+	}
+	t, err := ParseTime(s.AcceptedAt)
+	return err == nil && !t.IsZero() && FormatTime(t) == s.AcceptedAt
+}
+
+// CommitTimestamp selects the durable acceptance time for log placement.
+// Legacy and locally authored events retain their original timestamp.
+func (l Line) CommitTimestamp() string {
+	if l.Sync != nil {
+		return l.Sync.AcceptedAt
+	}
+	return l.TS
 }

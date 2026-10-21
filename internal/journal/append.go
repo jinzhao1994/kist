@@ -21,7 +21,7 @@ func (d *Dir) Append(l Line) error {
 	if err != nil {
 		return err
 	}
-	bucket, err := d.bucketToWrite(l.TS)
+	bucket, err := d.bucketToWrite(l.CommitTimestamp())
 	if err != nil {
 		return err
 	}

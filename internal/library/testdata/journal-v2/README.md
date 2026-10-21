@@ -8,3 +8,6 @@ The expected snapshot includes the request index. Open, rebuild and deep
 verification must preserve these results and the source log bytes. This fixture
 contains no file content. Add fixtures for future formats instead of rewriting
 this one; see the v1 fixture README for the compatibility policy.
+
+Schema 8 adds an empty `op_sync` section. Existing request rows and journal bytes
+are unchanged; only new v3 sync envelopes populate this index.
