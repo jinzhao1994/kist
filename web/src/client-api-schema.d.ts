@@ -18,6 +18,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/boxes/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 boxes search */
+        get: operations["get-api-v1-boxes-search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/boxes/{box}/entries/{id}": {
         parameters: {
             query?: never;
@@ -223,6 +240,24 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read original file bytes; supports HTTP ranges */
+        get: operations["GET-file-content"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        /** Read original file bytes; supports HTTP ranges */
+        head: operations["HEAD-file-content"];
         patch?: never;
         trace?: never;
     };
@@ -481,6 +516,25 @@ export interface components {
         };
         BoxList: {
             boxes: components["schemas"]["Box"][] | null;
+        };
+        BoxSearchItem: {
+            cover_file_id?: string;
+            /** Format: date-time */
+            created_at: string;
+            description?: string;
+            end_at?: string;
+            id: string;
+            name: string;
+            start_at?: string;
+            tags?: components["schemas"]["DisplayTag"][] | null;
+            /** Format: int64 */
+            total_size: number;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        BoxSearchResult: {
+            boxes: components["schemas"]["BoxSearchItem"][] | null;
+            cursor?: string;
         };
         ClientCatalogStatus: {
             complete: boolean;
@@ -806,6 +860,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClientRequestResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-boxes-search": {
+        parameters: {
+            query?: {
+                condition?: string[] | null;
+                keyword?: string[] | null;
+                name_contains?: string;
+                name_equals?: string;
+                text?: string;
+                tag_all?: string[] | null;
+                tag_any?: string[] | null;
+                tag_not?: string[] | null;
+                from?: string;
+                to?: string;
+                sort?: "updated" | "name" | "activity";
+                asc?: boolean;
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoxSearchResult"];
                 };
             };
             /** @description Error */
@@ -1392,6 +1490,88 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPError"];
                 };
+            };
+        };
+    };
+    "GET-file-content": {
+        parameters: {
+            query?: {
+                download?: boolean;
+                at?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Original file bytes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description Requested byte range */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description Unsatisfiable byte range */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "HEAD-file-content": {
+        parameters: {
+            query?: {
+                download?: boolean;
+                at?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Original file bytes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description Requested byte range */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description Unsatisfiable byte range */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

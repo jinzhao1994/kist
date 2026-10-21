@@ -5,7 +5,6 @@ import (
 	"io"
 	"mime"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -44,9 +43,15 @@ func (s *Server) contentRoutes() {
 			return &huma.StreamResponse{Body: func(hctx huma.Context) {
 				req, w := humago.Unwrap(hctx)
 				var file domain.File
-				var handle *os.File
+				var handle io.ReadSeekCloser
 				var err error
-				if in.At == 0 {
+				if s.client != nil {
+					if in.At != 0 {
+						writeFailure(w, huma.Error400BadRequest("Historical client content is not available"))
+						return
+					}
+					file, handle, err = s.client.OpenContent(ctx, domain.FileID{ID: id})
+				} else if in.At == 0 {
 					file, handle, err = s.library.OpenContent(ctx, domain.FileID{ID: id})
 				} else {
 					err = s.withHistory(ctx, in.At, func(ctx context.Context, view *library.HistoricalView) error {

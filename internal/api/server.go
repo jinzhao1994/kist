@@ -134,6 +134,7 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 	if c != nil {
 		s.clientReadRoutes()
 		s.clientWriteRoutes()
+		s.contentRoutes()
 	} else {
 		s.readRoutes()
 		s.historyRoutes()

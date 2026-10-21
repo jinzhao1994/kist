@@ -336,3 +336,16 @@ Visual 39596936245 attempt 2 已通过，基准未更改；attempt 1 的单行�
 
 
 客户端网页写接口完整检查已通过：会话 34026 退出 0，日志 `/tmp/kist-client-http-writes-final-check.log`。提交本阶段；3b27401 的 CI/Visual 仍运行。独立 worktree 另外补 client_box_search.go，并从 box_search.go 抽取 buildBoxQuery/renderBoxSearch 供两端共用；client_box_reads_test 增加 structured tag_all/tag_not 与非法游标验证，`/tmp/kist-client-box-search.log` race 通过（2.964 秒）。待合入 box_search.go 增量、client_box_search.go、新增测试段及注册调用；worktree 的 files.go/search_conditions.go 已复制自主线供编译，不应重复合入。
+
+
+网页编辑阶段已提交 326f474，待前序 CI/Visual 收齐后推送。已合入客户端 content/box search 增量：新增库 client_content 两文件、API client_content_test/client_box_search，应用 content.go/box_search.go diff，更新 client_box_reads_test 与两处路由注册，重新生成 API 类型。`/tmp/kist-client-content-search-merged.log` 合入后 race 通过（API 3.477 秒、library 2.428 秒）。开始完整检查 `/tmp/kist-client-content-search-check.log`。上述 worktree 增量均已合入，不要重复应用。
+
+
+离线导入准备继续在独立 worktree：upload_target.go/upload_conflicts.go 提取共用 uploadTarget/previewUpload，注入单次读取快照；新增 client_upload_target.go/test.go，覆盖 NAS/客户端相同目标指纹与冲突预览、未缓存已有文件冲突、本地文件改名改变冲突但不改变目录目标、盒改名使目标失效。`/tmp/kist-client-upload-target.log` race 通过（5.717 秒），含现有 NAS 上传目标/覆盖/目录冲突回归。该增量尚未合入 main。
+
+源码核查：离线导入不能直接构造临时 Library 调用 PrepareFiles，因为它绑定 cleanTmp、NAS hooks、正式 opID 与 blob 完整性语义。下一步须抽取候选校验/单文件 blob 导入/命名与 captured 时间决策共用部分，客户端独立持久 local-blobs 后生成 pending import_files/upload_files；PreparedClientImport 返回本地引用，不能把临时 view ordinal 暴露为 OpID。覆盖原有替换、strict expected hash、取消/部分结果及提交前目标重校验；覆盖 payload 中时间字段与 NAS 接纳时间差异也需要与删除阶段同样审视。主线内容/搜索完整检查会话 32111 仍 live，前序远端 CI/Visual 尚未收齐。
+
+
+内容读取/归档盒搜索阶段完整 make check 已通过：会话 32111 退出 0，日志 `/tmp/kist-client-content-search-check.log`。提交本阶段，前序 CI/Visual 仍运行。
+
+独立 worktree 继续抽取导入共用逻辑：import.go 新增 importCandidates（路径/重复/常规文件校验）、prepareImportFile（指定 blob.Dir 与时区，保留 expected hash/size 和命名规则）、captureImportTime；NAS 原方法委托这些函数。upload_conflicts.go 提取 replacementAfter，捕获时间解析由传入函数决定。`/tmp/kist-import-shared-preparation.log` 针对 NAS Import/VerifiedImport/Prepared/Upload 的 race 回归通过（12.690 秒）。这些增量与 client_upload_target 仍未合入 main；客户端 PreparedImport 与上传接入尚未实现，不能把共用逻辑抽取视为离线导入完成。

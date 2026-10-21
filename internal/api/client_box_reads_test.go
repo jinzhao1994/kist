@@ -43,6 +43,17 @@ func TestClientBoxReadRoutesReflectPendingCatalog(t *testing.T) {
 	if len(tags.Tags) != 1 || tags.Tags[0] != tag.ID.String() {
 		t.Fatalf("tags=%+v", tags)
 	}
+	result := decodeBody[boxSearchResult](t, s, "/boxes/search?"+encodedCondition("tag_all", tag.ID.String()))
+	if len(result.Boxes) != 1 || result.Boxes[0].ID != box.ID.String() || len(result.Boxes[0].Tags) != 1 {
+		t.Fatalf("search=%+v", result)
+	}
+	excluded := decodeBody[boxSearchResult](t, s, "/boxes/search?"+encodedCondition("tag_not", tag.ID.String()))
+	if len(excluded.Boxes) != 0 {
+		t.Fatalf("excluded=%+v", excluded)
+	}
+	if bad := call(s, "GET", Prefix+"/boxes/search?cursor=bad", "", ""); bad.Code != 400 {
+		t.Fatalf("invalid cursor=%d", bad.Code)
+	}
 	cover := decodeBody[boxCover](t, s, prefix+"/cover")
 	if cover.File != nil {
 		t.Fatalf("cover=%+v", cover)

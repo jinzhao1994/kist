@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/jinzhao1994/kist/internal/library"
 	"github.com/jinzhao1994/kist/internal/query"
 	"github.com/jinzhao1994/kist/internal/wire"
 )
@@ -38,36 +39,49 @@ type displayTag struct {
 
 func (s *Server) boxSearchRoute() {
 	huma.Get(s.contract, Prefix+"/boxes/search", func(ctx context.Context, in *boxQueryInput) (*output[boxSearchResult], error) {
-		// Share date validation and descendant-aware tag expression construction.
-		shared, err := s.fileQuery(&FileQueryInput{All: in.All, Any: in.Any, Not: in.Not, From: in.From, To: in.To, Limit: in.Limit})
+		q, err := buildBoxQuery(in, s.library.TagCondition, s.library.ExcludeTags)
 		if err != nil {
 			return nil, err
-		}
-		q := query.BoxQuery{Keywords: in.Keywords, NameContains: in.NameContains, NameEquals: in.NameEquals, Text: in.Text, Tags: shared.Tags, Time: shared.Time, Sort: query.BoxSort{Key: in.Sort, Asc: in.Asc}, Cursor: in.Cursor, Limit: in.Limit}
-		clauses, err := s.searchConditions(in.Conditions, "boxes")
-		if err != nil {
-			return nil, err
-		}
-		for _, clause := range clauses {
-			q.All = append(q.All, query.BoxQuery{Text: clause.Text, NameContains: clause.NameContains, NameEquals: clause.NameEquals, Tags: clause.Tags, Time: clause.Time})
-		}
-		if err := q.Validate(); err != nil {
-			return nil, invalid(err.Error())
-		}
-		if q.Cursor != "" {
-			if _, _, err := query.DecodeBoxCursor(q.Sort, q.Cursor); err != nil {
-				return nil, invalid(err.Error())
-			}
 		}
 		boxes, cursor, err := s.library.SearchBoxes(ctx, q)
-		items := make([]boxSearchItem, 0, len(boxes))
-		for _, box := range boxes {
-			item := boxSearchItem{Box: wire.NewBox(box.Box)}
-			for _, tag := range box.Tags {
-				item.Tags = append(item.Tags, displayTag{ID: tag.ID.String(), Name: tag.Name})
-			}
-			items = append(items, item)
-		}
-		return response(boxSearchResult{Boxes: items, Cursor: cursor}, err)
+
+		return response(renderBoxSearch(boxes, cursor), err)
 	})
+}
+
+func buildBoxQuery(in *boxQueryInput, include, exclude func([]string) (query.TagExpr, error)) (query.BoxQuery, error) {
+	// Share date validation and descendant-aware tag expression construction.
+	shared, err := buildFileQuery(&FileQueryInput{All: in.All, Any: in.Any, Not: in.Not, From: in.From, To: in.To, Limit: in.Limit}, include, exclude)
+	if err != nil {
+		return query.BoxQuery{}, err
+	}
+	q := query.BoxQuery{Keywords: in.Keywords, NameContains: in.NameContains, NameEquals: in.NameEquals, Text: in.Text, Tags: shared.Tags, Time: shared.Time, Sort: query.BoxSort{Key: in.Sort, Asc: in.Asc}, Cursor: in.Cursor, Limit: in.Limit}
+	clauses, err := buildSearchConditions(in.Conditions, "boxes", include, exclude)
+	if err != nil {
+		return query.BoxQuery{}, err
+	}
+	for _, clause := range clauses {
+		q.All = append(q.All, query.BoxQuery{Text: clause.Text, NameContains: clause.NameContains, NameEquals: clause.NameEquals, Tags: clause.Tags, Time: clause.Time})
+	}
+	if err := q.Validate(); err != nil {
+		return query.BoxQuery{}, invalid(err.Error())
+	}
+	if q.Cursor != "" {
+		if _, _, err := query.DecodeBoxCursor(q.Sort, q.Cursor); err != nil {
+			return query.BoxQuery{}, invalid(err.Error())
+		}
+	}
+	return q, nil
+}
+
+func renderBoxSearch(boxes []library.BoxSearchItem, cursor string) boxSearchResult {
+	items := make([]boxSearchItem, 0, len(boxes))
+	for _, box := range boxes {
+		item := boxSearchItem{Box: wire.NewBox(box.Box)}
+		for _, tag := range box.Tags {
+			item.Tags = append(item.Tags, displayTag{ID: tag.ID.String(), Name: tag.Name})
+		}
+		items = append(items, item)
+	}
+	return boxSearchResult{Boxes: items, Cursor: cursor}
 }
