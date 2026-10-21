@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"image"
 	"image/png"
 	"io"
@@ -41,7 +42,11 @@ func TestClientRenderSubprocess(t *testing.T) {
 		if err := json.NewDecoder(os.Stdin).Decode(&request); err != nil {
 			os.Exit(1)
 		}
-		child := renderHelperCommand(context.Background(), "job-converter")
+		childMode := "job-converter"
+		if os.Getenv("KIST_TEST_RENDER_GRANDCHILD") == "1" {
+			childMode = "job-converter-parent"
+		}
+		child := renderHelperCommand(context.Background(), childMode)
 		if err := child.Start(); err != nil {
 			os.Exit(1)
 		}
@@ -54,6 +59,11 @@ func TestClientRenderSubprocess(t *testing.T) {
 		}
 		_ = json.NewEncoder(os.Stdout).Encode(clientRenderReply{})
 		// Deliberately leave the child alive: the enclosing job must reap it.
+	case "job-converter-parent":
+		child := renderHelperCommand(context.Background(), "job-converter")
+		if err := child.Run(); err != nil {
+			os.Exit(1)
+		}
 	case "job-converter":
 		conn, err := net.Dial("tcp", os.Getenv("KIST_TEST_RENDER_SOCKET"))
 		if err != nil {
@@ -85,6 +95,9 @@ func TestClientRenderSubprocess(t *testing.T) {
 			os.Exit(1)
 		}
 		if _, err = io.WriteString(conn, output+"\n"); err != nil {
+			os.Exit(1)
+		}
+		if _, err = fmt.Fprintln(conn, os.Getppid()); err != nil {
 			os.Exit(1)
 		}
 		// The parent test observes socket EOF when the real renderer kills this

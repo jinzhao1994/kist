@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -22,11 +23,8 @@ import (
 // The shell only forwards argv into the test binary using exec. The actual
 // converter is a standalone process, supervised by the production render worker.
 func TestClientRendererExternalProcessRecovery(t *testing.T) {
-	for _, crash := range []bool{false, true} {
-		name := "cancellation"
-		if crash {
-			name = "parent-killed"
-		}
+	for _, name := range []string{"cancellation", "parent-killed", "worker-killed"} {
+		crash := name == "parent-killed"
 		t.Run(name, func(t *testing.T) {
 			root := filepath.Join(t.TempDir(), "client")
 			c, err := library.CreateClient(t.Context(), root, library.ClientSettings{LibraryID: domain.NewID()})
@@ -109,6 +107,26 @@ func TestClientRendererExternalProcessRecovery(t *testing.T) {
 				t.Fatal(err)
 			}
 			output = strings.TrimSpace(output)
+			parentID, err := reader.ReadString('\n')
+			if err != nil {
+				t.Fatal(err)
+			}
+			workerPID, err := strconv.Atoi(strings.TrimSpace(parentID))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if name == "worker-killed" {
+				worker, err := os.FindProcess(workerPID)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer worker.Release()
+				stop = func() {
+					if err := worker.Kill(); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
 			// A second client observes the live workspace and cannot prune it.
 			if _, err = c.PruneCache(t.Context()); err != nil {
 				t.Fatal(err)
@@ -129,7 +147,10 @@ func TestClientRendererExternalProcessRecovery(t *testing.T) {
 			if !crash {
 				select {
 				case err = <-done:
-					if !errors.Is(err, context.Canceled) {
+					if name == "worker-killed" && err == nil {
+						t.Fatal("killed worker reported success")
+					}
+					if name == "cancellation" && !errors.Is(err, context.Canceled) {
 						t.Fatal(err)
 					}
 				case <-time.After(8 * time.Second):

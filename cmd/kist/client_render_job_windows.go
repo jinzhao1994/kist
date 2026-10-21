@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	osexec "os/exec"
 	"time"
 	"unsafe"
@@ -58,3 +59,7 @@ type clientJobAccounting struct {
 	ThisPeriodTotalUserTime, ThisPeriodTotalKernelTime                             int64
 	TotalPageFaultCount, TotalProcesses, ActiveProcesses, TotalTerminatedProcesses uint32
 }
+
+func prepareClientRenderer(_ *osexec.Cmd)                              {}
+func stopClientRenderer(_ *osexec.Cmd) error                           { return nil }
+func clientRenderContext(ctx context.Context) (context.Context, error) { return ctx, nil }

@@ -589,3 +589,11 @@ Visual 39653754299 已完成：baseline 141 / candidate 147，零采集失败、
 8960c81 的 CI 39655537948 全部通过（含 Windows、macOS、Linux ARM、主检查和双架构容器）；Secret scan 39655537703 通过。已查看本轮手机批量截图，四张卡片与预览完整，上一轮虚拟行空白已消除。视觉唯一阻塞为上述真实状态竞态，待产品修复后完整重采；没有接受部分候选。
 
 最终 make check（78339）退出 0，`/tmp/kist-cover-and-status-final-check.log`，包括封面草稿/组件/两种正式场景和单项、缓存列表的状态竞态修复。前端 290 项通过；Go race、构建与契约检查通过。准备提交此阶段，后续必须检查新 SHA 的完整 Visual，仍不把已有阶段证据当作整个 Goal 完成。
+
+Unix worker 强杀保护阶段：先扩展真实 RenderWorkspace 外部转换测试，以受控转换器报告的直接父进程身份强杀监督 worker；通过 TCP EOF 观察工具退出，不轮询 PID。修复前超时失败（`/tmp/kist-unix-worker-before.log`），证明旧 EOF 协议不能覆盖 worker 自身崩溃。现启动专用进程组，发请求前验证归属；worker 输出 EOF 后、reap 前终止该组，再回收 worker 并等待组消失。Office 专用 worker 上下文不再另建组，避免逃出父级清理范围；普通 NAS Office 路径不变。共享流程保持 Windows Job 方案，Windows 交叉编译通过（`/tmp/kist-unix-group-windows-test.exe`）。
+
+macOS 实测发现纯退出/僵尸组会在发送或检查信号时返回 EPERM；不能忽略后立即返回，改为在租约仍持有时继续等 ESRCH，最终以组已消失为依据。新增两层后代的取消、成功 worker 遗留进程、worker 崩溃测试，配合真实外部转换器强杀/主服务强杀/取消测试，针对性 race 全通过：cmd 11.202 秒、derive 2.392 秒（`/tmp/kist-unix-group-descendants-final.log`）。完整跨平台运行仍待 CI，尚未把这个阶段算作整个故障矩阵完成。
+
+330bea8 的 CI 39657366253：主检查、Windows、Linux ARM 和双架构容器通过，仅 macOS 任务取消且无失败日志，已重试未完成任务。Visual 39657366198 完整 baseline 141 / candidate 149、零失败/跳过/重试，封面正常/缺失场景已查看，单项离线状态竞态回归通过。除预期新增/改变外，entry-menu-box 仍有既有 326 像素文字差异，未接受基准；需单独排查，不能靠当前功能无关来忽略。
+
+Unix 进程组阶段完整 make check（77074）退出 0，日志 `/tmp/kist-unix-group-complete-check.log`；保留原日志/数据库/缓存数据格式，未改变 Apply 或 NAS 完整性语义。330bea8 的 CI 39657366253 重试后 macOS 也通过，全部平台及容器任务成功；此前取消不是代码测试失败。Unix 本次实现仍需推送后的 Linux/macOS 原生回归及 Windows Job 运行检查，不以本地通过替代。

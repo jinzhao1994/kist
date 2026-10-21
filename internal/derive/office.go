@@ -191,7 +191,7 @@ func (r Renderer) office(ctx context.Context, input, output string, spec Recipe)
 	log := &limitedBuffer{limit: 16 << 10}
 	cmd.Stdout, cmd.Stderr = log, log
 	cmd.WaitDelay = time.Second
-	officeProcess(cmd)
+	officeProcess(ctx, cmd)
 	// Bound scratch use while the process is alive, including its profile and
 	// temporary PDF. Cancellation kills the converter's process tree.
 	done, watched := make(chan struct{}), make(chan struct{})

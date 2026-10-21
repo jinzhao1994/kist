@@ -29,6 +29,10 @@ func newClientRenderCmd() *cobra.Command {
 		}
 		ctx, cancel := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 		defer cancel()
+		ctx, err := clientRenderContext(ctx)
+		if err != nil {
+			return err
+		}
 		// EOF is the parent's lifetime signal. A crash closes the pipe just as an
 		// explicit cancellation does; do not rely on a reusable numeric process ID.
 		go func() { _, _ = io.Copy(io.Discard, cmd.InOrStdin()); cancel() }()
@@ -77,6 +81,7 @@ func runClientRendererCommand(ctx context.Context, request library.ClientRenderR
 		return reply.Result, err
 	}
 	command.Stderr = io.Discard
+	prepareClientRenderer(command)
 	if err = command.Start(); err != nil {
 		return reply.Result, err
 	}
@@ -90,17 +95,28 @@ func runClientRendererCommand(ctx context.Context, request library.ClientRenderR
 	}
 	if err = json.NewEncoder(control).Encode(request); err != nil {
 		control.Close()
+		stopErr := stopClientRenderer(command)
 		_ = command.Wait()
 		cleanupErr := cleanup()
-		return reply.Result, errors.Join(err, cleanupErr)
+		return reply.Result, errors.Join(err, stopErr, cleanupErr)
 	}
 	decodeErr := json.NewDecoder(io.LimitReader(output, 64<<10)).Decode(&reply)
 	// Closing after a complete reply is safe: rendering has already stopped.
 	control.Close()
+	// The trusted worker closes stdout only on exit. Drain before signaling so
+	// normal replies do not turn a successful worker exit into a forced kill.
+	_, drainErr := io.Copy(io.Discard, output)
+	stopErr := stopClientRenderer(command)
 	waitErr := command.Wait()
 	cleanupErr := cleanup()
 	if cleanupErr != nil {
-		return reply.Result, cleanupErr
+		return reply.Result, errors.Join(stopErr, cleanupErr, drainErr)
+	}
+	// Darwin can reject a signal to a group containing only the exited worker.
+	// A successful join proves that no descendant remains, regardless of that
+	// signal result. Never infer completion from EPERM itself.
+	if drainErr != nil {
+		return reply.Result, drainErr
 	}
 	if ctx.Err() != nil {
 		return reply.Result, ctx.Err()
