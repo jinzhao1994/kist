@@ -276,6 +276,12 @@ func (q *pendingQueue) append(ctx context.Context, action string, event pendingE
 		return err
 	}
 	defer release()
+	return q.appendLocked(ctx, action, event)
+}
+
+// appendLocked is used when the owning client already holds the same lock
+// across view validation, durable enqueue and materialization.
+func (q *pendingQueue) appendLocked(ctx context.Context, action string, event pendingEvent) error {
 	s, err := q.read(ctx)
 	if err != nil {
 		return err

@@ -22,6 +22,10 @@ import (
 // durable may a caller commit its effects (invariant 2, spec 2.2.2). Keeping
 // the append out of here also stops a replay from writing the log again.
 func applyOp(tx *sql.Tx, row store.OpRow) (oplog.Targets, error) {
+	return applyOpChecked(tx, row, row.SyncID != "")
+}
+
+func applyOpChecked(tx *sql.Tx, row store.OpRow, checkClaims bool) (oplog.Targets, error) {
 	action := oplog.Action(row.Action)
 	handler, err := oplog.Lookup(action)
 	if err != nil {
@@ -52,7 +56,7 @@ func applyOp(tx *sql.Tx, row store.OpRow) (oplog.Targets, error) {
 		return targets, err
 	}
 	var applyTx oplog.Tx = vtx
-	if row.SyncID != "" {
+	if checkClaims {
 		applyTx = &syncBlobClaims{Tx: vtx, claims: make(map[string]syncBlobClaim)}
 	}
 	if err := handler.Apply(applyTx, row.Payload); err != nil {

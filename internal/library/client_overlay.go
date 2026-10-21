@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 
 	"github.com/jinzhao1994/kist/internal/journal"
@@ -25,6 +26,10 @@ type clientOverlay struct {
 // Blob bytes are intentionally not required to rebuild a metadata catalog.
 // The caller holds the client lock and supplies a validated catalog prefix.
 func rebuildClientInto(ctx context.Context, db *sql.DB, confirmed *journal.Dir, pending pendingState) (clientOverlay, error) {
+	return rebuildClientPrefixInto(ctx, db, confirmed, pending, math.MaxInt64, "")
+}
+
+func rebuildClientPrefixInto(ctx context.Context, db *sql.DB, confirmed *journal.Dir, pending pendingState, through int64, sum string) (clientOverlay, error) {
 	result := clientOverlay{References: map[int64]SyncReference{}}
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -43,9 +48,14 @@ func rebuildClientInto(ctx context.Context, db *sql.DB, confirmed *journal.Dir, 
 	}
 	var last int64
 	localIDs := map[string]int64{}
+	end := errors.New("client catalog boundary reached")
+	var lastSum string
 	err = confirmed.Iter(func(line journal.Line) error {
 		if err := ctx.Err(); err != nil {
 			return err
+		}
+		if line.ID > through {
+			return end
 		}
 		if line.ID != last+1 {
 			return fmt.Errorf("%w: noncontiguous client catalog", journal.ErrCorrupt)
@@ -58,14 +68,18 @@ func rebuildClientInto(ctx context.Context, db *sql.DB, confirmed *journal.Dir, 
 			return err
 		}
 		last = row.ID
+		lastSum = line.Sum
 		result.References[row.ID] = SyncReference{OpID: row.ID}
 		if line.Sync != nil {
 			localIDs[line.Sync.ID] = row.ID
 		}
 		return nil
 	})
-	if err != nil {
+	if err != nil && !errors.Is(err, end) {
 		return result, err
+	}
+	if through != math.MaxInt64 && (last != through || lastSum != sum) {
+		return result, fmt.Errorf("%w: incomplete client catalog prefix", journal.ErrCorrupt)
 	}
 	entries := slices.Clone(pending.entries)
 	slices.SortStableFunc(entries, func(a, b pendingEntry) int {
@@ -113,7 +127,7 @@ func rebuildClientInto(ctx context.Context, db *sql.DB, confirmed *journal.Dir, 
 			}
 		}
 		if applyErr == nil {
-			_, applyErr = applyOp(tx, row)
+			_, applyErr = applyOpChecked(tx, row, true)
 		}
 		if applyErr != nil {
 			if _, err := tx.Exec(`ROLLBACK TO pending_apply`); err != nil {

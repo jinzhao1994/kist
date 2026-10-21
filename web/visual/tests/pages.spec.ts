@@ -1212,9 +1212,9 @@ for (const kind of ["boxes", "files"] as const) {
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth),
     ).toBe(390);
-    // The dismissed display menu can leave the pointer over a file row.
+    // The dismissed display menu can leave the pointer over an entry row.
     // Capture the normal list state, independent of hover update timing.
-    if (kind === "files") await page.mouse.move(0, 0);
+    await page.mouse.move(0, 0);
     await capture(page, errors, info.title);
   });
 }

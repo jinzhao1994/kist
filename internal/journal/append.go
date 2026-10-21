@@ -1,6 +1,7 @@
 package journal
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -21,6 +22,23 @@ func (d *Dir) Append(l Line) error {
 	if err != nil {
 		return err
 	}
+	return d.appendEncoded(l, b)
+}
+
+// AppendVerified preserves the version and checksum of a verified replica
+// event. Callers must validate library identity, ordering and retry semantics.
+func (d *Dir) AppendVerified(l Line) error {
+	b, err := json.Marshal(l)
+	if err != nil {
+		return err
+	}
+	if _, err := UnmarshalLine(b); err != nil {
+		return err
+	}
+	return d.appendEncoded(l, b)
+}
+
+func (d *Dir) appendEncoded(l Line, b []byte) error {
 	bucket, err := d.bucketToWrite(l.CommitTimestamp())
 	if err != nil {
 		return err
