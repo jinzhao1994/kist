@@ -1,5 +1,6 @@
 import { calculateIntegrity, type FileIntegrity } from "./upload-integrity";
 import type { components, operations } from "./api-schema";
+import type { components as ClientComponents } from "./client-api-schema";
 export type TextPreviewResult = components["schemas"]["Preview"];
 export type Folder = components["schemas"]["Folder"];
 export type Box = components["schemas"]["Box"];
@@ -7,7 +8,15 @@ export type BoxSearchItem = components["schemas"]["BoxSearchItem"];
 export type ArchiveFile = components["schemas"]["FileSearchItem"];
 export type FileDetail = components["schemas"]["FileDetail"];
 export type Tag = components["schemas"]["Tag"];
-export type Receipt = components["schemas"]["RequestResult"];
+export type Receipt =
+  | components["schemas"]["RequestResult"]
+  | ClientComponents["schemas"]["ClientRequestResult"];
+export type EntryDeletionPreview =
+  | components["schemas"]["EntryDeletionPreview"]
+  | ClientComponents["schemas"]["ClientDeletionPreview"];
+export type BoxDeletionPreview =
+  | components["schemas"]["BoxDeletionPreview"]
+  | ClientComponents["schemas"]["ClientDeletionPreview"];
 export type HistorySummary = components["schemas"]["HistorySummary"];
 export type HistoryOp = components["schemas"]["HistoryOp"];
 export type HistoryDetail = components["schemas"]["HistoryDetail"];
@@ -51,7 +60,7 @@ export const api = {
       signal,
     ),
   boxDeletionPreview: (id: string, signal?: AbortSignal) =>
-    get<components["schemas"]["BoxDeletionPreview"]>(
+    get<BoxDeletionPreview>(
       `/boxes/${encodeURIComponent(id)}/deletion-preview`,
       signal,
     ),

@@ -159,3 +159,34 @@ it("never starts upload when original-file hashing fails", async () => {
   ).rejects.toThrow("Unreadable original");
   expect(xhr).not.toHaveBeenCalled();
 });
+
+it("preserves local receipts when recovering a client write", async () => {
+  sessionStorage.clear();
+  const receipt = { local_id: "offline-command-identity", noop: false };
+  const fetch = vi
+    .fn()
+    .mockRejectedValueOnce(new TypeError("Response lost"))
+    .mockResolvedValueOnce(new Response(JSON.stringify(receipt)));
+  vi.stubGlobal("fetch", fetch);
+  const first = createWrite("POST", "/boxes", { name: "Offline" });
+  await expect(first.run()).rejects.toThrow("Response lost");
+  const restored = createWrite("POST", "/boxes", { name: "Offline" });
+  expect(restored.key).toBe(first.key);
+  await expect(restored.run()).resolves.toEqual(receipt);
+  expect(createWrite("POST", "/boxes", { name: "Offline" }).key).not.toBe(
+    first.key,
+  );
+});
+
+it("retires a successful local no-op without inventing an operation ID", async () => {
+  sessionStorage.clear();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response('{"noop":true}')),
+  );
+  const write = createWrite("PUT", "/boxes/one", { name: "Unchanged" });
+  await expect(write.run()).resolves.toEqual({ noop: true });
+  expect(createWrite("PUT", "/boxes/one", { name: "Unchanged" }).key).not.toBe(
+    write.key,
+  );
+});

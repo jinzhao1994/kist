@@ -2,7 +2,7 @@ import { Button, Group, Text } from "@mantine/core";
 import { InlineRename } from "./InlineRename";
 import { useQuery } from "@tanstack/react-query";
 import { createWrite, get } from "./api";
-import type { components } from "./api-schema";
+import type { EntryDeletionPreview } from "./api";
 import { Dialog } from "./Dialog";
 import { useI18n } from "./i18n";
 import { errorMessage, useWrites, WriteFeedback } from "./mutations";
@@ -49,10 +49,7 @@ export function EntryActions({
   const preview = useQuery({
     queryKey: ["entry-deletion-preview", entry.box, entry.id, entry.folder],
     queryFn: ({ signal }) =>
-      get<components["schemas"]["EntryDeletionPreview"]>(
-        `${path}/deletion-preview${suffix}`,
-        signal,
-      ),
+      get<EntryDeletionPreview>(`${path}/deletion-preview${suffix}`, signal),
     enabled: entry.action === "trash",
     refetchOnMount: "always",
     refetchOnWindowFocus: false,

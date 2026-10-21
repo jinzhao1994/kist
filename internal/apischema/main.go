@@ -29,6 +29,26 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	if len(os.Args) > 1 && os.Args[1] == "--client" {
+		clientRoot, err := os.MkdirTemp("", "kist-client-schema-*")
+		if err != nil {
+			return err
+		}
+		defer os.RemoveAll(clientRoot)
+		head, err := l.SyncHead(context.Background())
+		if err != nil {
+			return err
+		}
+		client, err := library.CreateClient(context.Background(), clientRoot, library.ClientSettings{LibraryID: head.LibraryID})
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+		handler, err = api.NewClient(client, api.Options{AllowedHosts: []string{"schema.local"}})
+		if err != nil {
+			return err
+		}
+	}
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, httptest.NewRequest("GET", "http://schema.local"+api.Prefix+"/openapi.json", nil))
 	if recorder.Code != 200 {

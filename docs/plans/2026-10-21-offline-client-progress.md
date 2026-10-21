@@ -319,3 +319,20 @@ HTTP 基础读取与共用搜索解析阶段完整检查已通过：会话 60611
 
 
 本地 serve/组合目录阶段最终完整 make check 已通过：会话 67465 退出 0，日志 `/tmp/kist-client-browse-serve-final-check.log`。阶段提交；Visual 39596936245 attempt 2 仍运行，等待结论后推送后续已验证提交。
+
+
+本地服务阶段已提交 3b27401。独立 worktree 新增 client_writes.go、client_tag_writes.go、client_writes_test.go，并在 server.go 的客户端分支注册 clientWriteRoutes；接入 /requests/{key}、盒创建/更新、标签创建/改名/移动/删除/关联、fileset 配置写入，全部用 Client.ExecuteRequest，响应为稳定 local_id/noop。`/tmp/kist-client-http-writes.log` race 已通过（API 2.203 秒、library 2.113 秒）；首次测试错误使用 POST 关联标签，已改用既有 PUT 协议。尚未合入 main；待复制 client_request_status 两个 library 文件和以上三个 API 文件，仅向 main server.go 添加注册调用，不能覆盖主线其他新增路由。网页 mutation 结果契约仍需接入 local_id，不能将其当 NAS op_id。
+
+
+已合入 client_request_status 两个库文件、client_writes/client_tag_writes/client_writes_test 三个 API 文件，并在 main server.go 客户端分支注册写接口。apischema 增加 --client 模式，web/scripts/api-schema.mjs 同时从 NAS 和客户端真实契约生成/检查 api-schema.d.ts 与 client-api-schema.d.ts；网页 Receipt 改为两种生成类型的联合，明确不把 local_id 转成 op_id。新增 lost-response/remount 重试与 noop 回执测试。`/tmp/kist-client-receipt-web.log` 7 项通过；`/tmp/kist-client-writes-merged.log` 合入后 API/library race 通过（2.241/2.314 秒）。Visual attempt 2 尚在运行；本阶段开始完整检查 `/tmp/kist-client-http-writes-check.log`。
+
+
+客户端写接口完整检查首次在生成文件格式检查失败：新 client-api-schema.d.ts 未按既有 api-schema.d.ts 规则加入 .prettierignore。已加入同样例外，类型内容仍由 generate:api/check:api 约束。随后补 client_entries.go、client_saved_searches.go、client_box_writes.go，注册目录创建、条目重命名/删除预览/删除、盒删除/封面、收藏搜索写入。客户端删除使用字符串确认 revision；网页预览类型改为 NAS/Client 生成类型联合，BoxTrashDialog 测试同时验证数值和不透明字符串原样提交。HTTP 测试验证确认后改名使删除过期、重新确认后成功及同键重试幂等。`/tmp/kist-client-write-delete.log` race 通过（API 2.503 秒、library 2.177 秒），`/tmp/kist-client-write-web.log` 10 项通过。重跑完整检查日志 `/tmp/kist-client-http-writes-final-check.log`。Visual 39596936245 attempt 2 仍在运行。
+
+
+Visual 39596936245 attempt 2 已通过，基准未更改；attempt 1 的单行文字差异未在同 SHA 重跑复现。现推送已完成完整检查的 dbc1abb/2621e99/f38bb45/3b27401；当前写接口阶段仍在工作树，完整检查会话 34026 未完成。
+
+独立 worktree 新增 client_content.go/test.go、client_content_test.go（API），修改 API content.go 使用 io.ReadSeekCloser 以保留缓存租约，客户端分支调用 Client.OpenContent 并注册共用 contentRoutes。原文件仅本地读取，无网络；未缓存明确 503/not_cached，Range/HEAD 复用 NAS 已有 sniff/disposition/CSP/ServeContent。`/tmp/kist-client-content.log` race 通过（API 2.497 秒、library 2.674 秒），覆盖分段内容、HEAD、未缓存与读期间容量逐出保护。该增量尚未合入；后续只复制两个库文件及 API 测试、应用 content.go 增量并在 server.go 添加 contentRoutes 注册，不能用 worktree 旧版覆盖 main。客户端历史内容 at 参数暂明确拒绝，仍须后续实现历史内容读取，不能作为最终限制来缩小任务。
+
+
+客户端网页写接口完整检查已通过：会话 34026 退出 0，日志 `/tmp/kist-client-http-writes-final-check.log`。提交本阶段；3b27401 的 CI/Visual 仍运行。独立 worktree 另外补 client_box_search.go，并从 box_search.go 抽取 buildBoxQuery/renderBoxSearch 供两端共用；client_box_reads_test 增加 structured tag_all/tag_not 与非法游标验证，`/tmp/kist-client-box-search.log` race 通过（2.964 秒）。待合入 box_search.go 增量、client_box_search.go、新增测试段及注册调用；worktree 的 files.go/search_conditions.go 已复制自主线供编译，不应重复合入。
