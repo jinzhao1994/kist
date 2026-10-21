@@ -78,6 +78,29 @@ func TestClientViewUsesExistingFileDetailRendererWithoutOriginal(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	server, err := NewClient(client, Options{AllowedHosts: []string{"localhost:8473"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tag, err := client.CreateTag(ctx, "Offline", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.TagFiles(ctx, tag.ID, []domain.FileID{files[0].ID}); err != nil {
+		t.Fatal(err)
+	}
+	result := decodeBody[fileSearchResult](t, server, "/files?tag_all="+tag.ID.String())
+	if len(result.Files) != 1 || len(result.Files[0].DisplayTags) != 1 || result.Files[0].DisplayTags[0].Name != "Offline" {
+		t.Fatalf("search=%+v", result)
+	}
+	result = decodeBody[fileSearchResult](t, server, "/files?"+encodedCondition("tag_not", tag.ID.String()))
+	if len(result.Files) != 0 {
+		t.Fatalf("excluded search=%+v", result)
+	}
+	detail := decodeBody[fileDetail](t, server, "/files/"+files[0].ID.String())
+	if len(detail.Tags) != 1 || detail.Tags[0] != tag.ID.String() {
+		t.Fatalf("detail=%+v", detail)
+	}
 	if _, err := client.OpenOriginal(ctx, files[0].BlobKey); !errors.Is(err, library.ErrNotCached) {
 		t.Fatalf("original=%v", err)
 	}

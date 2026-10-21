@@ -7,6 +7,10 @@ import (
 )
 
 func (s *Server) searchConditions(raw []string, entity string) ([]query.Query, error) {
+	return buildSearchConditions(raw, entity, s.library.TagCondition, s.library.ExcludeTags)
+}
+
+func buildSearchConditions(raw []string, entity string, include, exclude func([]string) (query.TagExpr, error)) ([]query.Query, error) {
 	if len(raw) > 128 {
 		return nil, invalid("Too many conditions")
 	}
@@ -42,7 +46,7 @@ func (s *Server) searchConditions(raw []string, entity string) ([]query.Query, e
 		case "to":
 			in.To = c.Values[0]
 		}
-		clause, err := s.fileQuery(&in)
+		clause, err := buildFileQuery(&in, include, exclude)
 		if err != nil {
 			return nil, err
 		}

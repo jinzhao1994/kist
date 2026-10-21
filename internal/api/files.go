@@ -56,6 +56,10 @@ type tagList struct {
 }
 
 func (s *Server) fileQuery(in *FileQueryInput) (query.Query, error) {
+	return buildFileQuery(in, s.library.TagCondition, s.library.ExcludeTags)
+}
+
+func buildFileQuery(in *FileQueryInput, include, exclude func([]string) (query.TagExpr, error)) (query.Query, error) {
 	q := query.Query{Recursive: in.Recursive, Keywords: in.Keywords, NameContains: in.NameContains, NameEquals: in.NameEquals, Kinds: in.Kinds, Text: in.Name, Cursor: in.Cursor, Limit: in.Limit, Sort: query.SortSpec{Asc: in.Asc}}
 	switch in.Sort {
 	case "type":
@@ -108,11 +112,11 @@ func (s *Server) fileQuery(in *FileQueryInput) (query.Query, error) {
 			return q, invalid(err.Error())
 		}
 	}
-	all, err := s.library.TagCondition(in.All)
+	all, err := include(in.All)
 	if err != nil {
 		return q, failure(err)
 	}
-	not, err := s.library.ExcludeTags(in.Not)
+	not, err := exclude(in.Not)
 	if err != nil {
 		return q, failure(err)
 	}
@@ -125,7 +129,7 @@ func (s *Server) fileQuery(in *FileQueryInput) (query.Query, error) {
 	}
 	var any query.TagAnyOf
 	for _, ref := range in.Any {
-		expr, err := s.library.TagCondition([]string{ref})
+		expr, err := include([]string{ref})
 		if err != nil {
 			return q, failure(err)
 		}
@@ -139,7 +143,7 @@ func (s *Server) fileQuery(in *FileQueryInput) (query.Query, error) {
 	}
 	if len(in.Conditions) > 0 {
 		var err error
-		q.All, err = s.searchConditions(in.Conditions, "files")
+		q.All, err = buildSearchConditions(in.Conditions, "files", include, exclude)
 		if err != nil {
 			return q, err
 		}

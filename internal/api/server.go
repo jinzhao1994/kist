@@ -37,6 +37,7 @@ type Options struct {
 type Server struct {
 	mapConnect     string
 	library        *library.Library
+	client         *library.Client
 	media          *library.Media
 	mux            *http.ServeMux
 	contract       huma.API
@@ -54,6 +55,15 @@ type Server struct {
 }
 
 func New(l *library.Library, opt Options) (*Server, error) {
+	return newServer(l, nil, opt)
+}
+
+// NewClient serves the local editing catalog with the same HTTP protections.
+func NewClient(c *library.Client, opt Options) (*Server, error) {
+	return newServer(nil, c, opt)
+}
+
+func newServer(l *library.Library, c *library.Client, opt Options) (*Server, error) {
 	if opt.MaxUploadBytes == 0 {
 		opt.MaxUploadBytes = DefaultMaxUploadBytes
 	}
@@ -63,7 +73,7 @@ func New(l *library.Library, opt Options) (*Server, error) {
 	if opt.MaxUploadBytes < 1 || opt.MaxUploadFiles < 1 {
 		return nil, fmt.Errorf("upload limits must be positive")
 	}
-	s := &Server{maxUploadBytes: opt.MaxUploadBytes, maxUploadFiles: opt.MaxUploadFiles, uploadTempDir: opt.UploadTempDir, library: l, mux: http.NewServeMux(), hosts: map[string]bool{}, origins: map[string]bool{}}
+	s := &Server{maxUploadBytes: opt.MaxUploadBytes, maxUploadFiles: opt.MaxUploadFiles, uploadTempDir: opt.UploadTempDir, library: l, client: c, mux: http.NewServeMux(), hosts: map[string]bool{}, origins: map[string]bool{}}
 	provider := DefaultMapProvider()
 	if opt.MapProvider != nil {
 		provider = *opt.MapProvider
@@ -74,7 +84,7 @@ func New(l *library.Library, opt Options) (*Server, error) {
 	}
 	s.mapConnect = connect
 	s.historySlots = make(chan struct{}, 2)
-	if l == nil || len(opt.AllowedHosts) == 0 {
+	if (l == nil && c == nil) || len(opt.AllowedHosts) == 0 {
 		return nil, fmt.Errorf("a library and explicit allowed hosts are required")
 	}
 	for _, host := range opt.AllowedHosts {
@@ -103,14 +113,16 @@ func New(l *library.Library, opt Options) (*Server, error) {
 		return name
 	})
 	var err error
-	s.uploads, err = staging.New(filepath.Join(l.Layout().Root, "uploads"), opt.MaxUploadBytes, opt.MaxUploadFiles)
-	if err != nil {
-		return nil, err
-	}
-	s.uploadSlots = make(chan struct{}, staging.MaxSessions)
-	s.syncUploads, err = staging.New(filepath.Join(l.Layout().Root, "sync-uploads"), opt.MaxUploadBytes, 1)
-	if err != nil {
-		return nil, err
+	if l != nil {
+		s.uploads, err = staging.New(filepath.Join(l.Layout().Root, "uploads"), opt.MaxUploadBytes, opt.MaxUploadFiles)
+		if err != nil {
+			return nil, err
+		}
+		s.uploadSlots = make(chan struct{}, staging.MaxSessions)
+		s.syncUploads, err = staging.New(filepath.Join(l.Layout().Root, "sync-uploads"), opt.MaxUploadBytes, 1)
+		if err != nil {
+			return nil, err
+		}
 	}
 	cfg.OpenAPIPath = Prefix + "/openapi"
 	cfg.DocsPath = "" // An embedded UI will link to the offline JSON contract.
@@ -119,23 +131,27 @@ func New(l *library.Library, opt Options) (*Server, error) {
 	cfg.Transformers = nil // Keep wire JSON identical to the CLI: no injected $schema.
 	s.contract = humago.New(s.mux, cfg)
 	s.mapRoutes(provider)
-	s.readRoutes()
-	s.historyRoutes()
-	s.historicalRoutes()
-	s.fileRoutes()
-	s.tagRoutes()
-	s.savedSearchRoutes()
-	s.filesetRoutes()
-	s.media = l.Media()
-	s.contentRoutes()
-	s.textRoutes()
-	s.sheetRoutes()
-	s.mediaRoutes()
-	s.uploadRoutes()
-	s.uploadSessionRoutes()
-	s.extractionRoutes()
-	s.writeRoutes()
-	s.syncRoutes()
+	if c != nil {
+		s.clientReadRoutes()
+	} else {
+		s.readRoutes()
+		s.historyRoutes()
+		s.historicalRoutes()
+		s.fileRoutes()
+		s.tagRoutes()
+		s.savedSearchRoutes()
+		s.filesetRoutes()
+		s.media = l.Media()
+		s.contentRoutes()
+		s.textRoutes()
+		s.sheetRoutes()
+		s.mediaRoutes()
+		s.uploadRoutes()
+		s.uploadSessionRoutes()
+		s.extractionRoutes()
+		s.writeRoutes()
+		s.syncRoutes()
+	}
 	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if opt.UI != nil && r.URL.Path != "/api" && !strings.HasPrefix(r.URL.Path, "/api/") {
 			opt.UI.ServeHTTP(w, r)
@@ -185,7 +201,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	if strings.HasPrefix(path.Clean(r.URL.Path), Prefix+"/sync/") && !s.authorizeSync(w, r) {
+	if s.library != nil && strings.HasPrefix(path.Clean(r.URL.Path), Prefix+"/sync/") && !s.authorizeSync(w, r) {
 		return
 	}
 	if r.Method == "POST" || r.Method == "PUT" || r.Method == "PATCH" || (r.Method == "DELETE" && r.ContentLength != 0) {

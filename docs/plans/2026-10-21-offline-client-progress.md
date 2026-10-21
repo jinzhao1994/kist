@@ -297,3 +297,12 @@ Visual 39596936245 完整采集 134 张，比较出现 1 处差异，退出失�
 
 
 ClientView 阶段完整 make check 已通过：会话 98693 退出 0，日志 `/tmp/kist-client-view-complete-check.log`。提交该阶段，仍等待视觉报告下载会话 85446 完成以审阅前序差异。
+
+
+ClientView 阶段已提交 2621e99，尚未推送；dbc1abb 也仍待推送。已从独立 worktree 合入 API server.go 增量、client_reads.go 与 client_server_test.go，之后在 main 接入客户端 /files 搜索，抽取 buildFileQuery/buildSearchConditions 供 NAS 与 ClientView 共用，查询解析与结果渲染位于同一客户端快照。现有 ClientView API 测试新增真实 HTTP 文件搜索/结构化排除条件/详情断言，验证 pending 标签与原文件未缓存并存；`/tmp/kist-client-http-search.log` 通过，`/tmp/kist-client-http-search-race.log` 通过。该 HTTP 阶段仍未提交，且未接齐全部客户端功能。视觉报告下载会话 85446 仍 live，未重启或更新基准。
+
+
+独立 worktree 新增 client_box_reads.go/test.go，并在 clientReadRoutes 调用 clientBoxReadRoutes，补 boxes/{id}/folders、tags、cover，均使用 ClientView；验证 pending 新盒与标签可见、不存在盒返回 404，`/tmp/kist-client-box-http.log` 通过（0.881 秒）。尚未合入 main；后续只复制这两个新文件并添加注册调用，不能覆盖 main 已新增 /files 搜索的 client_reads.go。
+
+
+HTTP 基础读取与共用搜索解析阶段完整检查已通过：会话 60611 退出 0，日志 `/tmp/kist-client-http-complete-check.log`。阶段提交，前序视觉报告下载会话 85446 仍运行，暂未推送覆盖远端待审阅 SHA。
