@@ -170,6 +170,16 @@
 
 包含全部当前命令和请求回执的最终完整检查 `/tmp/kist-client-domain-final-check.log` 已通过（退出码 0），本阶段准备提交。当前提供请求幂等与归档盒、目录、fileset 的客户端业务入口，未将其等同于全部编辑能力或网页离线验收完成。
 
+本阶段已提交并推送 `60d860f`；CI `39543835623` 与 Visual `39543835570` 正在运行。
+
+### 客户端标签业务命令
+
+新增客户端标签创建、改名、移动、删除及文件/归档盒批量添加与移除标签，共享 NAS 的命令生成和目标筛选。保持名称唯一、父节点有效、循环拒绝、非叶节点删除拒绝、user 来源和重复目标去重。针对性 race 检查通过（`/tmp/kist-client-tags-final-targeted.log`），覆盖离线移动与 NAS 独立改名合并、无修改请求回执、实际同步及同步后的严格撤销。对固定的本阶段代码运行 `/tmp/kist-client-tags-check.log` 完整检查；其他文件编辑、历史及网页仍待接入。
+
+下一阶段源码核对：`entrySnapshot` 的 deletion revision 直接采用视图中的 `LastOpTouchingBox` 数字 ID，客户端不能直接复用该对外值；需要稳定引用/状态令牌且不弱化现有范围确认。`RemoveMetadata` 写 tombstone 并在生成 payload 时按库时区重算 captured_at，客户端必须沿用该规则，不能直接删除行。`Undo` 错误中的目标/阻挡操作也需要转换为稳定 NAS/local 引用。
+
+标签阶段完整 `/tmp/kist-client-tags-check.log` 已通过（退出码 0），准备提交。网页文件详情已有 `fileReader` 读取接口可复用，客户端内容句柄必须保留缓存租用，不能直接套用 NAS 的 `*os.File` 假设。
+
 - `internal/api/server.go` 当前持有具体 `*library.Library`，初始化还直接根据 NAS 布局创建上传暂存与媒体服务。不能只替换数据库连接就声称支持客户端。
 - `library.ExecuteRequest` 的幂等结果是 NAS 数字 op ID，且无业务修改也记录 request receipt；客户端需要独立持久化请求回执并保留无操作重试语义，不能遗漏或暴露客户端视图序号。
 - 现有领域命令负责生成 before/after payload，`write`/`writeLocked` 承担正式日志与投影。后续抽取共享命令生成及读视图边界，分别接入 NAS 写入口和客户端 pending 入口；上传、历史、撤销与错误结果中的操作引用须一并审计，不以只读浏览替代离线编辑要求。

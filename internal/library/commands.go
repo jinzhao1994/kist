@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/jinzhao1994/kist/internal/domain"
@@ -82,31 +81,7 @@ func (l *Library) UpdateBox(ctx context.Context, id domain.BoxID, f BoxFields) (
 
 // CreateTag adds a node to the tag tree.
 func (l *Library) CreateTag(ctx context.Context, name string, parent *domain.TagID) (domain.Tag, error) {
-	if err := domain.ValidateName(name); err != nil {
-		return domain.Tag{}, err
-	}
-	// Checked here rather than left to the unique index so the user gets a
-	// sentence instead of a constraint violation — and so no op is written.
-	existing, taken, err := store.TagByName(l.db, name)
-	if err != nil {
-		return domain.Tag{}, err
-	}
-	if taken {
-		return domain.Tag{}, &NameTakenError{Name: existing.Name, ExistingID: existing.ID.String()}
-	}
-	if parent != nil {
-		if _, ok, err := store.TagByID(l.db, *parent); err != nil {
-			return domain.Tag{}, err
-		} else if !ok {
-			return domain.Tag{}, fmt.Errorf("parent %s: %w", *parent, ErrNoSuchTag)
-		}
-	}
-
-	p := oplog.CreateTagPayload{TagID: domain.NewTagID(), ParentID: parent, Name: name}
-	// Built before the write rather than read back after it: the payload
-	// already carries every field, so a second query would only be a chance to
-	// disagree with it.
-	tag, err := domain.NewTag(p.TagID, p.ParentID, p.Name)
+	p, tag, err := createTagPayload(l.db, name, parent)
 	if err != nil {
 		return domain.Tag{}, err
 	}
@@ -121,28 +96,14 @@ func (l *Library) CreateTag(ctx context.Context, name string, parent *domain.Tag
 }
 
 func (l *Library) RenameTag(ctx context.Context, id domain.TagID, name string) error {
-	if err := domain.ValidateName(name); err != nil {
-		return err
-	}
-	current, ok, err := store.TagByID(l.db, id)
+	p, err := renameTagPayload(l.db, id, name)
 	if err != nil {
 		return err
 	}
-	if !ok {
-		return fmt.Errorf("%s: %w", id, ErrNoSuchTag)
-	}
-	if current.Name == name {
+	if p == nil {
 		return nil
 	}
-	other, exists, err := store.TagByName(l.db, name)
-	if err != nil {
-		return err
-	}
-	if exists && other.ID != id {
-		return &NameTakenError{Name: other.Name, ExistingID: other.ID.String()}
-	}
-
-	raw, err := oplog.Marshal(oplog.RenameTagPayload{TagID: id, Before: current.Name, After: name})
+	raw, err := oplog.Marshal(p)
 	if err != nil {
 		return err
 	}
@@ -153,36 +114,14 @@ func (l *Library) RenameTag(ctx context.Context, id domain.TagID, name string) e
 // MoveTag reparents a subtree. In the database this is one row and one column,
 // because there is no materialized path to cascade (spec 1.6).
 func (l *Library) MoveTag(ctx context.Context, id domain.TagID, parent *domain.TagID) error {
-	current, ok, err := store.TagByID(l.db, id)
+	p, err := moveTagPayload(l.db, id, parent)
 	if err != nil {
 		return err
 	}
-	if !ok {
-		return fmt.Errorf("%s: %w", id, ErrNoSuchTag)
-	}
-	if parent != nil {
-		if _, ok, err := store.TagByID(l.db, *parent); err != nil {
-			return err
-		} else if !ok {
-			return fmt.Errorf("parent %s: %w", *parent, ErrNoSuchTag)
-		}
-		// A loop would make a tag filter's descendant walk run until the query
-		// is killed. Deciding this here, not in Apply, is invariant 3 — and
-		// asking upwards from the new parent costs the depth of the tree
-		// rather than the size of the subtree being moved.
-		above, err := store.TagAncestors(l.db, *parent)
-		if err != nil {
-			return err
-		}
-		if slices.Contains(above, id) {
-			return fmt.Errorf("%q cannot go under its own descendant: %w", current.Name, ErrTagCycle)
-		}
-	}
-	if sameTagID(current.ParentID, parent) {
+	if p == nil {
 		return nil
 	}
-
-	raw, err := oplog.Marshal(oplog.MoveTagPayload{TagID: id, OldParent: current.ParentID, NewParent: parent})
+	raw, err := oplog.Marshal(p)
 	if err != nil {
 		return err
 	}
@@ -193,16 +132,11 @@ func (l *Library) MoveTag(ctx context.Context, id domain.TagID, parent *domain.T
 // DeleteTag removes a leaf that nothing is using. The refusal to cascade is
 // deliberate (spec 1.6).
 func (l *Library) DeleteTag(ctx context.Context, id domain.TagID) error {
-	current, ok, err := store.TagByID(l.db, id)
+	p, err := deleteTagPayload(l.db, id)
 	if err != nil {
 		return err
 	}
-	if !ok {
-		return fmt.Errorf("%s: %w", id, ErrNoSuchTag)
-	}
-	raw, err := oplog.Marshal(oplog.DeleteTagPayload{
-		TagID: id, ParentID: current.ParentID, Name: current.Name,
-	})
+	raw, err := oplog.Marshal(p)
 	if err != nil {
 		return err
 	}
@@ -250,33 +184,11 @@ func (l *Library) UntagBoxes(ctx context.Context, tag domain.TagID, boxes []doma
 // filterBoxTags keeps the boxes for which the operation would actually change
 // something. wantPresent is what the box must currently look like to qualify.
 func (l *Library) filterBoxTags(ctx context.Context, tag domain.TagID, boxes []domain.BoxID, wantPresent bool) ([]domain.BoxID, error) {
-	if _, ok, err := store.TagByID(l.db, tag); err != nil {
-		return nil, err
-	} else if !ok {
-		return nil, fmt.Errorf("%s: %w", tag, ErrNoSuchTag)
-	}
 	var changed []domain.BoxID
-	seen := map[domain.BoxID]bool{}
-	err := l.readTx(ctx, func(vtx *store.ViewTx) error {
-		for _, id := range boxes {
-			if seen[id] {
-				continue
-			}
-			seen[id] = true
-			if _, ok, err := vtx.GetBox(id); err != nil {
-				return err
-			} else if !ok {
-				return fmt.Errorf("%s: %w", id, ErrNoSuchBox)
-			}
-			has, err := vtx.HasBoxTag(id, tag)
-			if err != nil {
-				return err
-			}
-			if has == wantPresent {
-				changed = append(changed, id)
-			}
-		}
-		return nil
+	err := l.readTx(ctx, func(tx *store.ViewTx) error {
+		var err error
+		changed, err = filterBoxTagsInView(tx, tag, boxes, wantPresent)
+		return err
 	})
 	return changed, err
 }
