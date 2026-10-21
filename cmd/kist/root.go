@@ -55,5 +55,6 @@ and a global tag tree cuts across them for retrieval.`,
 	root.AddCommand(newLogCmd())
 	root.AddCommand(newUndoCmd())
 	root.AddCommand(newVersionCmd())
+	root.AddCommand(newSyncAccessCmd())
 	return root
 }

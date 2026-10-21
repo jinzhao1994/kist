@@ -60,10 +60,6 @@ func (p *testSyncPeer) Submit(ctx context.Context, proposal SyncProposal) (SyncR
 	}
 	r, err := p.nas.AcceptSync(ctx, proposal)
 	if err != nil {
-		var outcome *WriteOutcomeError
-		if !errors.As(err, &outcome) {
-			return r, &SyncRejectedError{Cause: err}
-		}
 		return r, err
 	}
 	if p.loseReply {

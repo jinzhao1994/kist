@@ -130,6 +130,7 @@ func New(l *library.Library, opt Options) (*Server, error) {
 	s.uploadSessionRoutes()
 	s.extractionRoutes()
 	s.writeRoutes()
+	s.syncRoutes()
 	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if opt.UI != nil && r.URL.Path != "/api" && !strings.HasPrefix(r.URL.Path, "/api/") {
 			opt.UI.ServeHTTP(w, r)
@@ -179,6 +180,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
+	if strings.HasPrefix(path.Clean(r.URL.Path), Prefix+"/sync/") && !s.authorizeSync(w, r) {
+		return
+	}
 	if r.Method == "POST" || r.Method == "PUT" || r.Method == "PATCH" || (r.Method == "DELETE" && r.ContentLength != 0) {
 		media, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 		chunk := r.Method == "PUT" && strings.HasPrefix(r.URL.Path, Prefix+"/upload-sessions/") && strings.Contains(r.URL.Path, "/files/")
@@ -197,7 +201,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			writeFailure(w, huma.Error415UnsupportedMediaType("Use application/json"))
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, maxJSONBody)
+		limit := int64(maxJSONBody)
+		if path.Clean(r.URL.Path) == Prefix+"/sync/submit" {
+			limit = maxSyncBody
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, limit)
 	}
 	s.mux.ServeHTTP(w, r)
 }

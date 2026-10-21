@@ -576,6 +576,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sync/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["sync-capabilities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sync/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sync-catalog"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sync/head": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["sync-head"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sync/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sync-submit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tags": {
         parameters: {
             query?: never;
@@ -871,6 +935,22 @@ export interface components {
         EntryRenameInputBody: {
             before: string;
             name: string;
+        };
+        Error: {
+            /** Format: int64 */
+            blocking_op?: number;
+            candidates?: components["schemas"]["Ref"][] | null;
+            class: string;
+            code: string;
+            existing_id?: string;
+            holder?: string;
+            message: string;
+            /** Format: int64 */
+            op_id?: number;
+            /** Format: int64 */
+            reverted_by?: number;
+            /** Format: int64 */
+            upload_offset?: number;
         };
         ExtractionInputBody: Record<string, never>;
         File: {
@@ -1225,6 +1305,73 @@ export interface components {
             supported: boolean;
             truncated: boolean;
             widths: number[] | null;
+        };
+        SyncBoundary: {
+            library_id: string;
+            /** Format: int64 */
+            op_id: number;
+            sum: string;
+        };
+        SyncCapabilities: {
+            actions: string[] | null;
+            /** Format: int64 */
+            journal_version: number;
+            library_id: string;
+            undo_references: boolean;
+            /** Format: int64 */
+            version: number;
+        };
+        SyncCatalogInputBody: {
+            /** Format: int64 */
+            after: number;
+            boundary: components["schemas"]["SyncBoundary"];
+            /** Format: int64 */
+            limit: number;
+            /** Format: int64 */
+            max_bytes: number;
+        };
+        SyncCatalogPage: {
+            /** Format: int64 */
+            after: number;
+            boundary: components["schemas"]["SyncBoundary"];
+            done: boolean;
+            lines: unknown[] | null;
+            /** Format: int64 */
+            next: number;
+        };
+        SyncFileState: {
+            blob_key: string;
+            id: string;
+        };
+        SyncProposal: {
+            action?: string;
+            files?: components["schemas"]["SyncFileState"][] | null;
+            group?: components["schemas"]["SyncReference"];
+            id: string;
+            /** Format: date-time */
+            occurred_at: string;
+            origin: string;
+            payload?: unknown;
+            requires?: string[] | null;
+            undo?: components["schemas"]["SyncReference"];
+            /** Format: int64 */
+            version: number;
+        };
+        SyncReference: {
+            local_id?: string;
+            /** Format: int64 */
+            op_id?: number;
+        };
+        SyncResult: {
+            /** Format: date-time */
+            accepted_at: string;
+            /** Format: int64 */
+            op_id: number;
+        };
+        SyncSubmitResponse: {
+            error?: components["schemas"]["Error"];
+            rejected: boolean;
+            result?: components["schemas"]["SyncResult"];
         };
         Tag: {
             /** Format: int64 */
@@ -2875,6 +3022,130 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RequestResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "sync-capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncCapabilities"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "sync-catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyncCatalogInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncCatalogPage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "sync-head": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncBoundary"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "sync-submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyncProposal"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncSubmitResponse"];
                 };
             };
             /** @description Error */

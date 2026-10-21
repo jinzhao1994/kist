@@ -173,10 +173,19 @@ func (p SyncProposal) digest() (string, error) {
 
 // AcceptSync serializes receipt lookup, precondition checks and the durable
 // write with all NAS writers. No network handler may bypass this path.
-func (l *Library) AcceptSync(ctx context.Context, p SyncProposal) (SyncResult, error) {
+func (l *Library) AcceptSync(ctx context.Context, p SyncProposal) (result SyncResult, resultErr error) {
+	// Until receipt lookup succeeds, a previous attempt may already have
+	// committed. In particular, lock and catch-up failures are not rejection.
+	canReject := false
+	defer func() {
+		var uncertain *WriteOutcomeError
+		if canReject && resultErr != nil && !errors.As(resultErr, &uncertain) {
+			resultErr = &SyncRejectedError{Cause: resultErr}
+		}
+	}()
 	digest, err := p.digest()
 	if err != nil {
-		return SyncResult{}, err
+		return SyncResult{}, &SyncRejectedError{Cause: err}
 	}
 	release, err := l.lock.Acquire(ctx)
 	if err != nil {
@@ -192,10 +201,11 @@ func (l *Library) AcceptSync(ctx context.Context, p SyncProposal) (SyncResult, e
 	}
 	if found {
 		if old != digest {
-			return SyncResult{}, ErrRequestConflict
+			return SyncResult{}, &SyncRejectedError{Cause: ErrRequestConflict}
 		}
 		return SyncResult{OpID: id, AcceptedAt: at}, nil
 	}
+	canReject = true
 	for _, dep := range p.Requires {
 		if _, err := l.syncReference(SyncReference{LocalID: dep}); err != nil {
 			return SyncResult{}, err
@@ -254,6 +264,9 @@ func (l *Library) AcceptSync(ctx context.Context, p SyncProposal) (SyncResult, e
 		return SyncResult{}, err
 	}
 	_, _, at, _, err = store.SyncOp(l.db, p.ID)
+	if err != nil {
+		return SyncResult{OpID: id}, &WriteOutcomeError{OpID: id, Cause: err}
+	}
 	return SyncResult{OpID: id, AcceptedAt: at}, err
 }
 

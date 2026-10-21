@@ -1,6 +1,7 @@
 package library
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -114,6 +115,10 @@ func TestSyncLostAcknowledgementRecovers(t *testing.T) {
 	l.hooks.afterAppend = func() error { return errors.New("power cut") }
 	r, err := l.AcceptSync(t.Context(), p)
 	var outcome *WriteOutcomeError
+	var rejected *SyncRejectedError
+	if errors.As(err, &rejected) {
+		t.Fatal("uncertain durable write marked rejected")
+	}
 	if !errors.As(err, &outcome) || r.OpID != 1 {
 		t.Fatalf("write=%v err=%v", r, err)
 	}
@@ -121,6 +126,35 @@ func TestSyncLostAcknowledgementRecovers(t *testing.T) {
 	r, err = l.AcceptSync(t.Context(), p)
 	if err != nil || r.OpID != 1 || r.AcceptedAt.IsZero() {
 		t.Fatalf("recovered=%v err=%v", r, err)
+	}
+}
+
+func TestSyncReceiptLookupFailureIsNotRejection(t *testing.T) {
+	l := openTestLibrary(t)
+	p := syncBox(t, "receipt-lookup-failure")
+	if _, err := l.AcceptSync(t.Context(), p); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	release, err := l.lock.Acquire(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = l.AcceptSync(ctx, p)
+	release()
+	var rejected *SyncRejectedError
+	if err == nil || errors.As(err, &rejected) {
+		t.Fatalf("uncertain receipt lookup marked rejected: %v", err)
+	}
+	other := syncBox(t, "missing-dependency")
+	other.Requires = []string{"not-yet-accepted"}
+	_, err = l.AcceptSync(t.Context(), other)
+	if !errors.As(err, &rejected) {
+		t.Fatalf("known uncommitted proposal not marked rejected: %v", err)
+	}
+	if count, _ := l.OpCount(t.Context()); count != 1 {
+		t.Fatalf("unexpected op count: %d", count)
 	}
 }
 

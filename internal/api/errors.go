@@ -33,6 +33,8 @@ func init() {
 			code, class = "not_found", "not_found"
 		case status == 403:
 			code, class = "forbidden", "invalid"
+		case status == 401:
+			code, class = "unauthorized", "invalid"
 		case status == 405:
 			code = "method_not_allowed"
 		case status == 413:

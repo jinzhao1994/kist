@@ -60,6 +60,9 @@ var jsonCommands = [][]string{
 	{"scrub"},
 	{"repair"},
 	{"remote", "list"},
+	{"sync-access", "create"},
+	{"sync-access", "list"},
+	{"sync-access", "revoke", "nonexistent"},
 	{"version"},
 	// init deliberately absent: it takes a path argument rather than
 	// --library, so a table entry would create a library at the default
