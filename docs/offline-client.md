@@ -169,3 +169,9 @@ how many entries have been retained and prepared. Canceling or losing the
 connection keeps completed work; **Check and download** resumes by verifying
 current dependencies and skips content already ready. These entries can then be
 managed independently in the Cache tab.
+
+
+Manual cache cleanup also retries migration of NAS-confirmed originals that were
+still being read during sync. Once those readers close, the bytes become eligible
+for the configured cache policy without another network sync. Retained items stay
+protected even above the limit; unconfirmed local originals remain outside eviction.

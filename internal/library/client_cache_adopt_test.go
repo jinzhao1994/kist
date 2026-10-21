@@ -203,3 +203,75 @@ func TestClientAdoptionRecoversBeforeReadyMarker(t *testing.T) {
 		t.Fatal(string(data), err)
 	}
 }
+
+func TestClientPruneRetriesAdoptionAfterSyncedReaderCloses(t *testing.T) {
+	for _, pinned := range []bool{false, true} {
+		t.Run(map[bool]string{false: "evict", true: "retain"}[pinned], func(t *testing.T) {
+			ctx := t.Context()
+			nas := openTestLibrary(t)
+			c := newSyncClient(t, nas)
+			key, fileID := stageAdoptionOriginal(t, c)
+			pending, err := c.PutOriginal(ctx, strings.NewReader("not confirmed by NAS"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if pinned {
+				if err = c.SetOfflineSelection(ctx, "travel", ClientOfflineSelection{Files: []domain.FileID{fileID}}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			reader, err := c.OpenOriginal(ctx, string(key))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer reader.Close()
+			if _, err = c.Synchronize(ctx, &testSyncPeer{nas: nas}); err != nil {
+				t.Fatal(err)
+			}
+			source, _ := c.blobs.LocalPath(key)
+			if _, err = c.SetCacheLimits(ctx, time.Hour, 1); err != nil {
+				t.Fatal(err)
+			}
+			if _, err = os.Stat(source); err != nil {
+				t.Fatal("live reader lost its protected original", err)
+			}
+			if err = reader.Close(); err != nil {
+				t.Fatal(err)
+			}
+			status, err := c.PruneCache(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err = os.Stat(source); !errors.Is(err, os.ErrNotExist) {
+				t.Fatal("manual cleanup left confirmed bytes outside cache accounting", err)
+			}
+			cached, err := c.OpenOriginal(ctx, string(key))
+			if pinned {
+				if err != nil {
+					t.Fatal(err)
+				}
+				cached.Close()
+				if !status.OverLimit || status.PinnedBytes == 0 {
+					t.Fatal(status)
+				}
+			} else {
+				if cached != nil {
+					cached.Close()
+				}
+				if !errors.Is(err, ErrNotCached) || status.CachedBytes != 0 {
+					t.Fatal(status, err)
+				}
+			}
+			protected, err := c.blobs.Get(ctx, pending.Key)
+			if err != nil {
+				t.Fatal("unconfirmed original was pruned", err)
+			}
+			protected.Close()
+			authoritative, err := nas.blobs.Get(ctx, key)
+			if err != nil {
+				t.Fatal("NAS original was lost", err)
+			}
+			authoritative.Close()
+		})
+	}
+}

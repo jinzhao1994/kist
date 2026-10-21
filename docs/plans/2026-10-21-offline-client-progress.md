@@ -562,3 +562,12 @@ Windows 监督进程故障保护阶段：在 worker 启动且尚未收到渲染�
 新增 Windows 原生四场景测试：取消、worker 返回成功但遗留后代、worker 异常退出、父进程强杀，使用独立子进程 TCP EOF 验证后代退出；旧“父死后 worker 必须来得及写 stopped 标记”的测试移到 Unix，因为 Windows 内核直接终止 Job 不承诺运行用户态清理，改由新测试验证更强的终止条件。Windows amd64 交叉编译通过；本地 Unix renderer race 8.297 秒通过（`/tmp/kist-render-job-unix-tests.log`）。完整 make check（53963，`/tmp/kist-windows-job-complete-check.log`）退出 0，cmd race 24.634 秒；Windows 运行测试仍待推送后 CI，不能以编译替代。
 
 同步复查批量手机视觉场景：新增用例不能在页面顶部等待所有虚拟卡片已挂载，补上现有 mobile-grid 使用的稳定 file-scroll 边界等待，再检查缩略图。仅更正前提，不改变产品渲染/阈值。后续 `check:visual`（37464，`/tmp/kist-job-visual-tools.log`）通过；前序 4e169a0 的 Visual 39650365159 仍在采集，尚无最终结果。
+
+
+Windows Job 阶段 a4346a2 的 CI 39651563666 全部通过，包括 Windows 原生四场景进程树回归、macOS、Linux ARM、完整检查与双架构容器。Secret scan 39651563615 通过；Visual 39651563992 仍在运行。至此 Windows Job 的运行行为有实际平台证据，Unix worker 自身强杀仍待实现。
+
+缓存迁移验收发现并修复：同步时被读取租约跳过的已确认原件，在读取结束后手动 PruneCache 仍不会迁入缓存，必须再次同步才会纳入配额。新增 evict/retain 两个真实同步回归在修改前均失败（`/tmp/kist-prune-adopt-before.log`）。PruneCache 现先调用同一确认迁移入口，再执行清理；SetCacheLimits 已经复用 PruneCache，因此修改上限也可重试。资格仍由正式日志/pending/租约决定，不触碰 NAS、未知或未确认原件；保留项迁入后仍受保护并报告超额。缓存/离线/派生/迁移针对性 race 27.210 秒通过（`/tmp/kist-prune-adopt-targeted.log`）。
+
+缓存迁移完整检查 `/tmp/kist-prune-adopt-complete-check.log`（10856）退出 0。随后复查批量弹窗，拆分两个 DialogPresence，避免把条件子项数组当作始终存在的单个弹窗；相关 51 项前端测试通过。Visual 39651563992 已结束：142 项通过、5 项失败，全部是新批量场景遗漏 `/client/status` fixture；已补齐精确 GET 响应，保留未预期请求失败守卫。`check:visual` 通过，未接受这套不完整候选。包含最终前端修正的交付检查为 `/tmp/kist-prune-ui-final-check.log`。
+
+最终交付 make check（48969）退出 0，日志 `/tmp/kist-prune-ui-final-check.log`；缓存迁移与最终弹窗/夹具修正均已纳入完整检查。正式 Visual 仍需本阶段推送后的完整采集与审阅，不沿用失败候选。

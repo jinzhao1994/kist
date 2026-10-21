@@ -3310,6 +3310,27 @@ for (const mode of ["grid", "list", "mobile", "dark", "prepare"] as const) {
         },
       }),
     );
+    await page.route("**/api/v1/client/status", (route) => {
+      expect(route.request().method()).toBe("GET");
+      return route.fulfill({
+        json: {
+          settings: {
+            version: 1,
+            id: "laptop",
+            library_id: "nas",
+            timezone: "UTC",
+            cache_max_age: "720h",
+            cache_max_bytes: 10737418240,
+          },
+          catalog: {
+            complete: true,
+            confirmed: { library_id: "nas", op_id: 42, sum: "fixture" },
+            downloaded: 42,
+          },
+          pending: [],
+        },
+      });
+    });
     await page.goto("/files");
     if (mode === "mobile") {
       // Off-screen virtual cards are not mounted. Use the same stable scroll

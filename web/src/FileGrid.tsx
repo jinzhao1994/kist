@@ -719,6 +719,8 @@ export function FileGrid({
             close={() => setPreparingSelection(false)}
           />
         )}
+      </DialogPresence>
+      <DialogPresence>
         {offline && (
           <OfflineEntry target={offline} close={() => setOffline(undefined)} />
         )}

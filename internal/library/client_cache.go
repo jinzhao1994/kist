@@ -269,9 +269,13 @@ func (c *Client) CacheStatus(ctx context.Context) (ClientCacheStatus, error) {
 	return cacheUsage(entries, pins, settings.CacheMaxBytes)
 }
 
-// PruneCache never enters local-blobs or pending. Reader and transfer leases
-// are kernel locks, so eviction skips live users and survives process death.
+// PruneCache first retries migration of confirmed local originals, then evicts
+// eligible cached content. Pending originals remain protected; kernel leases
+// keep live readers and transfers safe across processes.
 func (c *Client) PruneCache(ctx context.Context) (ClientCacheStatus, error) {
+	if err := c.AdoptConfirmedOriginals(ctx); err != nil {
+		return ClientCacheStatus{}, err
+	}
 	release, err := c.cacheEvictionLock(ctx)
 	if err != nil {
 		return ClientCacheStatus{}, err
