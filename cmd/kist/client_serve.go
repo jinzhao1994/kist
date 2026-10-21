@@ -28,6 +28,7 @@ func newClientServeCmd() *cobra.Command {
 		}
 		defer client.Close()
 		opt.UI = web.Handler()
+		opt.ClientRenderer = runClientRenderer
 		handler, err := api.NewClient(client, opt)
 		if err != nil {
 			return err

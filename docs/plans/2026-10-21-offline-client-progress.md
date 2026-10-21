@@ -494,3 +494,15 @@ c86910b 原文件迁移阶段已推送，CI 39624124913 与 Secret scan 39624124
 本地转换配额准备阶段：新增 cache/workspaces 持久预算与 OS 租约，写入前准入；所有中间文件计入 partial，未使用预算计入 reserved，复用原件/派生缓存的 LRU 与上限。活跃任务在其他客户端实例清理、降低配额时仍受保护；失去租约的残留（包括半创建与损坏记录）可由缓存扫描/重建清理。整目录监测与发布前最终检查拒绝超预算输出，不隐瞒采样间隔内的实际超额。针对性 race `/tmp/kist-workspace-targeted.log` 5.516 秒通过，覆盖预留竞争、跨 Client 活跃租约、TTL/降低上限、保护未同步原件、残留恢复与快/慢超额转换。此阶段尚未接本地 renderer；外部工具子进程的崩溃生命周期需在接入时处理，不能仅凭父进程租约消失就假定所有子进程已退出。
 
 转换工作目录阶段完整 make check 已通过（24331 退出 0，`/tmp/kist-workspace-complete-check.log`，library race 201.358 秒）。尚未接 renderer，下一阶段需完成本地产物发布、队列调用与外部子进程生命周期。af021c8 的 CI 39629459590 全部通过；Visual 39629459500 完整采集 140 张，原 6 个退出菜单超时消除，但 entry-menu-box 仍有 326 像素差异，其余 139 张匹配。已查看完整该页及差异图，仍集中在“在新标签页打开”一行；自然动画等待尚未消除此既有差异，未接受基准。报告 `/tmp/kist-client-media-visual-39629459500/report/index.html`，需继续定位而非放宽阈值。
+
+本地预览生成阶段实现中：新增 GenerateDerived、RenderWorkspace 和共享缓存发布路径，client serve 配置专用 render-worker 子进程，媒体队列在原件本地可用时先转换，缺工具可尝试 NAS。工作目录改为共享使用租约/独占清理；父服务取消或退出通过 stdin 管道 EOF 通知监督进程取消，父侧等待其退出，避免先杀监督进程导致租约提前释放。原件与工作目录在监督进程中独立持有租约。产物大小/哈希/fsync 后，同盘移动进入共享缓存，映射/未完成记录先落盘；与临时预留在同一临界区交接。
+
+本地照片/队列针对性 race library 14.361 秒、API 5.078 秒通过（`/tmp/kist-local-render-targeted.log`）；真实独立进程 PNG 转 JPEG、取消等待清理、强制终止父进程触发管道 EOF 的 CLI race 4.777 秒通过（`/tmp/kist-client-render-process-tests.log`）。已补同哈希输出防自锁与错误大小不发布测试。尚未完整 make check 和浏览器验收；监督进程自身被强制终止、真实外部工具故障矩阵仍需验证，不能以父进程退出测试涵盖全部情况。
+
+20c33e0 的 Visual 39631069081 本轮全部通过，未修改基准；先前 326 像素差异未复现，但不能据此宣称已定位并消除了非确定性。对应 CI 39631069067 仍排队，持续跟进。
+
+本地生成阶段最终针对性 race 通过：`/tmp/kist-client-render-final-targeted.log` library 5.905 秒、cmd 4.519 秒，覆盖输出大小不符拒绝发布、同哈希产物不自锁。完整 make check 首轮（86697，`/tmp/kist-local-render-complete-check.log`，library 206.170 秒）通过；监督进程补充 Ctrl-C/SIGTERM 的 NotifyContext 后，最终 make check（43070，`/tmp/kist-local-render-final-check.log`）也通过，未变化的核心库复用测试缓存。
+
+真实 Chrome 离线验收通过：NAS 19591 无监听，合成客户端 19592 上传 PNG 与 `pattern.heic`，网格缩略图均解码显示；HEIC 详情 ready、engine=libheif，页面错误为空，转换后 partial/reserved 都为 0。随后上传 FFmpeg 生成的 1 秒 MP4，客户端 engine=ffmpeg、ready，Chrome 实际播放时间推进到 0.127859 秒，页面错误为空。日志 `/tmp/kist-local-previews-browser.log`、`/tmp/kist-local-video-browser.log`；截图 `/tmp/kist-local-previews-offline.png`、`/tmp/kist-local-video-offline.png` 已逐张查看。隔离演示 box 为 `01a15f42-dbc4-7d84-9a61-7bb6a7cec8c6`，HEIC 为 `01a15f42-dd09-7850-9ac7-6bae1829da34`，视频为 `01a15f43-ac63-74e5-9f80-4523fbb894fc`；原客户端旧进程 14598 已正常停止，新服务会话 94665 继续运行。
+
+20c33e0 的 CI 39631069067 首次失败原因是 macOS arm64 作业未获得 hosted runner（steps 为空），其他代码、平台和容器任务通过；已仅重跑失败作业，尚排队。Visual 39631069081 全部通过。下一步仍须将派生依赖纳入“准备离线”的完整就绪判断，继续冲突编辑 UI 与完整故障/回归矩阵，不把本地预览阶段当作 Goal 完成。

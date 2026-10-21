@@ -26,6 +26,7 @@ const maxJSONBody = 1 << 20
 // Options declares trusted authorities. Hosts include ports; wildcard hosts
 // are deliberately unsupported. AllowedOrigins are full scheme/host origins.
 type Options struct {
+	ClientRenderer library.ClientRenderer
 	AllowedHosts   []string
 	AllowedOrigins []string
 	MaxUploadBytes int64
@@ -145,7 +146,7 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 		s.clientLocalHistoryRoutes()
 		s.historyRoutes()
 		s.historicalRoutes()
-		s.previews = c.Media(func(ctx context.Context) (library.DerivedSource, error) { return s.clientPeer(ctx) })
+		s.previews = c.Media(func(ctx context.Context) (library.DerivedSource, error) { return s.clientPeer(ctx) }, opt.ClientRenderer)
 		s.mediaRoutes()
 		s.clientManagementRoutes()
 		s.clientSyncRoutes()

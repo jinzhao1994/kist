@@ -23,12 +23,17 @@ import (
 // each transfer so another process can rotate the connection credentials.
 type ClientMedia struct {
 	client        *Client
+	render        ClientRenderer
 	source        func(context.Context) (DerivedSource, error)
 	state, worker *lockfile.Locker
 }
 
-func (c *Client) Media(source func(context.Context) (DerivedSource, error)) *ClientMedia {
-	return &ClientMedia{client: c, source: source, state: lockfile.New(filepath.Join(c.root, "client-media-state.lock")), worker: lockfile.New(filepath.Join(c.root, "client-media-worker.lock"))}
+func (c *Client) Media(source func(context.Context) (DerivedSource, error), renderers ...ClientRenderer) *ClientMedia {
+	var renderer ClientRenderer
+	if len(renderers) > 0 {
+		renderer = renderers[0]
+	}
+	return &ClientMedia{client: c, source: source, render: renderer, state: lockfile.New(filepath.Join(c.root, "client-media-state.lock")), worker: lockfile.New(filepath.Join(c.root, "client-media-worker.lock"))}
 }
 
 func (m *ClientMedia) resolve(ctx context.Context, id domain.FileID, recipe string) (MediaJob, error) {
@@ -340,12 +345,21 @@ func (m *ClientMedia) transfer(ctx context.Context, j MediaJob) error {
 		d = cached
 		err = r.Close()
 	} else if errors.Is(err, ErrNotCached) {
-		var source DerivedSource
-		source, err = m.source(runCtx)
-		if err == nil {
-			d, err = m.client.CacheDerived(runCtx, j.BlobKey, j.Recipe, true, source)
+		d, err = m.client.GenerateDerived(runCtx, j.BlobKey, j.Recipe, m.render)
+		localErr := err
+		var conversionFailure *derive.Failure
+		if errors.Is(err, ErrNotCached) || errors.As(err, &conversionFailure) {
+			var source DerivedSource
+			source, err = m.source(runCtx)
+			if err == nil {
+				d, err = m.client.CacheDerived(runCtx, j.BlobKey, j.Recipe, true, source)
+			}
+			if err != nil && conversionFailure != nil {
+				err = localErr
+			}
 		}
 	}
+
 	cancel()
 	<-done
 	if ctx.Err() != nil {
@@ -378,6 +392,14 @@ func (m *ClientMedia) transfer(ctx context.Context, j MediaJob) error {
 			j.Reason = "cache_metadata"
 		case errors.Is(err, ErrSyncVersion):
 			j.Reason = "sync_version"
+		default:
+			var conversion *derive.Failure
+			if errors.As(err, &conversion) {
+				j.Reason = conversion.Code
+				if j.Reason != "dependency_missing" {
+					j.State = "failed"
+				}
+			}
 		}
 	} else {
 		j.State = d.Job.State

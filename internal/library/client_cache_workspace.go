@@ -35,6 +35,9 @@ func (c *Client) workspaceRoot() string { return filepath.Join(c.root, "cache", 
 func (c *Client) workspaceLock(id string) *lockfile.Locker {
 	return lockfile.New(filepath.Join(c.root, "cache", "locks", "workspace-"+id+".lock"))
 }
+func (c *Client) workspaceUseLock(id string) *lockfile.Locker {
+	return lockfile.NewShared(filepath.Join(c.root, "cache", "locks", "workspace-"+id+".lock"))
+}
 func (w *cacheWorkspace) path() string { return filepath.Join(w.client.workspaceRoot(), w.record.ID) }
 
 // newCacheWorkspace admits the full reservation before a converter can write.
@@ -49,7 +52,7 @@ func (c *Client) newCacheWorkspace(ctx context.Context, budget int64) (*cacheWor
 	}
 	initialize()
 	record := cacheWorkspaceRecord{Version: 1, ID: domain.NewID().String(), Budget: budget, CreatedAt: time.Now().UTC()}
-	lease, err := c.workspaceLock(record.ID).Acquire(ctx)
+	lease, err := c.workspaceUseLock(record.ID).Acquire(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -84,15 +87,28 @@ func (c *Client) newCacheWorkspace(ctx context.Context, budget int64) (*cacheWor
 }
 
 func (w *cacheWorkspace) Close() error {
+	// Cleanup is not cancelled along with rendering. It never touches an original.
+	unlock, err := w.client.cacheLock(context.Background())
+	if err != nil {
+		w.once.Do(func() { w.closeErr = err; w.release() })
+		return w.closeErr
+	}
+	defer unlock()
+	return w.closeLocked()
+}
+
+func (w *cacheWorkspace) closeLocked() error {
 	w.once.Do(func() {
-		defer w.release()
-		// Cleanup is not cancelled along with rendering. It never touches an original.
-		unlock, err := w.client.cacheLock(context.Background())
+		w.release()
+		release, acquired, err := w.client.workspaceLock(w.record.ID).TryAcquire()
 		if err != nil {
 			w.closeErr = err
 			return
 		}
-		defer unlock()
+		if !acquired {
+			return
+		} // A supervised converter still owns the directory.
+		defer release()
 		w.closeErr = w.client.removeWorkspaceLocked(w.record.ID)
 	})
 	return w.closeErr

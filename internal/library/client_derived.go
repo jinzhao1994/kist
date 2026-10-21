@@ -112,6 +112,23 @@ func (c *Client) CacheDerived(ctx context.Context, original, recipe string, retr
 	if err != nil {
 		return descriptor, err
 	}
+	err = c.saveDerivedLocked(path, descriptor)
+	unlock()
+	if err != nil || descriptor.Job.State != "ready" {
+		return descriptor, err
+	}
+	err = c.cacheContent(ctx, descriptor.ContentKey, descriptor.Job.Result.Bytes, derivedDownload{source: source, descriptor: descriptor})
+	return descriptor, err
+}
+
+// saveDerivedLocked retains output facts before bytes are installed so cache
+// recovery can identify an interrupted publication. The caller holds cacheLock.
+func (c *Client) saveDerivedLocked(path string, descriptor SyncDerived) error {
+	original, recipe := descriptor.Job.BlobKey, descriptor.Job.Recipe
+	err := ValidateSyncDerived(descriptor, original, recipe)
+	if err != nil {
+		return err
+	}
 	err = os.MkdirAll(filepath.Dir(path), 0700)
 	if err == nil {
 		outputs := map[string]int64{}
@@ -143,12 +160,7 @@ func (c *Client) CacheDerived(ctx context.Context, original, recipe string, retr
 			err = writeClientJSON(path, cachedDerived{Version: 1, Descriptor: stored, Outputs: outputs})
 		}
 	}
-	unlock()
-	if err != nil || descriptor.Job.State != "ready" {
-		return descriptor, err
-	}
-	err = c.cacheContent(ctx, descriptor.ContentKey, descriptor.Job.Result.Bytes, derivedDownload{source: source, descriptor: descriptor})
-	return descriptor, err
+	return err
 }
 
 type derivedDownload struct {
