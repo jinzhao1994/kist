@@ -484,3 +484,9 @@ c86910b 原文件迁移阶段已推送，CI 39624124913 与 Secret scan 39624124
 初步共享媒体/API/HTTP 针对性 race 通过，真实 HTTP 覆盖鉴权、哈希、Range、过期 generation 与错误内容身份（`/tmp/kist-sync-derived-http.log` 2.916 秒）。客户端缓存针对性测试覆盖独立下载预览、共享配额/保留/活跃读者、离线命中、两代输出索引重建（`/tmp/kist-client-derived-tests.log` 20.882 秒）。增加中断 20 字节后续传及旧协议拒绝，最终针对性 race `/tmp/kist-derived-final-targeted.log` library/syncclient/api 8.501/2.892/2.127 秒通过。完整 make check `/tmp/kist-derived-complete-check.log`（38995）正在运行。尚未提交；尚未接客户端媒体 API/后台任务、本地生成与完整离线预览准备，不把本阶段视为照片视频离线体验完成。
 
 派生传输/缓存阶段完整 make check 已通过（38995 退出 0，`/tmp/kist-derived-complete-check.log`）。本阶段将内核与契约提交，网页媒体后台队列、本地生成、完整离线准备及最终全场景验收继续待办；正式视觉仍需验证新增的自然动画就绪断言。
+
+客户端媒体 API/队列阶段：新增磁盘任务协调器与跨进程 worker，接现有媒体 GET/POST/DELETE/GET+HEAD Range 路由及 client serve 生命周期。状态读取无网络；实际内容校验/租约复用缓存内核。取消监测中止下载并守卫 generation，重启恢复 running，逐出返回 missing。网页复用预览占位与重试按钮，区分未缓存、配额不足、索引损坏、校验失败与旧协议。针对性队列 race 4.609 秒、真实媒体 API（含 NAS worker、客户端队列、重建 Server 后无连接 Range）race 4.806 秒、Media 前端 26 项通过。补充可丢弃队列损坏恢复用例。完整 make check `/tmp/kist-client-media-complete-check.log`（20860）运行中，尚未提交。6815d33 的 CI 39626848804 和 Visual 39626848732 仍在运行，未宣称通过。
+
+6815d33 的 CI 39626848804 已通过，Visual 39626848732 是采集失败（134 通过、6 失败），不是可接受的视觉差异。日志证实 capture helper 对退出中的菜单固定等待 opacity=1，菜单卸载后定位器永久为空，导致确认/切换视图/组合编辑场景超时。修正为每轮重新查询当前菜单，允许退出后集合为空，仍要求剩余菜单 opacity=1 且动画完成；不修改产品动画、不放宽像素差异阈值。待下次正式采集验证。
+
+客户端媒体队列完整检查通过：首次 make check（20860，`/tmp/kist-client-media-complete-check.log`）退出 0，library race 198.229 秒；视觉 helper 修正后的最终 make check（75200，`/tmp/kist-client-media-final-check.log`）也退出 0。新增损坏队列恢复用例、客户端 API 契约与所有既有检查均通过。正式浏览器视觉待推送后验证，不把静态视觉工具检查当成截图通过；本地生成与全量离线依赖准备继续待办。

@@ -147,6 +147,11 @@ export function hasPreview(file: ArchiveFile) {
 }
 const reasons: Record<string, MessageKey> = {
   dependency_missing: "mediaDependency",
+  not_cached: "mediaNotCached",
+  cache_quota: "mediaCacheQuota",
+  cache_metadata: "mediaCacheMetadata",
+  blob_integrity_mismatch: "mediaCacheCorrupt",
+  sync_version: "mediaSyncVersion",
   unsupported: "previewUnavailable",
   limit_exceeded: "mediaLimit",
   timeout: "mediaTimeout",

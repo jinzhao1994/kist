@@ -3,6 +3,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"mime"
@@ -39,6 +40,7 @@ type Server struct {
 	library        *library.Library
 	client         *library.Client
 	media          *library.Media
+	previews       mediaBackend
 	mux            *http.ServeMux
 	contract       huma.API
 	hosts          map[string]bool
@@ -143,6 +145,8 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 		s.clientLocalHistoryRoutes()
 		s.historyRoutes()
 		s.historicalRoutes()
+		s.previews = c.Media(func(ctx context.Context) (library.DerivedSource, error) { return s.clientPeer(ctx) })
+		s.mediaRoutes()
 		s.clientManagementRoutes()
 		s.clientSyncRoutes()
 		s.clientWriteRoutes()
@@ -160,6 +164,7 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 		s.savedSearchRoutes()
 		s.filesetRoutes()
 		s.media = l.Media()
+		s.previews = nasMedia{s.media}
 		s.contentRoutes()
 		s.textRoutes()
 		s.sheetRoutes()

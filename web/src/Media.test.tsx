@@ -420,3 +420,19 @@ it("preloads Live Photo motion inline, toggles playback and restores the photo o
   pause.mockRestore();
   load.mockRestore();
 });
+
+it("shows an uncached preview without claiming the original is damaged", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn()
+      .mockResolvedValue(Response.json(job("blocked", "v1", "not_cached"))),
+  );
+  mount();
+  expect(
+    await screen.findByText(
+      "This preview is not cached. Connect to your NAS and retry.",
+    ),
+  ).toBeInTheDocument();
+  expect(screen.queryByText(/generation failed/i)).not.toBeInTheDocument();
+});

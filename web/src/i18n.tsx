@@ -280,6 +280,15 @@ export const en = {
   action_untag_files: "Untag files",
   action_request_receipt: "No-change receipt",
 
+  mediaNotCached: "This preview is not cached. Connect to your NAS and retry.",
+  mediaCacheQuota:
+    "There is not enough cache space for this preview. Adjust offline retention or the cache limit and retry.",
+  mediaCacheMetadata:
+    "The preview cache index needs rebuilding in cache settings.",
+  mediaCacheCorrupt:
+    "Preview cache verification failed. Rebuild the cache index and download it again.",
+  mediaSyncVersion:
+    "This NAS does not support compatible preview transfers. Update it and retry.",
   mediaQueued: "Waiting to generate preview…",
   mediaRunning: "Generating preview…",
   mediaDependency:
@@ -850,6 +859,11 @@ export const zh: Record<MessageKey, string> = {
   action_untag_files: "移除文件标签",
   action_request_receipt: "无变更回执",
 
+  mediaNotCached: "此预览尚未缓存，请连接 NAS 后重试。",
+  mediaCacheQuota: "缓存空间不足，请调整离线保留内容或缓存上限后重试。",
+  mediaCacheMetadata: "预览缓存索引需要重建，请前往缓存设置处理。",
+  mediaCacheCorrupt: "预览缓存校验失败，请重建缓存索引后重新下载。",
+  mediaSyncVersion: "NAS 尚不支持兼容的预览传输，请升级后重试。",
   mediaQueued: "等待生成预览…",
   mediaRunning: "正在生成预览…",
   mediaDependency:

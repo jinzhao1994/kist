@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"io"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -10,6 +11,20 @@ import (
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/library"
 )
+
+type mediaBackend interface {
+	Status(context.Context, domain.FileID, string) (library.MediaJob, error)
+	Request(context.Context, domain.FileID, string, bool) (library.MediaJob, error)
+	Cancel(context.Context, domain.FileID, string) (library.MediaJob, error)
+	Open(context.Context, domain.FileID, string) (library.MediaJob, io.ReadSeekCloser, error)
+	Run(context.Context)
+}
+
+type nasMedia struct{ *library.Media }
+
+func (m nasMedia) Open(ctx context.Context, id domain.FileID, recipe string) (library.MediaJob, io.ReadSeekCloser, error) {
+	return m.Media.Open(ctx, id, recipe)
+}
 
 type mediaInput struct {
 	ID     string `path:"id"`
@@ -37,7 +52,7 @@ func mediaID(in mediaInput) (domain.FileID, error) {
 
 // RunMedia processes disposable derived jobs until shutdown. Callers join it
 // before closing the library; HTTP requests merely enqueue work.
-func (s *Server) RunMedia(ctx context.Context) { s.media.Run(ctx) }
+func (s *Server) RunMedia(ctx context.Context) { s.previews.Run(ctx) }
 
 func (s *Server) mediaRoutes() {
 	path := Prefix + "/files/{id}/derived/{recipe}"
@@ -46,7 +61,7 @@ func (s *Server) mediaRoutes() {
 		if err != nil {
 			return nil, err
 		}
-		j, err := s.media.Status(ctx, id, in.Recipe)
+		j, err := s.previews.Status(ctx, id, in.Recipe)
 		return &mediaOutput{Body: j}, failure(err)
 	})
 	huma.Post(s.contract, path, func(ctx context.Context, in *mediaRequest) (*mediaOutput, error) {
@@ -54,7 +69,7 @@ func (s *Server) mediaRoutes() {
 		if err != nil {
 			return nil, err
 		}
-		j, err := s.media.Request(ctx, id, in.Recipe, in.Body.Retry)
+		j, err := s.previews.Request(ctx, id, in.Recipe, in.Body.Retry)
 		return &mediaOutput{Body: j}, failure(err)
 	})
 	huma.Delete(s.contract, path, func(ctx context.Context, in *mediaInput) (*mediaOutput, error) {
@@ -62,7 +77,7 @@ func (s *Server) mediaRoutes() {
 		if err != nil {
 			return nil, err
 		}
-		j, err := s.media.Cancel(ctx, id, in.Recipe)
+		j, err := s.previews.Cancel(ctx, id, in.Recipe)
 		return &mediaOutput{Body: j}, failure(err)
 	})
 	for _, method := range []string{http.MethodGet, http.MethodHead} {
@@ -76,7 +91,7 @@ func (s *Server) mediaRoutes() {
 			}
 			return &huma.StreamResponse{Body: func(hctx huma.Context) {
 				req, w := humago.Unwrap(hctx)
-				j, f, err := s.media.Open(ctx, id, in.Recipe)
+				j, f, err := s.previews.Open(ctx, id, in.Recipe)
 				if err != nil {
 					writeFailure(w, err)
 					return
