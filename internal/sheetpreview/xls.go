@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"os"
 	"strconv"
 
 	"github.com/richardlehane/mscfb"
@@ -21,7 +20,7 @@ type legacySheet struct {
 
 // Inspect workbook record bounds and shared-string counts before the legacy
 // decoder allocates memory from them. CFB extraction is independently bounded.
-func legacyMetadata(ctx context.Context, f *os.File) ([]legacySheet, error) {
+func legacyMetadata(ctx context.Context, f Source) ([]legacySheet, error) {
 	compound, err := mscfb.New(f)
 	if err != nil {
 		return nil, err
@@ -117,7 +116,7 @@ func legacyMetadata(ctx context.Context, f *os.File) ([]legacySheet, error) {
 	}
 	return ordered, nil
 }
-func readXLS(ctx context.Context, f *os.File, o Options, p *SheetPreview) error {
+func readXLS(ctx context.Context, f Source, o Options, p *SheetPreview) error {
 	meta, err := legacyMetadata(ctx, f)
 	if err != nil {
 		return err

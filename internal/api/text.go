@@ -20,7 +20,7 @@ func (s *Server) textRoutes() {
 		if err != nil {
 			return nil, err
 		}
-		_, handle, err := s.library.OpenContent(ctx, domain.FileID{ID: id})
+		_, handle, err := s.openCurrentContent(ctx, domain.FileID{ID: id})
 		if err != nil {
 			return nil, failure(err)
 		}

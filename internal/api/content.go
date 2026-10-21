@@ -96,3 +96,11 @@ func (s *Server) contentRoutes() {
 		})
 	}
 }
+
+// openCurrentContent keeps client cache leases attached to the returned handle.
+func (s *Server) openCurrentContent(ctx context.Context, id domain.FileID) (domain.File, io.ReadSeekCloser, error) {
+	if s.client != nil {
+		return s.client.OpenContent(ctx, id)
+	}
+	return s.library.OpenContent(ctx, id)
+}

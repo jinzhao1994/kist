@@ -72,7 +72,16 @@ func cell(s string, p *SheetPreview) Cell {
 	}
 	return Cell{Text: s}
 }
-func Read(ctx context.Context, f *os.File, name string, o Options) (out SheetPreview, err error) {
+
+// Source retains random access and size information without exposing a disk path.
+// Cache readers can keep their eviction lease for the whole preview operation.
+type Source interface {
+	io.ReadSeeker
+	io.ReaderAt
+	Stat() (os.FileInfo, error)
+}
+
+func Read(ctx context.Context, f Source, name string, o Options) (out SheetPreview, err error) {
 	out = SheetPreview{Sheet: o.Sheet, Row: o.Row, Column: o.Column, Cells: [][]Cell{}, Sheets: []string{}, Widths: []float64{}, Merges: []Merge{}}
 	defer func() {
 		if recover() != nil {
@@ -121,7 +130,7 @@ func Read(ctx context.Context, f *os.File, name string, o Options) (out SheetPre
 	out.Supported = out.Reason == ""
 	return
 }
-func readCSV(ctx context.Context, f *os.File, name string, o Options, p *SheetPreview) error {
+func readCSV(ctx context.Context, f Source, name string, o Options, p *SheetPreview) error {
 	if o.Sheet != 0 {
 		p.Reason = "range"
 		return nil
@@ -205,7 +214,7 @@ func readCSV(ctx context.Context, f *os.File, name string, o Options, p *SheetPr
 }
 
 // Validate declared and actual ZIP expansion before passing data to the parser.
-func validateXLSX(ctx context.Context, f *os.File, size int64) error {
+func validateXLSX(ctx context.Context, f Source, size int64) error {
 	z, err := zip.NewReader(f, size)
 	if err != nil {
 		return err
@@ -290,7 +299,7 @@ func validateXLSX(ctx context.Context, f *os.File, size int64) error {
 	}
 	return nil
 }
-func readXLSX(ctx context.Context, f *os.File, size int64, o Options, p *SheetPreview) error {
+func readXLSX(ctx context.Context, f Source, size int64, o Options, p *SheetPreview) error {
 	if err := validateXLSX(ctx, f, size); err != nil {
 		return err
 	}

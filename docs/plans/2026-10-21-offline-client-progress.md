@@ -385,3 +385,11 @@ Visual 39596936245 attempt 2 已通过，基准未更改；attempt 1 的单行�
 离线提取阶段完整 make check 已通过：会话 63805 退出 0，日志 `/tmp/kist-client-extraction-complete-check.log`。本阶段提交；4060034 的远端 CI/Visual 尚在运行。
 
 独立 worktree 完成文本/表格预览增量：新增 openCurrentContent 共用读取，sheetpreview.Source 抽象只保留 Read/Seek/ReadAt/Stat，接受缓存租约句柄；客户端注册既有 text/sheet 路由，未缓存返回 not_cached。新增 client_preview_test.go 使用真实可逐出缓存验证文本与 CSV，`/tmp/kist-client-text-sheet.log` API race 2.959 秒通过、sheetpreview 全格式回归通过。另新增 client_storage.go/test.go，提供 local-blobs 与 pending 日志独立实际字节统计，包括尚未清理的已确认原文件，不冒充待同步字节；`/tmp/kist-client-storage.log` race 2.485 秒通过，验证去重及清理隔离。上述预览与统计增量尚未合入。
+
+
+提取阶段已提交 5a2e898，待前序 CI/Visual 通过后推送。文本/表格预览与 ProtectedStorage 现已合入 main：新增三个文件（client_preview_test 与 client_storage 两文件），增量修改 sheetpreview 两文件、API text/sheets/content 和客户端路由；增加 /client/protected-storage 只读接口并重新生成契约。`/tmp/kist-client-preview-storage-merged.log` 主线 API/library/sheetpreview 针对性 race 全通过。开始完整检查 `/tmp/kist-client-preview-storage-complete-check.log`。这些 worktree 增量已合入，不要重复覆盖。派生媒体缓存、已确认 local-blobs 的安全转移/清理、同步管理 UI 和完整历史仍待完成。
+
+
+预览与受保护空间统计阶段完整 make check 已通过：会话 33782 退出 0，日志 `/tmp/kist-client-preview-storage-complete-check.log`。本阶段提交。4060034 的 CI 39605157381 与 Visual 39605157438 均通过，已推送提取提交 5a2e898；其 CI 39606452752、Visual 39606453187 运行中，Secret scan 39606452884 通过。
+
+独立 worktree 新增 API client_management.go/test.go 与 client_sync.go/test.go：本地状态、缓存配置/清理、逻辑离线保留 CRUD/状态、认证连接、手动同步、原文件准备和持久冲突决定；均通过现有 library 边界。同步已知冲突返回携带 blocked/pending 的结果，传输故障仍返回失败，不把不确定提交当作拒绝。`/tmp/kist-client-management-sync-resolve.log` race 3.241 秒通过，使用两实例真实 HTTP 验证连接不泄漏 token、离线创建同步、NAS 并发同字段修改冲突、重复同步不重复操作、明确保留 NAS 修改并持久记录决定后收敛。管理测试覆盖缓存配置跨进程与无 NAS/pending 写入。这四个新文件及 server 的两处注册待合入；不能复制 worktree 旧 server。

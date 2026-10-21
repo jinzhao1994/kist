@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"github.com/jinzhao1994/kist/internal/library"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/jinzhao1994/kist/internal/domain"
@@ -23,12 +24,16 @@ func (s *Server) sheetRoutes() {
 		if err != nil {
 			return nil, err
 		}
-		file, handle, err := s.library.OpenContent(ctx, domain.FileID{ID: id})
+		file, handle, err := s.openCurrentContent(ctx, domain.FileID{ID: id})
 		if err != nil {
 			return nil, failure(err)
 		}
 		defer handle.Close()
-		preview, err := sheetpreview.Read(ctx, handle, file.Name, sheetpreview.Options{Sheet: in.Sheet, Row: in.Row, Column: in.Column, Detail: in.Detail, Encoding: in.Encoding})
+		source, ok := handle.(sheetpreview.Source)
+		if !ok {
+			return nil, failure(library.ErrInvariantViolated)
+		}
+		preview, err := sheetpreview.Read(ctx, source, file.Name, sheetpreview.Options{Sheet: in.Sheet, Row: in.Row, Column: in.Column, Detail: in.Detail, Encoding: in.Encoding})
 		return response(preview, err)
 	})
 }

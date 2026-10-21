@@ -14,6 +14,10 @@ import (
 
 // Client reads use request-scoped snapshots and never instantiate a NAS Library.
 func (s *Server) clientReadRoutes() {
+	huma.Get(s.contract, Prefix+"/client/protected-storage", func(ctx context.Context, _ *struct{}) (*output[library.ClientProtectedStorage], error) {
+		status, err := s.client.ProtectedStorage(ctx)
+		return response(status, err)
+	})
 	s.clientBoxReadRoutes()
 	s.clientBoxSearchRoute()
 	s.clientFilesetReadRoutes()
