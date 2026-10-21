@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -33,18 +32,10 @@ type Peer struct {
 var _ library.SyncPeer = (*Peer)(nil)
 
 func New(address, token string, options Options) (*Peer, error) {
-	u, err := url.Parse(address)
-	if err != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Scheme != "https" && u.Scheme != "http") {
-		return nil, errors.New("sync requires an HTTP(S) server URL without credentials, query or fragment")
+	if err := library.ValidateClientConnection(library.ClientConnection{Server: address, AllowHTTP: options.AllowHTTP}, token); err != nil {
+		return nil, err
 	}
-	ip := net.ParseIP(u.Hostname())
-	loopback := strings.EqualFold(u.Hostname(), "localhost") || ip != nil && ip.IsLoopback()
-	if u.Scheme == "http" && !loopback && !options.AllowHTTP {
-		return nil, errors.New("sync requires HTTPS outside loopback unless cleartext transport is explicitly enabled")
-	}
-	if token == "" || strings.ContainsAny(token, " \t\r\n") {
-		return nil, errors.New("a sync credential is required")
-	}
+	u, _ := url.Parse(address)
 	transport := options.Transport
 	if transport == nil {
 		t := http.DefaultTransport.(*http.Transport).Clone()

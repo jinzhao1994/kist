@@ -63,6 +63,9 @@ var jsonCommands = [][]string{
 	{"sync-access", "create"},
 	{"sync-access", "list"},
 	{"sync-access", "revoke", "nonexistent"},
+	{"client", "status", "@client"},
+	{"client", "sync", "@client"},
+	{"client", "connect", "@client"},
 	{"version"},
 	// init deliberately absent: it takes a path argument rather than
 	// --library, so a table entry would create a library at the default
@@ -233,6 +236,9 @@ func TestEveryPrintingCommandIsCovered(t *testing.T) {
 	}
 	// init writes wherever its argument says and has a test of its own.
 	covered["init"] = true
+	// Client initialization requires an isolated NAS and scripted credentials;
+	// TestClientCLIConnectionAndSynchronization checks its JSON separately.
+	covered["client init"] = true
 	// serve is a long-running transport, with diagnostics only on stderr.
 	covered["serve"] = true
 

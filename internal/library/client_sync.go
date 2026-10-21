@@ -23,6 +23,16 @@ type SyncCapabilities struct {
 	UndoReferences bool      `json:"undo_references"`
 }
 
+func ValidateSyncCapabilities(caps SyncCapabilities) error {
+	if caps.Version != 1 || caps.JournalVersion != journal.Version || !caps.UndoReferences {
+		return ErrSyncVersion
+	}
+	if caps.LibraryID.IsZero() {
+		return ErrInvalidRequest
+	}
+	return nil
+}
+
 // SyncPeer is the authenticated transport boundary. Transfers can seek the
 // durable local original to resume; the synchronization algorithm owns intent
 // ordering, acknowledgement persistence and the final catalog reconciliation.
@@ -69,8 +79,8 @@ func (c *Client) Synchronize(ctx context.Context, peer SyncPeer) (ClientSyncResu
 	if caps.LibraryID != settings.LibraryID {
 		return result, ErrSyncConflict
 	}
-	if caps.Version != 1 || caps.JournalVersion != journal.Version || !caps.UndoReferences {
-		return result, ErrSyncVersion
+	if err := ValidateSyncCapabilities(caps); err != nil {
+		return result, err
 	}
 	if err := c.pullCatalog(ctx, peer); err != nil {
 		return result, err
