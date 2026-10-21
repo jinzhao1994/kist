@@ -12,6 +12,17 @@ import (
 // SQLite snapshot. Scoped reads share the surrounding request's lock and may
 // observe its completed command without attempting another mutation.
 func (c *Client) readView(ctx context.Context, fn func(*store.ViewTx) error) error {
+	if view, ok := ctx.Value(clientViewContextKey{}).(*clientViewScope); ok {
+		view.mu.Lock()
+		defer view.mu.Unlock()
+		if !view.active || view.client != c {
+			return ErrRequestScope
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		return fn(view.tx)
+	}
 	if scope, ok := ctx.Value(clientRequestContextKey{}).(*clientRequestScope); ok {
 		scope.mu.Lock()
 		defer scope.mu.Unlock()

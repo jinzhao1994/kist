@@ -286,3 +286,14 @@ Visual `39546249957` 已通过完整采集比较，旧菜单单行像素差异�
 
 
 搜索/标签条件/封面编辑阶段完整 `VITEST_MAX_WORKERS=2 make check` 已通过（会话 42837 退出 0，日志 `/tmp/kist-client-search-cover-check.log`）。提交该阶段；等待前一提交 CI/Visual 完成后再推送，避免连续取消尚未收齐的跨平台结果。
+
+
+搜索/封面阶段已提交 `dbc1abb`（尚未推送，等待前序 Visual 完成避免取消）。42d5f86 的 CI `39596936256` 已全部通过，包含 Windows、macOS、Linux ARM、双架构容器及主检查；Visual `39596936245` 仍运行。已将 ClientView 两个新文件和 client_read.go 增量合入 main，新增 API 层测试确认 ClientView 实现既有 fileReader，分页接收目录后可复用 renderFileDetail 生成与 NAS 相同结果且原文件仍为 ErrNotCached。`/tmp/kist-client-view-integration.log` 针对性 race 已通过（API 2.208 秒、library 2.278 秒）。将执行该阶段完整检查，日志 `/tmp/kist-client-view-complete-check.log`。
+
+
+只读快照阶段完整检查会话 98693 仍运行。为不改动其输入，独立 worktree 开始 HTTP 接入：server.go 提取共用构造并新增 NewClient，复用 Host/Origin/CSP 和 DTO 渲染；client_reads.go 注册 info、catalog 状态、boxes、file detail、tags、saved-searches 的读取路由，不构造 NAS Library、不创建 NAS uploads/media/sync 服务端。client_server_test.go 验证离线新盒可读取、未接收目录不冒充完整、非法 Host/Origin 拒绝、NAS 同步服务路由不暴露、NAS 存储目录未创建。`/tmp/kist-client-server.log` 针对性测试通过（0.642 秒）。该 HTTP 增量仅在独立 worktree，尚未合入；仍缺其余路由、写接口、本地 serve 命令及网页体验，不可视为完整客户端。
+
+Visual 39596936245 完整采集 134 张，比较出现 1 处差异，退出失败。失败日志 `/tmp/kist-client-visual-failure.log`；正在下载 visual-report-1 至 `/tmp/kist-visual-39596936245`（会话 85446），需查看 expected/current/diff 后判断修复或接受，未更新基准。dbc1abb 仍未推送，避免未审阅就覆盖该证据。
+
+
+ClientView 阶段完整 make check 已通过：会话 98693 退出 0，日志 `/tmp/kist-client-view-complete-check.log`。提交该阶段，仍等待视觉报告下载会话 85446 完成以审阅前序差异。
