@@ -571,3 +571,7 @@ Windows Job 阶段 a4346a2 的 CI 39651563666 全部通过，包括 Windows 原�
 缓存迁移完整检查 `/tmp/kist-prune-adopt-complete-check.log`（10856）退出 0。随后复查批量弹窗，拆分两个 DialogPresence，避免把条件子项数组当作始终存在的单个弹窗；相关 51 项前端测试通过。Visual 39651563992 已结束：142 项通过、5 项失败，全部是新批量场景遗漏 `/client/status` fixture；已补齐精确 GET 响应，保留未预期请求失败守卫。`check:visual` 通过，未接受这套不完整候选。包含最终前端修正的交付检查为 `/tmp/kist-prune-ui-final-check.log`。
 
 最终交付 make check（48969）退出 0，日志 `/tmp/kist-prune-ui-final-check.log`；缓存迁移与最终弹窗/夹具修正均已纳入完整检查。正式 Visual 仍需本阶段推送后的完整采集与审阅，不沿用失败候选。
+
+双库旅行流程组合验收：新增 `internal/api/client_journey_test.go`，使用真实 HTTP 授权/目录/原件/提交协议与合成 PNG。NAS 两份原件仅带走一份，模拟连接不可用时仍能读取已缓存原件、导入照片、创建标签和两层多页组合；重开客户端后恢复 pending，NAS 同期独立修改描述，重新连接后收敛且重复同步不追加事件。校验页序/主文件/成员引用、照片可解码、标签归属，并在 NAS Rebuild 后重复核对、Verify Deep 无问题、历史 ViewAt 仍保留标签。未把 HTTP 503 故障模拟冒充进程崩溃或大文件续传验收；这些仍由各自故障测试覆盖和继续补齐。针对性 race 7.327 秒通过（`/tmp/kist-travel-journey-final-test.log`）；完整检查 `/tmp/kist-travel-journey-complete-check.log` 正在运行。
+
+旅行组合验收完整 make check（44825）退出 0，`/tmp/kist-travel-journey-complete-check.log`。本阶段仅增加组合验收，不改变产品行为；等待 bdd1580 的完整 Visual 审阅后再推送，避免反复取消尚未完成的正式采集。
