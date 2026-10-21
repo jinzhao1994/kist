@@ -12,6 +12,7 @@ import {
 } from "@mantine/core";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ClientConflictEditor } from "./ClientConflictEditor";
 import { LocalHistory } from "./LocalHistory";
 import { Dialog } from "./Dialog";
 import { actionLabel } from "./History";
@@ -44,6 +45,7 @@ export function OfflineClient({ close }: { close: () => void }) {
   const [tab, setTab] = useState<string | null>("sync");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [editing, setEditing] = useState<{ id: string; action: string }>();
   const [decision, setDecision] = useState("");
   const active = useRef<AbortController | null>(null);
   useEffect(() => () => active.current?.abort(), []);
@@ -97,109 +99,130 @@ export function OfflineClient({ close }: { close: () => void }) {
               <Tabs.Tab value="connection">{t("clientConnection")}</Tabs.Tab>
             </Tabs.List>
             <Tabs.Panel value="sync" pt="md">
-              <Stack gap="md">
-                <Text size="sm" c="dimmed">
-                  {data.connection?.server || t("clientNotConnected")}
-                </Text>
-                <Text size="sm">
-                  {t(
-                    data.catalog.complete
-                      ? "clientCatalogComplete"
-                      : "clientCatalogIncomplete",
-                  )}
-                </Text>
-                <Group>
-                  <Button
-                    loading={busy}
-                    disabled={!data.connection}
-                    onClick={() =>
-                      run(async (signal) => {
-                        const response = await clientCommand<SyncResponse>(
-                          "/sync",
-                          {},
-                          "POST",
-                          signal,
-                        );
-                        queries.setQueryData(
-                          ["client", "status"],
-                          response.status,
-                        );
-                        setNotice(
-                          t(
-                            response.result.complete
-                              ? "clientSyncComplete"
-                              : "clientSyncConflict",
-                          ),
-                        );
-                      })
-                    }
-                  >
-                    {t("clientSyncNow")}
-                  </Button>
-                </Group>
-                <Text fw={600}>
-                  {t("clientPending", { count: (data.pending || []).length })}
-                </Text>
-                {!data.pending?.length && (
+              {editing ? (
+                <ClientConflictEditor
+                  key={editing.id}
+                  {...editing}
+                  close={() => setEditing(undefined)}
+                  onLocked={setHistoryLocked}
+                />
+              ) : (
+                <Stack gap="md">
                   <Text size="sm" c="dimmed">
-                    {t("clientNoPending")}
+                    {data.connection?.server || t("clientNotConnected")}
                   </Text>
-                )}
-                {(data.pending || []).map((op) => (
-                  <Stack key={op.id} gap="xs" className="client-pending-item">
-                    <Group justify="space-between">
-                      <Text>{actionLabel(op.action, t)}</Text>
-                      <Text size="sm" c="dimmed">
-                        {formatInstant(op.occurred_at, prefs)}
-                      </Text>
-                    </Group>
-                    <Text size="xs" c="dimmed">
-                      {op.id}
+                  <Text size="sm">
+                    {t(
+                      data.catalog.complete
+                        ? "clientCatalogComplete"
+                        : "clientCatalogIncomplete",
+                    )}
+                  </Text>
+                  <Group>
+                    <Button
+                      loading={busy}
+                      disabled={!data.connection}
+                      onClick={() =>
+                        run(async (signal) => {
+                          const response = await clientCommand<SyncResponse>(
+                            "/sync",
+                            {},
+                            "POST",
+                            signal,
+                          );
+                          queries.setQueryData(
+                            ["client", "status"],
+                            response.status,
+                          );
+                          setNotice(
+                            t(
+                              response.result.complete
+                                ? "clientSyncComplete"
+                                : "clientSyncConflict",
+                            ),
+                          );
+                        })
+                      }
+                    >
+                      {t("clientSyncNow")}
+                    </Button>
+                  </Group>
+                  <Text fw={600}>
+                    {t("clientPending", { count: (data.pending || []).length })}
+                  </Text>
+                  {!data.pending?.length && (
+                    <Text size="sm" c="dimmed">
+                      {t("clientNoPending")}
                     </Text>
-                    {op.awaiting_receipt && (
-                      <Text size="sm">{t("clientAwaitingReceipt")}</Text>
-                    )}
-                    {op.conflict && <Alert color="yellow">{op.conflict}</Alert>}
-                    {data.blocked_id === op.id && !op.awaiting_receipt && (
-                      <>
-                        <Checkbox
-                          checked={decision === op.id}
-                          disabled={busy}
-                          onChange={(event) =>
-                            setDecision(
-                              event.currentTarget.checked ? op.id : "",
-                            )
-                          }
-                          label={t("clientDiscardConfirm")}
-                        />
-                        <Group>
-                          <Button
-                            color="red"
-                            disabled={busy || decision !== op.id}
-                            onClick={() =>
-                              run(async (signal) => {
-                                await clientCommand(
-                                  `/pending/${encodeURIComponent(op.id)}/resolve`,
-                                  {
-                                    reason:
-                                      "User chose to discard the local change in the offline client UI",
-                                  },
-                                  "POST",
-                                  signal,
-                                );
-                                setDecision("");
-                                setNotice(t("clientResolved"));
-                              })
+                  )}
+                  {(data.pending || []).map((op) => (
+                    <Stack key={op.id} gap="xs" className="client-pending-item">
+                      <Group justify="space-between">
+                        <Text>{actionLabel(op.action, t)}</Text>
+                        <Text size="sm" c="dimmed">
+                          {formatInstant(op.occurred_at, prefs)}
+                        </Text>
+                      </Group>
+                      <Text size="xs" c="dimmed">
+                        {op.id}
+                      </Text>
+                      {op.awaiting_receipt && (
+                        <Text size="sm">{t("clientAwaitingReceipt")}</Text>
+                      )}
+                      {op.conflict && (
+                        <Alert color="yellow">{op.conflict}</Alert>
+                      )}
+                      {data.blocked_id === op.id && !op.awaiting_receipt && (
+                        <>
+                          <Group>
+                            <Button
+                              disabled={busy}
+                              onClick={() =>
+                                setEditing({ id: op.id, action: op.action })
+                              }
+                            >
+                              {t("clientConflictReview")}
+                            </Button>
+                          </Group>
+                          <Checkbox
+                            checked={decision === op.id}
+                            disabled={busy}
+                            onChange={(event) =>
+                              setDecision(
+                                event.currentTarget.checked ? op.id : "",
+                              )
                             }
-                          >
-                            {t("clientDiscard")}
-                          </Button>
-                        </Group>
-                      </>
-                    )}
-                  </Stack>
-                ))}
-              </Stack>
+                            label={t("clientDiscardConfirm")}
+                          />
+                          <Group>
+                            <Button
+                              color="red"
+                              disabled={busy || decision !== op.id}
+                              onClick={() =>
+                                run(async (signal) => {
+                                  await clientCommand(
+                                    `/pending/${encodeURIComponent(op.id)}/resolve`,
+                                    {
+                                      reason:
+                                        "User chose to discard the local change in the offline client UI",
+                                    },
+                                    "POST",
+                                    signal,
+                                  );
+                                  setDecision("");
+                                  setNotice(t("clientResolved"));
+                                })
+                              }
+                            >
+                              {t("clientDiscard")}
+                            </Button>
+                          </Group>
+                        </>
+                      )}
+                    </Stack>
+                  ))}
+                </Stack>
+              )}
             </Tabs.Panel>
             <Tabs.Panel value="cache" pt="md">
               <Stack gap="md">

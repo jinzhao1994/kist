@@ -594,6 +594,34 @@ async function capture(page: Page, errors: string[], name: string) {
   await expect(page).toHaveScreenshot(`${name}.png`, {
     fullPage: (await page.locator(".gallery").count()) === 0,
   });
+  // Preserve evidence for intermittent text raster/layout differences without
+  // changing rendering, tolerances or the screenshot's readiness conditions.
+  if (await page.getByRole("menu").count()) {
+    const layout = await page.getByRole("menu").evaluateAll((menus) =>
+      menus.map((menu) =>
+        [...menu.querySelectorAll('[role="menuitem"]')].map((item) => {
+          const style = getComputedStyle(item);
+          const label = item.querySelector(".mantine-Menu-itemLabel") || item;
+          const range = document.createRange();
+          range.selectNodeContents(label);
+          return {
+            tag: item.tagName,
+            text: item.textContent,
+            rect: item.getBoundingClientRect().toJSON(),
+            textRect: range.getBoundingClientRect().toJSON(),
+            font: style.font,
+            lineHeight: style.lineHeight,
+            transform: style.transform,
+            zoom: style.zoom,
+          };
+        }),
+      ),
+    );
+    await test.info().attach("menu-layout", {
+      body: JSON.stringify(layout, null, 2),
+      contentType: "application/json",
+    });
+  }
   expect(errors).toEqual([]);
 }
 async function grid(page: Page, expectedImages = 4) {
@@ -2855,7 +2883,13 @@ test("fileset-gallery-navigation", async ({ page }, info) => {
   await capture(page, errors, info.title);
 });
 
-for (const panel of ["sync", "cache", "connection", "history"] as const) {
+for (const panel of [
+  "sync",
+  "cache",
+  "connection",
+  "history",
+  "conflict",
+] as const) {
   test(`offline-client-${panel}`, async ({ page }, info) => {
     const errors = await prepare(page);
     await page.route("**/api/v1/info", (route) =>
@@ -2895,15 +2929,46 @@ for (const panel of ["sync", "cache", "connection", "history"] as const) {
               downloaded: 42,
             },
             connection: { server: "https://nas.example", allow_http: false },
+            blocked_id:
+              panel === "conflict"
+                ? "01a15921-bef1-76e5-bddc-7c6b1024ff5b"
+                : undefined,
             pending: [
               {
                 id: "01a15921-bef1-76e5-bddc-7c6b1024ff5b",
                 sequence: 1,
                 occurred_at: time,
-                action: "create_box",
+                action: panel === "conflict" ? "update_box" : "create_box",
+                conflict: panel === "conflict" ? "名称已被修改" : undefined,
                 awaiting_receipt: false,
               },
             ],
+          },
+        });
+      if (path.endsWith("/edit"))
+        return route.fulfill({
+          json: {
+            summary: { name: "旅行归档", count: 1, current_names: true },
+            fields: [
+              {
+                key: "name",
+                path: ["name", "after"],
+                before: "旅行记录",
+                current: "秋日旅行",
+                proposed: "川西旅行",
+              },
+            ],
+            replacement: {
+              version: 1,
+              id: "replacement",
+              occurred_at: time,
+              action: "update_box",
+              origin: "user",
+              payload: {
+                box_id: "box",
+                name: { before: "秋日旅行", after: "川西旅行" },
+              },
+            },
           },
         });
       if (path.endsWith("/cache"))
@@ -2959,7 +3024,16 @@ for (const panel of ["sync", "cache", "connection", "history"] as const) {
     await expect(
       dialog.getByRole("button", { name: "立即同步" }),
     ).toBeEnabled();
-    if (panel === "cache") {
+    if (panel === "conflict") {
+      await dialog
+        .getByRole("button", { name: "查看本地修改", exact: true })
+        .click();
+      await expect(dialog.getByLabel("准备提交的值")).toHaveValue("川西旅行");
+      await expect(dialog).toContainText("当前值 · 秋日旅行");
+      await expect(
+        dialog.getByRole("button", { name: "保存调整后的修改" }),
+      ).toBeEnabled();
+    } else if (panel === "cache") {
       await dialog.getByRole("tab", { name: "缓存", exact: true }).click();
       await expect(dialog.getByLabel("缓存体积上限（MiB）")).toHaveValue(
         "10240",

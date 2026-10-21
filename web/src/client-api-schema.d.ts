@@ -348,6 +348,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/client/pending/{id}/edit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 client pending by ID edit */
+        get: operations["get-api-v1-client-pending-by-id-edit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/client/pending/{id}/resolve": {
         parameters: {
             query?: never;
@@ -1083,6 +1100,19 @@ export interface components {
             /** Format: int64 */
             downloaded: number;
             transfer?: components["schemas"]["SyncBoundary"];
+        };
+        ClientConflictEdit: {
+            fields: components["schemas"]["ClientConflictField"][] | null;
+            replacement?: components["schemas"]["SyncProposal"];
+            summary?: components["schemas"]["HistorySummary"];
+        };
+        ClientConflictField: {
+            before: string;
+            current: string;
+            /** @enum {string} */
+            key: "name" | "description";
+            path: string[] | null;
+            proposed: string;
         };
         ClientConnectInputBody: {
             allow_http: boolean;
@@ -2641,6 +2671,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClientOfflineStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-client-pending-by-id-edit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientConflictEdit"];
                 };
             };
             /** @description Error */

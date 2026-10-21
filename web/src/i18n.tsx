@@ -16,6 +16,15 @@ export const en = {
   clientOfflinePreviews: "{ready} of {total} previews available.",
   clientOfflineReady:
     "All required originals and previews are available offline.",
+  clientConflictReview: "Review local change",
+  clientConflictReviewHint:
+    "Compare your original change with the current state on this laptop. Saving creates a new local intention; synchronization will check the NAS again.",
+  clientConflictUnsupported:
+    "This change requires its own domain editor. You can return and keep the NAS result; the original local intention remains in history.",
+  clientConflictBefore: "Before your change",
+  clientConflictCurrent: "Current value",
+  clientConflictChosen: "Value to submit",
+  clientConflictSave: "Save revised change",
   clientOfflineMissing:
     "{ready} of {total} originals available. More content still needs preparing.",
   clientPrepareAgain: "Check and download",
@@ -623,6 +632,15 @@ export const zh: Record<MessageKey, string> = {
   clientRetentionSaved: "已启用离线保留。",
   clientOfflinePreviews: "已准备 {ready} / {total} 个预览。",
   clientOfflineReady: "所需原文件和预览已全部准备好，可离线使用。",
+  clientConflictReview: "查看本地修改",
+  clientConflictReviewHint:
+    "对照原始修改和笔记本当前状态。保存会创建新的本地修改，同步时仍会重新核对 NAS。",
+  clientConflictUnsupported:
+    "此类修改需要专门的编辑方式。可返回并选择保留 NAS 结果，原始本地修改仍保留在历史中。",
+  clientConflictBefore: "修改前",
+  clientConflictCurrent: "当前值",
+  clientConflictChosen: "准备提交的值",
+  clientConflictSave: "保存调整后的修改",
   clientOfflineMissing: "已准备 {ready} / {total} 个原文件，仍有内容需要准备。",
   clientPrepareAgain: "检查并下载",
   clientKeepAndPrepare: "保留并下载",

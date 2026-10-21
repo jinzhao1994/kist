@@ -31,6 +31,12 @@ func (s *Server) clientPeer(ctx context.Context) (*syncclient.Peer, error) {
 }
 
 func (s *Server) clientSyncRoutes() {
+	huma.Get(s.contract, Prefix+"/client/pending/{id}/edit", func(ctx context.Context, in *struct {
+		ID string `path:"id" minLength:"1" maxLength:"256"`
+	}) (*output[library.ClientConflictEdit], error) {
+		draft, err := s.client.ConflictEdit(ctx, in.ID)
+		return response(draft, err)
+	})
 	huma.Post(s.contract, Prefix+"/client/pending/{id}/resolve", func(ctx context.Context, in *struct {
 		ID   string `path:"id" minLength:"1" maxLength:"256"`
 		Body struct {

@@ -513,3 +513,12 @@ c86910b 原文件迁移阶段已推送，CI 39624124913 与 Secret scan 39624124
 546ec99 的 CI 39634360031、Visual 39634360137、Secret scan 39634360094 均通过。20c33e0 的失败作业重试被新提交取消；最新完整 CI 已包含其全部代码并通过。
 
 离线预览准备完整 make check 通过（16778 退出 0，`/tmp/kist-offline-previews-complete-check.log`），前端 274 项、library race 213.726 秒。真实 Chrome 隔离验收通过：NAS 19591 无监听，客户端 19592 更新构建后，通过缓存配额清理可逐出预览；HEIC 初始原件 1/1、预览 0/2、ready=false，经“检查并下载”在本机生成后显示预览 2/2、ready=true，pageErrors 为空。日志 `/tmp/kist-offline-preparation-browser.log`，截图 `/tmp/kist-offline-preparation-browser.png` 已查看；新版演示服务会话 29059。正式视觉待本阶段推送后验证，Goal 仍有冲突编辑、批量准备与完整故障验收等未完成范围。
+
+
+冲突对照编辑阶段实施中：新增只读 ConflictEdit 草稿接口，从阻塞操作之前的有效前缀取当前值；文件/目录、标签重命名和归档盒名称/描述可编辑，其他操作仍需各自编辑入口。保存复用原有 Resolve 验证，原始提案不变；草稿身份和前提固定，前端在保存结果不确定时复用请求，关闭编辑解除父层锁定。新增文件/标签/归档盒合并、查看后 NAS 再次改动拒绝旧草稿、无关字段保留、同步前后重试幂等及本地历史保留测试，针对性 library 3.157 秒通过；前端两文件 5 项通过。新增正式视觉 offline-client-conflict 场景。首次完整检查因测试查询多余 exact 参数被 TypeScript 拒绝，已修正并运行 `/tmp/kist-conflict-final-check.log`（4039）。尚未提交，复杂冲突编辑仍待后续完成。
+
+冲突对照完整检查通过：`/tmp/kist-conflict-final-check.log`（4039 退出 0），library race 217.271 秒。真实 Chrome 双实例流程通过：隔离 NAS 19593 与客户端 19594 对同一归档盒分别改名，在网页查看原值 Original travel、当前 NAS travel、本地 Laptop travel，改为 Reconciled travel 并同步；NAS 最终名称正确，独立描述 Keep this NAS note 保留，pageErrors 为空。日志 `/tmp/kist-conflict-browser.log`、截图 `/tmp/kist-conflict-browser.png` 已查看。合成目录由 `/tmp/kist-conflict-ui-fixture-path` 指向，服务会话 NAS 53540、client 24887。
+
+1d36d5a 的 CI 39637017893 全部通过；Visual 39637018072 完整采集 140 张，138 张匹配。offline-retention-file 的 24299 像素变化对应新增预览数量和就绪文案，已查看符合预期；entry-menu-box 再次出现原有“在新标签页打开”一行的 326 像素变化，已查看但尚未定位原因，因此未接受基准。报告 `/tmp/kist-offline-previews-visual-39637018072/report/index.html`。下一次采集应补充菜单布局/字体诊断证据，不能放宽阈值或直接接受此非预期差异。
+
+菜单诊断只在截图之后附加各菜单项的 DOM/text 矩形、字体、行高与 transform，不修改等待条件或像素阈值。最终 make check `/tmp/kist-conflict-diagnostics-final-check.log`（92667）退出 0，未变化的 Go 代码复用此前完整 race 缓存；全部前端契约、格式、测试与构建通过。此前 diagnostics-check 的格式提示已修正，不能算作通过证据。本阶段可提交；复杂动作的领域编辑和菜单偶发像素差异仍未收口。
