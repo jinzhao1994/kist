@@ -376,6 +376,9 @@ func (s *Server) RunUploads(ctx context.Context) {
 		if err := s.uploads.Sweep(ctx); err != nil && ctx.Err() == nil {
 			slog.Warn("upload cleanup", "error", err)
 		}
+		if err := s.syncUploads.Sweep(ctx); err != nil && ctx.Err() == nil {
+			slog.Warn("sync upload cleanup", "error", err)
+		}
 		select {
 		case <-ctx.Done():
 			return

@@ -47,6 +47,7 @@ type Server struct {
 	uploadTempDir  string
 	historySlots   chan struct{}
 	uploads        *staging.Store
+	syncUploads    *staging.Store
 	uploadSlots    chan struct{}
 	// uploadFault is immutable while serving and used only by fault-injection tests.
 	uploadFault func(string) error
@@ -107,6 +108,10 @@ func New(l *library.Library, opt Options) (*Server, error) {
 		return nil, err
 	}
 	s.uploadSlots = make(chan struct{}, staging.MaxSessions)
+	s.syncUploads, err = staging.New(filepath.Join(l.Layout().Root, "sync-uploads"), opt.MaxUploadBytes, 1)
+	if err != nil {
+		return nil, err
+	}
 	cfg.OpenAPIPath = Prefix + "/openapi"
 	cfg.DocsPath = "" // An embedded UI will link to the offline JSON contract.
 	cfg.SchemasPath = ""
@@ -185,7 +190,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Method == "POST" || r.Method == "PUT" || r.Method == "PATCH" || (r.Method == "DELETE" && r.ContentLength != 0) {
 		media, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
-		chunk := r.Method == "PUT" && strings.HasPrefix(r.URL.Path, Prefix+"/upload-sessions/") && strings.Contains(r.URL.Path, "/files/")
+		chunk := r.Method == "PUT" && (strings.HasPrefix(r.URL.Path, Prefix+"/upload-sessions/") || strings.HasPrefix(r.URL.Path, Prefix+"/sync/original-uploads/")) && strings.Contains(r.URL.Path, "/files/")
 		if chunk && err == nil && media == "application/octet-stream" {
 			r.Body = http.MaxBytesReader(w, r.Body, staging.ChunkBytes)
 			s.mux.ServeHTTP(w, r)

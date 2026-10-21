@@ -39,6 +39,7 @@ func (s *Server) syncRoutes() {
 	s.contract.OpenAPI().Components.SecuritySchemes = map[string]*huma.SecurityScheme{
 		"SyncBearer": {Type: "http", Scheme: "bearer", Description: "Independently revocable NAS synchronization credential"},
 	}
+	s.syncOriginalRoutes()
 	huma.Register(s.contract, syncOperation("sync-capabilities", "GET", "capabilities"), func(ctx context.Context, _ *struct{}) (*output[library.SyncCapabilities], error) {
 		head, err := s.library.SyncHead(ctx)
 		if err != nil {
