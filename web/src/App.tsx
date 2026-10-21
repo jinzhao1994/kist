@@ -13,6 +13,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Box } from "./api";
 import { FolderBreadcrumbs, folderChain } from "./Folders";
 import { formatLocalDate, useI18n } from "./i18n";
+import { OfflineClient, ClientCatalogNotice } from "./OfflineClient";
 import { Settings } from "./Settings";
 import { BoxTrashDialog } from "./BoxTrashDialog";
 import { DisplayModeControl, useDisplayMode } from "./DisplayMode";
@@ -49,6 +50,7 @@ export function App() {
   const [fileToolbarHost, setFileToolbarHost] =
     useState<HTMLSpanElement | null>(null);
   const [boxMode, setBoxMode] = useDisplayMode("boxes");
+  const [clientOpen, setClientOpen] = useState(false);
   const [settings, setSettings] = useState(false);
   const [editor, setEditor] = useState<Box | "new" | null>(null);
   const [trashing, setTrashing] = useState<Box | null>(null);
@@ -272,8 +274,15 @@ export function App() {
               )}
             </details>
           </div>
-          <div className="sidebar-footer">
+          <div
+            className={`sidebar-footer${info.data?.client ? " client-sidebar-footer" : ""}`}
+          >
             <small>kist · {info.data?.version || "v0.1"}</small>
+            {info.data?.client && (
+              <UnstyledButton onClick={() => setClientOpen(true)}>
+                {t("clientTitle")}
+              </UnstyledButton>
+            )}
             <UnstyledButton onClick={() => setSettings(true)}>
               {t("settings")}
             </UnstyledButton>
@@ -288,6 +297,7 @@ export function App() {
                 : undefined
           }
         >
+          {info.data?.client && <ClientCatalogNotice />}
           <header className="page-header">
             <div>
               <div className="box-title-line">
@@ -634,6 +644,9 @@ export function App() {
               }}
             />
           )}
+        </DialogPresence>
+        <DialogPresence>
+          {clientOpen && <OfflineClient close={() => setClientOpen(false)} />}
         </DialogPresence>
         <DialogPresence>
           {settings && <Settings open={settings} onOpenChange={setSettings} />}

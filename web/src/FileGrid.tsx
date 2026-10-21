@@ -1,3 +1,8 @@
+import {
+  OfflineEntry,
+  useClientMode,
+  type OfflineTarget,
+} from "./OfflineEntry";
 import { useBoxCover } from "./BoxCover";
 import { WriteFeedback } from "./mutations";
 import { LinkMenuItems } from "./LinkMenuItems";
@@ -76,6 +81,8 @@ export function FileGrid({
 }) {
   const { t, prefs } = useI18n();
   const cover = useBoxCover();
+  const clientMode = useClientMode();
+  const [offline, setOffline] = useState<OfflineTarget>();
   const [mode, setMode] = useDisplayMode("files");
   const boxesByID = new Map(boxes.map((box) => [box.id, box]));
   const sortedFolders = [...folders].sort((a, b) => {
@@ -553,6 +560,11 @@ export function FileGrid({
         </div>
       </div>
       <WriteFeedback state={cover} />
+      <DialogPresence>
+        {offline && (
+          <OfflineEntry target={offline} close={() => setOffline(undefined)} />
+        )}
+      </DialogPresence>
       <ContextMenu anchor={context.menu} close={context.close}>
         <Menu.Item
           onClick={() => {
@@ -630,6 +642,19 @@ export function FileGrid({
         {selected?.file && !selected.file.fileset_id && (
           <Menu.Item component="a" href={contentURL(selected.file, true)}>
             {t("download")}
+          </Menu.Item>
+        )}
+        {clientMode && selected?.file && (
+          <Menu.Item
+            onClick={() =>
+              setOffline({
+                id: selected.file!.fileset_id || selected.id,
+                name: selected.name,
+                fileset: !!selected.file!.fileset_id,
+              })
+            }
+          >
+            {t("clientKeepOffline")}
           </Menu.Item>
         )}
         {selected?.folder && createFolder && (

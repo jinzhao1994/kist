@@ -2837,3 +2837,185 @@ test("fileset-gallery-navigation", async ({ page }, info) => {
   ).toBeDisabled();
   await capture(page, errors, info.title);
 });
+
+for (const panel of ["sync", "cache", "connection"] as const) {
+  test(`offline-client-${panel}`, async ({ page }, info) => {
+    const errors = await prepare(page);
+    await page.route("**/api/v1/info", (route) =>
+      route.fulfill({
+        json: {
+          client: true,
+          version: "visual",
+          timezone: "UTC",
+          projection_dirty: false,
+          max_upload_bytes: 1073741824,
+          max_upload_files: 100,
+          resumable_upload_version: 2,
+          upload_chunk_bytes: 8388608,
+        },
+      }),
+    );
+    await page.route("**/api/v1/client/**", (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (route.request().method() !== "GET") {
+        errors.push(`Unexpected client mutation: ${path}`);
+        return route.abort();
+      }
+      if (path.endsWith("/status"))
+        return route.fulfill({
+          json: {
+            settings: {
+              version: 1,
+              id: "laptop",
+              library_id: "nas",
+              timezone: "UTC",
+              cache_max_age: "720h",
+              cache_max_bytes: 10737418240,
+            },
+            catalog: {
+              complete: true,
+              confirmed: { library_id: "nas", op_id: 42, sum: "fixture" },
+              downloaded: 42,
+            },
+            connection: { server: "https://nas.example", allow_http: false },
+            pending: [
+              {
+                id: "01a15921-bef1-76e5-bddc-7c6b1024ff5b",
+                sequence: 1,
+                occurred_at: time,
+                action: "create_box",
+                awaiting_receipt: false,
+              },
+            ],
+          },
+        });
+      if (path.endsWith("/cache"))
+        return route.fulfill({
+          json: {
+            cached_bytes: 536870912,
+            partial_bytes: 0,
+            reserved_bytes: 0,
+            pinned_bytes: 104857600,
+            corrupt_bytes: 0,
+            limit_bytes: 10737418240,
+            over_limit: false,
+          },
+        });
+      if (path.endsWith("/protected-storage"))
+        return route.fulfill({
+          json: { originals_bytes: 10485760, pending_journal_bytes: 4096 },
+        });
+      errors.push(`Unexpected client API: ${path}`);
+      return route.abort();
+    });
+    await page.goto("/");
+    await page.getByRole("button", { name: "离线客户端", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(
+      dialog.getByRole("button", { name: "立即同步" }),
+    ).toBeEnabled();
+    if (panel === "cache") {
+      await dialog.getByRole("tab", { name: "缓存", exact: true }).click();
+      await expect(dialog.getByLabel("缓存体积上限（MiB）")).toHaveValue(
+        "10240",
+      );
+    } else if (panel === "connection") {
+      await dialog.getByRole("tab", { name: "连接", exact: true }).click();
+      await expect(dialog.getByLabel("NAS 地址", { exact: true })).toHaveValue(
+        "https://nas.example",
+      );
+      await expect(dialog.getByLabel("同步凭据", { exact: true })).toHaveValue(
+        "",
+      );
+    } else await expect(dialog).toContainText("待同步修改 · 1");
+    await capture(page, errors, info.title);
+  });
+}
+
+test("offline-retention-file", async ({ page }, info) => {
+  const errors = await prepare(page);
+  let retained = false,
+    ready = false;
+  await page.route("**/api/v1/info", (route) =>
+    route.fulfill({
+      json: {
+        client: true,
+        version: "visual",
+        timezone: "UTC",
+        projection_dirty: false,
+        max_upload_bytes: 1073741824,
+        max_upload_files: 100,
+        resumable_upload_version: 2,
+        upload_chunk_bytes: 8388608,
+      },
+    }),
+  );
+  await page.route("**/api/v1/client/**", (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/status"))
+      return route.fulfill({
+        json: {
+          settings: {
+            version: 1,
+            id: "laptop",
+            library_id: "nas",
+            timezone: "UTC",
+            cache_max_age: "720h",
+            cache_max_bytes: 10737418240,
+          },
+          catalog: {
+            complete: true,
+            confirmed: { library_id: "nas", op_id: 42, sum: "fixture" },
+            downloaded: 42,
+          },
+          pending: [],
+        },
+      });
+    if (path.endsWith("/offline"))
+      return route.fulfill({
+        json: retained
+          ? { "file:file-1": { files: ["file-1"], filesets: [] } }
+          : {},
+      });
+    if (path.includes("/offline/file%3Afile-1")) {
+      if (route.request().method() === "PUT") {
+        expect(route.request().postDataJSON()).toEqual({
+          files: ["file-1"],
+          filesets: [],
+        });
+        retained = true;
+      }
+      if (path.endsWith("/prepare")) ready = true;
+      return route.fulfill({
+        json: {
+          ready,
+          available: ready ? 1 : 0,
+          originals: [{ key: "photo", size: 1024, files: ["file-1"] }],
+          missing: ready ? [] : ["photo"],
+          catalog: { complete: true },
+        },
+      });
+    }
+    errors.push(`Unexpected client API: ${path}`);
+    return route.abort();
+  });
+  await page.goto("/files");
+  await grid(page);
+  await page
+    .getByText("山间清晨.jpg", { exact: true })
+    .first()
+    .click({ button: "right" });
+  await page.getByRole("menuitem", { name: "保留离线", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(
+    dialog.getByRole("button", { name: "保留并下载" }),
+  ).toBeEnabled();
+  await dialog.getByRole("button", { name: "保留并下载" }).click();
+  await expect(dialog).toContainText("所需原文件已全部准备好，可离线使用。");
+  await expect(
+    dialog
+      .locator(".actions")
+      .getByRole("button", { name: "关闭", exact: true }),
+  ).toBeEnabled();
+  await capture(page, errors, info.title);
+});

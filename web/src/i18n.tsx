@@ -8,6 +8,63 @@ import {
 } from "react";
 
 export const en = {
+  clientKeepOffline: "Keep offline",
+  clientKeepFilesetHint:
+    "Retain every configured member, including nested file sets and Live Photo video.",
+  clientKeepFileHint: "Retain this original on the laptop for offline use.",
+  clientRetentionSaved: "Offline retention is enabled.",
+  clientOfflineReady: "All required originals are available offline.",
+  clientOfflineMissing:
+    "{ready} of {total} originals available. More content needs downloading.",
+  clientPrepareAgain: "Check and download",
+  clientKeepAndPrepare: "Retain and download",
+  clientStopKeeping: "Stop retaining offline",
+  clientPreparing:
+    "Preparing offline content\u2026 Progress is retained if interrupted.",
+  clientRetentionScope:
+    "Readiness uses the current local catalog. Stopping retention does not delete archive files; cached copies become eligible for cleanup.",
+
+  clientInterrupted:
+    "Network request stopped. Local progress is retained; sync again to confirm the result.",
+  clientTitle: "Offline client",
+  clientSync: "Sync",
+  clientCache: "Cache",
+  clientConnection: "Connection",
+  clientNotConnected: "Not connected to a NAS",
+  clientCatalogComplete:
+    "Search includes all metadata received in the last completed sync. Originals are cached separately.",
+  clientCatalogIncomplete:
+    "The catalog has not finished syncing. Browsing and search may be incomplete.",
+  clientSyncNow: "Sync now",
+  clientSyncComplete: "Sync complete",
+  clientSyncConflict:
+    "Sync paused for a conflict. Your local change has been retained.",
+  clientPending: "Pending changes · {count}",
+  clientNoPending: "No pending changes",
+  clientAwaitingReceipt:
+    "The last submission is awaiting confirmation. Sync again to check its result.",
+  clientDiscardConfirm:
+    "I want to discard this local change and keep the NAS state.",
+  clientDiscard: "Discard local change",
+  clientResolved: "Decision saved. Sync again to continue.",
+  clientCacheUsed: "Cached content: {size}",
+  clientPinnedUsed: "Retained offline: {size}",
+  clientProtectedUsed:
+    "Protected local originals: {originals} · Local history: {journal}. These are excluded from automatic cache cleanup.",
+  clientCacheOverLimit:
+    "Retained or active content exceeds the cache limit. Increase the limit or reduce offline retention.",
+  clientPrune: "Clean expired cache",
+  clientCachePruned: "Cache cleanup complete",
+  clientServer: "NAS address",
+  clientToken: "Sync credential",
+  clientAllowHTTP: "Allow unencrypted HTTP outside this computer",
+  clientConnectionHint:
+    "Use a sync credential created on your NAS. This client remains bound to the same library.",
+  clientConnect: "Verify and connect",
+  clientMaxAge: "Maximum cache age",
+  clientMaxAgeHint: "Measured since last access, for example 720h for 30 days.",
+  clientMaxSize: "Maximum cache size (MiB)",
+
   filesetLabel: "File set",
   filesetId: "File set ID",
   copyFilesetId: "Copy file set ID",
@@ -531,6 +588,55 @@ export const en = {
 } as const;
 export type MessageKey = keyof typeof en;
 export const zh: Record<MessageKey, string> = {
+  clientKeepOffline: "保留离线",
+  clientKeepFilesetHint:
+    "保留组合配置中的全部成员，包括嵌套组合和实况照片的视频。",
+  clientKeepFileHint: "将此原文件保留在笔记本上，以便断网时使用。",
+  clientRetentionSaved: "已启用离线保留。",
+  clientOfflineReady: "所需原文件已全部准备好，可离线使用。",
+  clientOfflineMissing: "已准备 {ready} / {total} 个原文件，仍有内容需要下载。",
+  clientPrepareAgain: "检查并下载",
+  clientKeepAndPrepare: "保留并下载",
+  clientStopKeeping: "取消离线保留",
+  clientPreparing: "正在准备离线内容…中断后可继续。",
+  clientRetentionScope:
+    "准备状态以当前本地目录为准。取消保留不会删除归档文件，缓存副本之后可被自动清理。",
+
+  clientInterrupted: "已停止网络请求，本地进度已保留，请重新同步以核对结果。",
+  clientTitle: "离线客户端",
+  clientSync: "同步",
+  clientCache: "缓存",
+  clientConnection: "连接",
+  clientNotConnected: "尚未连接 NAS",
+  clientCatalogComplete: "检索包含上次完整同步的全部资料信息，原文件另行缓存。",
+  clientCatalogIncomplete: "资料目录尚未完成同步，浏览和检索结果可能不完整。",
+  clientSyncNow: "立即同步",
+  clientSyncComplete: "同步完成",
+  clientSyncConflict: "同步遇到冲突，已保留本地修改。",
+  clientPending: "待同步修改 · {count}",
+  clientNoPending: "暂无待同步修改",
+  clientAwaitingReceipt: "上次提交尚待确认，请重新同步以查询结果。",
+  clientDiscardConfirm: "我确认放弃这条本地修改，保留 NAS 当前状态。",
+  clientDiscard: "放弃本地修改",
+  clientResolved: "已保存处理决定，请继续同步。",
+  clientCacheUsed: "已缓存内容：{size}",
+  clientPinnedUsed: "保留离线内容：{size}",
+  clientProtectedUsed:
+    "受保护的本地原文件：{originals} · 本地历史：{journal}，均不受自动缓存清理影响。",
+  clientCacheOverLimit:
+    "保留或正在使用的内容已超过缓存上限，请提高上限或减少离线保留。",
+  clientPrune: "清理到期缓存",
+  clientCachePruned: "缓存清理完成",
+  clientServer: "NAS 地址",
+  clientToken: "同步凭据",
+  clientAllowHTTP: "允许使用未加密的远程 HTTP 连接",
+  clientConnectionHint:
+    "使用 NAS 上创建的同步凭据，此客户端始终绑定同一个资料库。",
+  clientConnect: "验证并连接",
+  clientMaxAge: "最长缓存保留时间",
+  clientMaxAgeHint: "从最近访问起计算，例如 720h 表示 30 天。",
+  clientMaxSize: "缓存体积上限（MiB）",
+
   filesetLabel: "文件组合",
   filesetId: "组合 ID",
   copyFilesetId: "复制组合 ID",
@@ -1074,6 +1180,11 @@ export function initializeLanguage() {
   applyDocumentLanguage(initialPreferences());
 }
 interface Parameters {
+  clientOfflineMissing: { ready: number; total: number };
+  clientPending: { count: number };
+  clientCacheUsed: { size: string };
+  clientPinnedUsed: { size: string };
+  clientProtectedUsed: { originals: string; journal: string };
   historyBoxTarget: { target: string };
   historyFileTarget: { target: string };
   historyNamed: { name: string };

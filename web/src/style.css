@@ -3306,3 +3306,16 @@ main.upload-drag-active {
   mask-repeat: no-repeat;
   mask-position: center;
 }
+
+.client-pending-item {
+  border-block-end: 1px solid var(--mantine-color-default-border);
+  padding-block-end: var(--mantine-spacing-md);
+}
+
+.client-sidebar-footer {
+  flex-wrap: wrap;
+  row-gap: 0.35rem;
+}
+.client-sidebar-footer small {
+  flex-basis: 100%;
+}

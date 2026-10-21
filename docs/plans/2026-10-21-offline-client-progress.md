@@ -417,3 +417,12 @@ Visual 39596936245 attempt 2 已通过，基准未更改；attempt 1 的单行�
 Windows 合成源时区修正及 UI 小调整完整 make check 已通过：会话 55635 退出 0，日志 `/tmp/kist-offline-ui-final-check.log`。先单独提交测试修正并推送，以恢复跨平台 CI；网页面板仍留待正式视觉候选审阅。
 
 独立 worktree 新增 OfflineEntry.tsx/test.tsx：文件/组合稳定 owner 保留，先保存逻辑选择再下载，失败保留选择与部分进度，已有本地原文件直接就绪不联系 NAS，取消保留只改变保留配置。FileGrid 右键与 Gallery 详情共享对话框，仅 client 模式显示。`/tmp/kist-offline-entry-tests.log` 30 项通过；类型检查发现 Gallery 的 primary 可能为空，正在修正为用已加载文件身份。该增量尚未合入。
+
+
+跨平台测试修正已提交并推送 ce1d92b（同时包含先前已验证的 72dc466）；CI 39609825023 queued，Visual 39609825069 运行中，Secret scan 39609825088 通过。
+
+保留离线入口增量已合入主线：OfflineEntry 两新文件、FileGrid/Gallery 入口、中英文文案与 offline-retention-file 视觉场景。Gallery 使用已加载 data.file.id，避免可能为空的 primary 身份。保留 fileset 传逻辑 folderID，由 library 递归展开，不能冻结主文件或当次成员列表。GET 就绪判断之后仅在有缺失时准备下载，先持久 PUT 保留选择，重试不会丢失；取消保留通过 DELETE 配置，不删原文件。`/tmp/kist-offline-retention-merged.log` 33 项通过，`/tmp/kist-offline-entry-types-final.log` 类型通过，`/tmp/kist-offline-retention-visual-contract.log` 视觉契约通过；关闭按钮断言限定 .actions 避免与 Modal 的关闭图标重名。开始完整检查 `/tmp/kist-offline-retention-complete-check.log`。UI 整体尚未提交/正式视觉验收，真实文件保留链路待新版二进制重启后浏览器验证。
+
+保留入口完整 make check 已通过（83787 退出 0，`/tmp/kist-offline-retention-complete-check.log`）。真实 Chrome 在合成客户端完成手动同步、文件右键保留、下载就绪，截图 `/tmp/kist-offline-retention-ready.png` 已审阅。确认测试 NAS PID 99570 后停止该进程，再打开客户端 travel.txt，正文仍可读、pageerror 为空（43052 退出 0），截图 `/tmp/kist-offline-text-without-nas.png`。未操作个人库。ce1d92b 的 CI 39609825023 与 Visual 39609825069 均已通过。本 UI 阶段提交后仍须审阅四个新增正式视觉场景，不能将本地 Chrome 作为基准验收。
+
+独立 worktree 的 client_history_view.go/test.go 提供仅确认 NAS 前缀的历史只读视图，临时数据库重放不包含 pending，打开历史内容保留缓存读租约。`/tmp/kist-client-history-view.log` 针对性 race 已通过，尚未合入、尚未接 API；完整历史列表、摘要、撤销映射等仍未完成。

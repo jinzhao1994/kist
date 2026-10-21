@@ -1,3 +1,4 @@
+import { OfflineEntry, useClientMode } from "./OfflineEntry";
 import {
   useFilesets,
   FilesetEditor,
@@ -77,6 +78,8 @@ export function Gallery({
       // Keep the panel usable when browser storage is unavailable.
     }
   }
+  const clientMode = useClientMode();
+  const [offline, setOffline] = useState(false);
   const [advancing, setAdvancing] = useState(false);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const results = useFileResults(box, filters, folder);
@@ -284,6 +287,11 @@ export function Gallery({
                 {owner.name}
               </Button>
             ))}
+            {clientMode && data && (
+              <Button onClick={() => setOffline(true)}>
+                {t("clientKeepOffline")}
+              </Button>
+            )}
             {!set && data && <OpenMediaButton file={data.file} />}
             {!set && data && (
               <Button component="a" href={contentURL(data.file, true)} download>
@@ -519,6 +527,20 @@ export function Gallery({
           )}
         </div>
       </section>
+      <DialogPresence>
+        {offline && data && (
+          <OfflineEntry
+            target={{
+              id: set ? id : data.file.id,
+              name: set
+                ? combination.data?.folder.name || t("filesetLabel")
+                : data?.file.name || "",
+              fileset: !!set,
+            }}
+            close={() => setOffline(false)}
+          />
+        )}
+      </DialogPresence>
       <DialogPresence>
         {editing && combination.data && (
           <FilesetEditor
