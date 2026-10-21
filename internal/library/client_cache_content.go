@@ -91,6 +91,12 @@ func (c *Client) CacheOriginal(ctx context.Context, key string, source OriginalS
 	if err != nil {
 		return err
 	}
+	return c.cacheContent(ctx, key, size, source)
+}
+
+// cacheContent receives independently described bytes into the shared quota.
+// Callers validate original facts or a derived descriptor before entering here.
+func (c *Client) cacheContent(ctx context.Context, key string, size int64, source OriginalSource) error {
 	initialize, err := c.cacheLock(ctx)
 	if err != nil {
 		return err

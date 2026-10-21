@@ -40,12 +40,13 @@ func (s *Server) syncRoutes() {
 		"SyncBearer": {Type: "http", Scheme: "bearer", Description: "Independently revocable NAS synchronization credential"},
 	}
 	s.syncOriginalRoutes()
+	s.syncDerivedRoutes()
 	huma.Register(s.contract, syncOperation("sync-capabilities", "GET", "capabilities"), func(ctx context.Context, _ *struct{}) (*output[library.SyncCapabilities], error) {
 		head, err := s.library.SyncHead(ctx)
 		if err != nil {
 			return nil, failure(err)
 		}
-		return response(library.SyncCapabilities{DeletionSnapshots: true, Timezone: s.library.Zone().String(), Version: 1, LibraryID: head.LibraryID, JournalVersion: journal.Version, Actions: library.SyncActions(), UndoReferences: true}, nil)
+		return response(library.SyncCapabilities{DerivedPreviews: true, DeletionSnapshots: true, Timezone: s.library.Zone().String(), Version: 1, LibraryID: head.LibraryID, JournalVersion: journal.Version, Actions: library.SyncActions(), UndoReferences: true}, nil)
 	})
 	huma.Register(s.contract, syncOperation("sync-head", "GET", "head"), func(ctx context.Context, _ *struct{}) (*output[library.SyncBoundary], error) {
 		return response(s.library.SyncHead(ctx))

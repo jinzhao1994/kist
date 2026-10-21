@@ -608,6 +608,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sync/derived/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GET-sync-derived-content"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head: operations["HEAD-sync-derived-content"];
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sync/derived/describe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sync-derived-describe"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sync/head": {
         parameters: {
             query?: never;
@@ -1425,6 +1457,11 @@ export interface components {
             truncated: boolean;
             widths: number[] | null;
         };
+        "Sync-derived-describeRequest": {
+            key: string;
+            recipe: string;
+            retry?: boolean;
+        };
         "Sync-original-upload-createRequest": {
             key: string;
             /** Format: int64 */
@@ -1439,6 +1476,7 @@ export interface components {
         SyncCapabilities: {
             actions: string[] | null;
             deletion_snapshots: boolean;
+            derived_previews: boolean;
             /** Format: int64 */
             journal_version: number;
             library_id: string;
@@ -1468,6 +1506,10 @@ export interface components {
         SyncDeletionBasis: {
             box: string;
             last: string;
+        };
+        SyncDerived: {
+            content_key?: string;
+            job: components["schemas"]["MediaJob"];
         };
         SyncFileState: {
             blob_key: string;
@@ -3232,6 +3274,127 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SyncCatalogPage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "GET-sync-derived-content": {
+        parameters: {
+            query: {
+                key: string;
+                recipe: string;
+                generation: string;
+                content_key: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable derived bytes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Requested byte range */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The requested generation changed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unsatisfiable byte range */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "HEAD-sync-derived-content": {
+        parameters: {
+            query: {
+                key: string;
+                recipe: string;
+                generation: string;
+                content_key: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable derived bytes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Requested byte range */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The requested generation changed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unsatisfiable byte range */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "sync-derived-describe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Sync-derived-describeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncDerived"];
                 };
             };
             /** @description Error */

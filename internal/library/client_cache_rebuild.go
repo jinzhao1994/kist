@@ -53,6 +53,17 @@ func (c *Client) RebuildCache(ctx context.Context) (ClientCacheRebuildResult, er
 		return result, err
 	}
 	_, _, err = c.cachePinsLocked()
+	if err == nil {
+		_, derived, e := c.derivedRecordsLocked()
+		err = e
+		for key, size := range derived {
+			if previous, exists := known[key]; exists && previous != size {
+				err = ErrCacheMetadata
+				break
+			}
+			known[key] = size
+		}
+	}
 	var files []os.DirEntry
 	if err == nil {
 		files, err = os.ReadDir(filepath.Join(c.root, "cache", "objects"))

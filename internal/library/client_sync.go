@@ -17,6 +17,7 @@ import (
 )
 
 type SyncCapabilities struct {
+	DerivedPreviews   bool      `json:"derived_previews"`
 	DeletionSnapshots bool      `json:"deletion_snapshots"`
 	Timezone          string    `json:"timezone"`
 	Version           int       `json:"version"`

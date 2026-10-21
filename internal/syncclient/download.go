@@ -16,6 +16,10 @@ import (
 // The caller owns durable staging, byte limits and verification of the complete
 // file's digest before making it available as cached content.
 func (p *Peer) OpenOriginal(ctx context.Context, name string, size, offset int64) (io.ReadCloser, error) {
+	return p.openContentRange(ctx, "originals/"+url.PathEscape(name)+"/content", name, size, offset)
+}
+
+func (p *Peer) openContentRange(ctx context.Context, path, name string, size, offset int64) (io.ReadCloser, error) {
 	if _, err := blob.ParseKey(name); err != nil {
 		return nil, err
 	}
@@ -27,7 +31,7 @@ func (p *Peer) OpenOriginal(ctx context.Context, name string, size, offset int64
 		headers.Set("Range", "bytes="+strconv.FormatInt(offset, 10)+"-")
 		headers.Set("If-Range", `"`+name+`"`)
 	}
-	response, err := p.request(ctx, "GET", "originals/"+url.PathEscape(name)+"/content", nil, headers)
+	response, err := p.request(ctx, "GET", path, nil, headers)
 	if err != nil {
 		return nil, err
 	}

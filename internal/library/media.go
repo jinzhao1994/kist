@@ -154,6 +154,10 @@ func (m *Media) Request(ctx context.Context, id domain.FileID, recipe string, re
 	if err != nil {
 		return j, err
 	}
+	return m.requestJob(ctx, j, retry)
+}
+
+func (m *Media) requestJob(ctx context.Context, j MediaJob, retry bool) (MediaJob, error) {
 	release, err := m.state.Acquire(ctx)
 	if err != nil {
 		return j, err
@@ -206,6 +210,10 @@ func (m *Media) Open(ctx context.Context, id domain.FileID, recipe string) (Medi
 	if err != nil {
 		return j, nil, err
 	}
+	return m.openJob(ctx, j)
+}
+
+func (m *Media) openJob(ctx context.Context, j MediaJob) (MediaJob, *os.File, error) {
 	release, err := m.state.Acquire(ctx)
 	if err != nil {
 		return j, nil, err

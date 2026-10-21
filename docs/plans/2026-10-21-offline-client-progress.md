@@ -476,3 +476,11 @@ ab09afa（含 ecfa19e 本地历史 UI）已推送；CI 39622009090 已通过，V
 ab09afa 的 Visual 39622009268 完整采集 140 张，5 处差异仅为两个新增历史场景及三个既有离线面板新增本地操作 tab。已查看六张联系表覆盖全部候选，并逐张查看五个差异原尺寸图；entry-menu-box 与所有其余场景匹配，原 1px 差异此次未复现。报告 `/tmp/kist-local-history-visual-39622009268/report/index.html`，接受流程 39623400722 成功。机器人 b724a01 已本地快进，CI 39623456359、Visual 39623459202 运行中，Secret scan 39623461350 通过。先前菜单减动画尝试已完整撤回，不能归因它修复了噪声。
 
 原文件迁移最终完整 make check 已通过（12259 退出 0，`/tmp/kist-cache-adopt-final-check.log`，library race 192.036 秒）。包括修正后的完整偏移记录、导入/读取租约、确认边界、配额/保留与真实 HTTP 续传。接下来提交本阶段并继续跟进 b724a01 的 CI/Visual；尚未完成派生媒体缓存、完整冲突编辑 UI、最终端到端矩阵与使用文档，目标继续保持实施中。
+
+c86910b 原文件迁移阶段已推送，CI 39624124913 与 Secret scan 39624124963 通过。b724a01 的 CI/Visual 被新提交取代，取消不计通过。c86910b Visual 39624125152 完整采集 140 张，仅 entry-menu-box 又出现原有的 326 像素差异；未接受。报告 `/tmp/kist-cache-adopt-visual-39624125152/report/index.html`。此次只在 capture helper 中增加菜单自然淡入完成（opacity=1 且无运行中动画）的就绪断言，避免截图禁用动画时恰处于合成层变化；未再次改产品菜单动画或定位。该稳定性修正需下一次正式采集验证，不能提前宣称根因解决。
+
+派生预览传输/缓存内核阶段实现中：NAS 新增带同步鉴权的 derived/describe 与 derived/content（GET/HEAD/Range），以原文件内容地址和 recipe 为身份，支持无当前文件引用的原件；描述绑定 generation、输出哈希和大小，过期 generation/内容拒绝，不追加归档 op。能力 derived_previews 单独协商。syncclient 复用原件范围校验；library.Client 的 CacheDerived/OpenDerived 复用原件缓存的预算、分块持久化、续传、租约和校验，缓存命中不联系 NAS，不下载原件。派生映射保存已见输出事实供换代后剩余缓存重建，离线原件选择保护当前预览输出；任务未完成不隐藏已缓存兼容预览。
+
+初步共享媒体/API/HTTP 针对性 race 通过，真实 HTTP 覆盖鉴权、哈希、Range、过期 generation 与错误内容身份（`/tmp/kist-sync-derived-http.log` 2.916 秒）。客户端缓存针对性测试覆盖独立下载预览、共享配额/保留/活跃读者、离线命中、两代输出索引重建（`/tmp/kist-client-derived-tests.log` 20.882 秒）。增加中断 20 字节后续传及旧协议拒绝，最终针对性 race `/tmp/kist-derived-final-targeted.log` library/syncclient/api 8.501/2.892/2.127 秒通过。完整 make check `/tmp/kist-derived-complete-check.log`（38995）正在运行。尚未提交；尚未接客户端媒体 API/后台任务、本地生成与完整离线预览准备，不把本阶段视为照片视频离线体验完成。
+
+派生传输/缓存阶段完整 make check 已通过（38995 退出 0，`/tmp/kist-derived-complete-check.log`）。本阶段将内核与契约提交，网页媒体后台队列、本地生成、完整离线准备及最终全场景验收继续待办；正式视觉仍需验证新增的自然动画就绪断言。

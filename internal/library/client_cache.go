@@ -126,6 +126,15 @@ func (c *Client) cachePinsLocked() (cachePins, map[string]bool, error) {
 			keys[key] = true
 		}
 	}
+	records, _, err := c.derivedRecordsLocked()
+	if err != nil {
+		return pins, nil, err
+	}
+	for _, record := range records {
+		if keys[record.Job.BlobKey] && record.Job.State == "ready" {
+			keys[record.ContentKey] = true
+		}
+	}
 	return pins, keys, nil
 }
 
