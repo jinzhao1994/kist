@@ -637,3 +637,12 @@ b325fe0 的 CI 39700016805、Secret scan 39700016809 通过。Visual 39700016903
 旧库兼容与时间语义审计：新增文件 SQLite 从 schema 7 升至当前版本的回归，保留旧 origin=sync、原始时间/payload 和请求索引，不凭来源伪造接纳回执；升级后写入原始时间更早的同步 op，重开与重复迁移仍保留回执和 snapshot，分页严格按正式 ID。针对性 race 1.712 秒通过。审计 `applyOp` 的 accepted_at ViewTx、journal 接纳时间分桶、history_acceptance 的 NAS/rebuild/客户端顺序，以及 pending 不确定提交禁止放弃和替代的现有回归。完整检查 `/tmp/kist-sync-migration-complete-check.log` 正在运行；没有修改生产代码或历史数据格式。
 
 旧库兼容阶段完整 make check（31329）退出 0，`/tmp/kist-sync-migration-complete-check.log`。仅新增迁移回归及审计证据，不改生产行为。
+
+
+逐 action 审计发现归档盒标签并发接纳问题：客户端和 NAS 同时添加或移除同一关联时，旧 Apply 的幂等增删让过时意图成为可撤销的空修改，逆操作可能改变 NAS 另一操作的结果。新增真实双实例回归修复前 add/remove 均失败（`/tmp/kist-box-tag-conflict-before.log`）；library 写前验证关联存在性，覆盖普通新写、pending 重放和严格撤销，历史 Apply 不变。回执查询仍先于 before 检查。最终回归覆盖两类冲突、重试原回执、严格撤销被阻挡/解除阻挡，以及 rebuild，race 6.235 秒通过（`/tmp/kist-box-tag-conflict-final.log`）；既有标签/Undo 回归 9.497 秒通过。完整检查 `/tmp/kist-box-tag-conflict-complete-check.log` 正在运行。
+
+08bf088 的 Visual 39702009330 成功，正式基准接受后完整复验绿色；主检查、macOS、Linux ARM 和两种容器任务均通过，Windows 仍在运行。此处仅记录实际通过的本轮视觉结果，不宣称历史菜单栅格间歇差异的成因已修复。
+
+08bf088 的 CI 39702009286 所有任务（含 Windows）最终通过，Secret scan 39702009306 与 Visual 39702009330 成功。已推送旧库迁移阶段 fbf7985；后续 CI 39703093445、Visual 39703093399 在运行，Secret scan 39703093504 成功。
+
+归档盒标签并发修复完整 make check（99992）退出 0，`/tmp/kist-box-tag-conflict-complete-check.log`。最终实现与回归均已纳入完整检查，准备按阶段提交；不把当前标签修复当作所有 action 审计结束。

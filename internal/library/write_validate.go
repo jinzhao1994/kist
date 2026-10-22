@@ -1,6 +1,7 @@
 package library
 
 import (
+	"fmt"
 	"slices"
 
 	"github.com/jinzhao1994/kist/internal/oplog"
@@ -11,6 +12,23 @@ import (
 // rebased pending intents. It is deliberately absent from historical replay.
 func validateWriteState(tx *store.ViewTx, row store.OpRow) error {
 	action, payload := oplog.Action(row.Action), row.Payload
+	if action == oplog.ActionTagBoxes || action == oplog.ActionUntagBoxes {
+		p, err := oplog.Payload[oplog.TagBoxesPayload](payload)
+		if err != nil {
+			return err
+		}
+		for _, box := range p.BoxIDs {
+			present, err := tx.HasBoxTag(box, p.TagID)
+			if err != nil {
+				return err
+			}
+			// Commands record only changed associations. Accepting a no-op here
+			// would let its inverse undo another writer's association instead.
+			if present != (action == oplog.ActionUntagBoxes) {
+				return fmt.Errorf("box %s tag association changed: %w", box, oplog.ErrStaleBefore)
+			}
+		}
+	}
 	if action == oplog.ActionUpdateBox && row.RevertsID == nil {
 		p, err := oplog.Payload[oplog.UpdateBoxPayload](payload)
 		if err != nil {

@@ -14,7 +14,7 @@
 | 二.3–5：按本地顺序 patch、两类时间、正式 ID 排序 | `sync_envelope_test.go`、`sync_export_test.go`、`client_history_test.go`、`client_history_view_test.go` | 已复核 `applyOp` 用 accepted_at 构造 ViewTx，普通写入/追赶/rebuild 共用此路径；journal 测试验证日志按接纳时间分桶。`history_acceptance_test.go` 验证 NAS、rebuild、客户端均按正式 ID 排序并保留原始时间；旧库迁移新增测试验证时间倒序时的分页。历史回溯按正式前缀，已有客户端前缀测试；完整撤销/动作审计仍在后续条目。 |
 | 二.6–7、五.9：origin、凭据和操作身份分离 | `sync_access_test.go`、`internal/api/sync_test.go`、`sync_test.go` 协议校验 | 用户操作仍为 user，授权不写归档事件；最终核对旧 sync origin 兼容与能力拒绝。 |
 | 三.1–5：合并前缀、冲突停止、保留意图和依赖 | `client_overlay_test.go`、`client_queue_test.go`、`client_sync_test.go` | 已有竞争修改/解决和不确定结果证据；完整动作覆盖不能仅由通用路径推断。 |
-| 三.6：每种离线写操作的 patch/幂等/冲突/撤销 | `sync_test.go` 的注册表覆盖；`client_{commands,tags,saved_searches,file_commands,extraction,import,deletion}_test.go` | 入口已定位；需把真实注册表与实现策略逐项复核，不能把覆盖清单等同语义测试。 |
+| 三.6：每种离线写操作的 patch/幂等/冲突/撤销 | `sync_test.go` 的注册表覆盖；`client_{commands,tags,saved_searches,file_commands,extraction,import,deletion}_test.go` | 逐项审计已发现并修复 box tag 并发重复增删的空修改可撤销问题，增加同步、严格撤销和 rebuild 证据；文件标签还需按来源核对移除前提，其他动作继续与真实 handler/测试对照，不能把覆盖清单等同语义测试。 |
 | 三.7、七.7：历史、严格撤销、操作组与映射 | `client_undo_test.go`、`client_import_test.go`、本地历史及删除冲突测试 | 已有本地撤销、接纳后撤销、批次、正式映射和替代意图测试；最终复核 UI 可达性与引用边界。 |
 | 三.8：fileset 角色/主文件/页序/嵌套/删除依赖 | `client_commands_test.go`、`client_deletion_test.go`、`client_conflict_deletion_test.go`、`client_offline_test.go` | 已有配置竞争、嵌套媒体依赖、成员删除与严格恢复；真实浏览器删除后恢复 NAS 新增文件通过。 |
 | 四.4–7、七.6：TTL/LRU、配额、保留、活跃使用 | `client_cache_test.go`、`client_cache_workspace_test.go`、`client_offline_test.go` | 针对性测试与真实网页选择管理已通过；需最终确认原件、预览、中间文件均计入预算。 |
@@ -31,9 +31,9 @@
 
 ## 当前明确未收口项
 
-1. 新增进程强杀故障矩阵本地通过，仍需本阶段跨平台 CI；这些边界测试不代表任意指令位置或整机掉电测试。
+1. 新增进程强杀故障矩阵本地及 08bf088 的跨平台 CI 39702009286 全部通过；这些边界测试不代表任意指令位置或整机掉电测试。
 2. 旧库升级、时间排序/分页及 snapshot 的证据已补齐；逐 action 的 patch/冲突/撤销语义全范围复核尚未结束。
-3. 正式视觉 gate 仍有旧 `entry-menu-box` 326 像素间歇差异；不能通过放宽阈值、遮罩或把一次匹配说成修复来收口。新增历史/删除冲突页面已审阅，仍需最终完整当前-main 基准接受与绿色复验。
+3. 正式基准接受 39701856155 成功，08bf088 的 Visual 39702009330 绿色；未放宽阈值或遮罩。旧菜单栅格间歇差异不能宣称已根治；后续最终提交仍要检查完整 Visual。
 4. 缓存映射丢失/损坏修复的最终 make check 已通过（`/tmp/kist-derived-mapping-final-check.log`）；b325fe0 的 CI 39700016805 与 Secret scan 39700016809 均通过。
 
 上述清单是下一步审计入口，不缩减 Goal，也不要求为每个潜在未来功能继续扩展界面。
