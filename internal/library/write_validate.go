@@ -12,6 +12,21 @@ import (
 // rebased pending intents. It is deliberately absent from historical replay.
 func validateWriteState(tx *store.ViewTx, row store.OpRow) error {
 	action, payload := oplog.Action(row.Action), row.Payload
+	if action == oplog.ActionUntagFiles {
+		p, err := oplog.Payload[oplog.UntagFilesPayload](payload)
+		if err != nil {
+			return err
+		}
+		for _, file := range p.FileIDs {
+			var present bool
+			if err := tx.Queryer().QueryRow(`SELECT EXISTS(SELECT 1 FROM file_tag_sources WHERE file_id=? AND tag_id=? AND source=?)`, file, p.TagID, p.Source).Scan(&present); err != nil {
+				return err
+			}
+			if !present {
+				return fmt.Errorf("file %s tag source changed: %w", file, oplog.ErrStaleBefore)
+			}
+		}
+	}
 	if action == oplog.ActionTagBoxes || action == oplog.ActionUntagBoxes {
 		p, err := oplog.Payload[oplog.TagBoxesPayload](payload)
 		if err != nil {

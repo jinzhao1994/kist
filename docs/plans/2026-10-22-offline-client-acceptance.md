@@ -14,7 +14,7 @@
 | 二.3–5：按本地顺序 patch、两类时间、正式 ID 排序 | `sync_envelope_test.go`、`sync_export_test.go`、`client_history_test.go`、`client_history_view_test.go` | 已复核 `applyOp` 用 accepted_at 构造 ViewTx，普通写入/追赶/rebuild 共用此路径；journal 测试验证日志按接纳时间分桶。`history_acceptance_test.go` 验证 NAS、rebuild、客户端均按正式 ID 排序并保留原始时间；旧库迁移新增测试验证时间倒序时的分页。历史回溯按正式前缀，已有客户端前缀测试；完整撤销/动作审计仍在后续条目。 |
 | 二.6–7、五.9：origin、凭据和操作身份分离 | `sync_access_test.go`、`internal/api/sync_test.go`、`sync_test.go` 协议校验 | 用户操作仍为 user，授权不写归档事件；最终核对旧 sync origin 兼容与能力拒绝。 |
 | 三.1–5：合并前缀、冲突停止、保留意图和依赖 | `client_overlay_test.go`、`client_queue_test.go`、`client_sync_test.go` | 已有竞争修改/解决和不确定结果证据；完整动作覆盖不能仅由通用路径推断。 |
-| 三.6：每种离线写操作的 patch/幂等/冲突/撤销 | `sync_test.go` 的注册表覆盖；`client_{commands,tags,saved_searches,file_commands,extraction,import,deletion}_test.go` | 逐项审计已发现并修复 box tag 并发重复增删的空修改可撤销问题，增加同步、严格撤销和 rebuild 证据；文件标签还需按来源核对移除前提，其他动作继续与真实 handler/测试对照，不能把覆盖清单等同语义测试。 |
+| 三.6：每种离线写操作的 patch/幂等/冲突/撤销 | `sync_test.go` 的注册表覆盖；`client_{commands,tags,saved_searches,file_commands,extraction,import,deletion}_test.go` | 逐项审计已发现并修复 box tag 并发重复增删的空修改可撤销问题，增加同步、严格撤销和 rebuild 证据；文件标签重复移除问题也已复现并按来源增加新写前校验，回归验证其他来源保留、严格逆操作和 rebuild；其他动作继续与真实 handler/测试对照，不能把覆盖清单等同语义测试。 |
 | 三.7、七.7：历史、严格撤销、操作组与映射 | `client_undo_test.go`、`client_import_test.go`、本地历史及删除冲突测试 | 已有本地撤销、接纳后撤销、批次、正式映射和替代意图测试；最终复核 UI 可达性与引用边界。 |
 | 三.8：fileset 角色/主文件/页序/嵌套/删除依赖 | `client_commands_test.go`、`client_deletion_test.go`、`client_conflict_deletion_test.go`、`client_offline_test.go` | 已有配置竞争、嵌套媒体依赖、成员删除与严格恢复；真实浏览器删除后恢复 NAS 新增文件通过。 |
 | 四.4–7、七.6：TTL/LRU、配额、保留、活跃使用 | `client_cache_test.go`、`client_cache_workspace_test.go`、`client_offline_test.go` | 针对性测试与真实网页选择管理已通过；需最终确认原件、预览、中间文件均计入预算。 |
@@ -54,3 +54,11 @@
 | 共享上传内核：write、数据 fsync、进度保存前后 | 子进程 `os.Exit(71)`，重开截断到确认偏移、从该偏移续传并校验完整内容；同步上传 API 复用该内核 | `internal/upload/TestProcessDeathAtDurabilityBoundaries` |
 
 客户端四场景 race 9.339 秒、NAS 三场景 race 2.766 秒通过。完整检查及跨平台 CI 记录见实施进度；不以响应中断或正常 Close/reopen 代替以上真实终止证据。
+
+## 动作审计记录（持续补齐）
+
+- 归档盒标签增删：原 Apply 的幂等行为不足以保护新写逆操作，已用 `validateWriteState` 增加存在性前提。真实双实例竞争、同身份回执重试、严格撤销阻挡与解除、rebuild 已验证；修复提交 15386ec。
+- 文件标签增删：添加同来源由唯一约束拒绝；移除同来源的重复操作已复现为空修改，补精确来源存在性校验。多来源同时认领时只移除/恢复目标来源，其他来源保留。完整 make check 已通过（`/tmp/kist-file-tag-conflict-complete-check.log`），远端结果待本阶段推送后核对。
+- 保存搜索 create/update/delete：已直接复核 `oplog/saved_search.go` 的 canonical 校验、完整 Before 比较、同名检查以及 Inverse 前后交换。`client_saved_searches_test.go` 真实流程覆盖请求重试、离线删除与本地撤销后同步、NAS 独立更新冲突、rebuild 状态一致。不存在依赖墙钟选胜者的路径。
+
+这些记录仅标记已直接核对的操作族；其余仍按需求映射继续审计。

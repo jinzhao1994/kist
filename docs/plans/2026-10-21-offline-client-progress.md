@@ -646,3 +646,10 @@ b325fe0 的 CI 39700016805、Secret scan 39700016809 通过。Visual 39700016903
 08bf088 的 CI 39702009286 所有任务（含 Windows）最终通过，Secret scan 39702009306 与 Visual 39702009330 成功。已推送旧库迁移阶段 fbf7985；后续 CI 39703093445、Visual 39703093399 在运行，Secret scan 39703093504 成功。
 
 归档盒标签并发修复完整 make check（99992）退出 0，`/tmp/kist-box-tag-conflict-complete-check.log`。最终实现与回归均已纳入完整检查，准备按阶段提交；不把当前标签修复当作所有 action 审计结束。
+
+
+文件标签审计继续发现重复移除可接纳为空修改，重复添加已有唯一约束拒绝。修复前真实双实例回归 remove 失败（`/tmp/kist-file-tag-conflict-before.log`）；新写前按 payload 的 file/tag/source 精确检查认领存在，覆盖同步、pending 和严格撤销，不更改历史 Apply。新增多来源验收：用户和 camera 同时认领，移除用户来源后 camera 保留；不同身份重试移除用户来源必须冲突，撤销只恢复用户，rebuild 字节快照一致。针对性标签/Undo 回归 10.189 秒（`/tmp/kist-file-tag-conflict-targeted.log`），最终两类冲突/来源测试 4.138 秒（`/tmp/kist-file-tag-conflict-final.log`）通过。完整检查 `/tmp/kist-file-tag-conflict-complete-check.log` 正在运行。
+
+fbf7985 的 CI 39703093445 全平台及容器通过，Visual 39703093399、Secret scan 39703093504 成功。确认完整结果后已推送归档盒标签修复 15386ec；文件标签修复的完整检查继续运行。
+
+文件标签精确来源前提修复的完整 make check（83809）退出 0，`/tmp/kist-file-tag-conflict-complete-check.log`。归档盒标签修复 15386ec 的 CI 39704089580、Visual 39704089632 仍在运行，Secret scan 39704089582 已成功。
