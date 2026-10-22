@@ -299,3 +299,104 @@ it("requires a valid cover choice and retries the exact reviewed replacement", a
   });
   expect(bodies[0].replacement.id).toBe("cover-replacement");
 });
+
+function deletionDraft() {
+  return {
+    fields: [],
+    summary: { name: "Travel", count: 1, current_names: false },
+    deletion: {
+      box_id: "box",
+      id: "folder",
+      folder: true,
+      whole_box: false,
+      before: { name: "Travel", file_count: 1, folder_count: 0, revision: "" },
+      current: {
+        name: "Travel",
+        file_count: 2,
+        folder_count: 1,
+        revision: "reviewed",
+      },
+    },
+    replacement: {
+      id: "reviewed-deletion",
+      version: 2,
+      action: "delete_entry_contents",
+      origin: "user",
+      occurred_at: "2026-10-22T00:00:00Z",
+      deletion: { box: "box", last: "op:4" },
+      payload: { name: "Travel", files: ["one", "new"] },
+    },
+  };
+}
+it("requires explicit deletion review and retries the exact confirmed scope", async () => {
+  draftOverride = deletionDraft();
+  fail = true;
+  const { close } = setup();
+  const save = await screen.findByRole("button", {
+    name: "Save reviewed deletion",
+  });
+  expect(save).toBeDisabled();
+  expect(
+    screen.getByText(/Current value · Travel · 2 files · 1 subfolder/),
+  ).toBeVisible();
+  expect(
+    screen.getByRole("link", { name: "Inspect current contents in a new tab" }),
+  ).toHaveAttribute("href", "/boxes/box?folder=folder");
+  const confirm = screen.getByRole("checkbox", {
+    name: "I confirm deletion of the current scope",
+  });
+  await userEvent.click(confirm);
+  await userEvent.click(save);
+  await screen.findByRole("alert");
+  expect(confirm).toBeDisabled();
+  await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+  await waitFor(() => expect(close).toHaveBeenCalledOnce());
+  expect(bodies).toHaveLength(2);
+  expect(bodies[0].replacement).toEqual(draftOverride.replacement);
+  expect(bodies[1]).toEqual(bodies[0]);
+});
+it("clears deletion confirmation when refreshing the reviewed scope", async () => {
+  draftOverride = deletionDraft();
+  setup();
+  const confirm = await screen.findByRole("checkbox", {
+    name: "I confirm deletion of the current scope",
+  });
+  await userEvent.click(confirm);
+  draftOverride = {
+    ...deletionDraft(),
+    deletion: {
+      ...deletionDraft().deletion,
+      current: {
+        name: "Travel",
+        file_count: 3,
+        folder_count: 1,
+        revision: "new",
+      },
+    },
+  };
+  await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  await screen.findByText(/Current value · Travel · 3 files/);
+  expect(
+    screen.getByRole("checkbox", {
+      name: "I confirm deletion of the current scope",
+    }),
+  ).not.toBeChecked();
+  expect(
+    screen.getByRole("button", { name: "Save reviewed deletion" }),
+  ).toBeDisabled();
+  expect(bodies).toHaveLength(0);
+});
+it("does not offer deletion when the target no longer exists", async () => {
+  const original = deletionDraft();
+  draftOverride = {
+    ...original,
+    replacement: undefined,
+    deletion: { ...original.deletion, current: undefined },
+  };
+  setup();
+  expect(await screen.findByText(/This target no longer exists/)).toBeVisible();
+  expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Save reviewed deletion" }),
+  ).not.toBeInTheDocument();
+});

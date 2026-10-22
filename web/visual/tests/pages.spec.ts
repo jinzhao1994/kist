@@ -2887,12 +2887,17 @@ for (const panel of [
   "fileset-conflict",
   "cover-conflict",
   "cover-missing-conflict",
+  "deletion-conflict",
+  "deletion-mobile-conflict",
+  "deletion-missing-conflict",
 ] as const) {
   test(`offline-client-${panel}`, async ({ page }, info) => {
     const errors = await prepare(page, {
-      mobile: panel === "history-list-mobile",
+      mobile:
+        panel === "history-list-mobile" || panel === "deletion-mobile-conflict",
     });
     const conflict = panel.endsWith("conflict");
+    const deletionConflict = panel.startsWith("deletion-");
     const coverConflict =
       panel === "cover-conflict" || panel === "cover-missing-conflict";
     const config = {
@@ -2985,8 +2990,9 @@ for (const panel of [
                 id: "01a15921-bef1-76e5-bddc-7c6b1024ff5b",
                 sequence: 1,
                 occurred_at: time,
-                action:
-                  panel === "fileset-conflict"
+                action: deletionConflict
+                  ? "delete_entry_contents"
+                  : panel === "fileset-conflict"
                     ? "set_fileset"
                     : panel === "conflict" || coverConflict
                       ? "update_box"
@@ -2995,6 +3001,50 @@ for (const panel of [
                 awaiting_receipt: false,
               },
             ],
+          },
+        });
+      if (path.endsWith("/edit") && deletionConflict)
+        return route.fulfill({
+          json: {
+            fields: [],
+            summary: {
+              name: "旅行证件与交通住宿凭证",
+              count: 1,
+              current_names: false,
+            },
+            deletion: {
+              box_id: "box-1",
+              id: "folder-1",
+              folder: true,
+              whole_box: false,
+              before: {
+                name: "旅行证件与交通住宿凭证",
+                file_count: 4,
+                folder_count: 1,
+                revision: "",
+              },
+              current:
+                panel === "deletion-missing-conflict"
+                  ? undefined
+                  : {
+                      name: "旅行证件与交通住宿凭证",
+                      file_count: 6,
+                      folder_count: 2,
+                      revision: "reviewed",
+                    },
+            },
+            replacement:
+              panel === "deletion-missing-conflict"
+                ? undefined
+                : {
+                    version: 2,
+                    id: "deletion-replacement",
+                    occurred_at: time,
+                    origin: "user",
+                    action: "delete_entry_contents",
+                    payload: {},
+                    deletion: { box: "box-1", last: "op:42" },
+                  },
           },
         });
       if (path.endsWith("/edit") && coverConflict)
@@ -3171,7 +3221,22 @@ for (const panel of [
     await expect(
       dialog.getByRole("button", { name: "立即同步" }),
     ).toBeEnabled();
-    if (coverConflict) {
+    if (deletionConflict) {
+      await dialog
+        .getByRole("button", { name: "查看本地修改", exact: true })
+        .click();
+      if (panel === "deletion-missing-conflict") {
+        await expect(dialog).toContainText("此对象已不存在");
+        await expect(
+          dialog.getByRole("button", { name: "保存已确认的删除方案" }),
+        ).toHaveCount(0);
+      } else {
+        await expect(dialog).toContainText("6 个文件");
+        await expect(
+          dialog.getByRole("button", { name: "保存已确认的删除方案" }),
+        ).toBeDisabled();
+      }
+    } else if (coverConflict) {
       await dialog
         .getByRole("button", { name: "查看本地修改", exact: true })
         .click();

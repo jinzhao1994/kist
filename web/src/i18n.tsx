@@ -47,6 +47,15 @@ export const en = {
   clientConflictCurrent: "Current value",
   clientConflictChosen: "Value to submit",
   clientConflictSave: "Save revised change",
+  clientConflictDeletionScope:
+    "{name} · {files, plural, one {# file} other {# files}} · {folders, plural, one {# subfolder} other {# subfolders}}",
+  clientConflictInspectDeletion: "Inspect current contents in a new tab",
+  clientConflictDeletionWarning:
+    "This replaces the old deletion with the entire current scope, including newly added files and current annotations. Related file set references will also be updated. Review the contents before confirming. Nothing is submitted to the NAS until you synchronize.",
+  clientConflictConfirmDeletion: "I confirm deletion of the current scope",
+  clientConflictSaveDeletion: "Save reviewed deletion",
+  clientConflictDeletionGone:
+    "This target no longer exists. Return and keep the NAS result; the original deletion remains in local history.",
   clientOfflineMissing:
     "{ready} of {total} originals available. More content still needs preparing.",
   clientPrepareAgain: "Check and download",
@@ -682,6 +691,15 @@ export const zh: Record<MessageKey, string> = {
   clientConflictCurrent: "当前值",
   clientConflictChosen: "准备提交的值",
   clientConflictSave: "保存调整后的修改",
+  clientConflictDeletionScope:
+    "{name} · {files, number} 个文件 · {folders, number} 个子目录",
+  clientConflictInspectDeletion: "在新标签页检查当前内容",
+  clientConflictDeletionWarning:
+    "将以整个当前范围替换原删除方案，包括新加入的文件及当前标注，并更新关联文件组合的引用。请检查内容后确认。再次同步时才会提交到 NAS。",
+  clientConflictConfirmDeletion: "我确认删除当前范围",
+  clientConflictSaveDeletion: "保存已确认的删除方案",
+  clientConflictDeletionGone:
+    "此对象已不存在。请返回并保留 NAS 结果；原删除意图仍保留在本地历史中。",
   clientOfflineMissing: "已准备 {ready} / {total} 个原文件，仍有内容需要准备。",
   clientPrepareAgain: "检查并下载",
   clientKeepAndPrepare: "保留并下载",
@@ -1334,6 +1352,7 @@ interface Parameters {
   allEntriesShown: { folders: number; files: number };
   allBoxesShown: { count: number };
   fileCount: { count: number };
+  clientConflictDeletionScope: { name: string; files: number; folders: number };
   useDateYear: { year: string };
   useDateMonth: { year: string; month: string };
   uploadLimit: { count: string; size: string };

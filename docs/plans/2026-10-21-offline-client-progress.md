@@ -603,3 +603,13 @@ Unix 进程组阶段完整 make check（77074）退出 0，日志 `/tmp/kist-uni
 本地历史列表摘要阶段：当前分页直接返回已有摘要类型，复用 summarizeHistory，原提案名称优先、当前名称明确标注，撤销不误显示为逆操作。解析限制在当前页，不为每行请求完整详情或重复重建，不新增持久字段/索引。前端长名称可换行，保留状态、时间和正式回执，新增桌面及窄屏正式视觉场景。API race 回归通过（2.149 秒），覆盖撤销后原名称仍可分页读取；前端四项通过，列表摘要不触发逐行请求。实际 Chrome 只读验证合成库 8 条记录，pageErrors 为空、390px 无横向溢出，截图 `/tmp/kist-local-summary-{desktop,mobile}.png` 已查看，日志 `/tmp/kist-local-summary-browser.log`。隔离客户端最新会话 86178，未操作真实资料库。完整检查 `/tmp/kist-local-summary-complete-check.log`（69994）正在运行。
 
 本地历史摘要最终 make check（69994）退出 0：前端 291 项、API race 53.142 秒、library race 232.685 秒通过，完整单二进制构建成功。中文使用指南新增于 `docs/offline-client.zh-CN.md`，双语 README 提供入口；英文指南修正“网页尚未实现”的旧状态并补齐启动方式，均明确开发版尚在最终验收。文档 diff 检查通过。视觉接受流程 39695946417 成功，机器人提交 c121d50 已快进同步；其 CI 39696001126、Visual 39696003167 正在运行，待结束后推送本阶段避免取消正式采集。
+
+54de8f5 的 Visual 39697133154 完整采集 baseline 149 / candidate 151，无失败、跳过或重试；仅新增 offline-client-history-list 与 mobile 两场景，长名称换行、状态及当前名称提示均已全尺寸查看。菜单 326 像素差异本轮未出现；此前基准接受提交 c121d50 的 Visual 39696003167 仍因该间歇性差异失败（149/149 完整采集），不能宣称它已修复。c121d50 的 CI 39696001126 已全绿。未在本阶段新增截图尚待采集时提前接受另一套基准。
+
+删除范围冲突阶段：ConflictEdit 为 delete_box_contents、delete_entry_contents、delete_fileset_entry 复用 deletionLocked 生成当前范围与稳定 deletion 前提，保留原快照，明确缺失目标不可重做。界面对比名称、文件/子目录数量，提供检查当前对象的新标签链接；必须重新勾选确认才可保存，刷新草稿清除确认，响应不确定时锁定并重试完整同一提案。可确认整个当前范围包含 NAS 新增文件，但不自动扩张旧意图；后续 NAS 修改继续拒绝过期草稿。旧意图、严格撤销及组合引用恢复未绕过既有机制。
+
+后端针对性 race 18.235 秒通过（`/tmp/kist-deletion-conflict-targeted.log`），覆盖盒、目录、文件、组合成员四种范围，过期草稿、重复 Resolve、原意图保留、同步后撤销与重建，以及目标消失；前端 8 项通过（`/tmp/kist-deletion-conflict-ui.log`）。真实 Chrome 双实例验收通过：合成“旅行票据”离线删除从 1 个文件与 NAS 新增后的 2 个文件冲突，重新确认后同步删除，再严格撤销恢复两份凭证；原意图状态 replaced，pageErrors 为空。桌面与 390px 截图 `/tmp/kist-deletion-conflict-{desktop,mobile}.png` 已查看，日志 `/tmp/kist-deletion-conflict-browser.log`。准备脚本最初误读创建响应和使用未创建的 --into 目录，修正为按名称查已创建盒并通过目录树导入；未重复创建盒、未接触真实资料库。隔离客户端最新会话 74906。
+
+完整 make check（3671）退出 0，`/tmp/kist-deletion-conflict-complete-check.log`；随后修正英文数量单复数，最终交付检查 `/tmp/kist-deletion-conflict-final-check.log`（72855）正在运行。新增删除冲突桌面、窄屏、缺失目标三张正式视觉场景待推送后采集。双语指南与设计同步更新，完整 Goal 的其他领域编辑及最终故障矩阵审计继续进行。
+
+删除冲突最终交付检查（72855）退出 0，`/tmp/kist-deletion-conflict-final-check.log`，前端 294 项通过；Go 使用同一未改逻辑的已通过 race 缓存，单二进制构建成功。54de8f5 的 CI 39697133141 全部通过，包括 Windows、macOS、Linux ARM 与双架构容器；Secret scan 39697133176 通过。准备推送本阶段并核对正式新增三场景，不发布版本。

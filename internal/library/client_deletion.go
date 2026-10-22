@@ -52,6 +52,7 @@ func (c *Client) deletionLocked(ctx context.Context, view clientOverlay, box dom
 		}
 		result.Preview.Name = contents.Box.Name
 		result.Preview.FileCount = len(contents.Files)
+		result.Preview.FolderCount = max(0, len(contents.Folders)-1)
 		result.Action = oplog.ActionDeleteBoxContents
 		result.Payload, err = oplog.Marshal(contents)
 		if err != nil {

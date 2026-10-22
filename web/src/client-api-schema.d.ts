@@ -1111,8 +1111,17 @@ export interface components {
             id: string;
             name: string;
         };
+        ClientConflictDeletion: {
+            before: components["schemas"]["ClientDeletionPreview"];
+            box_id: string;
+            current?: components["schemas"]["ClientDeletionPreview"];
+            folder: boolean;
+            id: string;
+            whole_box: boolean;
+        };
         ClientConflictEdit: {
             cover?: components["schemas"]["ClientConflictCover"];
+            deletion?: components["schemas"]["ClientConflictDeletion"];
             fields: components["schemas"]["ClientConflictField"][] | null;
             fileset?: components["schemas"]["ClientConflictFileset"];
             replacement?: components["schemas"]["SyncProposal"];

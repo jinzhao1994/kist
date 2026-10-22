@@ -204,6 +204,15 @@ intention stays in history, and retrying an uncertain save sends the same decisi
 To use a different file, use its existing **Set as box cover** action after
 resolving the blocked change.
 
+For conflicting box, directory or file deletions, the review compares the original
+and current scope and links to the current contents. Confirm the current scope
+explicitly before saving: it may include files added on the NAS and newer
+annotations. Saving queues a replacement; the next sync rechecks its exact scope
+and related file set references. A newer NAS change invalidates the review. If
+the target is already gone, return and keep the NAS result. The original intent
+remains in history; undoing an accepted replacement restores the scope actually
+reviewed, including the newer files and annotations.
+
 The **Local operations** tab shows object names and change summaries directly in
 the paginated list. Names recorded in the original intent remain unchanged after
 later edits or undo. Summaries that resolve current object names are labeled as

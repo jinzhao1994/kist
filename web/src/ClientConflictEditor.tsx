@@ -1,4 +1,13 @@
-import { Button, Group, Stack, Text, TextInput, Textarea } from "@mantine/core";
+import {
+  Anchor,
+  Button,
+  Checkbox,
+  Group,
+  Stack,
+  Text,
+  TextInput,
+  Textarea,
+} from "@mantine/core";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createWrite, get } from "./api";
@@ -37,6 +46,7 @@ export function ClientConflictEditor({
     if (!snapshot && !draft.isFetching && draft.data) setSnapshot(draft.data);
   }, [snapshot, draft.isFetching, draft.data]);
   const [values, setValues] = useState<Record<string, string>>({});
+  const [deletionConfirmed, setDeletionConfirmed] = useState(false);
   const writes = useWrites(close);
   const [domainLocked, setDomainLocked] = useState(false);
   useEffect(() => {
@@ -58,7 +68,12 @@ export function ClientConflictEditor({
       : `${file.name || file.id}${file.available ? "" : ` · ${t("clientConflictUnavailableCover")}`}`;
   function submit() {
     const data = snapshot;
-    if (!data?.replacement || !coverValid) return;
+    if (
+      !data?.replacement ||
+      !coverValid ||
+      (data.deletion && !deletionConfirmed)
+    )
+      return;
     const replacement = structuredClone(data.replacement);
     // Paths are supplied by the server's domain editor. Only intended values
     // change; reviewed before-values, IDs and timestamp stay fixed on retries.
@@ -94,6 +109,7 @@ export function ClientConflictEditor({
           }
           onClick={() => {
             setValues({});
+            setDeletionConfirmed(false);
             setSnapshot(undefined);
             draft.refetch();
           }}
@@ -109,8 +125,51 @@ export function ClientConflictEditor({
           <Text size="sm" c="dimmed">
             {t("clientConflictReviewHint")}
           </Text>
-          {!snapshot.replacement && (
+          {!snapshot.replacement && !snapshot.deletion && (
             <Text>{t("clientConflictUnsupported")}</Text>
+          )}
+          {snapshot.deletion && (
+            <Stack gap="sm">
+              <Text size="sm" c="dimmed">
+                {t("clientConflictBefore")} ·{" "}
+                {t("clientConflictDeletionScope", {
+                  name: snapshot.deletion.before.name,
+                  files: snapshot.deletion.before.file_count,
+                  folders: snapshot.deletion.before.folder_count,
+                })}
+              </Text>
+              {snapshot.deletion.current ? (
+                <>
+                  <Text size="sm">
+                    {t("clientConflictCurrent")} ·{" "}
+                    {t("clientConflictDeletionScope", {
+                      name: snapshot.deletion.current.name,
+                      files: snapshot.deletion.current.file_count,
+                      folders: snapshot.deletion.current.folder_count,
+                    })}
+                  </Text>
+                  <Anchor
+                    size="sm"
+                    href={`/boxes/${snapshot.deletion.box_id}${snapshot.deletion.whole_box ? "" : `?${snapshot.deletion.folder ? "folder" : "file"}=${snapshot.deletion.id}`}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {t("clientConflictInspectDeletion")}
+                  </Anchor>
+                  <Text size="sm">{t("clientConflictDeletionWarning")}</Text>
+                  <Checkbox
+                    label={t("clientConflictConfirmDeletion")}
+                    checked={deletionConfirmed}
+                    disabled={writes.busy || writes.locked}
+                    onChange={(event) =>
+                      setDeletionConfirmed(event.currentTarget.checked)
+                    }
+                  />
+                </>
+              ) : (
+                <Text>{t("clientConflictDeletionGone")}</Text>
+              )}
+            </Stack>
           )}
           {snapshot.fileset && snapshot.replacement && (
             <FilesetConflictEditor
@@ -225,10 +284,20 @@ export function ClientConflictEditor({
           {snapshot.replacement && !snapshot.fileset && (
             <Group>
               <Button
-                disabled={writes.busy || writes.locked || !coverValid}
+                disabled={
+                  writes.busy ||
+                  writes.locked ||
+                  !coverValid ||
+                  (!!snapshot.deletion && !deletionConfirmed)
+                }
                 onClick={submit}
+                color={snapshot.deletion ? "red" : undefined}
               >
-                {t("clientConflictSave")}
+                {t(
+                  snapshot.deletion
+                    ? "clientConflictSaveDeletion"
+                    : "clientConflictSave",
+                )}
               </Button>
             </Group>
           )}

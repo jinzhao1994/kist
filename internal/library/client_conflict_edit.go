@@ -41,11 +41,12 @@ type ClientConflictCover struct {
 }
 
 type ClientConflictEdit struct {
-	Cover       *ClientConflictCover   `json:"cover,omitempty"`
-	Fileset     *ClientConflictFileset `json:"fileset,omitempty"`
-	Summary     *HistorySummary        `json:"summary,omitempty"`
-	Replacement *SyncProposal          `json:"replacement,omitempty"`
-	Fields      []ClientConflictField  `json:"fields"`
+	Deletion    *ClientConflictDeletion `json:"deletion,omitempty"`
+	Cover       *ClientConflictCover    `json:"cover,omitempty"`
+	Fileset     *ClientConflictFileset  `json:"fileset,omitempty"`
+	Summary     *HistorySummary         `json:"summary,omitempty"`
+	Replacement *SyncProposal           `json:"replacement,omitempty"`
+	Fields      []ClientConflictField   `json:"fields"`
 }
 
 // ConflictEdit builds a replacement against the valid prefix before the blocked
@@ -65,6 +66,12 @@ func (c *Client) ConflictEdit(ctx context.Context, id string) (ClientConflictEdi
 		original := entry.Proposal
 		if original.Undo != nil {
 			return nil
+		}
+		switch oplog.Action(original.Action) {
+		case oplog.ActionDeleteBoxContents, oplog.ActionDeleteEntryContents, oplog.ActionDeleteFilesetEntry:
+			var err error
+			result, err = c.conflictDeletion(ctx, original, view)
+			return err
 		}
 		tx, err := c.db.BeginTx(ctx, nil)
 		if err != nil {
