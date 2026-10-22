@@ -6,7 +6,7 @@
 
 | 要求 | 当前证据入口 | 审计结论与下一步 |
 | --- | --- | --- |
-| 一.1、五.5–6：NAS 唯一权威、library 写入口、非 SQLite 合并 | `client_sync.go`、`sync.go`、`sync_envelope_test.go`、架构守卫 | 已有日志后事务、接纳回执重建与 view drift 检测证据；最终需随当前提交完整检查核对。 |
+| 一.1、五.5–6：NAS 唯一权威、library 写入口、非 SQLite 合并 | `client_sync.go`、`sync.go`、`sync_envelope_test.go`、架构守卫 | 已核对日志后事务、接纳回执重建与 view drift 检测；完整 make check 已包含架构守卫与这些恢复测试。最终远端检查见下方交付项。 |
 | 一.2–3、七.1–4：旅行离线编辑、NAS 独立写、最终合并 | `internal/api/client_journey_test.go`、真实 Chrome 合成双实例记录 | 已有真实 HTTP、部分缓存、离线导入/标签/两层组合、NAS 独立修改、重开客户端、重复同步及 rebuild/deep verify 的组合验收。该用例用 HTTP 503 模拟离线，不等同进程强杀。 |
 | 一.4、四.1–3：按需原件、完整目录、未缓存语义 | `client_catalog_reads_test.go`、`client_search_test.go`、`client_content_test.go` | 已直接复核未缓存原件仍可搜索/标注，完整目录边界确认前不发布半截目录；App 挂载 ClientCatalogNotice 明示不完整。历史视图按已确认前缀读取。`client_cache_content_test.go` 区分 ErrNotCached 与 ErrIntegrityMismatch，并验证坏内容不发布、缺失缓存可重下。 |
 | 一.5：手动连接/同步/冲突 | `OfflineClient.tsx`、`ClientConflictEditor.tsx`、双语 `docs/offline-client*` | 真实网页操作已验收；自动同步、多主、手机后台不在本次要求内。专用编辑器不是每种 action 的必备条件，但每种允许的离线写操作都必须有正确 patch 与显式冲突语义。 |
@@ -14,7 +14,7 @@
 | 二.3–5：按本地顺序 patch、两类时间、正式 ID 排序 | `sync_envelope_test.go`、`sync_export_test.go`、`client_history_test.go`、`client_history_view_test.go` | 已复核 `applyOp` 用 accepted_at 构造 ViewTx，普通写入/追赶/rebuild 共用此路径；journal 测试验证日志按接纳时间分桶。`history_acceptance_test.go` 验证 NAS、rebuild、客户端均按正式 ID 排序并保留原始时间；旧库迁移新增测试验证时间倒序时的分页。历史回溯按正式前缀，已有客户端前缀测试；完整撤销/动作审计仍在后续条目。 |
 | 二.6–7、五.9：origin、凭据和操作身份分离 | `sync_access_test.go`、`internal/api/sync_test.go`、`sync_test.go` 协议校验 | 已直接复核 user/extractor 保留、配对不写归档事件；旧 origin=sync 随迁移保留，新提案 origin=sync/未知动作/不兼容版本拒绝且 op 数不增加。凭据摘要持久化、跨句柄撤销即时生效，客户端状态不暴露 token。 |
 | 三.1–5：合并前缀、冲突停止、保留意图和依赖 | `client_overlay_test.go`、`client_queue_test.go`、`client_sync_test.go` | 已有竞争修改/解决和不确定结果证据；完整动作覆盖不能仅由通用路径推断。 |
-| 三.6：每种离线写操作的 patch/幂等/冲突/撤销 | `sync_test.go` 的注册表覆盖；`client_{commands,tags,saved_searches,file_commands,extraction,import,deletion}_test.go` | 逐项审计已发现并修复 box tag 并发重复增删的空修改可撤销问题，增加同步、严格撤销和 rebuild 证据；文件标签重复移除问题也已复现并按来源增加新写前校验，回归验证其他来源保留、严格逆操作和 rebuild；其他动作继续与真实 handler/测试对照，不能把覆盖清单等同语义测试。 |
+| 三.6：每种离线写操作的 patch/幂等/冲突/撤销 | `sync_test.go` 的注册表覆盖；`client_{commands,tags,saved_searches,file_commands,extraction,import,deletion}_test.go` | 逐项审计已发现并修复 box tag 并发重复增删的空修改可撤销问题，增加同步、严格撤销和 rebuild 证据；文件标签重复移除问题也已复现并按来源增加新写前校验，回归验证其他来源保留、严格逆操作和 rebuild；其余动作已与真实 handler/逆操作及具体回归逐族核对，详见动作审计记录；发现的提取版本与删除分类问题已修复并通过完整检查。 |
 | 三.7、七.7：历史、严格撤销、操作组与映射 | `client_undo_test.go`、`client_import_test.go`、本地历史及删除冲突测试 | 已有本地撤销、接纳后撤销、批次、正式映射和替代意图测试；已核对正式历史与 LocalHistory 的 Undo API 入口、API 幂等回归及本地/正式引用边界；补齐撤销事件再次撤销的本地入口，真实 Chrome 桌面/窄屏确认界面通过，正式视觉验收待本阶段提交。 |
 | 三.8：fileset 角色/主文件/页序/嵌套/删除依赖 | `client_commands_test.go`、`client_deletion_test.go`、`client_conflict_deletion_test.go`、`client_offline_test.go` | 已有配置竞争、嵌套媒体依赖、成员删除与严格恢复；真实浏览器删除后恢复 NAS 新增文件通过。 |
 | 四.4–7、七.6：TTL/LRU、配额、保留、活跃使用 | `client_cache_test.go`、`client_cache_workspace_test.go`、`client_offline_test.go` | 已直接复核 cache 与 workspace 测试：原件/派生统一计量；中间文件计 PartialBytes、剩余预约计 ReservedBytes，跨句柄不超售；活跃读者/转换租约不可逐出，超预算转换取消且发布前再次检查。TTL/LRU 与保留选择既有验收见实施记录。 |
@@ -29,14 +29,13 @@
 | 六：中文设计、分阶段交付、检查、不发布 | 权威离线设计、实施记录、main 提交与 Actions、双语使用指南 | 已持续分阶段提交推送，无 PR/发布；最终 main CI、正式视觉接受后的 CI/Visual 必须核对。 |
 | 七.8：NAS rebuild/snapshot/deep verify 保证 | `sync_envelope_test.go`、`client_journey_test.go`、历史视图测试 | 已复核 store.Snapshot 包含 op_sync 的四列，envelope 和迁移回归比较完整快照；篡改同步索引触发 deep verify ViewDrift，rebuild 恢复，原始时间与接纳时间保持。旅行流程另有端到端 deep verify。 |
 
-## 当前明确未收口项
+## 剩余交付检查
 
-1. 新增进程强杀故障矩阵本地及 08bf088 的跨平台 CI 39702009286 全部通过；这些边界测试不代表任意指令位置或整机掉电测试。
-2. 旧库升级、时间排序/分页及 snapshot 的证据已补齐；逐 action 的 patch/冲突/撤销语义全范围复核尚未结束。
-3. 正式基准接受 39701856155 成功，08bf088 的 Visual 39702009330 绿色；未放宽阈值或遮罩。旧菜单栅格间歇差异不能宣称已根治；后续最终提交仍要检查完整 Visual。
-4. 缓存映射丢失/损坏修复的最终 make check 已通过（`/tmp/kist-derived-mapping-final-check.log`）；b325fe0 的 CI 39700016805 与 Secret scan 39700016809 均通过。
+1. 核对 ad57d3e 的远端 CI / Visual / Secret scan。其本地完整检查已通过；后续 UI 提交同样必须核对最终 main 的完整检查。
+2. 推送 39ee967 的本地历史重做入口；本地六项组件测试、完整 make check、真实 Chrome 桌面/窄屏只读确认验收均已通过。新增两张正式视觉场景尚需完整采集、审阅和按当前 main 接受基准。
+3. 正式基准接受后再次核对最终 main 的 CI / Visual，并确认工作树干净、提交已推送。未完成这些检查前不宣布 Goal 完成，不发布版本。
 
-上述清单是下一步审计入口，不缩减 Goal，也不要求为每个潜在未来功能继续扩展界面。
+七个真实强杀边界已在 08bf088 跨平台 CI 39702009286 通过，旧库升级已在 fbf7985 跨平台 CI 39703093445 通过；这些测试不代表任意机器指令位置或整机掉电试验。之前菜单存在间歇栅格差异，多个完整复验已绿色；不宣称已查明根因，不放宽阈值或遮罩，最终视觉检查仍必须通过。
 
 ## 真实进程终止故障矩阵
 
@@ -55,19 +54,19 @@
 
 客户端四场景 race 9.339 秒、NAS 三场景 race 2.766 秒通过。完整检查及跨平台 CI 记录见实施进度；不以响应中断或正常 Close/reopen 代替以上真实终止证据。
 
-## 动作审计记录（持续补齐）
+## 动作审计记录
 
 - 归档盒标签增删：原 Apply 的幂等行为不足以保护新写逆操作，已用 `validateWriteState` 增加存在性前提。真实双实例竞争、同身份回执重试、严格撤销阻挡与解除、rebuild 已验证；修复提交 15386ec。
-- 文件标签增删：添加同来源由唯一约束拒绝；移除同来源的重复操作已复现为空修改，补精确来源存在性校验。多来源同时认领时只移除/恢复目标来源，其他来源保留。完整 make check 已通过（`/tmp/kist-file-tag-conflict-complete-check.log`），远端结果待本阶段推送后核对。
+- 文件标签增删：添加同来源由唯一约束拒绝；移除同来源的重复操作已复现为空修改，补精确来源存在性校验。多来源同时认领时只移除/恢复目标来源，其他来源保留。完整 make check 已通过（`/tmp/kist-file-tag-conflict-complete-check.log`），3450e06 的 CI 39705064048、Visual 39705064543、Secret scan 39705063922 全部通过。
 - 保存搜索 create/update/delete：已直接复核 `oplog/saved_search.go` 的 canonical 校验、完整 Before 比较、同名检查以及 Inverse 前后交换。`client_saved_searches_test.go` 真实流程覆盖请求重试、离线删除与本地撤销后同步、NAS 独立更新冲突、rebuild 状态一致。不存在依赖墙钟选胜者的路径。
 
-这些记录仅标记已直接核对的操作族；其余仍按需求映射继续审计。
+下列记录结合协议注册表对照覆盖当前支持的全部领域动作；各项具体失败和修复记录保留在实施进度中。
 
 - 导入/覆盖/撤销：直接复核 `oplog/file.go`、`upload.go` 的身份/位置/完整替换快照、标签及目录非空约束，原件在接纳前验证；`client_import_test.go` 验证部分缓存下新增、同身份覆盖、pending 重命名后覆盖、操作组映射、严格批次校验、NAS 新标签阻止旧覆盖及接纳后撤销。
 - 删除/恢复/嵌套引用：直接复核 box_contents/entry/fileset_entry 的完整快照比较、父链与名称检查及同事务引用变化；`client_deletion_test.go` 验证本地重命名后删除、NAS ABA 修改拒绝、整盒离线删除恢复、多页内 Live Photo 删除及撤销/rebuild。`client_undo_test.go` 验证本地/正式引用映射、撤销与重做、后续修改阻挡及失败不入队。
 - 提取/metadata：直接复核字段 before、来源、拍摄时间与 Inverse 版本交换；审计发现仅字段检查无法发现“字段相同、版本已升级”的竞争，已复现并增加 PreviousVersion 新写校验。针对性竞争、撤销、rebuild 和最终完整检查均通过；该项尚待远端验证。
 
-- 后续明确核验入口：`deleteTagOp.Apply` 在 NAS 新增子标签或挂载后返回 `ErrTagInUse`，而当前 `clientRebaseConflict` 和 AcceptSync 冲突归类未列出此错误。已真实双实例复现并补齐这两条路径的分类；回归覆盖子标签、box 挂载两种竞争，Status 仍可读，Resolve 保留 NAS 结果后恢复同步且不改变 NAS op 数。针对性测试通过，最终完整检查 `/tmp/kist-extraction-and-tag-conflicts-final-check.log` 已通过；远端待本阶段提交。
+- 标签删除冲突分类：`deleteTagOp.Apply` 在 NAS 新增子标签或挂载后返回 `ErrTagInUse`，原先 `clientRebaseConflict` 和 AcceptSync 冲突归类未列出此错误。已真实双实例复现并补齐这两条路径的分类；回归覆盖子标签、box 挂载两种竞争，Status 仍可读，Resolve 保留 NAS 结果后恢复同步且不改变 NAS op 数。针对性测试通过，最终完整检查 `/tmp/kist-extraction-and-tag-conflicts-final-check.log` 已通过；远端待本阶段提交。
 
 - box/folder/tag 的创建、更新、空对象删除与改名/移动：已直接核对各 handler 的字段 before、父节点/名称/子对象/引用约束和 Inverse；`client_commands_test.go` 验证独立字段合并、目录所有权和重复名称，`client_tags_test.go` 验证树约束和移动合并 NAS 独立改名。set_fileset 以完整配置比较，不对页序逐行合并；引用校验与嵌套删除回归已核对。协议能力清单由 TestSyncActionCoverage 对照实际注册表，内部 request_receipt 排除。
-- UI 可达性仍需补齐一项：`LocalHistory.tsx` 当前用 `!op.undo` 隐藏撤销事件的撤销按钮，而客户端 Undo API 与 `TestClientUndoLocalThenRedoAfterNASAcceptance` 已允许对撤销事件再次撤销（重做）。已移除多余隐藏条件，两个状态的组件回归先失败后通过，保留确认与幂等行为；新增桌面/手机正式视觉场景待远端采集审阅，完整检查已通过（`/tmp/kist-local-redo-complete-check.log`），真实 Chrome 两种尺寸已查看；正式视觉场景待提交采集。
+- 本地历史 UI 可达性：`LocalHistory.tsx` 原先用 `!op.undo` 隐藏撤销事件的撤销按钮，而客户端 Undo API 与 `TestClientUndoLocalThenRedoAfterNASAcceptance` 已允许对撤销事件再次撤销（重做）。已移除多余隐藏条件，两个状态的组件回归先失败后通过，保留确认与幂等行为；新增桌面/手机正式视觉场景待远端采集审阅，完整检查已通过（`/tmp/kist-local-redo-complete-check.log`），真实 Chrome 两种尺寸已查看；正式视觉场景待提交采集。
