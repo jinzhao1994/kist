@@ -21,7 +21,7 @@
 | 四.8：未同步原件与操作不逐出、空间不足失败 | `client_storage_test.go`、`client_cache_adopt_test.go`、`client_cache_rebuild_test.go` | 已有未确认内容保护和确认迁移测试；磁盘不足/持久化失败路径还须按源码和故障测试核验。 |
 | 四.9：组合所需成员全部准备 | `client_offline_test.go`、`client_offline_previews_test.go`、`client_offline_prepare_test.go` | 已有递归 Live Photo/字幕、独立主文件、共享内容配方并集、准备期间成员变化检测。 |
 | 四.10、七.10：网页资源与离线预览 | `client_serve_test.go`、`client_preview_test.go`、真实 Chrome 媒体验收记录 | 本地二进制提供网页、NAS 不可达仍启动；地图背景等非必要外部资源有明确离线限制。最终检查打包资源与预览工具依赖。 |
-| 五.1–3、七.5：续传、校验、接纳前落盘、丢响应/崩溃 | `internal/syncclient/http_test.go`、`sync_original_test.go`、`sync_envelope_test.go` | 已直接复核真实 HTTP 完成块/提交后丢 TCP 响应的测试与 append 后恢复测试。**上传及提交各阶段的进程强杀验收尚缺统一明确证据**，不能用正常 Close/reopen 或响应中断代替；下一步补/定位真正子进程故障测试。 |
+| 五.1–3、七.5：续传、校验、接纳前落盘、丢响应/崩溃 | `internal/syncclient/{http,crash}_test.go`、`sync_process_crash_test.go`、`internal/upload/session_test.go` | 已补真实客户端四阶段和 NAS 三阶段 Process.Kill 验收；共享上传内核另有写入/fsync/进度保存边界的子进程退出测试。详见下方故障矩阵；本地 race 通过，跨平台结果仍待本阶段 CI。 |
 | 五.7：持续写入中的一致目录边界 | `sync_export_test.go`、`client_test.go` | 固定 head、分页及部分下载恢复入口已定位；最终核验新写入不混入已确定前缀。 |
 | 五.8：客户端专属完整性与存储边界 | `client_test.go`、`client_cache_rebuild.go`、NAS 拒绝客户端目录路径 | 本轮发现并修复派生映射丢失导致重建计量失败；未知版本仍拒绝覆盖，残留字节不能伪装成可用预览。最终检查普通 NAS 命令拒绝误开。 |
 | 五.9、七.9：配对/撤销授权、协议不兼容、旧库升级 | `sync_access_test.go`、`client_connection_test.go`、`sync_test.go`、store 迁移测试 | 逐条协议拒绝测试存在；仍需确认旧 schema 实际升级到当前 sync 索引的专门证据，不能只依赖新库初始化。 |
@@ -31,9 +31,26 @@
 
 ## 当前明确未收口项
 
-1. 进程强杀故障矩阵：区分上传、原件安装、NAS 正式追加、客户端等待回执和本地确认持久化；现有连接中断不是全部进程崩溃证据。
+1. 新增进程强杀故障矩阵本地通过，仍需本阶段跨平台 CI；这些边界测试不代表任意指令位置或整机掉电测试。
 2. 任务要求的逐 action、旧库升级、时间排序及 snapshot 全范围复核尚未结束。
 3. 正式视觉 gate 仍有旧 `entry-menu-box` 326 像素间歇差异；不能通过放宽阈值、遮罩或把一次匹配说成修复来收口。新增历史/删除冲突页面已审阅，仍需最终完整当前-main 基准接受与绿色复验。
-4. 缓存映射丢失/损坏修复的最终 make check 已通过（`/tmp/kist-derived-mapping-final-check.log`）；远端 CI 尚待推送后核对。
+4. 缓存映射丢失/损坏修复的最终 make check 已通过（`/tmp/kist-derived-mapping-final-check.log`）；b325fe0 的 CI 39700016805 与 Secret scan 39700016809 均通过。
 
 上述清单是下一步审计入口，不缩减 Goal，也不要求为每个潜在未来功能继续扩展界面。
+
+## 真实进程终止故障矩阵
+
+以下均使用合成数据，不触碰用户归档。强杀测试由父进程等待明确检查点后调用 `Process.Kill`，不执行子进程的关闭清理。
+
+| 进程与边界 | 检查点及恢复断言 | 证据 |
+| --- | --- | --- |
+| 客户端：上传块已保存，响应未交付 | 9 MiB 文件上传第一块后强杀；重开只发送剩余块，偏移恰为 0、8388608 | `TestHTTPClientRecoversAfterProcessKill/upload-block` |
+| 客户端：原件安装完成，响应未交付 | NAS 已验证完整原件；客户端重开后接续提交，不重复上传块 | 同测试 `original-installed` |
+| 客户端：NAS 已接纳，回执未交付 | 重开重复同步仍只产生一个正式 op，本地映射恢复 | 同测试 `nas-committed` |
+| 客户端：本地确认已持久化 | 同步返回后、Close 前强杀；恢复已接纳历史、原始时间与正式映射 | 同测试 `local-confirmed` |
+| NAS：原件临时复制中 | 拷贝一半后强杀，不发布不完整原件；重传后完整字节一致、没有归档 op | `TestSyncNASProcessKillDuringOriginalPlacement/original-copy` |
+| NAS：原件安装完成 | 安装后强杀；重开可读，重复安装幂等、没有归档 op | 同测试 `original-installed` |
+| NAS：日志 fsync 后、数据库 apply 前 | 重开追赶正式 op；重复接纳与 rebuild 保留同一回执；deep verify 仅报告预期投影缺失，relink 后无问题 | `TestSyncNASProcessKillAfterDurableAppend` |
+| 共享上传内核：write、数据 fsync、进度保存前后 | 子进程 `os.Exit(71)`，重开截断到确认偏移、从该偏移续传并校验完整内容；同步上传 API 复用该内核 | `internal/upload/TestProcessDeathAtDurabilityBoundaries` |
+
+客户端四场景 race 9.339 秒、NAS 三场景 race 2.766 秒通过。完整检查及跨平台 CI 记录见实施进度；不以响应中断或正常 Close/reopen 代替以上真实终止证据。

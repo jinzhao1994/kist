@@ -623,3 +623,12 @@ Unix 进程组阶段完整 make check（77074）退出 0，日志 `/tmp/kist-uni
 删除冲突 Visual 39698587267 两套完整（baseline 149 / candidate 154，无失败/跳过/重试）；新增删除桌面、窄屏、目标消失三场景已全尺寸审阅，另有已审阅的两张历史列表，唯一非预期差异仍是 entry-menu-box 326 像素。本轮未接受基准。CI 39698587237 当前其余五 job 成功，Windows 仍在运行，待最终核对。
 
 缓存映射恢复最终 make check（27350）退出 0，`/tmp/kist-derived-mapping-final-check.log`；包括新的超额重试和内容复用断言，Go race、前端 294 项与单二进制构建均通过。删除冲突 CI 39698587237 也已全部通过（包括此前等待的 Windows），Secret scan 39698587362 通过。本阶段为后端缓存恢复，无额外产品 UI 改动，既有正式视觉待后续稳定收口。
+
+
+真实进程强杀验收阶段：新增客户端上传块、原件安装、NAS 接纳回执、本地确认四个边界，以及 NAS 原件复制、安装、日志 fsync 后数据库 apply 前三个边界。父进程等待明确检查点后 Process.Kill 并回收子进程，不依赖 Close/defer；9 MiB 上传只发送偏移 0 和 8388608，重开、重复同步及 NAS rebuild 后仍保留同一正式操作/回执与原始时间。NAS 追加后强杀会留下可重建的投影缺失，deep verify 精确断言该差异，relink 后归零。共享上传内核已有 write/fsync/进度保存前后的真实子进程退出测试，已核对同步 API 的复用路径。
+
+测试夹具调试记录：最初输出结构嵌入 bytes.Buffer，导致 exec 的 io.Copy 通过提升的 ReaderFrom 绕过检查点 Write；改为命名字段后本地确认边界正常。NAS 初稿误用了不存在的 Report.Issues，修为公开 Total/Count；随后错误预期崩溃后投影自动完整，改为遵循既有 relink 契约。以上不是产品修复。最终针对性 race：客户端 9.339 秒（`/tmp/kist-sync-process-crash-final.log`）、NAS 2.766 秒（`/tmp/kist-nas-process-crash-matrix.log`）；完整检查 `/tmp/kist-sync-process-complete-check.log` 仍在运行。
+
+b325fe0 的 CI 39700016805、Secret scan 39700016809 通过。Visual 39700016903 完整 baseline 149 / candidate 154，零失败、跳过、重试；旧页面全匹配，五张新增历史/删除冲突页与此前全尺寸审阅图像逐字节相同。已发起当前 main 的正式基准接受流程；不把本轮菜单匹配当作此前间歇栅格差异已根治。
+
+真实进程强杀阶段完整 make check（20049）退出 0，`/tmp/kist-sync-process-complete-check.log`，包含最终测试实现。视觉接受流程 39701856155 成功；已触发接受提交的 CI、Visual 和 Secret scan，仍需核对复验结果。
