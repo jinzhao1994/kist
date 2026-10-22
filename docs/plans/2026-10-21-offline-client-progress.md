@@ -613,3 +613,13 @@ Unix 进程组阶段完整 make check（77074）退出 0，日志 `/tmp/kist-uni
 完整 make check（3671）退出 0，`/tmp/kist-deletion-conflict-complete-check.log`；随后修正英文数量单复数，最终交付检查 `/tmp/kist-deletion-conflict-final-check.log`（72855）正在运行。新增删除冲突桌面、窄屏、缺失目标三张正式视觉场景待推送后采集。双语指南与设计同步更新，完整 Goal 的其他领域编辑及最终故障矩阵审计继续进行。
 
 删除冲突最终交付检查（72855）退出 0，`/tmp/kist-deletion-conflict-final-check.log`，前端 294 项通过；Go 使用同一未改逻辑的已通过 race 缓存，单二进制构建成功。54de8f5 的 CI 39697133141 全部通过，包括 Windows、macOS、Linux ARM 与双架构容器；Secret scan 39697133176 通过。准备推送本阶段并核对正式新增三场景，不发布版本。
+
+最终审计补充：建立 `2026-10-22-offline-client-acceptance.md`，将 Goal 的所有章节条目映射到证据入口并明确尚未逐项核实的部分。尤其不能用真实 HTTP 丢响应测试或正常 Close/reopen 代替全部进程强杀验收；上传/提交故障矩阵、旧库 sync 索引升级及时间/snapshot 语义仍需直接核对。专用领域编辑器不是每一种 action 的额外必备 UI，但允许的每种离线写操作均必须有正确 patch/幂等/冲突/撤销语义。
+
+缓存恢复审计发现实际缺口：派生映射丢失后，即使缓存字节与哈希完整，RebuildCache 仍因缺少大小事实而失败；映射与索引同时丢失/坏字节三场景均在修改前失败（`/tmp/kist-derived-mapping-before.log`）。重建现优先使用原件/可信映射事实，其次有效缓存记录；都不存在时依据实际字节长度计算占用，但只有完整哈希匹配才标完整，否则标损坏。缺失映射仍为未缓存，不伪造 recipe；后续取得描述可复用已验证内容。显式重建可移除格式坏掉的可丢弃映射，字节不动，未知版本与 I/O 错误不当成损坏清掉。未来映射/索引版本均有不覆盖回归。
+
+进一步发现重试边界：未知大小的坏字节重建后，旧记录大小会拒绝可信描述的重新下载；超额坏字节的旧预留也可能挡住修复。现仅对 Corrupt 记录在独占租约/缓存锁内移除坏字节与旧记录、fsync，再按可信大小重新准入，正常记录仍拒绝大小冲突。针对性缓存/派生/离线准备 race 42.077 秒通过（`/tmp/kist-derived-mapping-retry-targeted.log`），追加超额坏字节及内容复用验证 11.085 秒通过（`/tmp/kist-derived-mapping-oversize.log`）。先前完整检查（19162）已通过；包含最新重试及所有断言的最终检查为 `/tmp/kist-derived-mapping-final-check.log`（27350），仍在运行。
+
+删除冲突 Visual 39698587267 两套完整（baseline 149 / candidate 154，无失败/跳过/重试）；新增删除桌面、窄屏、目标消失三场景已全尺寸审阅，另有已审阅的两张历史列表，唯一非预期差异仍是 entry-menu-box 326 像素。本轮未接受基准。CI 39698587237 当前其余五 job 成功，Windows 仍在运行，待最终核对。
+
+缓存映射恢复最终 make check（27350）退出 0，`/tmp/kist-derived-mapping-final-check.log`；包括新的超额重试和内容复用断言，Go race、前端 294 项与单二进制构建均通过。删除冲突 CI 39698587237 也已全部通过（包括此前等待的 Windows），Secret scan 39698587362 通过。本阶段为后端缓存恢复，无额外产品 UI 改动，既有正式视觉待后续稳定收口。

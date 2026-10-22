@@ -52,13 +52,14 @@ func (c *Client) RebuildCache(ctx context.Context) (ClientCacheRebuildResult, er
 	if err != nil {
 		return result, err
 	}
-	_, _, err = c.cachePinsLocked()
+	_, derived, err := c.scanDerivedRecordsLocked(true)
+	if err == nil {
+		_, _, err = c.cachePinsLocked()
+	}
 	if err == nil {
 		_, err = c.workspaceEntriesLocked()
 	}
 	if err == nil {
-		_, derived, e := c.derivedRecordsLocked()
-		err = e
 		for key, size := range derived {
 			if previous, exists := known[key]; exists && previous != size {
 				err = ErrCacheMetadata
@@ -94,7 +95,9 @@ func (c *Client) RebuildCache(ctx context.Context) (ClientCacheRebuildResult, er
 		}
 		size, found := known[key]
 		if !found {
-			return result, ErrCacheMetadata
+			// A disposable preview mapping may be lost independently of its
+			// bytes. Recover accounting without inventing an original/recipe.
+			size = -1
 		}
 		unlock, acquired, err := c.cacheObjectLock(key, false).TryAcquire()
 		if err != nil {
@@ -136,7 +139,11 @@ func (c *Client) rebuildCachedOriginal(ctx context.Context, key string, size int
 	if err == nil && old.Version != 0 && old.Version != 1 {
 		return "", ErrSyncVersion
 	}
-	valid := err == nil && old.Version == 1 && old.valid(key) && old.Size == size
+	valid := err == nil && old.Version == 1 && old.valid(key)
+	if size < 0 && valid {
+		size = old.Size
+	}
+	valid = valid && old.Size == size
 	file, err := os.OpenFile(c.cachePath(key, ".data"), os.O_RDWR, 0600)
 	if errors.Is(err, os.ErrNotExist) {
 		release, err := c.cacheLock(ctx)
@@ -161,6 +168,12 @@ func (c *Client) rebuildCachedOriginal(ctx context.Context, key string, size int
 		return "", ErrCacheMetadata
 	}
 	length := info.Size()
+	if size < 0 {
+		// With neither a catalog fact nor a valid index, only a full hash
+		// match can prove these bytes complete. Otherwise retain them as
+		// corrupt, not resumable, until explicitly fetched again or pruned.
+		size = length
+	}
 	lostConfirmed := valid && length < old.Offset
 	if valid && !old.Complete && !old.Corrupt && length > old.Offset {
 		if err := file.Truncate(old.Offset); err != nil {

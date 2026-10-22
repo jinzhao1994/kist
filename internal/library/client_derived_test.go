@@ -189,3 +189,148 @@ func TestClientDerivedResumesVerifiedDescriptorAndRejectsOldProtocol(t *testing.
 		t.Fatal(source.offsets)
 	}
 }
+
+func TestClientDerivedRebuildWithoutMapping(t *testing.T) {
+	for _, mode := range []string{"mapping", "mapping-and-index", "damaged-bytes", "damaged-bytes-oversized", "damaged-mapping"} {
+		t.Run(mode, func(t *testing.T) {
+			nas, id, _ := mediaFixture(t)
+			c := newSyncClient(t, nas)
+			ctx := t.Context()
+			damaged := mode == "damaged-bytes" || mode == "damaged-bytes-oversized"
+			damagedData := []byte("partial preview")
+			original, _, _ := nas.File(ctx, id)
+			source := &derivedTestSource{testSyncPeer: &testSyncPeer{nas: nas}, media: nas.Media()}
+			output, err := c.CacheDerived(ctx, original.BlobKey, derive.Thumbnail, false, source)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if mode == "damaged-bytes-oversized" {
+				damagedData = make([]byte, output.Job.Result.Bytes+100)
+			}
+			mapping, err := c.derivedPath(original.BlobKey, derive.Thumbnail)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if mode == "damaged-mapping" {
+				if err = os.WriteFile(mapping, []byte("{broken mapping"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			} else if err = os.Remove(mapping); err != nil {
+				t.Fatal(err)
+			}
+			if mode != "mapping" {
+				if err = os.Remove(c.cachePath(output.ContentKey, ".json")); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if damaged {
+				if err = os.WriteFile(c.cachePath(output.ContentKey, ".data"), damagedData, 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			result, err := c.RebuildCache(ctx)
+			if err != nil {
+				t.Fatal("lost mapping must not block accounting recovery", err)
+			}
+			if damaged {
+				if result.Corrupt != 1 {
+					t.Fatal(result)
+				}
+			} else if result.Verified != 1 {
+				t.Fatal(result)
+			}
+			status, err := c.CacheStatus(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if damaged {
+				if status.PartialBytes != int64(len(damagedData)) {
+					t.Fatal(status)
+				}
+			} else if status.CachedBytes != output.Job.Result.Bytes {
+				t.Fatal(status)
+			}
+			if _, _, err = c.OpenDerived(ctx, original.BlobKey, derive.Thumbnail); !errors.Is(err, ErrNotCached) {
+				t.Fatal("invented a missing recipe mapping", err)
+			}
+			if mode == "damaged-bytes-oversized" {
+				if err = c.SetOfflineOriginals(ctx, "repair", []string{output.ContentKey}); err != nil {
+					t.Fatal(err)
+				}
+				status, err = c.SetCacheLimits(ctx, time.Hour, output.Job.Result.Bytes)
+				if err != nil || !status.OverLimit {
+					t.Fatal(status, err)
+				}
+			}
+			{
+				downloads := len(source.offsets)
+				restored, err := c.CacheDerived(ctx, original.BlobKey, derive.Thumbnail, false, source)
+				if err != nil || restored.ContentKey != output.ContentKey || (!damaged && len(source.offsets) != downloads) {
+					t.Fatal(restored, err)
+				}
+				_, reader, err := c.OpenDerived(ctx, original.BlobKey, derive.Thumbnail)
+				if err != nil {
+					t.Fatal(err)
+				}
+				result, err = c.RebuildCache(ctx)
+				reader.Close()
+				if err != nil || result.Skipped != 1 {
+					t.Fatal(result, err)
+				}
+			}
+		})
+	}
+}
+
+func TestClientDerivedRebuildPreservesFutureVersions(t *testing.T) {
+	for _, kind := range []string{"mapping", "index"} {
+		t.Run(kind, func(t *testing.T) {
+			nas, id, _ := mediaFixture(t)
+			c := newSyncClient(t, nas)
+			ctx := t.Context()
+			original, _, _ := nas.File(ctx, id)
+			source := &derivedTestSource{testSyncPeer: &testSyncPeer{nas: nas}, media: nas.Media()}
+			output, err := c.CacheDerived(ctx, original.BlobKey, derive.Thumbnail, false, source)
+			if err != nil {
+				t.Fatal(err)
+			}
+			mapping, err := c.derivedPath(original.BlobKey, derive.Thumbnail)
+			if err != nil {
+				t.Fatal(err)
+			}
+			path := mapping
+			if kind == "mapping" {
+				err = writeClientJSON(path, cachedDerived{Version: 2, Descriptor: output})
+			} else {
+				if err = os.Remove(mapping); err != nil {
+					t.Fatal(err)
+				}
+				path = c.cachePath(output.ContentKey, ".json")
+				var record cachedOriginal
+				if err = readClientJSON(path, &record); err != nil {
+					t.Fatal(err)
+				}
+				record.Version = 2
+				err = writeClientJSON(path, record)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			before, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err = c.RebuildCache(ctx); !errors.Is(err, ErrSyncVersion) {
+				t.Fatal(err)
+			}
+			after, err := os.ReadFile(path)
+			if err != nil || string(after) != string(before) {
+				t.Fatal("future metadata overwritten", err)
+			}
+			info, err := os.Stat(c.cachePath(output.ContentKey, ".data"))
+			if err != nil || info.Size() != output.Job.Result.Bytes {
+				t.Fatal("future content removed", err)
+			}
+		})
+	}
+}

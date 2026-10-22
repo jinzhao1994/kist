@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -119,32 +120,27 @@ func (c *Client) cacheContent(ctx context.Context, key string, size int64, sourc
 		release()
 		return err
 	} else {
-		if record.Size != size {
+		if record.Size != size && !record.Corrupt {
 			release()
 			return ErrCacheMetadata
 		}
-		previousBudget = size
+		previousBudget = record.Size
 		if record.Corrupt {
-			// Explicit retry may discard invalid cache bytes before admission;
-			// otherwise an oversized damaged file could consume the very quota
-			// required to repair itself. Its offline selection remains intact.
-			file, openErr := os.OpenFile(c.cachePath(key, ".data"), os.O_RDWR, 0600)
-			if openErr != nil && !errors.Is(openErr, os.ErrNotExist) {
-				release()
-				return openErr
-			}
-			if file != nil {
-				resetErr := file.Truncate(0)
-				if resetErr == nil {
-					resetErr = file.Sync()
-				}
-				closeErr := file.Close()
-				if resetErr != nil || closeErr != nil {
+			// An explicit retry discards invalid bytes and their obsolete
+			// reservation before admitting the trusted descriptor's size.
+			// A rebuilt orphan may only have known its damaged byte length.
+			for _, extension := range []string{".data", ".json"} {
+				if err := os.Remove(c.cachePath(key, extension)); err != nil && !errors.Is(err, os.ErrNotExist) {
 					release()
-					return errors.Join(resetErr, closeErr)
+					return err
 				}
 			}
-			record.Corrupt, record.Complete, record.Offset = false, false, 0
+			if err := syncClientDir(filepath.Join(c.root, "cache", "objects")); err != nil {
+				release()
+				return err
+			}
+			record = cachedOriginal{Version: 1, Key: key, Size: size, AccessedAt: time.Now().UTC()}
+			previousBudget = 0
 		}
 		if _, statErr := os.Stat(c.cachePath(key, ".data")); errors.Is(statErr, os.ErrNotExist) {
 			if record.Complete {

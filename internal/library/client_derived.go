@@ -2,6 +2,7 @@ package library
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
@@ -206,6 +207,13 @@ func (c *Client) OpenDerived(ctx context.Context, original, recipe string) (Sync
 // derivedRecordsLocked also preserves superseded output facts for accounting
 // and recovery until their bytes are evicted. It does not create archive facts.
 func (c *Client) derivedRecordsLocked() ([]SyncDerived, map[string]int64, error) {
+	return c.scanDerivedRecordsLocked(false)
+}
+
+// scanDerivedRecordsLocked repairs only disposable, invalid mappings when
+// explicitly rebuilding the cache. Future versions and I/O failures are not
+// corruption and must never be removed. Output bytes remain untouched.
+func (c *Client) scanDerivedRecordsLocked(repair bool) ([]SyncDerived, map[string]int64, error) {
 	root := filepath.Join(c.root, "cache", "derived")
 	files, err := os.ReadDir(root)
 	if errors.Is(err, os.ErrNotExist) {
@@ -220,34 +228,68 @@ func (c *Client) derivedRecordsLocked() ([]SyncDerived, map[string]int64, error)
 		if !strings.HasSuffix(file.Name(), ".json") {
 			continue
 		}
-		var record cachedDerived
-		if err := readClientJSON(filepath.Join(root, file.Name()), &record); err != nil {
-			return nil, nil, ErrCacheMetadata
-		}
-		descriptor := record.Descriptor
-		if record.Version != 1 {
-			return nil, nil, ErrSyncVersion
-		}
-		if err := ValidateSyncDerived(descriptor, descriptor.Job.BlobKey, descriptor.Job.Recipe); err != nil {
-			return nil, nil, ErrCacheMetadata
-		}
-		expected, err := c.derivedPath(descriptor.Job.BlobKey, descriptor.Job.Recipe)
-		if err != nil || expected != filepath.Join(root, file.Name()) {
-			return nil, nil, ErrCacheMetadata
+		path := filepath.Join(root, file.Name())
+		record, err := c.readDerivedRecord(path)
+		if err != nil {
+			if !repair || !errors.Is(err, ErrCacheMetadata) {
+				return nil, nil, err
+			}
+			if err := os.Remove(path); err != nil {
+				return nil, nil, err
+			}
+			if err := syncClientDir(root); err != nil {
+				return nil, nil, err
+			}
+			continue
 		}
 		for key, size := range record.Outputs {
-			if _, err := blob.ParseKey(key); err != nil || size <= 0 || size > derive.MaxOutputBytes {
-				return nil, nil, ErrCacheMetadata
-			}
 			if previous, found := facts[key]; found && previous != size {
 				return nil, nil, ErrCacheMetadata
 			}
 			facts[key] = size
 		}
+		descriptor := record.Descriptor
 		if descriptor.Job.State == "ready" {
+			if previous, found := facts[descriptor.ContentKey]; found && previous != descriptor.Job.Result.Bytes {
+				return nil, nil, ErrCacheMetadata
+			}
 			facts[descriptor.ContentKey] = descriptor.Job.Result.Bytes
 		}
 		records = append(records, descriptor)
 	}
 	return records, facts, nil
+}
+
+func (c *Client) readDerivedRecord(path string) (cachedDerived, error) {
+	var record cachedDerived
+	if err := readClientJSON(path, &record); err != nil {
+		var syntax *json.SyntaxError
+		var value *json.UnmarshalTypeError
+		if errors.As(err, &syntax) || errors.As(err, &value) {
+			return record, ErrCacheMetadata
+		}
+		return record, err
+	}
+	if record.Version != 1 {
+		return record, ErrSyncVersion
+	}
+	descriptor := record.Descriptor
+	if err := ValidateSyncDerived(descriptor, descriptor.Job.BlobKey, descriptor.Job.Recipe); err != nil {
+		return record, ErrCacheMetadata
+	}
+	expected, err := c.derivedPath(descriptor.Job.BlobKey, descriptor.Job.Recipe)
+	if err != nil || expected != path {
+		return record, ErrCacheMetadata
+	}
+	for key, size := range record.Outputs {
+		if _, err := blob.ParseKey(key); err != nil || size <= 0 || size > derive.MaxOutputBytes {
+			return record, ErrCacheMetadata
+		}
+	}
+	if descriptor.Job.State == "ready" {
+		if size, found := record.Outputs[descriptor.ContentKey]; found && size != descriptor.Job.Result.Bytes {
+			return record, ErrCacheMetadata
+		}
+	}
+	return record, nil
 }

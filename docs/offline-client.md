@@ -121,6 +121,12 @@ Corrupt content stays unavailable until fetched again; skipped active objects
 can be checked by a later rebuild. Offline selections, pending operations and
 protected local originals are not removed by cache pruning or rebuilding.
 
+Rebuilding also recovers accounting when a disposable preview mapping is lost or
+malformed. It preserves the bytes and requires a matching full content hash before
+marking an unindexed object complete. A missing mapping still means the preview
+is unavailable; prepare it again to obtain a valid descriptor and reuse verified
+bytes. Unknown metadata versions are rejected rather than overwritten.
+
 These byte totals describe the disposable content cache, not total laptop disk
 usage. Preview outputs and conversion workspaces share the cache budget. Protected
 local originals are counted separately in client status. The complete offline
