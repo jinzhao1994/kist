@@ -3,8 +3,9 @@
 [中文](offline-client.zh-CN.md)
 
 The development build provides NAS pairing, a local web interface, selected-content
-caching, offline edits and manual synchronization. Final fault-recovery and visual
-acceptance remain in progress; this feature has not been released.
+caching, offline edits and manual synchronization. Functional, fault-recovery and visual
+acceptance are complete; this feature has not been released. See the
+[acceptance evidence (Chinese)](plans/2026-10-22-offline-client-acceptance.md).
 
 ## Authorize a client
 

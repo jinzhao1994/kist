@@ -673,3 +673,10 @@ fbf7985 的 CI 39703093445 全平台及容器通过，Visual 39703093399、Secre
 
 
 重做入口真实 Chrome 只读验收通过（`/tmp/kist-local-redo-browser.log`）：合成客户端实际 accepted undo 事件可打开撤销确认，桌面/390px 窄屏截图已全尺寸查看，无页面错误、无横向溢出、无提交 POST。未为了验收而重做实际测试删除。预览服务使用 `/tmp/kist-local-redo-preview`、端口 19595、会话 97510。完整 make check（24143）退出 0，日志 `/tmp/kist-local-redo-complete-check.log`，包含新增正式场景及前端六项历史回归。
+
+
+## 最终交付核对（2026-10-22）
+
+ad57d3e 的 CI 39705965237 / Visual 39705965158 / Secret scan 39705965168 全部成功。最终实现 b6d92bc 的 CI 39707088422 和 Secret scan 39707088370 成功。正式视觉 39707088420 完整采集 154/156 场景、无跳过/异常/flaky，旧场景全部 MATCH，仅新增本地历史撤销确认桌面/手机两个 NEW；全尺寸审阅通过。接受流程 39708286364 成功并生成 3efe6ba 基准提交。
+
+功能、逐项动作审计、真实进程强杀与兼容恢复均已验收；双语使用指南与 Goal 状态更新为已实现、未发布。文档收尾提交后仍核对最终 main 的 CI / Visual / Secret scan，全部成功、工作树干净、已推送后关闭 Goal。没有创建 PR 或发布版本。
