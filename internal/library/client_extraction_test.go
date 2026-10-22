@@ -90,6 +90,76 @@ func TestClientExtractionRequiresCachedOriginal(t *testing.T) {
 	}
 }
 
+func TestSyncExtractionRejectsConcurrentVersionWithUnchangedFacts(t *testing.T) {
+	nas, box := openWithBox(t)
+	file := importOneFile(t, nas, box, "file.txt", "content")
+	ctx := t.Context()
+	payload := func(previous, version int) []byte {
+		t.Helper()
+		raw, err := oplog.Marshal(oplog.ExtractMetadataPayload{Extractor: "test", PreviousVersion: previous, Version: version, Files: []oplog.FileExtraction{{FileID: file.ID}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return raw
+	}
+	if _, err := nas.write(ctx, oplog.ActionExtractMetadata, payload(0, 1), oplog.OriginExtractor, writeOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	proposal := syncBox(t, "offline-extraction-version")
+	proposal.Action, proposal.Origin = string(oplog.ActionExtractMetadata), string(oplog.OriginExtractor)
+	proposal.Payload = payload(1, 2)
+	proposal.Files = []SyncFileState{{ID: file.ID, BlobKey: file.BlobKey}}
+	c := newSyncClient(t, nas)
+	if err := c.Stage(ctx, proposal); err != nil {
+		t.Fatal(err)
+	}
+	remote, err := nas.write(ctx, oplog.ActionExtractMetadata, payload(1, 3), oplog.OriginExtractor, writeOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := nas.OpCount(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := nas.AcceptSync(ctx, proposal); !errors.Is(err, ErrSyncConflict) {
+		t.Fatal("stale extraction version accepted", err)
+	}
+	if _, err := c.Synchronize(ctx, &testSyncPeer{nas: nas}); !errors.Is(err, ErrSyncConflict) {
+		t.Fatal("stale extraction did not block pending overlay", err)
+	}
+	versions, err := store.Extractions(nas.db, file.ID)
+	if err != nil || versions["test"] != 3 {
+		t.Fatal(versions, err)
+	}
+	if after, err := nas.OpCount(ctx); err != nil || after != before {
+		t.Fatal("rejection appended an operation", after, before, err)
+	}
+	later, err := nas.write(ctx, oplog.ActionExtractMetadata, payload(3, 4), oplog.OriginExtractor, writeOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := nas.Undo(ctx, remote); !errors.Is(err, ErrUndoBlocked) {
+		t.Fatal("undo overwrote a later extraction version", err)
+	}
+	if _, err := nas.Undo(ctx, later); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := nas.Undo(ctx, remote); err != nil {
+		t.Fatal(err)
+	}
+	versions, err = store.Extractions(nas.db, file.ID)
+	if err != nil || versions["test"] != 1 {
+		t.Fatal("undo did not restore prior version", versions, err)
+	}
+	snapshot := snapshotOf(t, nas)
+	if err := nas.Rebuild(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if snapshotOf(t, nas) != snapshot {
+		t.Fatal("rebuild changed extraction versions")
+	}
+}
+
 func TestClientPreparedExtractionRejectsReplacedContent(t *testing.T) {
 	nas, box := openWithBox(t)
 	c := newSyncClient(t, nas)

@@ -279,7 +279,7 @@ func (l *Library) AcceptSync(ctx context.Context, p SyncProposal) (result SyncRe
 		if errors.As(err, &outcome) {
 			return SyncResult{OpID: id}, err
 		}
-		if errors.Is(err, oplog.ErrStaleBefore) || store.IsStateConflict(err) || errors.Is(err, ErrAlreadyReverted) {
+		if errors.Is(err, oplog.ErrStaleBefore) || errors.Is(err, oplog.ErrTagInUse) || store.IsStateConflict(err) || errors.Is(err, ErrAlreadyReverted) {
 			return SyncResult{}, fmt.Errorf("%w: %w", ErrSyncConflict, err)
 		}
 		return SyncResult{}, err

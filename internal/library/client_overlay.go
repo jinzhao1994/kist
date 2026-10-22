@@ -153,7 +153,7 @@ func rebuildClientPrefixInto(ctx context.Context, db *sql.DB, confirmed *journal
 }
 
 func clientRebaseConflict(err error) bool {
-	return errors.Is(err, ErrSyncConflict) || errors.Is(err, ErrSyncDependency) || errors.Is(err, oplog.ErrStaleBefore) || errors.Is(err, ErrAlreadyReverted) || errors.Is(err, ErrUndoBlocked) || errors.Is(err, ErrTagCycle) || errors.Is(err, ErrNoSuchFile) || store.IsStateConflict(err)
+	return errors.Is(err, ErrSyncConflict) || errors.Is(err, ErrSyncDependency) || errors.Is(err, oplog.ErrStaleBefore) || errors.Is(err, oplog.ErrTagInUse) || errors.Is(err, ErrAlreadyReverted) || errors.Is(err, ErrUndoBlocked) || errors.Is(err, ErrTagCycle) || errors.Is(err, ErrNoSuchFile) || store.IsStateConflict(err)
 }
 
 func clientPendingRow(tx *sql.Tx, p SyncProposal, id int64, localIDs map[string]int64, references map[int64]SyncReference) (store.OpRow, error) {

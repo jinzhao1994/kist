@@ -653,3 +653,15 @@ b325fe0 的 CI 39700016805、Secret scan 39700016809 通过。Visual 39700016903
 fbf7985 的 CI 39703093445 全平台及容器通过，Visual 39703093399、Secret scan 39703093504 成功。确认完整结果后已推送归档盒标签修复 15386ec；文件标签修复的完整检查继续运行。
 
 文件标签精确来源前提修复的完整 make check（83809）退出 0，`/tmp/kist-file-tag-conflict-complete-check.log`。归档盒标签修复 15386ec 的 CI 39704089580、Visual 39704089632 仍在运行，Secret scan 39704089582 已成功。
+
+
+提取动作审计发现版本前提缺失：字段未变化时，NAS 已从 v1 提升到 v3，离线 v1→v2 仍被接纳，回退 file_extractions。修复前回归失败（`/tmp/kist-extraction-version-before.log`）；library 新写逐文件校验 PreviousVersion，覆盖 pending、同步及严格逆操作，历史 Apply 不变。针对性提取与客户端回归 9.726 秒通过（`/tmp/kist-extraction-version-targeted.log`）；最终回归还验证 v4 阻挡撤销 v3、先撤 v4 后可恢复 v1，rebuild 快照一致，race 2.456 秒通过（`/tmp/kist-extraction-version-final.log`）。完整检查 `/tmp/kist-extraction-version-complete-check.log` 正在运行。
+
+
+标签删除分类问题真实复现：离线删除后 NAS 新增子标签或 box 挂载，AcceptSync 返回 ErrTagInUse 而非同步冲突（`/tmp/kist-tag-deletion-conflict-before.log`）。补充服务端和 clientRebaseConflict 分类，不更改删除约束或 Apply。回归验证两种竞争、客户端 Status 可读、Resolve 保留 NAS 结果后继续、NAS op 数不变；相关标签回归 race 6.206 秒（`/tmp/kist-tag-deletion-conflict-targeted.log`）、最终回归 3.512 秒（`/tmp/kist-tag-deletion-conflict-final.log`）通过。提取版本完整检查仍为修改前启动的独立运行，标签删除分类变化须纳入新的最终完整检查。
+
+15386ec 的 CI 39704089580、Visual 39704089632、Secret scan 39704089582 均成功，已推送文件标签修复 3450e06。
+
+提取版本独立完整检查（6547）退出 0，`/tmp/kist-extraction-version-complete-check.log`。包含随后新增标签删除分类及最终测试的完整检查为 `/tmp/kist-extraction-and-tag-conflicts-final-check.log`，正在运行；不以先前结果替代新增改动的验证。
+
+提取版本与标签删除分类最终完整 make check（55580）退出 0，`/tmp/kist-extraction-and-tag-conflicts-final-check.log`。本轮同时直接审计目录/缓存区别、workspace 计量与租约、完整目录边界、凭据/旧库兼容、各动作 handler 和 UI 撤销入口，并将证据更新到最终审计表。发现本地历史隐藏撤销事件重做入口，留作下一独立修正，不宣布 Goal 完成。

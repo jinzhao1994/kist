@@ -12,6 +12,21 @@ import (
 // rebased pending intents. It is deliberately absent from historical replay.
 func validateWriteState(tx *store.ViewTx, row store.OpRow) error {
 	action, payload := oplog.Action(row.Action), row.Payload
+	if action == oplog.ActionExtractMetadata {
+		p, err := oplog.Payload[oplog.ExtractMetadataPayload](payload)
+		if err != nil {
+			return err
+		}
+		for _, file := range p.Files {
+			versions, err := store.Extractions(tx.Queryer(), file.FileID)
+			if err != nil {
+				return err
+			}
+			if versions[p.Extractor] != p.PreviousVersion {
+				return fmt.Errorf("file %s extraction version changed: %w", file.FileID, oplog.ErrStaleBefore)
+			}
+		}
+	}
 	if action == oplog.ActionUntagFiles {
 		p, err := oplog.Payload[oplog.UntagFilesPayload](payload)
 		if err != nil {
