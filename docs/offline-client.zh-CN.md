@@ -60,7 +60,7 @@ kist client offline remove /path/to/laptop-client trip
 
 笔记本可浏览已准备内容、导入照片并编辑对象、标签或文件组合；NAS 同时可以独立修改。新原件和待同步操作单独持久保存，不属于可逐出的缓存。
 
-回家后点击网页「立即同步」，或执行：
+回家后点击网页「与 NAS 同步」，或执行：
 
 ```sh
 kist --json client sync /path/to/laptop-client

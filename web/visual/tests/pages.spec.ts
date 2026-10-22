@@ -3223,10 +3223,13 @@ for (const panel of [
       return route.abort();
     });
     await page.goto("/");
-    await page.getByRole("button", { name: "离线客户端", exact: true }).click();
+    await page
+      .getByRole("navigation", { name: "个人归档" })
+      .getByRole("button", { name: "离线客户端", exact: true })
+      .click();
     const dialog = page.getByRole("dialog");
     await expect(
-      dialog.getByRole("button", { name: "立即同步" }),
+      dialog.getByRole("button", { name: "与 NAS 同步" }),
     ).toBeEnabled();
     if (deletionConflict) {
       await dialog

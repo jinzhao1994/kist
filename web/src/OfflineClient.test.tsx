@@ -108,7 +108,7 @@ it("shows incomplete catalog without automatically syncing", async () => {
     await screen.findByText(/catalog has not finished syncing/),
   ).toBeVisible();
   expect(writes).toEqual([]);
-  await userEvent.click(screen.getByRole("button", { name: "Sync now" }));
+  await userEvent.click(screen.getByRole("button", { name: "Sync with NAS" }));
   expect(await screen.findByText("Sync complete")).toBeVisible();
   expect(writes).toEqual([{ path: "/api/v1/client/sync", body: {} }]);
 });
@@ -125,7 +125,7 @@ it("retains a pending change after a failed sync", async () => {
   failSync = true;
   setup();
   await userEvent.click(
-    await screen.findByRole("button", { name: "Sync now" }),
+    await screen.findByRole("button", { name: "Sync with NAS" }),
   );
   expect(await screen.findByText(/Connection interrupted/)).toBeVisible();
   expect(screen.getByText("pending-1")).toBeVisible();

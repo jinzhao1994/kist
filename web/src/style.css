@@ -3312,14 +3312,6 @@ main.upload-drag-active {
   padding-block-end: var(--mantine-spacing-md);
 }
 
-.client-sidebar-footer {
-  flex-wrap: wrap;
-  row-gap: 0.35rem;
-}
-.client-sidebar-footer small {
-  flex-basis: 100%;
-}
-
 /* Selection belongs to the card button, not a second nested input. */
 .file-preview .file-offline-check {
   position: absolute;

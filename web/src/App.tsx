@@ -189,6 +189,15 @@ export function App() {
                 <NavigationIcon kind={section} /> <span>{t(section)}</span>
               </UnstyledButton>
             ))}
+            {info.data?.client && (
+              <UnstyledButton
+                className="nav-link"
+                aria-haspopup="dialog"
+                onClick={() => setClientOpen(true)}
+              >
+                <NavigationIcon kind="client" /> <span>{t("clientTitle")}</span>
+              </UnstyledButton>
+            )}
           </nav>
           <SavedSearches
             current={currentSearch}
@@ -274,15 +283,8 @@ export function App() {
               )}
             </details>
           </div>
-          <div
-            className={`sidebar-footer${info.data?.client ? " client-sidebar-footer" : ""}`}
-          >
+          <div className="sidebar-footer">
             <small>kist · {info.data?.version || "v0.1"}</small>
-            {info.data?.client && (
-              <UnstyledButton onClick={() => setClientOpen(true)}>
-                {t("clientTitle")}
-              </UnstyledButton>
-            )}
             <UnstyledButton onClick={() => setSettings(true)}>
               {t("settings")}
             </UnstyledButton>

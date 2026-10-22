@@ -1,7 +1,7 @@
 export function NavigationIcon({
   kind,
 }: {
-  kind: "files" | "boxes" | "trash" | "history";
+  kind: "files" | "boxes" | "trash" | "history" | "client";
 }) {
   return (
     <svg
@@ -33,6 +33,11 @@ export function NavigationIcon({
       {kind === "trash" && (
         <>
           <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" />
+        </>
+      )}
+      {kind === "client" && (
+        <>
+          <path d="M20 7H4l3-3M4 17h16l-3 3M4 7l3 3M20 17l-3-3" />
         </>
       )}
       {kind === "history" && (

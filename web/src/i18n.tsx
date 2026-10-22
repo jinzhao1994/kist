@@ -93,7 +93,11 @@ export const en = {
     "Search includes all metadata received in the last completed sync. Originals are cached separately.",
   clientCatalogIncomplete:
     "The catalog has not finished syncing. Browsing and search may be incomplete.",
-  clientSyncNow: "Sync now",
+  clientSyncNow: "Sync with NAS",
+  clientSyncDescription:
+    "Get the latest changes from the NAS and send this laptop’s pending changes back. Conflicts pause the sync for your review.",
+  clientSyncCacheNote:
+    "Originals and previews are downloaded separately. Use Keep offline to prepare content for your trip.",
   clientSyncComplete: "Sync complete",
   clientSyncConflict:
     "Sync paused for a conflict. Your local change has been retained.",
@@ -731,7 +735,11 @@ export const zh: Record<MessageKey, string> = {
   clientNotConnected: "尚未连接 NAS",
   clientCatalogComplete: "检索包含上次完整同步的全部资料信息，原文件另行缓存。",
   clientCatalogIncomplete: "资料目录尚未完成同步，浏览和检索结果可能不完整。",
-  clientSyncNow: "立即同步",
+  clientSyncNow: "与 NAS 同步",
+  clientSyncDescription:
+    "获取 NAS 的最新变更，并将这台笔记本的待同步修改提交到 NAS。遇到冲突时暂停，由你确认处理。",
+  clientSyncCacheNote:
+    "原文件和预览按需下载。出发前请使用「保留离线」准备需要的内容。",
   clientSyncComplete: "同步完成",
   clientSyncConflict: "同步遇到冲突，已保留本地修改。",
   clientPending: "待同步修改 · {count}",

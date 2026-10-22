@@ -119,6 +119,10 @@ export function OfflineClient({ close }: { close: () => void }) {
                         : "clientCatalogIncomplete",
                     )}
                   </Text>
+                  <Text size="sm">{t("clientSyncDescription")}</Text>
+                  <Text size="sm" c="dimmed">
+                    {t("clientSyncCacheNote")}
+                  </Text>
                   <Group>
                     <Button
                       loading={busy}
