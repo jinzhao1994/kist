@@ -15,7 +15,7 @@
 | 二.6–7、五.9：origin、凭据和操作身份分离 | `sync_access_test.go`、`internal/api/sync_test.go`、`sync_test.go` 协议校验 | 已直接复核 user/extractor 保留、配对不写归档事件；旧 origin=sync 随迁移保留，新提案 origin=sync/未知动作/不兼容版本拒绝且 op 数不增加。凭据摘要持久化、跨句柄撤销即时生效，客户端状态不暴露 token。 |
 | 三.1–5：合并前缀、冲突停止、保留意图和依赖 | `client_overlay_test.go`、`client_queue_test.go`、`client_sync_test.go` | 已有竞争修改/解决和不确定结果证据；完整动作覆盖不能仅由通用路径推断。 |
 | 三.6：每种离线写操作的 patch/幂等/冲突/撤销 | `sync_test.go` 的注册表覆盖；`client_{commands,tags,saved_searches,file_commands,extraction,import,deletion}_test.go` | 逐项审计已发现并修复 box tag 并发重复增删的空修改可撤销问题，增加同步、严格撤销和 rebuild 证据；文件标签重复移除问题也已复现并按来源增加新写前校验，回归验证其他来源保留、严格逆操作和 rebuild；其他动作继续与真实 handler/测试对照，不能把覆盖清单等同语义测试。 |
-| 三.7、七.7：历史、严格撤销、操作组与映射 | `client_undo_test.go`、`client_import_test.go`、本地历史及删除冲突测试 | 已有本地撤销、接纳后撤销、批次、正式映射和替代意图测试；最终复核 UI 可达性与引用边界。 |
+| 三.7、七.7：历史、严格撤销、操作组与映射 | `client_undo_test.go`、`client_import_test.go`、本地历史及删除冲突测试 | 已有本地撤销、接纳后撤销、批次、正式映射和替代意图测试；已核对正式历史与 LocalHistory 的 Undo API 入口、API 幂等回归及本地/正式引用边界；补齐撤销事件再次撤销的本地入口，真实 Chrome 桌面/窄屏确认界面通过，正式视觉验收待本阶段提交。 |
 | 三.8：fileset 角色/主文件/页序/嵌套/删除依赖 | `client_commands_test.go`、`client_deletion_test.go`、`client_conflict_deletion_test.go`、`client_offline_test.go` | 已有配置竞争、嵌套媒体依赖、成员删除与严格恢复；真实浏览器删除后恢复 NAS 新增文件通过。 |
 | 四.4–7、七.6：TTL/LRU、配额、保留、活跃使用 | `client_cache_test.go`、`client_cache_workspace_test.go`、`client_offline_test.go` | 已直接复核 cache 与 workspace 测试：原件/派生统一计量；中间文件计 PartialBytes、剩余预约计 ReservedBytes，跨句柄不超售；活跃读者/转换租约不可逐出，超预算转换取消且发布前再次检查。TTL/LRU 与保留选择既有验收见实施记录。 |
 | 四.8：未同步原件与操作不逐出、空间不足失败 | `client_storage_test.go`、`client_cache_adopt_test.go`、`client_cache_rebuild_test.go` | 已复核 ProtectedStorage 单独计量、极小 TTL/容量和 prune 不改未确认原件/pending。PutOriginal 直接返回 blob 写入/fsync 错误；临时文件失败只清自身，不删既有原件。Stage 在原件持久化前拒绝且不入队；pending 继续使用 append/fsync 日志。不将逻辑配额测试声称为物理满盘试验。 |
@@ -25,7 +25,7 @@
 | 五.7：持续写入中的一致目录边界 | `sync_export_test.go`、`client_test.go` | 已直接复核 TestSyncCatalogFixedBoundaryPreservesEnvelopes：固定 head 后另一句柄新增 NAS 操作，分页仍截止原 head，保存 v2/v3 信封，rebuild 后导出字节相同；错误库身份/head 摘要拒绝。部分目录重开及重复页继续下载回归通过。 |
 | 五.8：客户端专属完整性与存储边界 | `client_test.go`、`client_cache_rebuild.go`、NAS 拒绝客户端目录路径 | 本轮发现并修复派生映射丢失导致重建计量失败；未知版本仍拒绝覆盖，残留字节不能伪装成可用预览。已复核 TestClientPartialCatalogResumeAndLocalPersistence 中 Open(clientRoot) 返回 ErrNotALibrary，并在删除 client.db 后从独立目录/pending 权威记录恢复。 |
 | 五.9、七.9：配对/撤销授权、协议不兼容、旧库升级 | `sync_access_test.go`、`client_connection_test.go`、`sync_test.go`、store 迁移测试 | 逐条协议拒绝测试存在；新增 `store/TestSyncMigrationPreservesOldHistoryAndIndexesNewReceipts` 从实际 schema 7 升级，保留历史 origin=sync、原时间/payload/请求索引，不伪造回执；新回执、snapshot 与重复迁移/重开均通过。fbf7985 的 CI 39703093445 全平台通过。 |
-| 五.10：不引入无关分布式框架 | 模块依赖与架构守卫 | 沿用 Go/SQLite/普通文件和现有锁；最终 diff 审查核对。 |
+| 五.10：不引入无关分布式框架 | 模块依赖与架构守卫 | 沿用 Go/SQLite/普通文件和现有锁；本阶段起 go.mod/go.sum 无新提交，架构依赖守卫随完整 make check 通过。 |
 | 六：中文设计、分阶段交付、检查、不发布 | 权威离线设计、实施记录、main 提交与 Actions、双语使用指南 | 已持续分阶段提交推送，无 PR/发布；最终 main CI、正式视觉接受后的 CI/Visual 必须核对。 |
 | 七.8：NAS rebuild/snapshot/deep verify 保证 | `sync_envelope_test.go`、`client_journey_test.go`、历史视图测试 | 已复核 store.Snapshot 包含 op_sync 的四列，envelope 和迁移回归比较完整快照；篡改同步索引触发 deep verify ViewDrift，rebuild 恢复，原始时间与接纳时间保持。旅行流程另有端到端 deep verify。 |
 
@@ -70,4 +70,4 @@
 - 后续明确核验入口：`deleteTagOp.Apply` 在 NAS 新增子标签或挂载后返回 `ErrTagInUse`，而当前 `clientRebaseConflict` 和 AcceptSync 冲突归类未列出此错误。已真实双实例复现并补齐这两条路径的分类；回归覆盖子标签、box 挂载两种竞争，Status 仍可读，Resolve 保留 NAS 结果后恢复同步且不改变 NAS op 数。针对性测试通过，最终完整检查 `/tmp/kist-extraction-and-tag-conflicts-final-check.log` 已通过；远端待本阶段提交。
 
 - box/folder/tag 的创建、更新、空对象删除与改名/移动：已直接核对各 handler 的字段 before、父节点/名称/子对象/引用约束和 Inverse；`client_commands_test.go` 验证独立字段合并、目录所有权和重复名称，`client_tags_test.go` 验证树约束和移动合并 NAS 独立改名。set_fileset 以完整配置比较，不对页序逐行合并；引用校验与嵌套删除回归已核对。协议能力清单由 TestSyncActionCoverage 对照实际注册表，内部 request_receipt 排除。
-- UI 可达性仍需补齐一项：`LocalHistory.tsx` 当前用 `!op.undo` 隐藏撤销事件的撤销按钮，而客户端 Undo API 与 `TestClientUndoLocalThenRedoAfterNASAcceptance` 已允许对撤销事件再次撤销（重做）。需验证并修正离线本地历史入口，不能以 API 已支持代替 UI 可达性。
+- UI 可达性仍需补齐一项：`LocalHistory.tsx` 当前用 `!op.undo` 隐藏撤销事件的撤销按钮，而客户端 Undo API 与 `TestClientUndoLocalThenRedoAfterNASAcceptance` 已允许对撤销事件再次撤销（重做）。已移除多余隐藏条件，两个状态的组件回归先失败后通过，保留确认与幂等行为；新增桌面/手机正式视觉场景待远端采集审阅，完整检查已通过（`/tmp/kist-local-redo-complete-check.log`），真实 Chrome 两种尺寸已查看；正式视觉场景待提交采集。

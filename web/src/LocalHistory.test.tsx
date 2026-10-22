@@ -40,6 +40,45 @@ function setup(active = true) {
   return locked;
 }
 afterEach(() => vi.unstubAllGlobals());
+it.each(["pending", "accepted"])(
+  "can undo a %s undo operation after explicit confirmation",
+  async (state) => {
+    const posts: string[] = [];
+    const undone = {
+      ...entry,
+      id: "local-undo",
+      action: "undo",
+      state,
+      undo: { local_id: "local-original" },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (path: string, init?: RequestInit) => {
+        if (init?.method === "POST") {
+          posts.push(path);
+          return new Response(JSON.stringify({ local_id: "local-redo" }));
+        }
+        return new Response(
+          JSON.stringify(
+            path.includes("/local-undo")
+              ? { ...undone, proposal: { undo: undone.undo } }
+              : { entries: [undone] },
+          ),
+        );
+      }),
+    );
+    setup();
+    await userEvent.click(await screen.findByRole("button", { name: "Undo" }));
+    await screen.findByRole("button", { name: "Back to local operations" });
+    const button = await screen.findByRole("button", { name: "Undo" });
+    expect(posts).toHaveLength(0);
+    await userEvent.click(button);
+    expect(posts).toHaveLength(0);
+    await userEvent.click(button);
+    await waitFor(() => expect(posts).toHaveLength(1));
+    expect(posts[0]).toBe("/api/v1/client/history/local-undo/undo");
+  },
+);
 it("shows object summaries in the list without fetching each operation", async () => {
   const fetch = vi.fn(
     async () =>

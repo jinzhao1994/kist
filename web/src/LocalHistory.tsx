@@ -207,7 +207,7 @@ export function LocalHistory({
               </Button>
             </Group>
           )}
-          {(op.state === "pending" || op.state === "accepted") && !op.undo && (
+          {(op.state === "pending" || op.state === "accepted") && (
             <>
               {confirm && <Text>{t("undoConfirm")}</Text>}
               <Group>

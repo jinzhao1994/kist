@@ -2883,6 +2883,8 @@ for (const panel of [
   "history",
   "history-list",
   "history-list-mobile",
+  "history-undo",
+  "history-undo-mobile",
   "conflict",
   "fileset-conflict",
   "cover-conflict",
@@ -2894,8 +2896,11 @@ for (const panel of [
   test(`offline-client-${panel}`, async ({ page }, info) => {
     const errors = await prepare(page, {
       mobile:
-        panel === "history-list-mobile" || panel === "deletion-mobile-conflict",
+        panel === "history-list-mobile" ||
+        panel === "history-undo-mobile" ||
+        panel === "deletion-mobile-conflict",
     });
+    const historyUndo = panel.startsWith("history-undo");
     const conflict = panel.endsWith("conflict");
     const deletionConflict = panel.startsWith("deletion-");
     const coverConflict =
@@ -3150,7 +3155,8 @@ for (const panel of [
             entries: [
               {
                 id: "local-travel",
-                action: "create_box",
+                action: historyUndo ? "undo" : "create_box",
+                undo: historyUndo ? { op_id: 41 } : undefined,
                 origin: "user",
                 state: "accepted",
                 occurred_at: time,
@@ -3196,7 +3202,8 @@ for (const panel of [
         return route.fulfill({
           json: {
             id: "local-travel",
-            action: "create_box",
+            action: historyUndo ? "undo" : "create_box",
+            undo: historyUndo ? { op_id: 41 } : undefined,
             origin: "user",
             state: "accepted",
             occurred_at: time,
@@ -3290,11 +3297,20 @@ for (const panel of [
     } else if (panel.startsWith("history")) {
       await dialog.getByRole("tab", { name: "本地操作", exact: true }).click();
       await expect(dialog).toContainText("NAS 已接纳");
-      if (panel === "history")
+      if (historyUndo) {
+        await dialog.getByRole("button", { name: "撤销", exact: true }).click();
+        await expect(
+          dialog.getByRole("button", { name: "返回本地操作", exact: true }),
+        ).toBeVisible();
+        await dialog.getByRole("button", { name: "撤销", exact: true }).click();
+        await expect(
+          dialog.getByRole("button", { name: "取消", exact: true }),
+        ).toBeVisible();
+      } else if (panel === "history")
         await dialog
           .getByRole("button", { name: /创建归档箱.*旅行记录/ })
           .click();
-      await expect(dialog).toContainText("旅行记录");
+      if (!historyUndo) await expect(dialog).toContainText("旅行记录");
       await expect(dialog).toContainText("NAS 操作 #42");
     } else await expect(dialog).toContainText("待同步修改 · 1");
     await capture(page, errors, info.title);

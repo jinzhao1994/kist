@@ -665,3 +665,11 @@ fbf7985 的 CI 39703093445 全平台及容器通过，Visual 39703093399、Secre
 提取版本独立完整检查（6547）退出 0，`/tmp/kist-extraction-version-complete-check.log`。包含随后新增标签删除分类及最终测试的完整检查为 `/tmp/kist-extraction-and-tag-conflicts-final-check.log`，正在运行；不以先前结果替代新增改动的验证。
 
 提取版本与标签删除分类最终完整 make check（55580）退出 0，`/tmp/kist-extraction-and-tag-conflicts-final-check.log`。本轮同时直接审计目录/缓存区别、workspace 计量与租约、完整目录边界、凭据/旧库兼容、各动作 handler 和 UI 撤销入口，并将证据更新到最终审计表。发现本地历史隐藏撤销事件重做入口，留作下一独立修正，不宣布 Goal 完成。
+
+
+本地历史重做入口：移除 UI 对 undo 事件的额外隐藏条件，pending/accepted 均复用同一撤销确认、独立身份与幂等写入流程；其他状态仍不提供按钮。回归最初定位文案写成 Back to local history，修正为实际 Back to local operations 后，两个状态均明确因缺少 Undo 按钮失败（`/tmp/kist-local-redo-before-verified.log`）。修复后六项本地历史测试通过（`/tmp/kist-local-redo-after.log`），包括不自动提交、确认后恰好一次 POST、丢响应原样重试和不确定提交保护。新增正式桌面/手机重做确认场景，check:visual 通过（`/tmp/kist-local-redo-visual-check.log`）；完整检查 `/tmp/kist-local-redo-complete-check.log` 正在运行。
+
+3450e06 的 CI 39705064048、Visual 39705064543、Secret scan 39705063922 成功；完整验收结束后已推送 ad57d3e。
+
+
+重做入口真实 Chrome 只读验收通过（`/tmp/kist-local-redo-browser.log`）：合成客户端实际 accepted undo 事件可打开撤销确认，桌面/390px 窄屏截图已全尺寸查看，无页面错误、无横向溢出、无提交 POST。未为了验收而重做实际测试删除。预览服务使用 `/tmp/kist-local-redo-preview`、端口 19595、会话 97510。完整 make check（24143）退出 0，日志 `/tmp/kist-local-redo-complete-check.log`，包含新增正式场景及前端六项历史回归。
