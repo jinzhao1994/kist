@@ -10,8 +10,8 @@
 | 一.2–3、七.1–4：旅行离线编辑、NAS 独立写、最终合并 | `internal/api/client_journey_test.go`、真实 Chrome 合成双实例记录 | 已有真实 HTTP、部分缓存、离线导入/标签/两层组合、NAS 独立修改、重开客户端、重复同步及 rebuild/deep verify 的组合验收。该用例用 HTTP 503 模拟离线，不等同进程强杀。 |
 | 一.4、四.1–3：按需原件、完整目录、未缓存语义 | `client_catalog_reads_test.go`、`client_search_test.go`、`client_content_test.go` | 源码/测试入口已定位；最终审计仍需逐项复核未完成目录提示、历史版本和原件校验失败的区分。 |
 | 一.5：手动连接/同步/冲突 | `OfflineClient.tsx`、`ClientConflictEditor.tsx`、双语 `docs/offline-client*` | 真实网页操作已验收；自动同步、多主、手机后台不在本次要求内。专用编辑器不是每种 action 的必备条件，但每种允许的离线写操作都必须有正确 patch 与显式冲突语义。 |
-| 二.1–2、五.4：独立 pending、稳定身份与可恢复决定 | `client_queue_test.go`、`client_request_test.go`、`client_local_history_test.go` | 已有追加日志、断写、跨句柄、决定重试与原意图保留测试；最终需复核不确定提交不能放弃。 |
-| 二.3–5：按本地顺序 patch、两类时间、正式 ID 排序 | `sync_envelope_test.go`、`sync_export_test.go`、`client_history_test.go`、`client_history_view_test.go` | 已直接复核 envelope 测试：原始 ts 保留、实体物化使用 accepted_at、崩溃恢复及 rebuild 一致；还需按任务逐项核对日志分桶、updated_at、分页及历史回溯。 |
+| 二.1–2、五.4：独立 pending、稳定身份与可恢复决定 | `client_queue_test.go`、`client_request_test.go`、`client_local_history_test.go` | 已复核追加日志、断写、跨句柄、决定重试与原意图保留。`TestPendingQueueUncertainSendAndConflictBlockLaterIntents` 明确拒绝放弃/替代不确定提交，并在已确认拒绝后仍阻止后续意图越过替代操作。 |
+| 二.3–5：按本地顺序 patch、两类时间、正式 ID 排序 | `sync_envelope_test.go`、`sync_export_test.go`、`client_history_test.go`、`client_history_view_test.go` | 已复核 `applyOp` 用 accepted_at 构造 ViewTx，普通写入/追赶/rebuild 共用此路径；journal 测试验证日志按接纳时间分桶。`history_acceptance_test.go` 验证 NAS、rebuild、客户端均按正式 ID 排序并保留原始时间；旧库迁移新增测试验证时间倒序时的分页。历史回溯按正式前缀，已有客户端前缀测试；完整撤销/动作审计仍在后续条目。 |
 | 二.6–7、五.9：origin、凭据和操作身份分离 | `sync_access_test.go`、`internal/api/sync_test.go`、`sync_test.go` 协议校验 | 用户操作仍为 user，授权不写归档事件；最终核对旧 sync origin 兼容与能力拒绝。 |
 | 三.1–5：合并前缀、冲突停止、保留意图和依赖 | `client_overlay_test.go`、`client_queue_test.go`、`client_sync_test.go` | 已有竞争修改/解决和不确定结果证据；完整动作覆盖不能仅由通用路径推断。 |
 | 三.6：每种离线写操作的 patch/幂等/冲突/撤销 | `sync_test.go` 的注册表覆盖；`client_{commands,tags,saved_searches,file_commands,extraction,import,deletion}_test.go` | 入口已定位；需把真实注册表与实现策略逐项复核，不能把覆盖清单等同语义测试。 |
@@ -24,7 +24,7 @@
 | 五.1–3、七.5：续传、校验、接纳前落盘、丢响应/崩溃 | `internal/syncclient/{http,crash}_test.go`、`sync_process_crash_test.go`、`internal/upload/session_test.go` | 已补真实客户端四阶段和 NAS 三阶段 Process.Kill 验收；共享上传内核另有写入/fsync/进度保存边界的子进程退出测试。详见下方故障矩阵；本地 race 通过，跨平台结果仍待本阶段 CI。 |
 | 五.7：持续写入中的一致目录边界 | `sync_export_test.go`、`client_test.go` | 固定 head、分页及部分下载恢复入口已定位；最终核验新写入不混入已确定前缀。 |
 | 五.8：客户端专属完整性与存储边界 | `client_test.go`、`client_cache_rebuild.go`、NAS 拒绝客户端目录路径 | 本轮发现并修复派生映射丢失导致重建计量失败；未知版本仍拒绝覆盖，残留字节不能伪装成可用预览。最终检查普通 NAS 命令拒绝误开。 |
-| 五.9、七.9：配对/撤销授权、协议不兼容、旧库升级 | `sync_access_test.go`、`client_connection_test.go`、`sync_test.go`、store 迁移测试 | 逐条协议拒绝测试存在；仍需确认旧 schema 实际升级到当前 sync 索引的专门证据，不能只依赖新库初始化。 |
+| 五.9、七.9：配对/撤销授权、协议不兼容、旧库升级 | `sync_access_test.go`、`client_connection_test.go`、`sync_test.go`、store 迁移测试 | 逐条协议拒绝测试存在；新增 `store/TestSyncMigrationPreservesOldHistoryAndIndexesNewReceipts` 从实际 schema 7 升级，保留历史 origin=sync、原时间/payload/请求索引，不伪造回执；新回执、snapshot 与重复迁移/重开均通过。跨平台验证待本阶段 CI。 |
 | 五.10：不引入无关分布式框架 | 模块依赖与架构守卫 | 沿用 Go/SQLite/普通文件和现有锁；最终 diff 审查核对。 |
 | 六：中文设计、分阶段交付、检查、不发布 | 权威离线设计、实施记录、main 提交与 Actions、双语使用指南 | 已持续分阶段提交推送，无 PR/发布；最终 main CI、正式视觉接受后的 CI/Visual 必须核对。 |
 | 七.8：NAS rebuild/snapshot/deep verify 保证 | `sync_envelope_test.go`、`client_journey_test.go`、历史视图测试 | 已有真实 sync envelope 索引漂移检测/重建和旅行完整流程 deep verify；最终复核 snapshot 的同步字段与时间语义。 |
@@ -32,7 +32,7 @@
 ## 当前明确未收口项
 
 1. 新增进程强杀故障矩阵本地通过，仍需本阶段跨平台 CI；这些边界测试不代表任意指令位置或整机掉电测试。
-2. 任务要求的逐 action、旧库升级、时间排序及 snapshot 全范围复核尚未结束。
+2. 旧库升级、时间排序/分页及 snapshot 的证据已补齐；逐 action 的 patch/冲突/撤销语义全范围复核尚未结束。
 3. 正式视觉 gate 仍有旧 `entry-menu-box` 326 像素间歇差异；不能通过放宽阈值、遮罩或把一次匹配说成修复来收口。新增历史/删除冲突页面已审阅，仍需最终完整当前-main 基准接受与绿色复验。
 4. 缓存映射丢失/损坏修复的最终 make check 已通过（`/tmp/kist-derived-mapping-final-check.log`）；b325fe0 的 CI 39700016805 与 Secret scan 39700016809 均通过。
 

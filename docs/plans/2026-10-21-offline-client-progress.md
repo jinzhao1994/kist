@@ -632,3 +632,8 @@ Unix 进程组阶段完整 make check（77074）退出 0，日志 `/tmp/kist-uni
 b325fe0 的 CI 39700016805、Secret scan 39700016809 通过。Visual 39700016903 完整 baseline 149 / candidate 154，零失败、跳过、重试；旧页面全匹配，五张新增历史/删除冲突页与此前全尺寸审阅图像逐字节相同。已发起当前 main 的正式基准接受流程；不把本轮菜单匹配当作此前间歇栅格差异已根治。
 
 真实进程强杀阶段完整 make check（20049）退出 0，`/tmp/kist-sync-process-complete-check.log`，包含最终测试实现。视觉接受流程 39701856155 成功；已触发接受提交的 CI、Visual 和 Secret scan，仍需核对复验结果。
+
+
+旧库兼容与时间语义审计：新增文件 SQLite 从 schema 7 升至当前版本的回归，保留旧 origin=sync、原始时间/payload 和请求索引，不凭来源伪造接纳回执；升级后写入原始时间更早的同步 op，重开与重复迁移仍保留回执和 snapshot，分页严格按正式 ID。针对性 race 1.712 秒通过。审计 `applyOp` 的 accepted_at ViewTx、journal 接纳时间分桶、history_acceptance 的 NAS/rebuild/客户端顺序，以及 pending 不确定提交禁止放弃和替代的现有回归。完整检查 `/tmp/kist-sync-migration-complete-check.log` 正在运行；没有修改生产代码或历史数据格式。
+
+旧库兼容阶段完整 make check（31329）退出 0，`/tmp/kist-sync-migration-complete-check.log`。仅新增迁移回归及审计证据，不改生产行为。
