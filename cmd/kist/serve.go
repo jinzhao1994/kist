@@ -24,23 +24,30 @@ func newServeCmd() *cobra.Command {
 	var maxUploadBytes int64
 	var maxUploadFiles int
 	cmd := &cobra.Command{Use: "serve", Short: "Serve the web app and HTTP API (local access by default)", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
-		opt, err := serveOptions(address, origins)
-		if err != nil {
-			return err
-		}
 		l, err := openLibrary(cmd)
 		if err != nil {
 			return err
 		}
 		defer l.Close()
-		opt.MaxUploadBytes, opt.MaxUploadFiles = maxUploadBytes, maxUploadFiles
+		stored, err := l.ServiceSettings()
+		if err != nil {
+			return err
+		}
+		effective, overrides, err := resolveServiceSettings(cmd, stored)
+		if err != nil {
+			return err
+		}
+		opt, err := serveOptions(effective.Listen, effective.AllowedOrigins)
+		if err != nil {
+			return err
+		}
+		applyServiceSettings(&opt, effective, overrides)
 		opt.UI = web.Handler()
-		opt.MapProvider = &maps
 		handler, err := api.New(l, opt)
 		if err != nil {
 			return err
 		}
-		listener, err := net.Listen("tcp", address)
+		listener, err := net.Listen("tcp", effective.Listen)
 		if err != nil {
 			return err
 		}
@@ -54,7 +61,7 @@ func newServeCmd() *cobra.Command {
 		go func() { handler.RunUploads(mediaCtx); close(uploadDone) }()
 		defer func() { cancelMedia(); <-uploadDone }()
 		fmt.Fprintf(cmd.ErrOrStderr(), "Serving kist on %s\n", listener.Addr())
-		if len(origins) > 0 {
+		if len(effective.AllowedOrigins) > 0 {
 			fmt.Fprintln(cmd.ErrOrStderr(), "No authentication: allow access only from trusted networks or an authenticated proxy.")
 		}
 		return serveHTTP(ctx, listener, handler)

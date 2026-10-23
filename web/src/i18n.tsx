@@ -8,11 +8,59 @@ import {
 } from "react";
 
 export const en = {
+  instanceSettings: "Settings",
+  instanceSettingsHint:
+    "Saved in this instance’s kist.toml. Browser display preferences are separate.",
+  settingsSaved: "Settings saved.",
+  settingsPending:
+    "Save your other settings before changing the connection or credentials.",
+  settingsConflict:
+    "Settings changed elsewhere. Your edits are preserved; reload before saving.",
+  settingsReload: "Reload settings",
+  settingAppearance: "Appearance",
+  settingStorage: "Storage",
+  settingService: "Service",
+  settingCredentials: "Access credentials",
+  settingDefaultValue: "Default",
+  settingCustomValue: "Custom",
+  settingRestart: "Requires restart",
+  settingReset: "Restore default",
+  settingOverride: "Overridden by a startup flag. Effective value:",
+  settingRestartPending: "Saved; restart this service to apply.",
+  settingOnePerLine: "One value per line",
+  settingLibraryTimezone: "Library time zone",
+  settingLinkMode: "File projection method",
+  settingRepairSources: "Repair sources",
+  settingAddSource: "Add repair source",
+  settingCacheBytes: "Maximum cache size (bytes)",
+  settingListen: "Listen address",
+  settingOrigins: "Allowed web origins",
+  settingUploadBytes: "Maximum upload size (bytes)",
+  settingUploadFiles: "Maximum files per upload",
+  settingMapStyle: "Map style URL",
+  settingTerrainTiles: "Terrain tile URL",
+  settingTerrainAttribution: "Terrain attribution",
+  settingMapOrigins: "Additional map resource origins",
+  settingTimezoneHint:
+    "The library time zone interprets timestamps without a zone. It is independent of the browser’s display time zone.",
+  settingCredentialStored:
+    "A credential is stored. Enter a new credential to update the connection.",
+  settingCredentialsHint:
+    "Create an independent credential for each client. Revoking one stops its future synchronization requests.",
+  settingCredentialOnce:
+    "Copy this credential now. It will not be shown again.",
+  settingRevoke: "Revoke",
+  settingCreateCredential: "Create credential",
+  settingManageCache: "Cache settings",
+  clientCatalogLabel: "Local catalog",
+  clientCatalogReady: "Available for browsing and search",
+  clientRemoteUpdates: "Remote updates",
+  clientRemoteCheckOnSync: "Checked when you synchronize",
   clientSelectOffline: "Select files for offline use",
   clientSelectLoaded: "Select loaded items ({count})",
   clientSelectedCount: "{count} selected",
   clientBatchHint:
-    "Each selected file or file set is retained separately. File sets include their configured members. Manage retention in Offline client → Cache.",
+    "Each selected file or file set is retained separately. File sets include their configured members. Manage retention in Data sync → Offline content.",
   clientBatchProgress:
     "{retained} of {total} retained · {prepared} of {total} prepared",
   clientBatchInterrupted:
@@ -27,7 +75,7 @@ export const en = {
   clientKeepOffline: "Keep offline",
   clientKeepFilesetHint:
     "Retain every configured member, including nested file sets and Live Photo video.",
-  clientKeepFileHint: "Retain this original on the laptop for offline use.",
+  clientKeepFileHint: "Retain this original on the device for offline use.",
   clientRetentionSaved: "Offline retention is enabled.",
   clientOfflinePreviews: "{ready} of {total} previews available.",
   clientOfflineReady:
@@ -40,9 +88,9 @@ export const en = {
   clientConflictOrdinaryFolder: "Ordinary folder",
   clientConflictReview: "Review local change",
   clientConflictReviewHint:
-    "Compare your original change with the current state on this laptop. Saving creates a new local intention; synchronization will check the NAS again.",
+    "Compare your original change with the current state on this device. Saving creates a new local intention; synchronization will check the remote again.",
   clientConflictUnsupported:
-    "This change requires its own domain editor. You can return and keep the NAS result; the original local intention remains in history.",
+    "This change requires its own domain editor. You can return and keep the remote result; the original local intention remains in history.",
   clientConflictBefore: "Before your change",
   clientConflictCurrent: "Current value",
   clientConflictChosen: "Value to submit",
@@ -51,11 +99,11 @@ export const en = {
     "{name} · {files, plural, one {# file} other {# files}} · {folders, plural, one {# subfolder} other {# subfolders}}",
   clientConflictInspectDeletion: "Inspect current contents in a new tab",
   clientConflictDeletionWarning:
-    "This replaces the old deletion with the entire current scope, including newly added files and current annotations. Related file set references will also be updated. Review the contents before confirming. Nothing is submitted to the NAS until you synchronize.",
+    "This replaces the old deletion with the entire current scope, including newly added files and current annotations. Related file set references will also be updated. Review the contents before confirming. Nothing is submitted to the remote until you synchronize.",
   clientConflictConfirmDeletion: "I confirm deletion of the current scope",
   clientConflictSaveDeletion: "Save reviewed deletion",
   clientConflictDeletionGone:
-    "This target no longer exists. Return and keep the NAS result; the original deletion remains in local history.",
+    "This target no longer exists. Return and keep the remote result; the original deletion remains in local history.",
   clientOfflineMissing:
     "{ready} of {total} originals available. More content still needs preparing.",
   clientPrepareAgain: "Check and download",
@@ -68,45 +116,44 @@ export const en = {
 
   clientInterrupted:
     "Network request stopped. Local progress is retained; sync again to confirm the result.",
-  clientTitle: "Offline client",
+  clientTitle: "Data sync",
   clientHistory: "Local operations",
   clientHistoryHint:
-    "Local operations keep their original identity. NAS history contains only accepted operations.",
+    "Local operations keep their original identity. remote history contains only accepted operations.",
   clientHistoryBack: "Back to local operations",
   clientHistoryEmpty: "No local operations yet.",
   clientHistoryPending: "Pending sync",
   clientHistoryAwaiting: "Awaiting confirmation",
   clientHistoryConflict: "Conflict",
-  clientHistoryAccepted: "Accepted by NAS",
+  clientHistoryAccepted: "Accepted by remote",
   clientHistoryDiscarded: "Discarded",
   clientHistoryReplaced: "Replaced",
-  clientFormalOperation: "NAS operation #{id}",
+  clientFormalOperation: "Remote operation #{id}",
   clientHistoryUndoTarget: "Undo target",
   clientHistoryGroup: "Operation group",
   clientHistoryRelated: "View related local operation",
   clientHistoryReplacement: "View replacement",
   clientSync: "Sync",
-  clientCache: "Cache",
+  clientCache: "Offline content",
   clientConnection: "Connection",
-  clientNotConnected: "Not connected to a NAS",
+  clientNotConnected: "Not connected to a remote",
   clientCatalogComplete:
     "Search includes all metadata received in the last completed sync. Originals are cached separately.",
   clientCatalogIncomplete:
     "The catalog has not finished syncing. Browsing and search may be incomplete.",
-  clientSyncNow: "Sync with NAS",
-  clientSyncDescription:
-    "Get the latest changes from the NAS and send this laptop’s pending changes back. Conflicts pause the sync for your review.",
+  clientSyncNow: "Sync now",
+  clientSyncDescription: "Get remote updates and submit local changes.",
   clientSyncCacheNote:
     "Originals and previews are downloaded separately. Use Keep offline to prepare content for your trip.",
   clientSyncComplete: "Sync complete",
   clientSyncConflict:
     "Sync paused for a conflict. Your local change has been retained.",
   clientPending: "Pending changes · {count}",
-  clientNoPending: "No pending changes",
+  clientNoPending: "No local changes to submit.",
   clientAwaitingReceipt:
     "The last submission is awaiting confirmation. Sync again to check its result.",
   clientDiscardConfirm:
-    "I want to discard this local change and keep the NAS state.",
+    "I want to discard this local change and keep the remote state.",
   clientDiscard: "Discard local change",
   clientResolved: "Decision saved. Sync again to continue.",
   clientCacheUsed: "Cached content: {size}",
@@ -117,11 +164,11 @@ export const en = {
     "Retained or active content exceeds the cache limit. Increase the limit or reduce offline retention.",
   clientPrune: "Clean expired cache",
   clientCachePruned: "Cache cleanup complete",
-  clientServer: "NAS address",
+  clientServer: "remote address",
   clientToken: "Sync credential",
   clientAllowHTTP: "Allow unencrypted HTTP outside this computer",
   clientConnectionHint:
-    "Use a sync credential created on your NAS. This client remains bound to the same library.",
+    "Use a sync credential created on the remote. This client remains bound to the same library.",
   clientConnect: "Verify and connect",
   clientMaxAge: "Maximum cache age",
   clientMaxAgeHint: "Measured since last access, for example 720h for 30 days.",
@@ -240,7 +287,7 @@ export const en = {
   historyCurrentNamesHint:
     "This older operation stores object IDs; referenced objects are shown using their current names, or IDs if unavailable.",
   historySummaryUnavailable: "Summary unavailable",
-  historyAcceptedAt: "Accepted by NAS",
+  historyAcceptedAt: "Accepted by remote",
   history: "History",
   trash: "Recycle bin",
   historyEmpty: "No operations here yet.",
@@ -326,7 +373,8 @@ export const en = {
   action_untag_files: "Untag files",
   action_request_receipt: "No-change receipt",
 
-  mediaNotCached: "This preview is not cached. Connect to your NAS and retry.",
+  mediaNotCached:
+    "This preview is not cached. Connect to the remote and retry.",
   mediaCacheQuota:
     "There is not enough cache space for this preview. Adjust offline retention or the cache limit and retry.",
   mediaCacheMetadata:
@@ -334,7 +382,7 @@ export const en = {
   mediaCacheCorrupt:
     "Preview cache verification failed. Rebuild the cache index and download it again.",
   mediaSyncVersion:
-    "This NAS does not support compatible preview transfers. Update it and retry.",
+    "The remote does not support compatible preview transfers. Update it and retry.",
   mediaQueued: "Waiting to generate preview…",
   mediaRunning: "Generating preview…",
   mediaDependency:
@@ -660,11 +708,54 @@ export const en = {
 } as const;
 export type MessageKey = keyof typeof en;
 export const zh: Record<MessageKey, string> = {
+  instanceSettings: "设置",
+  instanceSettingsHint: "保存到当前实例的 kist.toml，浏览器显示偏好单独保存。",
+  settingsSaved: "设置已保存。",
+  settingsPending: "请先保存其他设置，再修改连接或凭据。",
+  settingsConflict: "设置已在别处更改。当前编辑已保留，请重新加载后再保存。",
+  settingsReload: "重新加载设置",
+  settingAppearance: "外观",
+  settingStorage: "存储",
+  settingService: "服务",
+  settingCredentials: "访问凭据",
+  settingDefaultValue: "使用默认值",
+  settingCustomValue: "自定义",
+  settingRestart: "重启后生效",
+  settingReset: "恢复默认",
+  settingOverride: "由启动参数覆盖，当前生效值：",
+  settingRestartPending: "已保存，重启当前服务后生效。",
+  settingOnePerLine: "每行填写一项",
+  settingLibraryTimezone: "资料库时区",
+  settingLinkMode: "文件投影方式",
+  settingRepairSources: "修复来源",
+  settingAddSource: "添加修复来源",
+  settingCacheBytes: "缓存体积上限（字节）",
+  settingListen: "监听地址",
+  settingOrigins: "允许访问的网页来源",
+  settingUploadBytes: "单次上传体积上限（字节）",
+  settingUploadFiles: "单次上传文件数上限",
+  settingMapStyle: "地图样式地址",
+  settingTerrainTiles: "地形瓦片地址",
+  settingTerrainAttribution: "地形来源署名",
+  settingMapOrigins: "额外地图资源来源",
+  settingTimezoneHint:
+    "资料库时区用于解释未注明时区的原始时间，与浏览器的显示时区不同。",
+  settingCredentialStored: "已保存凭据。修改连接时请填写新凭据。",
+  settingCredentialsHint:
+    "为每个客户端创建独立凭据。撤销后，该客户端的新同步请求将被拒绝。",
+  settingCredentialOnce: "请现在复制此凭据，之后不会再次显示。",
+  settingRevoke: "撤销凭据",
+  settingCreateCredential: "创建凭据",
+  settingManageCache: "缓存设置",
+  clientCatalogLabel: "本机目录",
+  clientCatalogReady: "可供浏览和检索",
+  clientRemoteUpdates: "远端更新",
+  clientRemoteCheckOnSync: "同步时检查",
   clientSelectOffline: "选择离线文件",
   clientSelectLoaded: "选择已加载项目（{count}）",
   clientSelectedCount: "已选 {count} 项",
   clientBatchHint:
-    "每个选中的文件或组合分别保留，组合包含其配置成员。可在“离线客户端 → 缓存”中管理保留项。",
+    "每个选中的文件或组合分别保留，组合包含其配置成员。可在“数据同步 → 离线内容”中管理保留项。",
   clientBatchProgress:
     "已保留 {retained} / {total} 项 · 已准备 {prepared} / {total} 项",
   clientBatchInterrupted:
@@ -677,7 +768,7 @@ export const zh: Record<MessageKey, string> = {
   clientKeepOffline: "保留离线",
   clientKeepFilesetHint:
     "保留组合配置中的全部成员，包括嵌套组合和实况照片的视频。",
-  clientKeepFileHint: "将此原文件保留在笔记本上，以便断网时使用。",
+  clientKeepFileHint: "将此原文件保留在本机上，以便断网时使用。",
   clientRetentionSaved: "已启用离线保留。",
   clientOfflinePreviews: "已准备 {ready} / {total} 个预览。",
   clientOfflineReady: "所需原文件和预览已全部准备好，可离线使用。",
@@ -686,11 +777,11 @@ export const zh: Record<MessageKey, string> = {
   clientConflictUnavailableCover: "不可用",
   clientConflictChooseCover: "此文件已不可用，请选择其他对照封面或移除封面。",
   clientConflictOrdinaryFolder: "普通目录",
-  clientConflictReview: "查看本地修改",
+  clientConflictReview: "查看本机修改",
   clientConflictReviewHint:
-    "对照原始修改和笔记本当前状态。保存会创建新的本地修改，同步时仍会重新核对 NAS。",
+    "对照原始修改和本机当前状态。保存会创建新的本机修改，同步时仍会重新核对 远端。",
   clientConflictUnsupported:
-    "此类修改需要专门的编辑方式。可返回并选择保留 NAS 结果，原始本地修改仍保留在历史中。",
+    "此类修改需要专门的编辑方式。可返回并选择保留远端结果，原始本机修改仍保留在历史中。",
   clientConflictBefore: "修改前",
   clientConflictCurrent: "当前值",
   clientConflictChosen: "准备提交的值",
@@ -699,11 +790,11 @@ export const zh: Record<MessageKey, string> = {
     "{name} · {files, number} 个文件 · {folders, number} 个子目录",
   clientConflictInspectDeletion: "在新标签页检查当前内容",
   clientConflictDeletionWarning:
-    "将以整个当前范围替换原删除方案，包括新加入的文件及当前标注，并更新关联文件组合的引用。请检查内容后确认。再次同步时才会提交到 NAS。",
+    "将以整个当前范围替换原删除方案，包括新加入的文件及当前标注，并更新关联文件组合的引用。请检查内容后确认。再次同步时才会提交到 远端。",
   clientConflictConfirmDeletion: "我确认删除当前范围",
   clientConflictSaveDeletion: "保存已确认的删除方案",
   clientConflictDeletionGone:
-    "此对象已不存在。请返回并保留 NAS 结果；原删除意图仍保留在本地历史中。",
+    "此对象已不存在。请返回并保留远端结果；原删除意图仍保留在本地历史中。",
   clientOfflineMissing: "已准备 {ready} / {total} 个原文件，仍有内容需要准备。",
   clientPrepareAgain: "检查并下载",
   clientKeepAndPrepare: "保留并下载",
@@ -713,40 +804,39 @@ export const zh: Record<MessageKey, string> = {
     "准备状态以当前本地目录为准。取消保留不会删除归档文件，缓存副本之后可被自动清理。",
 
   clientInterrupted: "已停止网络请求，本地进度已保留，请重新同步以核对结果。",
-  clientTitle: "离线客户端",
-  clientHistory: "本地操作",
-  clientHistoryHint: "本地操作保留原始身份；NAS 正式历史只包含已接纳的操作。",
-  clientHistoryBack: "返回本地操作",
-  clientHistoryEmpty: "暂无本地操作。",
+  clientTitle: "数据同步",
+  clientHistory: "本机操作",
+  clientHistoryHint: "本机操作保留原始身份；远端正式历史只包含已接纳的操作。",
+  clientHistoryBack: "返回本机操作",
+  clientHistoryEmpty: "暂无本机操作。",
   clientHistoryPending: "待同步",
   clientHistoryAwaiting: "等待确认",
   clientHistoryConflict: "存在冲突",
-  clientHistoryAccepted: "NAS 已接纳",
+  clientHistoryAccepted: "远端已接纳",
   clientHistoryDiscarded: "已放弃",
   clientHistoryReplaced: "已替换",
-  clientFormalOperation: "NAS 操作 #{id}",
+  clientFormalOperation: "远端操作 #{id}",
   clientHistoryUndoTarget: "撤销目标",
   clientHistoryGroup: "操作组",
-  clientHistoryRelated: "查看关联本地操作",
+  clientHistoryRelated: "查看关联本机操作",
   clientHistoryReplacement: "查看替换方案",
   clientSync: "同步",
-  clientCache: "缓存",
+  clientCache: "离线内容",
   clientConnection: "连接",
-  clientNotConnected: "尚未连接 NAS",
+  clientNotConnected: "尚未连接 远端",
   clientCatalogComplete: "检索包含上次完整同步的全部资料信息，原文件另行缓存。",
   clientCatalogIncomplete: "资料目录尚未完成同步，浏览和检索结果可能不完整。",
-  clientSyncNow: "与 NAS 同步",
-  clientSyncDescription:
-    "获取 NAS 的最新变更，并将这台笔记本的待同步修改提交到 NAS。遇到冲突时暂停，由你确认处理。",
+  clientSyncNow: "立即同步",
+  clientSyncDescription: "获取远端更新，并提交本机修改。",
   clientSyncCacheNote:
     "原文件和预览按需下载。出发前请使用「保留离线」准备需要的内容。",
   clientSyncComplete: "同步完成",
-  clientSyncConflict: "同步遇到冲突，已保留本地修改。",
-  clientPending: "待同步修改 · {count}",
-  clientNoPending: "暂无待同步修改",
+  clientSyncConflict: "同步遇到冲突，已保留本机修改。",
+  clientPending: "本机待提交修改 · {count}",
+  clientNoPending: "本机没有待提交的修改",
   clientAwaitingReceipt: "上次提交尚待确认，请重新同步以查询结果。",
-  clientDiscardConfirm: "我确认放弃这条本地修改，保留 NAS 当前状态。",
-  clientDiscard: "放弃本地修改",
+  clientDiscardConfirm: "我确认放弃这条本机修改，保留远端当前状态。",
+  clientDiscard: "放弃本机修改",
   clientResolved: "已保存处理决定，请继续同步。",
   clientCacheUsed: "已缓存内容：{size}",
   clientPinnedUsed: "保留离线内容：{size}",
@@ -756,11 +846,11 @@ export const zh: Record<MessageKey, string> = {
     "保留或正在使用的内容已超过缓存上限，请提高上限或减少离线保留。",
   clientPrune: "清理到期缓存",
   clientCachePruned: "缓存清理完成",
-  clientServer: "NAS 地址",
+  clientServer: "远端地址",
   clientToken: "同步凭据",
   clientAllowHTTP: "允许使用未加密的远程 HTTP 连接",
   clientConnectionHint:
-    "使用 NAS 上创建的同步凭据，此客户端始终绑定同一个资料库。",
+    "使用远端上创建的同步凭据，此客户端始终绑定同一个资料库。",
   clientConnect: "验证并连接",
   clientMaxAge: "最长缓存保留时间",
   clientMaxAgeHint: "从最近访问起计算，例如 720h 表示 30 天。",
@@ -856,7 +946,7 @@ export const zh: Record<MessageKey, string> = {
   historyCurrentNamesHint:
     "此操作只记录了对象 ID，引用的对象使用当前名称展示；名称不可用时保留 ID。",
   historySummaryUnavailable: "摘要暂不可用",
-  historyAcceptedAt: "NAS 接纳时间",
+  historyAcceptedAt: "远端接纳时间",
   history: "操作历史",
   trash: "回收站",
   historyEmpty: "暂无操作记录。",
@@ -947,11 +1037,11 @@ export const zh: Record<MessageKey, string> = {
   action_untag_files: "移除文件标签",
   action_request_receipt: "无变更回执",
 
-  mediaNotCached: "此预览尚未缓存，请连接 NAS 后重试。",
+  mediaNotCached: "此预览尚未缓存，请连接远端后重试。",
   mediaCacheQuota: "缓存空间不足，请调整离线保留内容或缓存上限后重试。",
   mediaCacheMetadata: "预览缓存索引需要重建，请前往缓存设置处理。",
   mediaCacheCorrupt: "预览缓存校验失败，请重建缓存索引后重新下载。",
-  mediaSyncVersion: "NAS 尚不支持兼容的预览传输，请升级后重试。",
+  mediaSyncVersion: "远端尚不支持兼容的预览传输，请升级后重试。",
   mediaQueued: "等待生成预览…",
   mediaRunning: "正在生成预览…",
   mediaDependency:

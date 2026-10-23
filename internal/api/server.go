@@ -16,6 +16,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/jinzhao1994/kist/internal/config"
 	"github.com/jinzhao1994/kist/internal/library"
 	staging "github.com/jinzhao1994/kist/internal/upload"
 )
@@ -26,34 +27,38 @@ const maxJSONBody = 1 << 20
 // Options declares trusted authorities. Hosts include ports; wildcard hosts
 // are deliberately unsupported. AllowedOrigins are full scheme/host origins.
 type Options struct {
-	ClientRenderer library.ClientRenderer
-	AllowedHosts   []string
-	AllowedOrigins []string
-	MaxUploadBytes int64
-	MaxUploadFiles int
-	UploadTempDir  string
-	UI             http.Handler
-	MapProvider    *MapProvider
+	ServiceSettings  *config.Server
+	SettingOverrides []string
+	ClientRenderer   library.ClientRenderer
+	AllowedHosts     []string
+	AllowedOrigins   []string
+	MaxUploadBytes   int64
+	MaxUploadFiles   int
+	UploadTempDir    string
+	UI               http.Handler
+	MapProvider      *MapProvider
 }
 
 type Server struct {
-	mapConnect     string
-	library        *library.Library
-	client         *library.Client
-	media          *library.Media
-	previews       mediaBackend
-	clientRenderer library.ClientRenderer
-	mux            *http.ServeMux
-	contract       huma.API
-	hosts          map[string]bool
-	origins        map[string]bool
-	maxUploadBytes int64
-	maxUploadFiles int
-	uploadTempDir  string
-	historySlots   chan struct{}
-	uploads        *staging.Store
-	syncUploads    *staging.Store
-	uploadSlots    chan struct{}
+	startupSettings  map[string]any
+	settingOverrides []string
+	mapConnect       string
+	library          *library.Library
+	client           *library.Client
+	media            *library.Media
+	previews         mediaBackend
+	clientRenderer   library.ClientRenderer
+	mux              *http.ServeMux
+	contract         huma.API
+	hosts            map[string]bool
+	origins          map[string]bool
+	maxUploadBytes   int64
+	maxUploadFiles   int
+	uploadTempDir    string
+	historySlots     chan struct{}
+	uploads          *staging.Store
+	syncUploads      *staging.Store
+	uploadSlots      chan struct{}
 	// uploadFault is immutable while serving and used only by fault-injection tests.
 	uploadFault func(string) error
 }
@@ -142,6 +147,9 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 	cfg.Transformers = nil // Keep wire JSON identical to the CLI: no injected $schema.
 	s.contract = humago.New(s.mux, cfg)
 	s.mapRoutes(provider)
+	if err := s.settingsRoutes(opt); err != nil {
+		return nil, err
+	}
 	if c != nil {
 		s.clientReadRoutes()
 		s.clientLocalHistoryRoutes()

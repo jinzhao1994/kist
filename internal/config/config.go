@@ -14,13 +14,18 @@ import (
 )
 
 // CurrentVersion is the config schema this build writes.
-const CurrentVersion = 1
+const CurrentVersion = 2
 
 type Config struct {
-	Version int      `toml:"version"`
-	Library Library  `toml:"library"`
-	Storage Storage  `toml:"storage"`
-	Remotes []Remote `toml:"remote"`
+	Version    int        `toml:"version"`
+	Mode       string     `toml:"mode,omitempty"`
+	Appearance Appearance `toml:"appearance"`
+	Client     Client     `toml:"client"`
+	Server     Server     `toml:"server"`
+	Sync       Sync       `toml:"sync"`
+	Library    Library    `toml:"library"`
+	Storage    Storage    `toml:"storage"`
+	Remotes    []Remote   `toml:"remote"`
 }
 
 // Remote is somewhere else the same blobs live: another directory, a mounted
@@ -52,8 +57,8 @@ type Library struct {
 	// machine says", and this one decides the order the user sees. Opening
 	// the same library on a laptop set to UTC must not reorder it.
 	//
-	// Empty falls back to the machine's zone, so a hand-written config that
-	// omits it still works.
+	// Legacy empty values resolve against the machine during migration.
+	// Version 2 defaults to UTC and rejects an explicitly empty zone.
 	Timezone string `toml:"timezone,omitempty"`
 }
 
@@ -86,9 +91,11 @@ type Storage struct {
 // and this one decides the order the user sees. A library created on a laptop
 // and later opened on a server set to UTC must not reorder itself.
 func Default(linkMode blob.LinkMode) *Config {
-	c := &Config{Version: CurrentVersion}
+	c := Defaults("library")
 	c.Library.ID = domain.NewID()
-	c.Library.Timezone = localZoneName()
+	if zone := localZoneName(); zone != "" {
+		c.Library.Timezone = zone
+	}
 	c.Storage.LinkMode = linkMode
 	return c
 }
@@ -101,9 +108,7 @@ func Default(linkMode blob.LinkMode) *Config {
 // has to come from where the operating system keeps it — $TZ, or what
 // /etc/localtime points at.
 //
-// Empty is a working configuration: Zone falls back to the machine. It is just
-// not a portable one, which is why `kist init` shows what it found and says so
-// when it found nothing.
+// Initialization uses UTC if no portable IANA name can be detected.
 func localZoneName() string {
 	if tz := os.Getenv("TZ"); tz != "" {
 		if _, err := time.LoadLocation(tz); err == nil {
@@ -127,13 +132,30 @@ func localZoneName() string {
 }
 
 func Load(path string) (*Config, error) {
-	var c Config
-	meta, err := toml.DecodeFile(path, &c)
+	raw, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
+		return nil, err
+	}
+	return Decode(raw)
+}
+
+func Decode(raw []byte) (*Config, error) {
+	c := *Defaults("library")
+	// Configurations predating explicit versions follow the legacy migration.
+	c.Version = 1
+	meta, err := toml.Decode(string(raw), &c)
+	path := "kist.toml"
+	if err != nil {
+		return nil, fmt.Errorf("read %s: invalid TOML syntax or value type", path)
 	}
 	if undecoded := meta.Undecoded(); len(undecoded) > 0 {
 		return nil, fmt.Errorf("read %s: unknown setting %q", path, undecoded[0].String())
+	}
+	if c.Version < 2 && (!meta.IsDefined("library", "timezone") || c.Library.Timezone == "") {
+		c.Library.Timezone = localZoneName()
+	}
+	if c.Version < 1 {
+		return nil, fmt.Errorf("read %s: unsupported config version", path)
 	}
 	if c.Version > CurrentVersion {
 		return nil, fmt.Errorf("read %s: config version %d was written by a newer kist; upgrade to open this library",
@@ -160,21 +182,21 @@ func Load(path string) (*Config, error) {
 		}
 		seen[r.Name] = true
 	}
+	if c.Mode == "client" && !meta.IsDefined("server", "listen") {
+		c.Server.Listen = "127.0.0.1:8474"
+	}
+	if err := c.Validate(); err != nil {
+		return nil, err
+	}
 	return &c, nil
 }
 
+// Save initializes a configuration file. Existing configurations should be
+// modified through Update to preserve unrelated settings and detect conflicts.
 func Save(path string, c *Config) error {
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	raw, err := sparse(c)
 	if err != nil {
-		return fmt.Errorf("write %s: %w", path, err)
+		return err
 	}
-	defer f.Close()
-
-	if _, err := f.WriteString("# kist library configuration.\n# Managed by kist; hand edits are read back on the next run.\n\n"); err != nil {
-		return fmt.Errorf("write %s: %w", path, err)
-	}
-	if err := toml.NewEncoder(f).Encode(c); err != nil {
-		return fmt.Errorf("write %s: %w", path, err)
-	}
-	return f.Close()
+	return WriteAtomic(path, raw)
 }

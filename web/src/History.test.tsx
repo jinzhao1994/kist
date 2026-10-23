@@ -370,6 +370,6 @@ it("shows NAS acceptance separately from the original operation time", async () 
     .setup()
     .click((await screen.findAllByRole("button", { name: /Delete files/ }))[0]);
   const dialog = await screen.findByRole("dialog");
-  expect(within(dialog).getByText(/Accepted by NAS/)).toBeVisible();
+  expect(within(dialog).getByText(/Accepted by remote/)).toBeVisible();
   expect(dialog.querySelectorAll("time")).toHaveLength(2);
 });

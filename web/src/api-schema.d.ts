@@ -576,6 +576,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 settings */
+        get: operations["get-api-v1-settings"];
+        /** Put API v1 settings */
+        put: operations["put-api-v1-settings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List API v1 settings credentials */
+        get: operations["list-api-v1-settings-credentials"];
+        put?: never;
+        /** Post API v1 settings credentials */
+        post: operations["post-api-v1-settings-credentials"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/credentials/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete API v1 settings credentials by ID */
+        delete: operations["delete-api-v1-settings-credentials-by-id"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sync/capabilities": {
         parameters: {
             query?: never;
@@ -1051,6 +1104,10 @@ export interface components {
             missing_result?: boolean;
             text: string;
         };
+        ClientConnection: {
+            allow_http: boolean;
+            server: string;
+        };
         CreateTagInputBody: {
             name: string;
             parent_id?: string;
@@ -1097,6 +1154,15 @@ export interface components {
             upload_offset?: number;
         };
         ExtractionInputBody: Record<string, never>;
+        Field: {
+            default: unknown;
+            explicit: boolean;
+            key: string;
+            kind: string;
+            options?: string[] | null;
+            restart: boolean;
+            value: unknown;
+        };
         File: {
             blob_key: string;
             box_id?: string;
@@ -1286,6 +1352,7 @@ export interface components {
             max_upload_bytes: number;
             /** Format: int64 */
             max_upload_files: number;
+            primary_color: string;
             projection_dirty: boolean;
             /** Format: int64 */
             resumable_upload_version?: number;
@@ -1333,10 +1400,18 @@ export interface components {
         MoveTagInputBody: {
             parent_id: string | null;
         };
+        NewSyncCredential: {
+            /** Format: date-time */
+            created_at: string;
+            id: string;
+            token: string;
+        };
+        "OutputStruct {}Body": Record<string, never>;
         "Post-api-v1-boxes-by-id-foldersRequest": {
             name: string;
             parent?: string;
         };
+        "Post-api-v1-settings-credentialsRequest": Record<string, never>;
         Preview: {
             encoding: string;
             reason?: string;
@@ -1438,6 +1513,26 @@ export interface components {
             op_id?: number;
             session?: components["schemas"]["UploadState"];
         };
+        SettingsInputBody: {
+            changes: {
+                [key: string]: unknown;
+            };
+            revision: string;
+        };
+        SettingsResponse: {
+            connection?: components["schemas"]["ClientConnection"];
+            credential_configured: boolean;
+            effective: {
+                [key: string]: unknown;
+            };
+            fields: components["schemas"]["Field"][] | null;
+            id: string;
+            library_id: string;
+            mode: string;
+            overrides: string[] | null;
+            restart_required: string[] | null;
+            revision: string;
+        };
         SheetPreview: {
             cells: (components["schemas"]["Cell"][] | null)[] | null;
             /** Format: int64 */
@@ -1502,6 +1597,11 @@ export interface components {
             lines: unknown[] | null;
             /** Format: int64 */
             next: number;
+        };
+        SyncCredential: {
+            /** Format: date-time */
+            created_at: string;
+            id: string;
         };
         SyncDeletionBasis: {
             box: string;
@@ -3212,6 +3312,161 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RequestResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "put-api-v1-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "list-api-v1-settings-credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncCredential"][] | null;
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-settings-credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-settings-credentialsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NewSyncCredential"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "delete-api-v1-settings-credentials-by-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutputStruct {}Body"];
                 };
             };
             /** @description Error */

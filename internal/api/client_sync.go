@@ -5,12 +5,14 @@ import (
 	"errors"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/jinzhao1994/kist/internal/config"
 	"github.com/jinzhao1994/kist/internal/library"
 	"github.com/jinzhao1994/kist/internal/syncclient"
 )
 
 type clientConnectInput struct {
 	Body struct {
+		Revision  string `json:"revision,omitempty"`
 		Server    string `json:"server" minLength:"1" maxLength:"4096"`
 		Token     string `json:"token" minLength:"1" maxLength:"2048" writeOnly:"true"`
 		AllowHTTP bool   `json:"allow_http"`
@@ -62,7 +64,10 @@ func (s *Server) clientSyncRoutes() {
 		if err := library.ValidateSyncCapabilities(caps); err != nil {
 			return nil, failure(err)
 		}
-		if err := s.client.SetConnection(ctx, caps.LibraryID, library.ClientConnection{Server: in.Body.Server, AllowHTTP: in.Body.AllowHTTP}, in.Body.Token); err != nil {
+		if err := s.client.SetConnectionRevision(ctx, caps.LibraryID, library.ClientConnection{Server: in.Body.Server, AllowHTTP: in.Body.AllowHTTP}, in.Body.Token, in.Body.Revision); err != nil {
+			if errors.Is(err, config.ErrChanged) {
+				return nil, huma.Error409Conflict("Settings changed; reload before saving.")
+			}
 			return nil, failure(err)
 		}
 		if err := s.client.AdoptSyncSettings(ctx, caps); err != nil {

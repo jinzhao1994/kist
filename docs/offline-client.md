@@ -17,7 +17,7 @@ kist --library /path/to/nas-library sync-access list
 ```
 
 Creation displays the secret once. Listing shows only its ID and creation time.
-The NAS stores a digest in `sync-access.json`; credentials do not become archive
+The NAS stores a digest in `kist.toml`; credentials do not become archive
 operations and cannot be restored through archive undo.
 
 Run the NAS server with its usual explicit allowed-host configuration. On the
@@ -38,7 +38,7 @@ personal library path is used for client commands.
 
 HTTPS is required outside loopback unless `--allow-http` explicitly permits a
 plain HTTP connection. The client does not follow redirects. Credentials are
-saved in the client's private `connection.json`, with mode 0600 on POSIX systems.
+saved in the client's private `kist.toml`, with mode 0600 on POSIX systems.
 Do not put the credential in the server URL or command-line arguments.
 
 ## Rotate a credential or server address
@@ -225,3 +225,5 @@ the paginated list. Names recorded in the original intent remain unchanged after
 later edits or undo. Summaries that resolve current object names are labeled as
 such. Open an entry for its original identity, sync receipt, related operations,
 and available undo action.
+
+Connection and cache policies are under **Settings**. Synchronization, offline content and local history are under **Data sync**. Persistent configuration is consolidated in this instance’s `kist.toml`; see [Instance settings](settings.md).

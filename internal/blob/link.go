@@ -52,6 +52,16 @@ func candidateModes() []LinkMode {
 // check: it would need its own Windows implementation to say something the
 // probe already established.
 func DetectLinkMode(fromDir, toDir string) (LinkMode, error) {
+	return probeLinkModes(fromDir, toDir, candidateModes())
+}
+
+// CheckLinkMode verifies an explicit choice without silently changing it.
+func CheckLinkMode(fromDir, toDir string, mode LinkMode) error {
+	_, err := probeLinkModes(fromDir, toDir, []LinkMode{mode})
+	return err
+}
+
+func probeLinkModes(fromDir, toDir string, modes []LinkMode) (LinkMode, error) {
 	probe, err := os.CreateTemp(fromDir, ".kist-probe-*")
 	if err != nil {
 		return "", fmt.Errorf("create link probe: %w", err)
@@ -67,8 +77,8 @@ func DetectLinkMode(fromDir, toDir string) (LinkMode, error) {
 		return "", fmt.Errorf("close link probe: %w", err)
 	}
 
-	target := filepath.Join(toDir, ".kist-probe-target")
-	for _, mode := range candidateModes() {
+	target := filepath.Join(toDir, filepath.Base(probePath)+"-target")
+	for _, mode := range modes {
 		os.Remove(target)
 		if err := Link(mode, probePath, target); err == nil {
 			os.Remove(target)

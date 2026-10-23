@@ -3328,3 +3328,27 @@ main.upload-drag-active {
   > :not(.file-offline-check) {
   display: none;
 }
+
+.instance-settings-content {
+  max-inline-size: 52rem;
+  display: grid;
+  gap: var(--mantine-spacing-md);
+}
+.instance-settings-content .mantine-Tabs-list {
+  flex-wrap: wrap;
+}
+.instance-setting {
+  min-inline-size: 0;
+}
+.setting-secret {
+  display: block;
+  overflow-wrap: anywhere;
+  margin-block-start: var(--mantine-spacing-sm);
+}
+.sync-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mantine-spacing-xl);
+  padding-block: var(--mantine-spacing-md);
+  border-block-end: 1px solid var(--mantine-color-default-border);
+}

@@ -15,7 +15,7 @@ kist --library /path/to/nas-library sync-access create
 kist --library /path/to/nas-library sync-access list
 ```
 
-创建时只显示一次密钥，列表仅显示凭据 ID 和创建时间。密钥摘要保存在 NAS 的 `sync-access.json`，不写入归档历史，也不会被归档撤销恢复。
+创建时只显示一次密钥，列表仅显示凭据 ID 和创建时间。密钥摘要保存在 NAS 的 `kist.toml`，不写入归档历史，也不会被归档撤销恢复。
 
 按原有 allowed-host 配置启动 NAS 服务。在笔记本上从私有文件的标准输入读取密钥：
 
@@ -28,7 +28,7 @@ kist client status /path/to/laptop-client
 
 `init` 验证连接并绑定 NAS 库 UUID，`sync` 才下载目录。客户端目录独立于 NAS 资料库，普通 NAS 命令不能将其当作完整库打开。客户端命令必须显式指定目录。
 
-非回环地址默认要求 HTTPS；确需明文 HTTP 时显式指定 `--allow-http`，客户端不会跟随重定向。不要将凭据放在 URL 或命令行参数里。连接配置保存在本地 `connection.json`，POSIX 系统权限为 0600。
+非回环地址默认要求 HTTPS；确需明文 HTTP 时显式指定 `--allow-http`，客户端不会跟随重定向。不要将凭据放在 URL 或命令行参数里。连接配置保存在本地 `kist.toml`，POSIX 系统权限为 0600。
 
 ## 出发前准备
 
@@ -60,7 +60,7 @@ kist client offline remove /path/to/laptop-client trip
 
 笔记本可浏览已准备内容、导入照片并编辑对象、标签或文件组合；NAS 同时可以独立修改。新原件和待同步操作单独持久保存，不属于可逐出的缓存。
 
-回家后点击网页「与 NAS 同步」，或执行：
+回家后点击网页「数据同步 → 立即同步」，或执行：
 
 ```sh
 kist --json client sync /path/to/laptop-client
@@ -107,3 +107,5 @@ kist --library /path/to/nas-library sync-access revoke OLD_CREDENTIAL_ID
 ```
 
 重新连接必须验证同一 NAS 库 UUID，不能把待同步操作转交给另一个库。NAS 每次新请求都会重新检查授权，运行中的服务也会看到凭据撤销。
+
+连接和缓存策略位于「设置」，同步、离线内容和本机操作位于「数据同步」。持久配置统一保存在本机 `kist.toml`，详见[实例设置](settings.zh-CN.md)。

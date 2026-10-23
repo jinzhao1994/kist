@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/jinzhao1994/kist/internal/blob"
-	"github.com/jinzhao1994/kist/internal/config"
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/projection"
 	"github.com/jinzhao1994/kist/internal/store"
@@ -251,26 +250,21 @@ func (l *Library) project(ctx context.Context, changed []domain.BoxID, before ma
 // the two places the conversion happens.
 func blobKey(s string) blob.Key { return blob.Key(s) }
 
-// checkLinkMode re-probes how boxes/ can point at blobs/.
-//
-// config records what `kist init` found, with the note that it is rechecked at
-// startup because an external drive can come back mounted differently
-// (spec 3.5). M1c is the first version that actually links anything, so this
-// is where that recheck lands. A demotion is written back to kist.toml so the
-// next run does not have to rediscover it.
+// checkLinkMode verifies an explicit mode or selects an available default.
 func (l *Library) checkLinkMode() error {
 	if err := os.MkdirAll(l.layout.Boxes(), 0o755); err != nil {
 		return fmt.Errorf("create boxes/: %w", err)
+	}
+	if mode := l.cfg.Storage.LinkMode; mode != "" {
+		if err := blob.CheckLinkMode(l.blobs.Root(), l.layout.Boxes(), mode); err != nil {
+			return fmt.Errorf("configured link mode %s is unavailable: %w", mode, err)
+		}
+		return nil
 	}
 	mode, err := blob.DetectLinkMode(l.blobs.Root(), l.layout.Boxes())
 	if err != nil {
 		return err
 	}
-	if mode == l.cfg.Storage.LinkMode {
-		return nil
-	}
-	l.log.Warn("the link mode between blobs/ and boxes/ has changed",
-		"was", l.cfg.Storage.LinkMode, "now", mode)
 	l.cfg.Storage.LinkMode = mode
-	return config.Save(l.layout.ConfigPath(), l.cfg)
+	return nil
 }

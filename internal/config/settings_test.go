@@ -1,0 +1,100 @@
+package config
+
+import (
+	"errors"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"testing"
+
+	"github.com/jinzhao1994/kist/internal/blob"
+)
+
+func TestSparseDefaultsAndResetPreserveComments(t *testing.T) {
+	path := writeConfig(t, "# My archive\nversion = 2\n[library]\ntimezone = 'Asia/Shanghai' # fixed interpretation\n\n[appearance]\nprimary_color = 'green' # favorite\n")
+	raw, _ := os.ReadFile(path)
+	c, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Server.Listen != "127.0.0.1:8473" || c.Client.CacheMaxBytes != 10<<30 {
+		t.Fatal("missing defaults")
+	}
+	if err = Update(path, Revision(raw), map[string]any{"appearance.primary_color": "pink", "server.max_upload_files": 123}); err != nil {
+		t.Fatal(err)
+	}
+	next, _ := os.ReadFile(path)
+	for _, comment := range []string{"# My archive", "# fixed interpretation", "# favorite"} {
+		if !strings.Contains(string(next), comment) {
+			t.Fatalf("lost comment %s", comment)
+		}
+	}
+	if err = Update(path, Revision(raw), map[string]any{"appearance.primary_color": "gray"}); !errors.Is(err, ErrChanged) {
+		t.Fatalf("stale save=%v", err)
+	}
+	if err = Update(path, Revision(next), map[string]any{"appearance.primary_color": nil}); err != nil {
+		t.Fatal(err)
+	}
+	c, err = Load(path)
+	if err != nil || c.Appearance.PrimaryColor != "blue" || c.Server.MaxUploadFiles != 123 {
+		t.Fatalf("reset=%+v %v", c, err)
+	}
+	final, _ := os.ReadFile(path)
+	if strings.Contains(string(final), "primary_color") {
+		t.Fatal("reset persisted today's default")
+	}
+	info, _ := os.Stat(path)
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0600 {
+		t.Fatal("configuration exposes credentials")
+	}
+}
+
+func TestConfigRejectsInvalidUpdatesWithoutChangingFile(t *testing.T) {
+	path := writeConfig(t, "version = 2\n")
+	for key, value := range map[string]any{"appearance.primary_color": "invalid", "server.listen": "0.0.0.0:8473", "client.cache_max_age": "-1h", "server.max_upload_files": 0, "unknown": true} {
+		raw, _ := os.ReadFile(path)
+		if err := Update(path, Revision(raw), map[string]any{key: value}); err == nil {
+			t.Fatalf("accepted %s", key)
+		}
+		after, _ := os.ReadFile(path)
+		if string(raw) != string(after) {
+			t.Fatalf("failed edit changed %s", key)
+		}
+	}
+}
+
+func TestNewConfigDoesNotExpandDefaults(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "kist.toml")
+	cfg := Default(blob.LinkCopy)
+	if err := Save(path, cfg); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := os.ReadFile(path)
+	for _, key := range []string{"cache_max_age", "max_upload_bytes", "primary_color", "token"} {
+		if strings.Contains(string(raw), key) {
+			t.Fatalf("serialized default %s", key)
+		}
+	}
+	got, err := Load(path)
+	if err != nil || got.Library.ID != cfg.Library.ID || got.Library.Timezone != cfg.Library.Timezone {
+		t.Fatalf("lost pinned facts: %v", err)
+	}
+}
+
+func TestSparseTimezoneIsPortableAndSyntaxErrorsHideSecrets(t *testing.T) {
+	cfg, err := Decode([]byte("version = 2\n"))
+	if err != nil || cfg.Library.Timezone != "UTC" {
+		t.Fatalf("default timezone: %v %v", cfg, err)
+	}
+	_, err = Decode([]byte("[client]\ntoken = secret-that-must-not-be-logged\n"))
+	if err == nil || strings.Contains(err.Error(), "secret-that") {
+		t.Fatalf("unsafe parse error: %v", err)
+	}
+	for _, listen := range []string{"127.0.0.1:wat", "127.0.0.1:65536", "127.0.0.1:-1"} {
+		cfg.Server.Listen = listen
+		if cfg.Validate() == nil {
+			t.Fatalf("accepted %s", listen)
+		}
+	}
+}

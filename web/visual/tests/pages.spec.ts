@@ -453,6 +453,7 @@ async function prepare(page: Page, options: Options = {}) {
     else if (path === "/info")
       body = {
         version: "visual",
+        primary_color: options.primaryColor || "blue",
         timezone: "UTC",
         projection_dirty: false,
         max_upload_bytes: 1073741824,
@@ -2964,6 +2965,22 @@ for (const panel of [
         },
       }),
     );
+    await page.route("**/api/v1/settings", (route) =>
+      route.fulfill({
+        json: {
+          revision: "visual",
+          mode: "client",
+          id: "client",
+          library_id: "remote",
+          credential_configured: true,
+          fields: [],
+          effective: {},
+          overrides: [],
+          restart_required: [],
+          connection: { server: "https://nas.example", allow_http: false },
+        },
+      }),
+    );
     await page.route("**/api/v1/client/**", (route) => {
       const path = new URL(route.request().url()).pathname;
       if (route.request().method() !== "GET") {
@@ -3225,15 +3242,16 @@ for (const panel of [
     await page.goto("/");
     await page
       .getByRole("navigation", { name: "个人归档" })
-      .getByRole("button", { name: "离线客户端", exact: true })
+      .getByRole("button", { name: "数据同步", exact: true })
       .click();
-    const dialog = page.getByRole("dialog");
+    let dialog = page.getByRole("region", { name: "数据同步", exact: true });
+    await expect(page).toHaveURL(/\/sync$/);
     await expect(
-      dialog.getByRole("button", { name: "与 NAS 同步" }),
+      dialog.getByRole("button", { name: "立即同步" }),
     ).toBeEnabled();
     if (deletionConflict) {
       await dialog
-        .getByRole("button", { name: "查看本地修改", exact: true })
+        .getByRole("button", { name: "查看本机修改", exact: true })
         .click();
       if (panel === "deletion-missing-conflict") {
         await expect(dialog).toContainText("此对象已不存在");
@@ -3248,7 +3266,7 @@ for (const panel of [
       }
     } else if (coverConflict) {
       await dialog
-        .getByRole("button", { name: "查看本地修改", exact: true })
+        .getByRole("button", { name: "查看本机修改", exact: true })
         .click();
       await expect(dialog).toContainText("当前值 · 山间清晨.jpg");
       const save = dialog.getByRole("button", { name: "保存调整后的修改" });
@@ -3263,7 +3281,7 @@ for (const panel of [
       }
     } else if (panel === "fileset-conflict") {
       await dialog
-        .getByRole("button", { name: "查看本地修改", exact: true })
+        .getByRole("button", { name: "查看本机修改", exact: true })
         .click();
       await expect(
         dialog.getByRole("button", { name: "调整 背面.png 的顺序" }),
@@ -3273,7 +3291,7 @@ for (const panel of [
       ).toBeEnabled();
     } else if (panel === "conflict") {
       await dialog
-        .getByRole("button", { name: "查看本地修改", exact: true })
+        .getByRole("button", { name: "查看本机修改", exact: true })
         .click();
       await expect(dialog.getByLabel("准备提交的值")).toHaveValue("川西旅行");
       await expect(dialog).toContainText("当前值 · 秋日旅行");
@@ -3281,29 +3299,32 @@ for (const panel of [
         dialog.getByRole("button", { name: "保存调整后的修改" }),
       ).toBeEnabled();
     } else if (panel === "cache") {
-      await dialog.getByRole("tab", { name: "缓存", exact: true }).click();
+      await dialog.getByRole("tab", { name: "离线内容", exact: true }).click();
       await expect(
         dialog.getByText("山间清晨.jpg", { exact: true }),
       ).toBeVisible();
       await expect(dialog.getByText("旅行资料", { exact: true })).toBeVisible();
-      await expect(dialog.getByLabel("缓存体积上限（MiB）")).toHaveValue(
-        "10240",
-      );
+      await expect(
+        dialog.getByRole("button", { name: "缓存设置" }),
+      ).toBeVisible();
     } else if (panel === "connection") {
+      await page
+        .getByRole("navigation", { name: "个人归档" })
+        .getByRole("button", { name: "设置", exact: true })
+        .click();
+      dialog = page.getByRole("region", { name: "设置", exact: true });
       await dialog.getByRole("tab", { name: "连接", exact: true }).click();
-      await expect(dialog.getByLabel("NAS 地址", { exact: true })).toHaveValue(
+      await expect(dialog.getByLabel(/^远端地址/)).toHaveValue(
         "https://nas.example",
       );
-      await expect(dialog.getByLabel("同步凭据", { exact: true })).toHaveValue(
-        "",
-      );
+      await expect(dialog.getByLabel(/^同步凭据/)).toHaveValue("");
     } else if (panel.startsWith("history")) {
-      await dialog.getByRole("tab", { name: "本地操作", exact: true }).click();
-      await expect(dialog).toContainText("NAS 已接纳");
+      await dialog.getByRole("tab", { name: "本机操作", exact: true }).click();
+      await expect(dialog).toContainText("远端已接纳");
       if (historyUndo) {
         await dialog.getByRole("button", { name: "撤销", exact: true }).click();
         await expect(
-          dialog.getByRole("button", { name: "返回本地操作", exact: true }),
+          dialog.getByRole("button", { name: "返回本机操作", exact: true }),
         ).toBeVisible();
         await dialog.getByRole("button", { name: "撤销", exact: true }).click();
         await expect(
@@ -3314,7 +3335,7 @@ for (const panel of [
           .getByRole("button", { name: /创建归档箱.*旅行记录/ })
           .click();
       if (!historyUndo) await expect(dialog).toContainText("旅行记录");
-      await expect(dialog).toContainText("NAS 操作 #42");
+      await expect(dialog).toContainText("远端操作 #42");
     } else await expect(dialog).toContainText("待同步修改 · 1");
     await capture(page, errors, info.title);
   });
@@ -3441,7 +3462,7 @@ test("history-synced-operation", async ({ page }, info) => {
   await page.goto("/history");
   await page.locator(".history-entry").first().click();
   await expect(
-    page.getByRole("dialog").getByText(/NAS 接纳时间/),
+    page.getByRole("dialog").getByText(/远端接纳时间/),
   ).toBeVisible();
   await capture(page, errors, info.title);
 });
@@ -3520,6 +3541,118 @@ for (const mode of ["grid", "list", "mobile", "dark", "prepare"] as const) {
       await page.getByRole("button", { name: "保留离线", exact: true }).click();
       await expect(page.getByRole("dialog")).toContainText("已保留 0 / 2 项");
     }
+    await capture(page, errors, info.title);
+  });
+}
+
+for (const scenario of [
+  "appearance",
+  "service",
+  "client-storage",
+  "mobile",
+  "dark",
+] as const) {
+  test(`instance-settings-${scenario}`, async ({ page }, info) => {
+    const errors = await prepare(page, {
+      mode: scenario === "dark" ? "dark" : "light",
+    });
+    if (scenario === "mobile")
+      await page.setViewportSize({ width: 390, height: 844 });
+    const client = scenario === "client-storage";
+    const fields = [
+      {
+        key: "appearance.primary_color",
+        kind: "select",
+        value: "blue",
+        default: "blue",
+        explicit: false,
+        restart: false,
+      },
+      {
+        key: "server.listen",
+        kind: "text",
+        value: "127.0.0.1:8473",
+        default: "127.0.0.1:8473",
+        explicit: false,
+        restart: true,
+      },
+      {
+        key: "server.allowed_origins",
+        kind: "list",
+        value: ["https://archive.example"],
+        default: [],
+        explicit: true,
+        restart: true,
+      },
+      {
+        key: "server.max_upload_bytes",
+        kind: "integer",
+        value: 34359738368,
+        default: 34359738368,
+        explicit: false,
+        restart: true,
+      },
+      {
+        key: "server.max_upload_files",
+        kind: "integer",
+        value: 1000,
+        default: 1000,
+        explicit: false,
+        restart: true,
+      },
+      ...(client
+        ? [
+            {
+              key: "client.cache_max_age",
+              kind: "text",
+              value: "720h",
+              default: "720h",
+              explicit: false,
+              restart: false,
+            },
+            {
+              key: "client.cache_max_bytes",
+              kind: "integer",
+              value: 10737418240,
+              default: 10737418240,
+              explicit: false,
+              restart: false,
+            },
+          ]
+        : []),
+    ];
+    await page.route("**/api/v1/settings", (route) =>
+      route.fulfill({
+        json: {
+          revision: "visual",
+          mode: client ? "client" : "library",
+          id: "instance",
+          library_id: "library",
+          credential_configured: false,
+          fields,
+          effective: { "server.listen": "127.0.0.1:19000" },
+          overrides: ["server.listen"],
+          restart_required: ["server.allowed_origins"],
+        },
+      }),
+    );
+    await page.goto("/settings");
+    const settings = page.getByRole("region", { name: "设置", exact: true });
+    await expect(
+      settings.getByRole("radio", { name: "蓝色", exact: true }),
+    ).toBeChecked();
+    await expect(
+      page
+        .getByRole("navigation", { name: "个人归档" })
+        .getByRole("button", { name: "设置", exact: true }),
+    ).toHaveClass(/active/);
+    if (scenario === "service") {
+      await settings.getByRole("tab", { name: "服务", exact: true }).click();
+      await expect(settings).toContainText("127.0.0.1:19000");
+      await expect(settings).toContainText("重启");
+    }
+    if (client)
+      await settings.getByRole("tab", { name: "存储", exact: true }).click();
     await capture(page, errors, info.title);
   });
 }

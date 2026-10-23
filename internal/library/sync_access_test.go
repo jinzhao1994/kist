@@ -2,7 +2,6 @@ package library
 
 import (
 	"encoding/json"
-	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -24,7 +23,7 @@ func TestSyncCredentialsPersistWithoutSecretsAndRevokeAcrossHandles(t *testing.T
 			t.Fatalf("invalid credential accepted: %v %v", ok, err)
 		}
 	}
-	path := filepath.Join(l.layout.Root, "sync-access.json")
+	path := filepath.Join(l.layout.Root, "kist.toml")
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
@@ -56,10 +55,10 @@ func TestSyncCredentialsPersistWithoutSecretsAndRevokeAcrossHandles(t *testing.T
 	if count, _ := l.OpCount(t.Context()); count != 0 {
 		t.Fatal("credential management polluted archive history")
 	}
-	if err := writeClientJSON(path, syncAccess{Version: 2}); err != nil {
+	if err := os.WriteFile(path, []byte("version = 99\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if ok, err := l.CheckSyncCredential(t.Context(), credential.Token); !errors.Is(err, ErrSyncVersion) || ok {
+	if ok, err := l.CheckSyncCredential(t.Context(), credential.Token); err == nil || ok {
 		t.Fatalf("unknown credential configuration failed open: %v %v", ok, err)
 	}
 }

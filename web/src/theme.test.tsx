@@ -70,18 +70,22 @@ it("applies selections immediately, keeps them when closed, and restores them on
   expect(
     screen.queryByRole("button", { name: "Cancel" }),
   ).not.toBeInTheDocument();
-  await user.click(screen.getByRole("radio", { name: "Green" }));
-  expect(readAppearance()).toEqual({ primaryColor: "green", mode: "system" });
+  expect(
+    screen.queryByRole("radio", { name: "Green" }),
+  ).not.toBeInTheDocument();
+  expect(readAppearance()).toEqual({ primaryColor: "blue", mode: "system" });
   await user.click(screen.getByRole("combobox", { name: "Appearance" }));
   await user.click(await screen.findByRole("option", { name: "Dark" }));
-  expect(readAppearance()).toEqual({ primaryColor: "green", mode: "dark" });
+  expect(readAppearance()).toEqual({ primaryColor: "blue", mode: "dark" });
   expect(document.documentElement.style.colorScheme).toBe("dark");
   expect(localStorage.getItem(storageKey)).toBe(originalDisplay);
   await user.click(screen.getByRole("button", { name: "Close" }));
   expect(close).toHaveBeenCalledWith(false);
   first.unmount();
   mount();
-  expect(screen.getByRole("radio", { name: "Green" })).toBeChecked();
+  expect(JSON.parse(localStorage.getItem(appearanceKey)!)).toEqual({
+    mode: "dark",
+  });
   expect(screen.getByRole("combobox", { name: "Appearance" })).toHaveValue(
     "Dark",
   );

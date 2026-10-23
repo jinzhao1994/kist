@@ -83,6 +83,9 @@ func Open(root string, opts ...Option) (*Library, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := migrateInstanceConfig(context.Background(), layout.Root, "library"); err != nil {
+		return nil, err
+	}
 	cfg, err := config.Load(layout.ConfigPath())
 	if err != nil {
 		return nil, err

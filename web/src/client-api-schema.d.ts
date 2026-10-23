@@ -814,6 +814,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 settings */
+        get: operations["get-api-v1-settings"];
+        /** Put API v1 settings */
+        put: operations["put-api-v1-settings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tags": {
         parameters: {
             query?: never;
@@ -1145,6 +1163,7 @@ export interface components {
         };
         ClientConnectInputBody: {
             allow_http: boolean;
+            revision?: string;
             server: string;
             token: string;
         };
@@ -1290,6 +1309,15 @@ export interface components {
             name: string;
         };
         ExtractionInputBody: Record<string, never>;
+        Field: {
+            default: unknown;
+            explicit: boolean;
+            key: string;
+            kind: string;
+            options?: string[] | null;
+            restart: boolean;
+            value: unknown;
+        };
         File: {
             blob_key: string;
             box_id?: string;
@@ -1479,6 +1507,7 @@ export interface components {
             max_upload_bytes: number;
             /** Format: int64 */
             max_upload_files: number;
+            primary_color: string;
             projection_dirty: boolean;
             /** Format: int64 */
             resumable_upload_version?: number;
@@ -1635,6 +1664,26 @@ export interface components {
             /** Format: int64 */
             op_id?: number;
             session?: components["schemas"]["UploadState"];
+        };
+        SettingsInputBody: {
+            changes: {
+                [key: string]: unknown;
+            };
+            revision: string;
+        };
+        SettingsResponse: {
+            connection?: components["schemas"]["ClientConnection"];
+            credential_configured: boolean;
+            effective: {
+                [key: string]: unknown;
+            };
+            fields: components["schemas"]["Field"][] | null;
+            id: string;
+            library_id: string;
+            mode: string;
+            overrides: string[] | null;
+            restart_required: string[] | null;
+            revision: string;
         };
         SheetPreview: {
             cells: (components["schemas"]["Cell"][] | null)[] | null;
@@ -3884,6 +3933,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClientRequestResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "put-api-v1-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsResponse"];
                 };
             };
             /** @description Error */

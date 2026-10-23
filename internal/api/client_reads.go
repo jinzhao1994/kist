@@ -49,8 +49,12 @@ func (s *Server) clientReadRoutes() {
 		return response(out, err)
 	})
 	huma.Get(s.contract, Prefix+"/info", func(ctx context.Context, _ *struct{}) (*output[libraryInfo], error) {
-		out := libraryInfo{Client: true, Version: buildinfo.Get().Version, MaxUploadBytes: s.maxUploadBytes, MaxUploadFiles: s.maxUploadFiles, ResumableUploadVersion: staging.ProtocolVersion, UploadChunkBytes: staging.ChunkBytes}
-		err := s.client.View(ctx, func(v *library.ClientView) error { out.Timezone = v.Zone().String(); return nil })
+		color, err := s.client.PrimaryColor()
+		if err != nil {
+			return nil, failure(err)
+		}
+		out := libraryInfo{PrimaryColor: color, Client: true, Version: buildinfo.Get().Version, MaxUploadBytes: s.maxUploadBytes, MaxUploadFiles: s.maxUploadFiles, ResumableUploadVersion: staging.ProtocolVersion, UploadChunkBytes: staging.ChunkBytes}
+		err = s.client.View(ctx, func(v *library.ClientView) error { out.Timezone = v.Zone().String(); return nil })
 		return response(out, err)
 	})
 	huma.Get(s.contract, Prefix+"/client/catalog", func(ctx context.Context, _ *struct{}) (*output[library.ClientCatalogStatus], error) {

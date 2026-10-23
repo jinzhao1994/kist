@@ -2,21 +2,14 @@ import { beforeEach, expect, it } from "vitest";
 import { appearanceKey, readAppearance } from "./theme";
 
 beforeEach(() => localStorage.clear());
-it.each([
-  ["archive", "gray"],
-  ["forest", "green"],
-  ["wheat", "yellow"],
-  ["blossom", "pink"],
-  ["slate", "blue"],
-  ["sunset", "orange"],
-])(
-  "migrates legacy %s to %s without losing dark mode",
-  (theme, primaryColor) => {
+it.each(["archive", "forest", "wheat", "blossom", "slate", "sunset"])(
+  "keeps legacy %s mode but leaves primary color to the instance",
+  (theme) => {
     localStorage.setItem(
       "kist.appearance.v1",
       JSON.stringify({ theme, mode: "dark" }),
     );
-    expect(readAppearance()).toEqual({ primaryColor, mode: "dark" });
+    expect(readAppearance()).toEqual({ primaryColor: "blue", mode: "dark" });
   },
 );
 it("prefers new preferences over a legacy skin and validates unknown colors", () => {
@@ -28,7 +21,7 @@ it("prefers new preferences over a legacy skin and validates unknown colors", ()
     appearanceKey,
     JSON.stringify({ primaryColor: "orange", mode: "light" }),
   );
-  expect(readAppearance()).toEqual({ primaryColor: "orange", mode: "light" });
+  expect(readAppearance()).toEqual({ primaryColor: "blue", mode: "light" });
   localStorage.setItem(
     appearanceKey,
     JSON.stringify({ primaryColor: "__proto__", mode: "unknown" }),

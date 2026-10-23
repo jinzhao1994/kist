@@ -431,7 +431,7 @@ it("shows an uncached preview without claiming the original is damaged", async (
   mount();
   expect(
     await screen.findByText(
-      "This preview is not cached. Connect to your NAS and retry.",
+      "This preview is not cached. Connect to the remote and retry.",
     ),
   ).toBeInTheDocument();
   expect(screen.queryByText(/generation failed/i)).not.toBeInTheDocument();

@@ -11,7 +11,7 @@ export interface Route {
   file?: string;
   fileset?: string;
   page?: string;
-  section?: "history" | "trash";
+  section?: "history" | "trash" | "sync" | "settings";
 }
 function read(): Route {
   const url = new URL(window.location.href);
@@ -42,7 +42,11 @@ function read(): Route {
         ? "history"
         : url.pathname === "/trash"
           ? "trash"
-          : undefined,
+          : url.pathname === "/sync"
+            ? "sync"
+            : url.pathname === "/settings"
+              ? "settings"
+              : undefined,
     file: url.searchParams.get("file") || undefined,
     page: url.searchParams.get("page") || undefined,
     fileset: url.searchParams.get("fileset") || undefined,

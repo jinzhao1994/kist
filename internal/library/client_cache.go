@@ -360,11 +360,7 @@ func (c *Client) SetCacheLimits(ctx context.Context, maxAge time.Duration, maxBy
 	if err != nil {
 		return ClientCacheStatus{}, err
 	}
-	settings, err := c.settings()
-	if err == nil {
-		settings.CacheMaxAge, settings.CacheMaxBytes = maxAge.String(), maxBytes
-		err = writeClientJSON(filepath.Join(c.root, "client.json"), settings)
-	}
+	err = updateInstanceConfig(ctx, c.root, "", map[string]any{"client.cache_max_age": maxAge.String(), "client.cache_max_bytes": maxBytes})
 	release()
 	if err != nil {
 		return ClientCacheStatus{}, err

@@ -1,9 +1,8 @@
-import { Radio, Group, ColorSwatch, DEFAULT_THEME } from "@mantine/core";
 import { useId } from "react";
 import { Select } from "./Select";
 import { Dialog } from "./Dialog";
 import { useI18n, type Preferences } from "./i18n";
-import { colors, useTheme, type Appearance } from "./theme";
+import { useTheme, type Appearance } from "./theme";
 export function Settings({
   open,
   onOpenChange,
@@ -19,36 +18,6 @@ export function Settings({
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={t("settings")}>
       <div className="settings-form">
-        <Radio.Group
-          label={t("primaryColor")}
-          value={appearance.primaryColor}
-          onChange={(primaryColor) =>
-            setAppearance({
-              ...appearance,
-              primaryColor: primaryColor as Appearance["primaryColor"],
-            })
-          }
-        >
-          <Group gap="sm" mt="xs" wrap="wrap">
-            {colors.map((color) => (
-              <Radio
-                key={color}
-                value={color}
-                data-autofocus={color === appearance.primaryColor || undefined}
-                color={color}
-                label={
-                  <Group gap={6}>
-                    <ColorSwatch
-                      color={DEFAULT_THEME.colors[color][6]}
-                      size={16}
-                    />
-                    {t(color)}
-                  </Group>
-                }
-              />
-            ))}
-          </Group>
-        </Radio.Group>
         <Select
           id={`${id}-mode`}
           label={t("colorMode")}

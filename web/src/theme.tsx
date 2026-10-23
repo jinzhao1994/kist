@@ -28,24 +28,14 @@ export type Appearance = {
   mode: "system" | "light" | "dark";
 };
 export const appearanceKey = "kist.appearance.v2";
-const legacyColors: Record<string, Appearance["primaryColor"]> = {
-  archive: "gray",
-  forest: "green",
-  wheat: "yellow",
-  blossom: "pink",
-  slate: "blue",
-  sunset: "orange",
-};
 export function readAppearance(): Appearance {
   try {
     const raw = localStorage.getItem(appearanceKey);
     const value = JSON.parse(
       raw ?? localStorage.getItem("kist.appearance.v1") ?? "null",
     );
-    const primaryColor =
-      raw === null ? legacyColors[value?.theme] : value?.primaryColor;
     return {
-      primaryColor: colors.includes(primaryColor) ? primaryColor : "blue",
+      primaryColor: "blue",
       mode: ["system", "light", "dark"].includes(value?.mode)
         ? value.mode
         : "system",
@@ -93,7 +83,10 @@ export function ThemeProvider({
   useLayoutEffect(() => {
     applyAppearance(appearance, systemDark);
     try {
-      localStorage.setItem(appearanceKey, JSON.stringify(appearance));
+      localStorage.setItem(
+        appearanceKey,
+        JSON.stringify({ mode: appearance.mode }),
+      );
     } catch {
       /* The active session retains preferences when storage is unavailable. */
     }

@@ -33,6 +33,7 @@ belongs to exactly one box. The tag tree is orthogonal to all of them, so
 "every insurance document I have ever had" and "that week in Kyoto" are both
 one query, and neither one had to be anticipated at filing time.
 
+
 ## Why not one of the existing ones
 
 - **Business changes support strict undo.** The authority is an append-only op log, not
@@ -198,11 +199,13 @@ survive trash/restore, and participate in undo and rebuild. Folder and box sizes
 are maintained logical byte totals, excluding recycled files. File cards and
 lists expose tag actions and display assigned tags.
 
+Instance-wide appearance, storage, connection and service options are managed in **Settings** and stored in `kist.toml`. See [Instance settings](docs/settings.md).
+
 **Display settings** separates English/Chinese language, regional number/date
 formatting, display timezone and reading direction. These preferences stay in
 the browser. Mantine controls support gray, green, yellow, pink, blue, and orange
 primary colors, independently from Light, Dark, or Follow system appearance.
-Existing skin preferences migrate to the corresponding primary color. System
+Primary color follows the instance configuration; existing browser light/dark preferences remain. System
 changes apply automatically in Follow system
 mode. The grid loads derived thumbnails, and details generate larger image
 previews or H.264/AAC video on demand. Unsupported files keep an original

@@ -42,7 +42,7 @@ func TestClientConnectionIdentityPermissionsAndCrossHandleUpdates(t *testing.T) 
 	if err != nil || token != "replacement-secret" {
 		t.Fatalf("retained stale credential: %v", err)
 	}
-	info, err := os.Stat(filepath.Join(c.root, "connection.json"))
+	info, err := os.Stat(filepath.Join(c.root, "kist.toml"))
 	if err != nil || runtime.GOOS != "windows" && info.Mode().Perm() != 0600 {
 		t.Fatalf("connection permissions: %v %v", info, err)
 	}
@@ -64,10 +64,10 @@ func TestClientConnectionIdentityPermissionsAndCrossHandleUpdates(t *testing.T) 
 	if err := c.Resolve(t.Context(), p.ID, nil, "discard"); !errors.Is(err, ErrSyncConflict) {
 		t.Fatalf("discarded uncertain operation: %v", err)
 	}
-	if err := writeClientJSON(filepath.Join(c.root, "connection.json"), clientConnectionFile{Version: 2}); err != nil {
+	if err := os.WriteFile(filepath.Join(c.root, "kist.toml"), []byte("version = 99\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := c.Connection(t.Context()); !errors.Is(err, ErrSyncVersion) {
+	if _, _, err := c.Connection(t.Context()); err == nil {
 		t.Fatalf("accepted unknown connection version: %v", err)
 	}
 }

@@ -7,11 +7,10 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
-	"errors"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/jinzhao1994/kist/internal/config"
 )
 
 type SyncCredential struct {
@@ -37,24 +36,13 @@ type syncAccess struct {
 }
 
 func (l *Library) syncAccess() (syncAccess, error) {
-	access := syncAccess{Version: 1, Grants: []syncGrant{}}
-	err := readClientJSON(filepath.Join(l.layout.Root, "sync-access.json"), &access)
-	if errors.Is(err, os.ErrNotExist) {
-		return access, nil
-	}
+	cfg, err := config.Load(l.layout.ConfigPath())
 	if err != nil {
-		return access, err
+		return syncAccess{}, err
 	}
-	if access.Version != 1 {
-		return access, ErrSyncVersion
-	}
-	seen := map[string]bool{}
-	for _, grant := range access.Grants {
-		digest, err := hex.DecodeString(grant.Digest)
-		if err != nil || len(digest) != sha256.Size || grant.ID == "" || seen[grant.ID] || grant.CreatedAt.IsZero() {
-			return access, ErrInvalidRequest
-		}
-		seen[grant.ID] = true
+	access := syncAccess{Version: 1, Grants: []syncGrant{}}
+	for _, g := range cfg.Sync.Grants {
+		access.Grants = append(access.Grants, syncGrant{SyncCredential: SyncCredential{ID: g.ID, CreatedAt: g.CreatedAt}, Digest: g.Digest})
 	}
 	return access, nil
 }
@@ -84,7 +72,7 @@ func (l *Library) AuthorizeSync(ctx context.Context) (NewSyncCredential, error) 
 	credential.Token = "kist_sync." + credential.ID + "." + base64.RawURLEncoding.EncodeToString(secret[:])
 	digest := sha256.Sum256([]byte(credential.Token))
 	access.Grants = append(access.Grants, syncGrant{SyncCredential: credential.SyncCredential, Digest: hex.EncodeToString(digest[:])})
-	if err := writeClientJSON(filepath.Join(l.layout.Root, "sync-access.json"), access); err != nil {
+	if err := l.saveSyncAccess(ctx, access); err != nil {
 		return NewSyncCredential{}, err
 	}
 	return credential, nil
@@ -118,7 +106,7 @@ func (l *Library) RevokeSync(ctx context.Context, id string) (bool, error) {
 	for i, grant := range access.Grants {
 		if grant.ID == id {
 			access.Grants = append(access.Grants[:i], access.Grants[i+1:]...)
-			return true, writeClientJSON(filepath.Join(l.layout.Root, "sync-access.json"), access)
+			return true, l.saveSyncAccess(ctx, access)
 		}
 	}
 	return false, nil
@@ -150,4 +138,12 @@ func (l *Library) CheckSyncCredential(ctx context.Context, token string) (bool, 
 		}
 	}
 	return false, nil
+}
+
+func (l *Library) saveSyncAccess(ctx context.Context, access syncAccess) error {
+	grants := []config.Grant{}
+	for _, g := range access.Grants {
+		grants = append(grants, config.Grant{ID: g.ID, CreatedAt: g.CreatedAt, Digest: g.Digest})
+	}
+	return updateInstanceConfig(ctx, l.layout.Root, "", map[string]any{"sync.grants": grants})
 }

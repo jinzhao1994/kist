@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/jinzhao1994/kist/internal/config"
 )
 
 // Layout locates everything inside a library root.
@@ -35,11 +37,18 @@ func OpenLayout(root string) (Layout, error) {
 	if _, err := os.Stat(l.ConfigPath()); err != nil {
 		return Layout{}, fmt.Errorf("%s is not a kist library (no kist.toml): %w", abs, ErrNotALibrary)
 	}
+	cfg, err := config.Load(l.ConfigPath())
+	if err != nil {
+		return Layout{}, err
+	}
+	if cfg.Mode != "library" {
+		return Layout{}, ErrNotALibrary
+	}
 	return l, nil
 }
 
 // isLibrary reports whether root already holds one.
 func isLibrary(root string) bool {
-	_, err := os.Stat(filepath.Join(root, "kist.toml"))
-	return err == nil
+	cfg, err := config.Load(filepath.Join(root, "kist.toml"))
+	return err == nil && cfg.Mode == "library"
 }

@@ -2,7 +2,6 @@ package library
 
 import (
 	"context"
-	"path/filepath"
 )
 
 // AdoptSyncSettings refreshes the NAS library's interpretation settings for
@@ -27,6 +26,5 @@ func (c *Client) AdoptSyncSettings(ctx context.Context, caps SyncCapabilities) e
 	if settings.Timezone == caps.Timezone {
 		return nil
 	}
-	settings.Timezone = caps.Timezone
-	return writeClientJSON(filepath.Join(c.root, "client.json"), settings)
+	return updateInstanceConfig(ctx, c.root, "", map[string]any{"client.timezone": caps.Timezone})
 }

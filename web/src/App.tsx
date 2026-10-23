@@ -14,6 +14,8 @@ import { api, type Box } from "./api";
 import { FolderBreadcrumbs, folderChain } from "./Folders";
 import { formatLocalDate, useI18n } from "./i18n";
 import { OfflineClient, ClientCatalogNotice } from "./OfflineClient";
+import { InstanceSettings } from "./InstanceSettings";
+import { useTheme, colors } from "./theme";
 import { Settings } from "./Settings";
 import { BoxTrashDialog } from "./BoxTrashDialog";
 import { DisplayModeControl, useDisplayMode } from "./DisplayMode";
@@ -44,13 +46,14 @@ import {
 } from "./SavedSearches";
 export function App() {
   const { t, prefs } = useI18n();
+  const { appearance, setAppearance } = useTheme();
   const { route, go } = useNavigation();
   const [actionsHost, setActionsHost] = useState<HTMLSpanElement | null>(null);
   const [infoHost, setInfoHost] = useState<HTMLDivElement | null>(null);
   const [fileToolbarHost, setFileToolbarHost] =
     useState<HTMLSpanElement | null>(null);
   const [boxMode, setBoxMode] = useDisplayMode("boxes");
-  const [clientOpen, setClientOpen] = useState(false);
+
   const [settings, setSettings] = useState(false);
   const [editor, setEditor] = useState<Box | "new" | null>(null);
   const [trashing, setTrashing] = useState<Box | null>(null);
@@ -106,6 +109,20 @@ export function App() {
     queryKey: ["info"],
     queryFn: ({ signal }) => api.info(signal),
   });
+  useEffect(() => {
+    const color = info.data?.primary_color;
+    if (
+      color &&
+      colors.includes(color as (typeof colors)[number]) &&
+      color !== appearance.primaryColor
+    )
+      setAppearance({
+        ...appearance,
+        primaryColor: color as (typeof colors)[number],
+      });
+  }, [info.data?.primary_color, appearance, setAppearance]);
+  const settingsPage = route.section === "settings";
+  const syncPage = route.section === "sync";
   const tags = useQuery({
     queryKey: ["tags"],
     queryFn: ({ signal }) => api.tags(signal),
@@ -191,13 +208,19 @@ export function App() {
             ))}
             {info.data?.client && (
               <UnstyledButton
-                className="nav-link"
-                aria-haspopup="dialog"
-                onClick={() => setClientOpen(true)}
+                className={`nav-link ${syncPage ? "active" : ""}`}
+                onClick={() => go({ files: false, section: "sync" })}
               >
                 <NavigationIcon kind="client" /> <span>{t("clientTitle")}</span>
               </UnstyledButton>
             )}
+            <UnstyledButton
+              className={`nav-link ${settingsPage ? "active" : ""}`}
+              onClick={() => go({ files: false, section: "settings" })}
+            >
+              <NavigationIcon kind="settings" />
+              <span>{t("instanceSettings")}</span>
+            </UnstyledButton>
           </nav>
           <SavedSearches
             current={currentSearch}
@@ -299,119 +322,129 @@ export function App() {
                 : undefined
           }
         >
-          {info.data?.client && <ClientCatalogNotice />}
-          <header className="page-header">
-            <div>
-              <div className="box-title-line">
-                <h1>
-                  {selected && route.files && !route.section ? (
-                    <UnstyledButton
-                      className="box-root-link"
-                      onClick={() => {
-                        setFilters({ ...emptyFilters });
-                        go({ box: route.box, files: true });
-                      }}
-                    >
-                      <bdi>{selected.name}</bdi>
-                    </UnstyledButton>
-                  ) : (
-                    <bdi>
-                      {route.section
-                        ? t(route.section)
-                        : route.tag
-                          ? selectedTag?.name || t("tags")
-                          : selected?.name ||
-                            t(route.files ? "allFiles" : "boxes")}
-                    </bdi>
-                  )}
-                </h1>
-                {selected &&
-                  !route.section &&
-                  (selected.start_at || selected.end_at) && (
-                    <span className="box-title-date">
-                      {selected.start_at
-                        ? formatLocalDate(selected.start_at, prefs)
-                        : ""}
-                      {selected.end_at
-                        ? ` — ${formatLocalDate(selected.end_at, prefs)}`
-                        : ""}
-                    </span>
-                  )}
-              </div>
-              {route.files && <div ref={setInfoHost} />}
-            </div>
-            <div className="header-actions">
-              {!route.section && !selected && !route.files && !route.tag && (
-                <ActionIcon
-                  variant="default"
-                  size="lg"
-                  aria-label={t("createBox")}
-                  title={t("createBox")}
-                  onClick={() => setEditor("new")}
-                >
-                  <span aria-hidden="true">＋</span>
-                </ActionIcon>
-              )}
-              {route.files && selected && <span ref={setActionsHost} />}
-              <Tooltip
-                label={t("refresh")}
-                events={{ hover: true, focus: true, touch: false }}
-              >
-                <ActionIcon
-                  size="lg"
-                  variant="subtle"
-                  color="gray"
-                  aria-label={t("refresh")}
-                  onClick={() => client.invalidateQueries()}
-                >
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.7"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M20 7v5h-5M4 17v-5h5" />
-                    <path d="M6.1 7a7 7 0 0 1 11.55-.9L20 12M4 12l2.35 5.9A7 7 0 0 0 17.9 17" />
-                  </svg>
-                </ActionIcon>
-              </Tooltip>
-              {!route.section && selected && (
-                <Menu position="bottom-end" withinPortal>
-                  <Menu.Target>
-                    <Tooltip
-                      label={t("moreActions")}
-                      events={{ hover: true, focus: true, touch: false }}
-                    >
-                      <ActionIcon
-                        size="lg"
-                        variant="subtle"
-                        color="gray"
-                        aria-label={t("moreActions")}
+          {info.data?.client && !settingsPage && !syncPage && (
+            <ClientCatalogNotice />
+          )}
+          {!settingsPage && !syncPage && (
+            <header className="page-header">
+              <div>
+                <div className="box-title-line">
+                  <h1>
+                    {selected && route.files && !route.section ? (
+                      <UnstyledButton
+                        className="box-root-link"
+                        onClick={() => {
+                          setFilters({ ...emptyFilters });
+                          go({ box: route.box, files: true });
+                        }}
                       >
-                        <svg
-                          width="20"
-                          height="20"
-                          viewBox="0 0 24 24"
-                          fill="currentColor"
-                          aria-hidden="true"
+                        <bdi>{selected.name}</bdi>
+                      </UnstyledButton>
+                    ) : (
+                      <bdi>
+                        {route.section
+                          ? t(
+                              route.section === "settings"
+                                ? "instanceSettings"
+                                : route.section === "sync"
+                                  ? "clientTitle"
+                                  : route.section,
+                            )
+                          : route.tag
+                            ? selectedTag?.name || t("tags")
+                            : selected?.name ||
+                              t(route.files ? "allFiles" : "boxes")}
+                      </bdi>
+                    )}
+                  </h1>
+                  {selected &&
+                    !route.section &&
+                    (selected.start_at || selected.end_at) && (
+                      <span className="box-title-date">
+                        {selected.start_at
+                          ? formatLocalDate(selected.start_at, prefs)
+                          : ""}
+                        {selected.end_at
+                          ? ` — ${formatLocalDate(selected.end_at, prefs)}`
+                          : ""}
+                      </span>
+                    )}
+                </div>
+                {route.files && <div ref={setInfoHost} />}
+              </div>
+              <div className="header-actions">
+                {!route.section && !selected && !route.files && !route.tag && (
+                  <ActionIcon
+                    variant="default"
+                    size="lg"
+                    aria-label={t("createBox")}
+                    title={t("createBox")}
+                    onClick={() => setEditor("new")}
+                  >
+                    <span aria-hidden="true">＋</span>
+                  </ActionIcon>
+                )}
+                {route.files && selected && <span ref={setActionsHost} />}
+                <Tooltip
+                  label={t("refresh")}
+                  events={{ hover: true, focus: true, touch: false }}
+                >
+                  <ActionIcon
+                    size="lg"
+                    variant="subtle"
+                    color="gray"
+                    aria-label={t("refresh")}
+                    onClick={() => client.invalidateQueries()}
+                  >
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M20 7v5h-5M4 17v-5h5" />
+                      <path d="M6.1 7a7 7 0 0 1 11.55-.9L20 12M4 12l2.35 5.9A7 7 0 0 0 17.9 17" />
+                    </svg>
+                  </ActionIcon>
+                </Tooltip>
+                {!route.section && selected && (
+                  <Menu position="bottom-end" withinPortal>
+                    <Menu.Target>
+                      <Tooltip
+                        label={t("moreActions")}
+                        events={{ hover: true, focus: true, touch: false }}
+                      >
+                        <ActionIcon
+                          size="lg"
+                          variant="subtle"
+                          color="gray"
+                          aria-label={t("moreActions")}
                         >
-                          <circle cx="5" cy="12" r="1.7" />
-                          <circle cx="12" cy="12" r="1.7" />
-                          <circle cx="19" cy="12" r="1.7" />
-                        </svg>
-                      </ActionIcon>
-                    </Tooltip>
-                  </Menu.Target>
-                  <Menu.Dropdown>{boxManagementActions}</Menu.Dropdown>
-                </Menu>
-              )}
-            </div>
-          </header>
+                          <svg
+                            width="20"
+                            height="20"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            aria-hidden="true"
+                          >
+                            <circle cx="5" cy="12" r="1.7" />
+                            <circle cx="12" cy="12" r="1.7" />
+                            <circle cx="19" cy="12" r="1.7" />
+                          </svg>
+                        </ActionIcon>
+                      </Tooltip>
+                    </Menu.Target>
+                    <Menu.Dropdown>{boxManagementActions}</Menu.Dropdown>
+                  </Menu>
+                )}
+              </div>
+            </header>
+          )}
           {route.box &&
             route.files &&
             currentFolder &&
@@ -454,16 +487,28 @@ export function App() {
               {t("projectionDirty")}
             </p>
           )}
-          {route.section && boxes.isPending && (
+          {route.section && !settingsPage && !syncPage && boxes.isPending && (
             <p role="status">{t("loading")}</p>
           )}
-          {route.section && boxes.isError && (
+          {route.section && !settingsPage && !syncPage && boxes.isError && (
             <div role="alert">
               <p>{errorMessage(boxes.error, t)}</p>
               <Button onClick={() => boxes.refetch()}>{t("retry")}</Button>
             </div>
           )}
-          {route.section ? (
+          {settingsPage ? (
+            <InstanceSettings />
+          ) : syncPage ? (
+            info.isPending ? (
+              <p role="status">{t("loading")}</p>
+            ) : info.data?.client ? (
+              <OfflineClient
+                openSettings={() => go({ files: false, section: "settings" })}
+              />
+            ) : (
+              <p>{t("notFound")}</p>
+            )
+          ) : route.section ? (
             <HistoryPage
               key={`${route.section}:${route.box || ""}:${route.file || route.fileset || ""}`}
               box={route.box}
@@ -646,9 +691,6 @@ export function App() {
               }}
             />
           )}
-        </DialogPresence>
-        <DialogPresence>
-          {clientOpen && <OfflineClient close={() => setClientOpen(false)} />}
         </DialogPresence>
         <DialogPresence>
           {settings && <Settings open={settings} onOpenChange={setSettings} />}

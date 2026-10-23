@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jinzhao1994/kist/internal/blob"
+	"github.com/jinzhao1994/kist/internal/config"
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/journal"
 	"github.com/jinzhao1994/kist/internal/lockfile"
@@ -83,7 +84,9 @@ func CreateClient(ctx context.Context, root string, settings ClientSettings) (*C
 			return nil, err
 		}
 	}
-	if err := writeClientJSON(filepath.Join(layout.Root, "client.json"), settings); err != nil {
+	cfg := config.Defaults("client")
+	cfg.Client = config.Client{ID: settings.ID, LibraryID: settings.LibraryID, Timezone: settings.Timezone, CacheMaxAge: settings.CacheMaxAge, CacheMaxBytes: settings.CacheMaxBytes}
+	if err := config.Save(filepath.Join(layout.Root, "kist.toml"), cfg); err != nil {
 		return nil, err
 	}
 	if err := syncClientDir(filepath.Dir(layout.Root)); err != nil {
@@ -95,6 +98,9 @@ func CreateClient(ctx context.Context, root string, settings ClientSettings) (*C
 func OpenClient(ctx context.Context, root string) (*Client, error) {
 	root, err := filepath.Abs(root)
 	if err != nil {
+		return nil, err
+	}
+	if err := migrateInstanceConfig(ctx, root, "client"); err != nil {
 		return nil, err
 	}
 	c := &Client{root: root, lock: lockfile.New(filepath.Join(root, "client.lock"))}
@@ -136,10 +142,14 @@ func OpenClient(ctx context.Context, root string) (*Client, error) {
 func (c *Client) Close() error { return c.db.Close() }
 
 func (c *Client) settings() (ClientSettings, error) {
-	var settings ClientSettings
-	if err := readClientJSON(filepath.Join(c.root, "client.json"), &settings); err != nil {
-		return settings, err
+	cfg, err := config.Load(filepath.Join(c.root, "kist.toml"))
+	if err != nil {
+		return ClientSettings{}, err
 	}
+	if cfg.Mode != "client" {
+		return ClientSettings{}, ErrNotALibrary
+	}
+	settings := ClientSettings{Version: 1, ID: cfg.Client.ID, LibraryID: cfg.Client.LibraryID, Timezone: cfg.Client.Timezone, CacheMaxAge: cfg.Client.CacheMaxAge, CacheMaxBytes: cfg.Client.CacheMaxBytes}
 	return settings, settings.validate()
 }
 

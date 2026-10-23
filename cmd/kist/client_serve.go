@@ -18,22 +18,31 @@ func newClientServeCmd() *cobra.Command {
 	var address string
 	var origins []string
 	cmd := &cobra.Command{Use: "serve DIRECTORY", Short: "Serve the laptop client locally without contacting the NAS", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
-		opt, err := serveOptions(address, origins)
-		if err != nil {
-			return err
-		}
 		client, err := library.OpenClient(cmd.Context(), args[0])
 		if err != nil {
 			return err
 		}
 		defer client.Close()
+		stored, err := client.ServiceSettings()
+		if err != nil {
+			return err
+		}
+		effective, overrides, err := resolveServiceSettings(cmd, stored)
+		if err != nil {
+			return err
+		}
+		opt, err := serveOptions(effective.Listen, effective.AllowedOrigins)
+		if err != nil {
+			return err
+		}
+		applyServiceSettings(&opt, effective, overrides)
 		opt.UI = web.Handler()
 		opt.ClientRenderer = runClientRenderer
 		handler, err := api.NewClient(client, opt)
 		if err != nil {
 			return err
 		}
-		listener, err := net.Listen("tcp", address)
+		listener, err := net.Listen("tcp", effective.Listen)
 		if err != nil {
 			return err
 		}
