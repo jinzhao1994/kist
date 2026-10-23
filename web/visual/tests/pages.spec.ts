@@ -743,7 +743,9 @@ for (const scenario of [
           ? page
               .getByRole("dialog")
               .getByRole("textbox", { name: "名称", exact: true })
-          : page.getByRole("dialog").locator('input[type="radio"]:checked'),
+          : page
+              .getByRole("dialog")
+              .getByRole("combobox", { name: "明暗模式", exact: true }),
       ).toBeFocused();
     }
     await capture(page, errors, info.title);
@@ -3336,7 +3338,7 @@ for (const panel of [
           .click();
       if (!historyUndo) await expect(dialog).toContainText("旅行记录");
       await expect(dialog).toContainText("远端操作 #42");
-    } else await expect(dialog).toContainText("待同步修改 · 1");
+    } else await expect(dialog).toContainText("本机待提交修改 · 1");
     await capture(page, errors, info.title);
   });
 }

@@ -19,6 +19,7 @@ export function Settings({
     <Dialog open={open} onOpenChange={onOpenChange} title={t("settings")}>
       <div className="settings-form">
         <Select
+          data-autofocus
           id={`${id}-mode`}
           label={t("colorMode")}
           value={appearance.mode}

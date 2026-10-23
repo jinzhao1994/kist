@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { I18nProvider, storageKey } from "./i18n";
@@ -63,6 +63,9 @@ it("applies selections immediately, keeps them when closed, and restores them on
   const user = userEvent.setup();
   const close = vi.fn();
   const first = mount(close);
+  await waitFor(() =>
+    expect(screen.getByRole("combobox", { name: "Appearance" })).toHaveFocus(),
+  );
   const originalDisplay = localStorage.getItem(storageKey);
   expect(
     screen.queryByRole("button", { name: "Save" }),

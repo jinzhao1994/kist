@@ -14,6 +14,7 @@ import { useI18n } from "./i18n";
 export function Select({
   id,
   "aria-label": ariaLabel,
+  "data-autofocus": autofocus,
   value,
   onValueChange,
   options,
@@ -25,6 +26,7 @@ export function Select({
 }: {
   id?: string;
   "aria-label"?: string;
+  "data-autofocus"?: boolean;
   value: string;
   onValueChange: (value: string) => void;
   options: {
@@ -90,6 +92,7 @@ export function Select({
       >
         <Combobox.Target targetType="button" withExpandedAttribute>
           <InputBase
+            data-autofocus={autofocus}
             id={id}
             aria-label={ariaLabel}
             label={label}
@@ -163,6 +166,7 @@ export function Select({
   }
   return (
     <MantineSelect
+      data-autofocus={autofocus}
       id={id}
       aria-label={ariaLabel}
       label={label}
