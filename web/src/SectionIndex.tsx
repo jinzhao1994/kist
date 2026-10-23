@@ -5,13 +5,16 @@ import { useI18n } from "./i18n";
 export function SectionIndex({
   items,
   children,
+  ready = true,
 }: {
   items: { id: string; label: string }[];
   children: ReactNode;
+  ready?: boolean;
 }) {
   const { t } = useI18n();
   const body = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    if (!ready) return;
     let frame = 0;
     const restore = () => {
       cancelAnimationFrame(frame);
@@ -34,7 +37,7 @@ export function SectionIndex({
       cancelAnimationFrame(frame);
       window.removeEventListener("hashchange", restore);
     };
-  }, []);
+  }, [ready]);
   return (
     <div className="section-layout">
       <nav className="section-index" aria-label={t("pageContents")}>

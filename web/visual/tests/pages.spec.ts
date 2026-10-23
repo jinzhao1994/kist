@@ -3756,6 +3756,21 @@ for (const scenario of [
       ).toBeFocused();
     }
     if (scenario === "credentials") {
+      await page.goto("/settings#settings-service");
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await expect
+          .poll(async () => {
+            const header = await page
+              .locator(".settings-page-header")
+              .boundingBox();
+            const title = await page
+              .locator("#settings-service-title")
+              .boundingBox();
+            return header && title ? title.y - header.y - header.height : -1;
+          })
+          .toBeGreaterThan(16);
+        await page.reload();
+      }
       await page.goto("/settings#settings-access");
       await expect(settings.locator("#settings-access-title")).toBeInViewport();
       await page.reload();

@@ -5,6 +5,10 @@ import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { InstanceSettings } from "./InstanceSettings";
 import { I18nProvider, storageKey } from "./i18n";
 import { ThemeProvider } from "./theme";
+vi.mock("@mantine/hooks", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@mantine/hooks")>()),
+  useElementSize: () => ({ ref: () => {}, height: 50, width: 800 }),
+}));
 let writes: any[];
 let stale: boolean;
 const initial = () => ({

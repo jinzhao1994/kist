@@ -191,6 +191,7 @@ export function InstanceSettings() {
         {snapshot && (
           <>
             <SectionIndex
+              ready={headerHeight > 0}
               items={[
                 { id: "settings-appearance", label: t("settingAppearance") },
                 { id: "settings-storage", label: t("settingStorage") },
