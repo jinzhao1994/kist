@@ -3330,7 +3330,7 @@ main.upload-drag-active {
 }
 
 .instance-settings-content {
-  max-inline-size: 52rem;
+  max-inline-size: 66rem;
   display: grid;
   gap: var(--mantine-spacing-md);
 }
@@ -3347,29 +3347,61 @@ main.upload-drag-active {
   flex-wrap: wrap;
   gap: var(--mantine-spacing-xl);
   padding-block: var(--mantine-spacing-md);
-  border-block-end: 1px solid var(--mantine-color-default-border);
 }
 
+/* Keep the document index beside the content without covering form controls. */
+.section-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 52rem) 9rem;
+  gap: 3rem;
+  align-items: start;
+}
+.section-body {
+  grid-column: 1;
+  grid-row: 1;
+  min-inline-size: 0;
+}
 .section-index {
+  grid-column: 2;
+  grid-row: 1;
   position: sticky;
-  inset-block-start: 0;
-  z-index: 2;
+  inset-block-start: var(--mantine-spacing-lg);
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--mantine-spacing-xs) var(--mantine-spacing-lg);
-  padding-block: var(--mantine-spacing-sm);
-  background: var(--mantine-color-body);
-  border-block-end: 1px solid var(--mantine-color-default-border);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--mantine-spacing-sm);
+  padding-block: var(--mantine-spacing-lg);
+}
+.section-index a {
+  color: var(--muted);
+}
+.section-index a:hover,
+.section-index a:focus-visible {
+  color: var(--brand);
 }
 .flat-page-section {
-  scroll-margin-block-start: 5rem;
+  scroll-margin-block-start: var(--mantine-spacing-lg);
   padding-block: var(--mantine-spacing-lg);
 }
 .flat-page-section + .flat-page-section {
-  border-block-start: 1px solid var(--mantine-color-default-border);
+  margin-block-start: var(--mantine-spacing-xl);
 }
 .flat-page-section > h2 {
   font-size: var(--mantine-font-size-lg);
   font-weight: 600;
   margin-block: 0 var(--mantine-spacing-lg);
+}
+@media (max-width: 900px) {
+  .section-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--mantine-spacing-sm);
+  }
+  .section-index {
+    position: static;
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .section-body {
+    grid-row: 2;
+  }
 }

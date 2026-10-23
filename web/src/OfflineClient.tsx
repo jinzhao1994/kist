@@ -110,216 +110,222 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
                   { id: "sync-cache", label: t("clientCache") },
                   { id: "sync-history", label: t("clientHistory") },
                 ]}
-              />
-              <section
-                id="sync-status"
-                className="flat-page-section"
-                aria-labelledby="sync-status-title"
               >
-                <h2 id="sync-status-title">{t("clientSync")}</h2>
-                {editing ? (
-                  <ClientConflictEditor
-                    key={editing.id}
-                    {...editing}
-                    close={() => setEditing(undefined)}
-                    onLocked={setHistoryLocked}
-                  />
-                ) : (
-                  <Stack gap="md">
-                    <Text size="sm" c="dimmed">
-                      {t("clientSyncDescription")}
-                    </Text>
-                    <div className="sync-status-row">
-                      <div>
-                        <Text size="xs" c="dimmed">
-                          {t("clientCatalogLabel")}
-                        </Text>
-                        <Text size="sm">
-                          {t(
-                            data.catalog.complete
-                              ? "clientCatalogReady"
-                              : "clientCatalogIncomplete",
-                          )}
-                        </Text>
-                      </div>
-                      <div>
-                        <Text size="xs" c="dimmed">
-                          {t("clientRemoteUpdates")}
-                        </Text>
-                        <Text size="sm">{t("clientRemoteCheckOnSync")}</Text>
-                      </div>
-                    </div>
-                    {Boolean(data.pending?.length) && (
-                      <Text size="sm" fw={600}>
-                        {t("clientPending", {
-                          count: data.pending?.length || 0,
-                        })}
-                      </Text>
-                    )}
-                    {!data.pending?.length && (
+                <section
+                  id="sync-status"
+                  className="flat-page-section"
+                  aria-labelledby="sync-status-title"
+                >
+                  <h2 id="sync-status-title">{t("clientSync")}</h2>
+                  {editing ? (
+                    <ClientConflictEditor
+                      key={editing.id}
+                      {...editing}
+                      close={() => setEditing(undefined)}
+                      onLocked={setHistoryLocked}
+                    />
+                  ) : (
+                    <Stack gap="md">
                       <Text size="sm" c="dimmed">
-                        {t("clientNoPending")}
+                        {t("clientSyncDescription")}
                       </Text>
-                    )}
-                    {(data.pending || []).map((op) => (
-                      <Stack
-                        key={op.id}
-                        gap="xs"
-                        className="client-pending-item"
-                      >
-                        <Group justify="space-between">
-                          <Text>{actionLabel(op.action, t)}</Text>
-                          <Text size="sm" c="dimmed">
-                            {formatInstant(op.occurred_at, prefs)}
+                      <div className="sync-status-row">
+                        <div>
+                          <Text size="xs" c="dimmed">
+                            {t("clientCatalogLabel")}
                           </Text>
-                        </Group>
-                        <Text size="xs" c="dimmed">
-                          {op.id}
+                          <Text size="sm">
+                            {t(
+                              data.catalog.complete
+                                ? "clientCatalogReady"
+                                : "clientCatalogIncomplete",
+                            )}
+                          </Text>
+                        </div>
+                        <div>
+                          <Text size="xs" c="dimmed">
+                            {t("clientRemoteUpdates")}
+                          </Text>
+                          <Text size="sm">{t("clientRemoteCheckOnSync")}</Text>
+                        </div>
+                      </div>
+                      {Boolean(data.pending?.length) && (
+                        <Text size="sm" fw={600}>
+                          {t("clientPending", {
+                            count: data.pending?.length || 0,
+                          })}
                         </Text>
-                        {op.awaiting_receipt && (
-                          <Text size="sm">{t("clientAwaitingReceipt")}</Text>
-                        )}
-                        {op.conflict && (
-                          <Alert color="yellow">{op.conflict}</Alert>
-                        )}
-                        {data.blocked_id === op.id && !op.awaiting_receipt && (
-                          <>
-                            <Group>
-                              <Button
-                                disabled={busy}
-                                onClick={() =>
-                                  setEditing({ id: op.id, action: op.action })
-                                }
-                              >
-                                {t("clientConflictReview")}
-                              </Button>
-                            </Group>
-                            <Checkbox
-                              checked={decision === op.id}
-                              disabled={busy}
-                              onChange={(event) =>
-                                setDecision(
-                                  event.currentTarget.checked ? op.id : "",
-                                )
-                              }
-                              label={t("clientDiscardConfirm")}
-                            />
-                            <Group>
-                              <Button
-                                color="red"
-                                disabled={busy || decision !== op.id}
-                                onClick={() =>
-                                  run(async (signal) => {
-                                    await clientCommand(
-                                      `/pending/${encodeURIComponent(op.id)}/resolve`,
-                                      {
-                                        reason:
-                                          "User chose to discard the local change in the offline client UI",
-                                      },
-                                      "POST",
-                                      signal,
-                                    );
-                                    setDecision("");
-                                    setNotice(t("clientResolved"));
-                                  })
-                                }
-                              >
-                                {t("clientDiscard")}
-                              </Button>
-                            </Group>
-                          </>
-                        )}
-                      </Stack>
-                    ))}
-                  </Stack>
-                )}
-              </section>
-              <section
-                id="sync-cache"
-                className="flat-page-section"
-                aria-labelledby="sync-cache-title"
-              >
-                <h2 id="sync-cache-title">{t("clientCache")}</h2>
-                <Stack gap="md">
-                  {cache.error && (
-                    <Text role="alert">{errorMessage(cache.error, t)}</Text>
+                      )}
+                      {!data.pending?.length && (
+                        <Text size="sm" c="dimmed">
+                          {t("clientNoPending")}
+                        </Text>
+                      )}
+                      {(data.pending || []).map((op) => (
+                        <Stack
+                          key={op.id}
+                          gap="xs"
+                          className="client-pending-item"
+                        >
+                          <Group justify="space-between">
+                            <Text>{actionLabel(op.action, t)}</Text>
+                            <Text size="sm" c="dimmed">
+                              {formatInstant(op.occurred_at, prefs)}
+                            </Text>
+                          </Group>
+                          <Text size="xs" c="dimmed">
+                            {op.id}
+                          </Text>
+                          {op.awaiting_receipt && (
+                            <Text size="sm">{t("clientAwaitingReceipt")}</Text>
+                          )}
+                          {op.conflict && (
+                            <Alert color="yellow">{op.conflict}</Alert>
+                          )}
+                          {data.blocked_id === op.id &&
+                            !op.awaiting_receipt && (
+                              <>
+                                <Group>
+                                  <Button
+                                    disabled={busy}
+                                    onClick={() =>
+                                      setEditing({
+                                        id: op.id,
+                                        action: op.action,
+                                      })
+                                    }
+                                  >
+                                    {t("clientConflictReview")}
+                                  </Button>
+                                </Group>
+                                <Checkbox
+                                  checked={decision === op.id}
+                                  disabled={busy}
+                                  onChange={(event) =>
+                                    setDecision(
+                                      event.currentTarget.checked ? op.id : "",
+                                    )
+                                  }
+                                  label={t("clientDiscardConfirm")}
+                                />
+                                <Group>
+                                  <Button
+                                    color="red"
+                                    disabled={busy || decision !== op.id}
+                                    onClick={() =>
+                                      run(async (signal) => {
+                                        await clientCommand(
+                                          `/pending/${encodeURIComponent(op.id)}/resolve`,
+                                          {
+                                            reason:
+                                              "User chose to discard the local change in the offline client UI",
+                                          },
+                                          "POST",
+                                          signal,
+                                        );
+                                        setDecision("");
+                                        setNotice(t("clientResolved"));
+                                      })
+                                    }
+                                  >
+                                    {t("clientDiscard")}
+                                  </Button>
+                                </Group>
+                              </>
+                            )}
+                        </Stack>
+                      ))}
+                    </Stack>
                   )}
-                  {cache.data && (
-                    <>
-                      <Text>
-                        {t("clientCacheUsed", {
-                          size: formatBytes(
-                            cache.data.cached_bytes + cache.data.partial_bytes,
+                </section>
+                <section
+                  id="sync-cache"
+                  className="flat-page-section"
+                  aria-labelledby="sync-cache-title"
+                >
+                  <h2 id="sync-cache-title">{t("clientCache")}</h2>
+                  <Stack gap="md">
+                    {cache.error && (
+                      <Text role="alert">{errorMessage(cache.error, t)}</Text>
+                    )}
+                    {cache.data && (
+                      <>
+                        <Text>
+                          {t("clientCacheUsed", {
+                            size: formatBytes(
+                              cache.data.cached_bytes +
+                                cache.data.partial_bytes,
+                              prefs,
+                            ),
+                          })}
+                        </Text>
+                        <Text size="sm" c="dimmed">
+                          {t("clientPinnedUsed", {
+                            size: formatBytes(cache.data.pinned_bytes, prefs),
+                          })}
+                        </Text>
+                        {cache.data.over_limit && (
+                          <Alert color="yellow">
+                            {t("clientCacheOverLimit")}
+                          </Alert>
+                        )}
+                      </>
+                    )}
+                    {storage.error && (
+                      <Text role="alert">{errorMessage(storage.error, t)}</Text>
+                    )}
+                    {storage.data && (
+                      <Text size="sm">
+                        {t("clientProtectedUsed", {
+                          originals: formatBytes(
+                            storage.data.originals_bytes,
+                            prefs,
+                          ),
+                          journal: formatBytes(
+                            storage.data.pending_journal_bytes,
                             prefs,
                           ),
                         })}
                       </Text>
-                      <Text size="sm" c="dimmed">
-                        {t("clientPinnedUsed", {
-                          size: formatBytes(cache.data.pinned_bytes, prefs),
-                        })}
-                      </Text>
-                      {cache.data.over_limit && (
-                        <Alert color="yellow">
-                          {t("clientCacheOverLimit")}
-                        </Alert>
-                      )}
-                    </>
-                  )}
-                  {storage.error && (
-                    <Text role="alert">{errorMessage(storage.error, t)}</Text>
-                  )}
-                  {storage.data && (
-                    <Text size="sm">
-                      {t("clientProtectedUsed", {
-                        originals: formatBytes(
-                          storage.data.originals_bytes,
-                          prefs,
-                        ),
-                        journal: formatBytes(
-                          storage.data.pending_journal_bytes,
-                          prefs,
-                        ),
-                      })}
+                    )}
+                    <OfflineRetention active busy={busy} run={run} />
+                    <Text size="sm" c="dimmed">
+                      {t("clientSyncCacheNote")}
                     </Text>
-                  )}
-                  <OfflineRetention active busy={busy} run={run} />
-                  <Text size="sm" c="dimmed">
-                    {t("clientSyncCacheNote")}
-                  </Text>
-                  <Group>
-                    <Button onClick={openSettings} disabled={busy}>
-                      {t("settingManageCache")}
-                    </Button>
-                  </Group>
-                  <Group>
-                    <Button
-                      disabled={busy}
-                      onClick={() =>
-                        run(async (signal) => {
-                          await clientCommand(
-                            "/cache/prune",
-                            {},
-                            "POST",
-                            signal,
-                          );
-                          setNotice(t("clientCachePruned"));
-                        })
-                      }
-                    >
-                      {t("clientPrune")}
-                    </Button>
-                  </Group>
-                </Stack>
-              </section>
-              <section
-                id="sync-history"
-                className="flat-page-section"
-                aria-labelledby="sync-history-title"
-              >
-                <h2 id="sync-history-title">{t("clientHistory")}</h2>
-                <LocalHistory active onLocked={setHistoryLocked} />
-              </section>
+                    <Group>
+                      <Button onClick={openSettings} disabled={busy}>
+                        {t("settingManageCache")}
+                      </Button>
+                    </Group>
+                    <Group>
+                      <Button
+                        disabled={busy}
+                        onClick={() =>
+                          run(async (signal) => {
+                            await clientCommand(
+                              "/cache/prune",
+                              {},
+                              "POST",
+                              signal,
+                            );
+                            setNotice(t("clientCachePruned"));
+                          })
+                        }
+                      >
+                        {t("clientPrune")}
+                      </Button>
+                    </Group>
+                  </Stack>
+                </section>
+                <section
+                  id="sync-history"
+                  className="flat-page-section"
+                  aria-labelledby="sync-history-title"
+                >
+                  <h2 id="sync-history-title">{t("clientHistory")}</h2>
+                  <LocalHistory active onLocked={setHistoryLocked} />
+                </section>
+              </SectionIndex>
             </>
           )}
           <div className="actions">
