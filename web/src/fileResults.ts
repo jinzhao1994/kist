@@ -30,7 +30,9 @@ export function useFileResults(
       );
     },
     getNextPageParam: (page) => page.cursor || undefined,
-    refetchOnMount: false,
+    // Preserve pagination on detail return, but honor writes made while this
+    // list was inactive (for example, uploading inside a box).
+    refetchOnMount: (query) => query.state.isInvalidated,
   });
 }
 export function resultFiles(
