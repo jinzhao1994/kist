@@ -98,3 +98,35 @@ func TestSparseTimezoneIsPortableAndSyntaxErrorsHideSecrets(t *testing.T) {
 		}
 	}
 }
+
+func TestSettingsByteSizes(t *testing.T) {
+	for _, key := range []string{"server.max_upload_bytes", "client.cache_max_bytes"} {
+		for input, want := range map[string]int64{"32 GB": 32000000000, "32G": 32000000000, "32 GiB": 32 << 30, "1.5 MB": 1500000, " 512 mib ": 512 << 20} {
+			changes, err := NormalizeChanges("client", map[string]any{key: input})
+			if err != nil || changes[key] != want {
+				t.Fatalf("%s %q: %v, %v", key, input, changes, err)
+			}
+		}
+		for _, input := range []string{"", "oops", "32 GB junk", "-1 GB", "0 GB", "999999999 PB"} {
+			if _, err := NormalizeChanges("client", map[string]any{key: input}); err == nil {
+				t.Fatalf("accepted %s=%q", key, input)
+			}
+		}
+	}
+	path := writeConfig(t, "version = 2\n")
+	raw, _ := os.ReadFile(path)
+	changes, err := NormalizeChanges("library", map[string]any{"server.max_upload_bytes": "32G"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Update(path, Revision(raw), changes); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(path)
+	if err != nil || cfg.Server.MaxUploadBytes != 32000000000 {
+		t.Fatalf("saved size: %+v %v", cfg, err)
+	}
+	if _, err := NormalizeChanges("library", map[string]any{"server.max_upload_files": "32G"}); err == nil {
+		t.Fatal("file count accepted byte units")
+	}
+}

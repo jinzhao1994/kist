@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/dustin/go-humanize"
 )
 
 // Field describes one editable setting. Identity and credentials have dedicated
@@ -25,7 +26,7 @@ func fieldDefinitions(mode string) []Field {
 		{Key: "appearance.primary_color", Kind: "select", Options: []string{"gray", "green", "yellow", "pink", "blue", "orange"}},
 		{Key: "server.listen", Kind: "text", Restart: true},
 		{Key: "server.allowed_origins", Kind: "list", Restart: true},
-		{Key: "server.max_upload_bytes", Kind: "integer", Restart: true},
+		{Key: "server.max_upload_bytes", Kind: "bytes", Restart: true},
 		{Key: "server.max_upload_files", Kind: "integer", Restart: true},
 		{Key: "server.map_style", Kind: "text", Restart: true},
 		{Key: "server.map_terrain_tiles", Kind: "text", Restart: true},
@@ -33,7 +34,7 @@ func fieldDefinitions(mode string) []Field {
 		{Key: "server.map_resource_origins", Kind: "list", Restart: true},
 	}
 	if mode == "client" {
-		return append(fields, Field{Key: "client.cache_max_age", Kind: "text"}, Field{Key: "client.cache_max_bytes", Kind: "integer"})
+		return append(fields, Field{Key: "client.cache_max_age", Kind: "text"}, Field{Key: "client.cache_max_bytes", Kind: "bytes"})
 	}
 	return append(fields, Field{Key: "library.timezone", Kind: "text", Restart: true}, Field{Key: "storage.link_mode", Kind: "select", Restart: true, Options: []string{"", "copy", "reflink", "hardlink", "symlink"}})
 }
@@ -116,7 +117,14 @@ func NormalizeChanges(mode string, changes map[string]any) (map[string]any, erro
 			if _, ok = value.(string); !ok {
 				return nil, fmt.Errorf("%s requires text", key)
 			}
-		case "integer":
+		case "integer", "bytes":
+			if text, ok := value.(string); ok && f.Kind == "bytes" {
+				size, err := humanize.ParseBytes(strings.TrimSpace(text))
+				if err != nil || size == 0 || size > 9007199254740991 {
+					return nil, fmt.Errorf("%s requires a positive size such as 32 GB or 32 GiB", key)
+				}
+				value = int64(size)
+			}
 			switch v := value.(type) {
 			case float64:
 				if math.IsNaN(v) || math.IsInf(v, 0) || v < 1 || v > 9007199254740991 || v != math.Trunc(v) {

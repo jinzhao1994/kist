@@ -241,7 +241,29 @@ export function InstanceSettings() {
                                 }))
                               }
                             />
-                            <Group justify="flex-end" gap="xs" mt="xs">
+                            <Group
+                              className="setting-field-footer"
+                              wrap="nowrap"
+                              justify={
+                                overridden ? "space-between" : "flex-end"
+                              }
+                              gap="xs"
+                              mt="xs"
+                            >
+                              {overridden && (
+                                <Text
+                                  size="sm"
+                                  c="var(--mantine-primary-color-filled)"
+                                >
+                                  {t("settingOverride")}{" "}
+                                  {typeof snapshot.effective[field.key] ===
+                                  "string"
+                                    ? String(snapshot.effective[field.key])
+                                    : JSON.stringify(
+                                        snapshot.effective[field.key],
+                                      )}
+                                </Text>
+                              )}
                               <Button
                                 size="compact-xs"
                                 variant="subtle"
@@ -261,12 +283,6 @@ export function InstanceSettings() {
                                 {t("settingReset")}
                               </Button>
                             </Group>
-                            {overridden && (
-                              <Text size="sm" c="dimmed">
-                                {t("settingOverride")}{" "}
-                                {JSON.stringify(snapshot.effective[field.key])}
-                              </Text>
-                            )}
                             {!overridden &&
                               (snapshot.restart_required || []).includes(
                                 field.key,
@@ -345,9 +361,13 @@ function SettingInput(props: {
   const hint =
     field.key === "library.timezone"
       ? t("settingTimezoneHint")
-      : field.kind === "list"
-        ? t("settingOnePerLine")
-        : undefined;
+      : field.key === "server.allowed_origins"
+        ? t("settingOriginsHint")
+        : field.kind === "bytes"
+          ? t("settingBytesHint")
+          : field.kind === "list"
+            ? t("settingOnePerLine")
+            : undefined;
   return (
     <>
       <Group className="setting-field-heading" gap="xs" mb={4}>
@@ -421,6 +441,18 @@ function SettingControl({
         }))}
       />
     );
+  if (field.kind === "bytes")
+    return (
+      <TextInput
+        id={id}
+        aria-label={label}
+        value={
+          typeof value === "number" ? editableBytes(value) : String(value ?? "")
+        }
+        onChange={(e) => change(e.currentTarget.value)}
+        disabled={disabled}
+      />
+    );
   if (field.kind === "integer")
     return (
       <NumberInput
@@ -456,6 +488,22 @@ function SettingControl({
       onChange={(e) => change(e.currentTarget.value)}
     />
   );
+}
+// Use exact units only: rounded display values must never change a limit when edited.
+function editableBytes(value: number) {
+  for (const [unit, size] of [
+    ["TiB", 2 ** 40],
+    ["TB", 10 ** 12],
+    ["GiB", 2 ** 30],
+    ["GB", 10 ** 9],
+    ["MiB", 2 ** 20],
+    ["MB", 10 ** 6],
+    ["KiB", 2 ** 10],
+    ["kB", 10 ** 3],
+  ] as const) {
+    if (value >= size && value % size === 0) return `${value / size} ${unit}`;
+  }
+  return `${value} B`;
 }
 type Run = (command: (signal: AbortSignal) => Promise<void>) => Promise<void>;
 function ConnectionSettings({

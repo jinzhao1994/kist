@@ -7,6 +7,7 @@ require (
 	github.com/bep/imagemeta v1.0.1
 	github.com/danielgtaylor/huma/v2 v2.39.1
 	github.com/disintegration/imaging v1.6.2
+	github.com/dustin/go-humanize v1.0.1
 	github.com/fogleman/fauxgl v0.0.0-20250110135958-abf826acbbbd
 	github.com/google/uuid v1.6.0
 	github.com/hschendel/stl v1.0.4
@@ -22,7 +23,6 @@ require (
 )
 
 require (
-	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/extrame/goyymmdd v0.0.0-20210114090516-7cc815f00d1a // indirect
 	github.com/extrame/ole2 v0.0.0-20160812065207-d69429661ad7 // indirect
 	github.com/fogleman/simplify v0.0.0-20170216171241-d32f302d5046 // indirect

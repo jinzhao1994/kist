@@ -55,3 +55,5 @@ library credential digests. The API never returns stored secrets. New sync
 credentials are shown once; reconnecting requires entering a credential again.
 Operational state (pending operations, downloaded catalog, cache inventory and
 pinned selections) remains separate from configuration.
+
+Capacity fields accept values such as `32 GB`, `32G`, and `32 GiB`. GB uses powers of 1000; GiB uses powers of 1024. Configuration files still store integer bytes, and editable display values preserve exact limits. Allowed access URLs contain the scheme, host, and optional port used to open kist, without a path. Enter one per line; local-only access can leave this empty.

@@ -24,6 +24,14 @@ const initial = () => ({
       restart: false,
     },
     {
+      key: "server.max_upload_bytes",
+      kind: "bytes",
+      value: 32 * 2 ** 30,
+      default: 32 * 2 ** 30,
+      explicit: false,
+      restart: true,
+    },
+    {
       key: "server.allowed_origins",
       kind: "list",
       value: [],
@@ -134,7 +142,7 @@ it("allows multi-line origins and keeps stored credentials out of inputs", async
   expect(screen.getByLabelText(/^Sync credential/)).toHaveValue("");
   expect(screen.queryByRole("tab")).not.toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Service" })).toBeVisible();
-  const origins = screen.getByRole("textbox", { name: "Allowed web origins" });
+  const origins = screen.getByRole("textbox", { name: "Allowed access URLs" });
   await user.type(origins, "https://one.example{Enter}https://two.example");
   expect(origins).toHaveValue("https://one.example\nhttps://two.example");
   await user.click(screen.getByRole("button", { name: "Save" }));
@@ -142,4 +150,18 @@ it("allows multi-line origins and keeps stored credentials out of inputs", async
   expect(writes[0].changes).toEqual({
     "server.allowed_origins": ["https://one.example", "https://two.example"],
   });
+});
+
+it("displays exact capacity units and submits the user's size string", async () => {
+  const user = userEvent.setup();
+  mount();
+  const input = await screen.findByRole("textbox", {
+    name: "Maximum upload size",
+  });
+  expect(input).toHaveValue("32 GiB");
+  await user.clear(input);
+  await user.type(input, "32G");
+  await user.click(screen.getByRole("button", { name: "Save" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0].changes).toEqual({ "server.max_upload_bytes": "32G" });
 });

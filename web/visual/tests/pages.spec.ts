@@ -3607,7 +3607,7 @@ for (const scenario of [
       },
       {
         key: "server.max_upload_bytes",
-        kind: "integer",
+        kind: "bytes",
         value: 34359738368,
         default: 34359738368,
         explicit: false,
@@ -3633,7 +3633,7 @@ for (const scenario of [
             },
             {
               key: "client.cache_max_bytes",
-              kind: "integer",
+              kind: "bytes",
               value: 10737418240,
               default: 10737418240,
               explicit: false,
@@ -3687,11 +3687,13 @@ for (const scenario of [
     if (scenario === "hint") {
       await settings.getByRole("link", { name: "服务", exact: true }).click();
       await settings
-        .getByRole("button", { name: "允许访问的网页来源", exact: true })
+        .getByRole("button", { name: "允许使用的访问网址", exact: true })
         .focus();
       await page.keyboard.press("Shift+Tab");
       await page.keyboard.press("Tab");
-      await expect(page.getByRole("tooltip")).toContainText("每行填写一项");
+      await expect(page.getByRole("tooltip")).toContainText(
+        "用于打开 kist 的网址",
+      );
     }
     if (client)
       await settings.getByRole("link", { name: "存储", exact: true }).click();
