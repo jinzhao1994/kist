@@ -3376,7 +3376,7 @@ main.upload-drag-active {
 .section-index::before {
   content: "";
   position: absolute;
-  inset-inline-start: 0;
+  inset-inline-start: var(--mantine-spacing-xs);
   inset-block: var(--mantine-spacing-lg);
   border-inline-start: 1px solid var(--mantine-color-default-border);
 }
