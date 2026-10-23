@@ -1,3 +1,4 @@
+import { HelpTooltip } from "./HelpTooltip";
 import { SectionIndex } from "./SectionIndex";
 import {
   Alert,
@@ -6,6 +7,7 @@ import {
   ColorSwatch,
   DEFAULT_THEME,
   Group,
+  Input,
   NumberInput,
   PasswordInput,
   Radio,
@@ -14,7 +16,7 @@ import {
   Textarea,
   TextInput,
 } from "@mantine/core";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, useId, type CSSProperties } from "react";
 import { useElementSize } from "@mantine/hooks";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { APIError, get, result } from "./api";
@@ -239,22 +241,16 @@ export function InstanceSettings() {
                                 }))
                               }
                             />
-                            <Group justify="space-between" gap="xs" mt="xs">
-                              <Text size="xs" c="dimmed">
-                                {t(
-                                  (changed && changes[field.key] === null) ||
-                                    (!changed && !field.explicit)
-                                    ? "settingDefaultValue"
-                                    : "settingCustomValue",
-                                )}
-                                {field.restart
-                                  ? ` · ${t("settingRestart")}`
-                                  : ""}
-                              </Text>
+                            <Group justify="flex-end" gap="xs" mt="xs">
                               <Button
                                 size="compact-xs"
                                 variant="subtle"
-                                disabled={busy || (!field.explicit && !changed)}
+                                disabled={
+                                  busy ||
+                                  (changed
+                                    ? changes[field.key] === null
+                                    : !field.explicit)
+                                }
                                 onClick={() =>
                                   setChanges((old) => ({
                                     ...old,
@@ -282,11 +278,6 @@ export function InstanceSettings() {
                           </div>
                         );
                       })}
-                    {group === "storage" && snapshot.mode === "library" && (
-                      <Text size="sm" c="dimmed">
-                        {t("settingTimezoneHint")}
-                      </Text>
-                    )}
                   </Stack>
                 </section>
               ))}
@@ -341,12 +332,45 @@ export function InstanceSettings() {
     </section>
   );
 }
-function SettingInput({
+function SettingInput(props: {
+  field: SettingField;
+  value: unknown;
+  disabled: boolean;
+  change: (value: unknown) => void;
+}) {
+  const { t } = useI18n();
+  const id = useId();
+  const { field } = props;
+  const label = labels[field.key] ? t(labels[field.key]) : field.key;
+  const hint =
+    field.key === "library.timezone"
+      ? t("settingTimezoneHint")
+      : field.kind === "list"
+        ? t("settingOnePerLine")
+        : undefined;
+  return (
+    <>
+      <Group gap="xs" mb={4}>
+        <Input.Label htmlFor={id}>{label}</Input.Label>
+        {hint && <HelpTooltip label={label}>{hint}</HelpTooltip>}
+        {field.restart && (
+          <Text size="xs" c="dimmed">
+            {t("settingRestart")}
+          </Text>
+        )}
+      </Group>
+      <SettingControl {...props} id={id} />
+    </>
+  );
+}
+function SettingControl({
+  id,
   field,
   value,
   disabled,
   change,
 }: {
+  id: string;
   field: SettingField;
   value: unknown;
   disabled: boolean;
@@ -356,7 +380,12 @@ function SettingInput({
   const label = labels[field.key] ? t(labels[field.key]) : field.key;
   if (field.key === "appearance.primary_color")
     return (
-      <Radio.Group label={label} value={String(value)} onChange={change}>
+      <Radio.Group
+        id={id}
+        aria-label={label}
+        value={String(value)}
+        onChange={change}
+      >
         <Group gap="sm" mt="xs" wrap="wrap">
           {colors.map((color) => (
             <Radio
@@ -381,7 +410,8 @@ function SettingInput({
   if (field.kind === "select")
     return (
       <Select
-        label={label}
+        id={id}
+        aria-label={label}
         value={String(value)}
         onValueChange={change}
         disabled={disabled}
@@ -394,7 +424,8 @@ function SettingInput({
   if (field.kind === "integer")
     return (
       <NumberInput
-        label={label}
+        id={id}
+        aria-label={label}
         value={typeof value === "number" ? value : ""}
         onChange={change}
         disabled={disabled}
@@ -406,8 +437,8 @@ function SettingInput({
   if (field.kind === "list")
     return (
       <Textarea
-        label={label}
-        description={t("settingOnePerLine")}
+        id={id}
+        aria-label={label}
         value={Array.isArray(value) ? value.join("\n") : ""}
         onChange={(e) => change(e.currentTarget.value.split("\n"))}
         disabled={disabled}
@@ -418,7 +449,8 @@ function SettingInput({
 
   return (
     <TextInput
-      label={label}
+      id={id}
+      aria-label={label}
       value={String(value ?? "")}
       disabled={disabled}
       onChange={(e) => change(e.currentTarget.value)}

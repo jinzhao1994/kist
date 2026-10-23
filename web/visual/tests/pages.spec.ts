@@ -3567,6 +3567,7 @@ for (const mode of ["grid", "list", "mobile", "dark", "prepare"] as const) {
 for (const scenario of [
   "appearance",
   "service",
+  "hint",
   "client-storage",
   "mobile",
   "dark",
@@ -3682,6 +3683,15 @@ for (const scenario of [
       ).toBeInViewport();
       await expect(settings).toContainText("127.0.0.1:19000");
       await expect(settings).toContainText("重启");
+    }
+    if (scenario === "hint") {
+      await settings.getByRole("link", { name: "服务", exact: true }).click();
+      await settings
+        .getByRole("button", { name: "允许访问的网页来源", exact: true })
+        .focus();
+      await page.keyboard.press("Shift+Tab");
+      await page.keyboard.press("Tab");
+      await expect(page.getByRole("tooltip")).toContainText("每行填写一项");
     }
     if (client)
       await settings.getByRole("link", { name: "存储", exact: true }).click();
