@@ -452,7 +452,12 @@ async function prepare(page: Page, options: Options = {}) {
       });
     else if (path === "/tags") body = { tags };
     else if (path === "/client/connection-status")
-      body = { state: "connected", server: "https://nas.example" };
+      body = {
+        state: "connected",
+        server: "https://nas.example",
+        pending_download: 3,
+        pending_upload: 2,
+      };
     else if (path === "/info")
       body = {
         version: "visual",
@@ -3015,7 +3020,12 @@ for (const panel of [
       const path = new URL(route.request().url()).pathname;
       if (path.endsWith("/connection-status"))
         return route.fulfill({
-          json: { state: "connected", server: "https://nas.example" },
+          json: {
+            state: "connected",
+            server: "https://nas.example",
+            pending_download: 3,
+            pending_upload: 2,
+          },
         });
       if (route.request().method() !== "GET") {
         errors.push(`Unexpected client mutation: ${path}`);
@@ -3278,7 +3288,7 @@ for (const panel of [
       .getByRole("navigation", { name: "个人归档" })
       .getByRole("button", { name: "数据同步", exact: true })
       .click();
-    await expect(page.locator(".client-connection-status")).toHaveText(
+    await expect(page.locator(".client-connection-status")).toContainText(
       "远端已连接",
     );
     let dialog = page.getByRole("region", { name: "数据同步", exact: true });
@@ -3400,7 +3410,12 @@ test("offline-retention-file", async ({ page }, info) => {
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith("/connection-status"))
       return route.fulfill({
-        json: { state: "connected", server: "https://nas.example" },
+        json: {
+          state: "connected",
+          server: "https://nas.example",
+          pending_download: 3,
+          pending_upload: 2,
+        },
       });
     if (path.endsWith("/status"))
       return route.fulfill({

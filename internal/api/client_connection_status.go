@@ -12,8 +12,10 @@ import (
 )
 
 type clientConnectionStatus struct {
-	State  string `json:"state" enum:"connected,unreachable,unauthorized,incompatible,unconfigured"`
-	Server string `json:"server,omitempty"`
+	State           string `json:"state" enum:"connected,unreachable,unauthorized,incompatible,unconfigured"`
+	Server          string `json:"server,omitempty"`
+	PendingDownload *int64 `json:"pending_download,omitempty"`
+	PendingUpload   int    `json:"pending_upload"`
 }
 
 func (s *Server) clientConnectionStatusRoute() {
@@ -22,7 +24,11 @@ func (s *Server) clientConnectionStatusRoute() {
 		if err != nil {
 			return nil, failure(err)
 		}
-		status := clientConnectionStatus{State: "unconfigured"}
+		local, err := s.client.Status(ctx)
+		if err != nil {
+			return nil, failure(err)
+		}
+		status := clientConnectionStatus{State: "unconfigured", PendingUpload: len(local.Pending)}
 		if settings.Connection == nil || settings.Connection.Server == "" || !settings.CredentialConfigured {
 			return response(status, nil)
 		}
@@ -38,7 +44,18 @@ func (s *Server) clientConnectionStatusRoute() {
 				if caps.LibraryID.String() != settings.LibraryID || library.ValidateSyncCapabilities(caps) != nil {
 					status.State = "incompatible"
 				} else {
-					status.State = "connected"
+					head, headErr := peer.Head(probe)
+					err = headErr
+					if err == nil {
+						if head.LibraryID.String() != settings.LibraryID || head.OpID < local.Catalog.Confirmed.OpID || (head.OpID == local.Catalog.Confirmed.OpID && head.Sum != local.Catalog.Confirmed.Sum) {
+							status.State = "incompatible"
+						} else {
+							status.State = "connected"
+							// Authoritative journal IDs form a contiguous sequence.
+							pending := head.OpID - local.Catalog.Confirmed.OpID
+							status.PendingDownload = &pending
+						}
+					}
 				}
 			}
 		}

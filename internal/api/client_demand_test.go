@@ -91,6 +91,21 @@ func TestClientDemandContentExtractionAndConnectionState(t *testing.T) {
 	if state() != "connected" {
 		t.Fatal(state())
 	}
+	initial := decodeBody[clientConnectionStatus](t, local, "/client/connection-status")
+	if initial.PendingDownload == nil || *initial.PendingDownload != 0 || initial.PendingUpload != 0 {
+		t.Fatalf("initial counts: %+v", initial)
+	}
+	if _, err := nas.CreateBox(ctx, "remote addition", "", domain.LocalDate{}, domain.LocalDate{}); err != nil {
+		t.Fatal(err)
+	}
+	pending := decodeBody[clientConnectionStatus](t, local, "/client/connection-status")
+	if pending.PendingDownload == nil || *pending.PendingDownload != 1 {
+		t.Fatalf("remote counts: %+v", pending)
+	}
+	catalog, err := c.CatalogStatus(ctx)
+	if err != nil || catalog.Confirmed != head {
+		t.Fatal("probe changed catalog", catalog, err)
+	}
 	content := Prefix + "/files/" + ids["first.txt"] + "/content"
 	if w := call(local, "GET", content, "", ""); w.Code != 200 || w.Body.String() != "original content" {
 		t.Fatal(w.Code, w.Body)
@@ -99,6 +114,10 @@ func TestClientDemandContentExtractionAndConnectionState(t *testing.T) {
 	if w := call(local, "POST", extraction, "online-extraction-001", "{}"); w.Code != 200 {
 		t.Fatal(w.Code, w.Body)
 	}
+	pending = decodeBody[clientConnectionStatus](t, local, "/client/connection-status")
+	if pending.PendingUpload != 1 {
+		t.Fatalf("local counts: %+v", pending)
+	}
 	if _, err := nas.RevokeSync(ctx, grant.ID); err != nil {
 		t.Fatal(err)
 	}
@@ -106,6 +125,10 @@ func TestClientDemandContentExtractionAndConnectionState(t *testing.T) {
 		t.Fatal(state())
 	}
 	remote.Close()
+	pending = decodeBody[clientConnectionStatus](t, local, "/client/connection-status")
+	if pending.PendingDownload != nil || pending.PendingUpload != 1 {
+		t.Fatalf("offline counts: %+v", pending)
+	}
 	if state() != "unreachable" {
 		t.Fatal(state())
 	}

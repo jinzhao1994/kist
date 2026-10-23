@@ -3514,3 +3514,23 @@ main.upload-drag-active {
 .connection-dot[data-connected="true"] {
   background: var(--mantine-color-green-6);
 }
+
+.connection-label,
+.connection-counts > span {
+  display: block;
+}
+.connection-counts {
+  display: block;
+}
+.connection-counts > span {
+  display: block;
+}
+.connection-counts {
+  margin-block-start: 0.25rem;
+  color: var(--brand);
+}
+.client-connection-status .connection-dot {
+  align-self: flex-start;
+  margin-block-start: 0.4rem;
+  flex-shrink: 0;
+}

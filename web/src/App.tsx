@@ -310,7 +310,7 @@ export function App() {
           <div className="sidebar-footer-area">
             {info.data?.client && (
               <ClientConnectionStatus
-                openSettings={() => go({ files: false, section: "settings" })}
+                openSync={() => go({ files: false, section: "sync" })}
               />
             )}
             <div className="sidebar-footer">

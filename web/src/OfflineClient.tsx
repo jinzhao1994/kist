@@ -1,3 +1,4 @@
+import { useConnectionStatus } from "./ClientConnectionStatus";
 import { SectionIndex } from "./SectionIndex";
 import { Alert, Button, Checkbox, Group, Stack, Text } from "@mantine/core";
 import { useEffect, useRef, useState } from "react";
@@ -16,6 +17,7 @@ import {
 
 export function OfflineClient({ openSettings }: { openSettings: () => void }) {
   const { t, prefs } = useI18n();
+  const connection = useConnectionStatus();
   const queries = useQueryClient();
   const status = useQuery({
     queryKey: ["client", "status"],
@@ -146,7 +148,15 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
                           <Text size="xs" c="dimmed">
                             {t("clientRemoteUpdates")}
                           </Text>
-                          <Text size="sm">{t("clientRemoteCheckOnSync")}</Text>
+                          <Text size="sm">
+                            {t("clientDownloadCount", {
+                              count:
+                                !connection.isError &&
+                                connection.data?.state === "connected"
+                                  ? (connection.data.pending_download ?? "—")
+                                  : "—",
+                            })}
+                          </Text>
                         </div>
                       </div>
                       {Boolean(data.pending?.length) && (

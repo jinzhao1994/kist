@@ -53,6 +53,8 @@ export const en = {
     "Used when a file’s timestamp does not specify a time zone.",
   settingCredentialStored:
     "A credential is stored. Enter a new credential to update the connection.",
+  clientDownloadCount: "{count} operations to download",
+  clientUploadCount: "{count} operations to upload",
   remoteConnected: "Remote connected",
   remoteDisconnected: "Remote unavailable",
   remoteUnauthorized: "Invalid credential",
@@ -772,6 +774,8 @@ export const zh: Record<MessageKey, string> = {
   settingMapOrigins: "额外地图资源来源",
   settingTimezoneHint: "文件中的时间未注明时区时，使用此时区。",
   settingCredentialStored: "已保存凭据。修改连接时请填写新凭据。",
+  clientDownloadCount: "待下载 {count} 个操作",
+  clientUploadCount: "待上传 {count} 个操作",
   remoteConnected: "远端已连接",
   remoteDisconnected: "远端未连接",
   remoteUnauthorized: "凭据无效",
@@ -1459,6 +1463,8 @@ interface Parameters {
   clientRetainedCount: { files: number; filesets: number };
   clientOfflineMissing: { ready: number; total: number };
   clientOfflinePreviews: { ready: number; total: number };
+  clientDownloadCount: { count: number | string };
+  clientUploadCount: { count: number | string };
   clientPending: { count: number };
   clientCacheUsed: { size: string };
   clientPinnedUsed: { size: string };

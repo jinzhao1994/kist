@@ -15,7 +15,15 @@ it.each([
 ])("shows the probed %s connection state", async (state, label) => {
   vi.stubGlobal(
     "fetch",
-    vi.fn(() => Promise.resolve(Response.json({ state }))),
+    vi.fn(() =>
+      Promise.resolve(
+        Response.json({
+          state,
+          pending_download: state === "connected" ? 3 : undefined,
+          pending_upload: 2,
+        }),
+      ),
+    ),
   );
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -24,12 +32,18 @@ it.each([
     <QueryClientProvider client={client}>
       <I18nProvider>
         <ThemeProvider>
-          <ClientConnectionStatus openSettings={() => {}} />
+          <ClientConnectionStatus openSync={() => {}} />
         </ThemeProvider>
       </I18nProvider>
     </QueryClientProvider>,
   );
   expect(await screen.findByText(label)).toBeInTheDocument();
+  expect(screen.getByRole("status")).toHaveTextContent(
+    `${state === "connected" ? 3 : "—"} operations to download`,
+  );
+  expect(screen.getByRole("status")).toHaveTextContent(
+    "2 operations to upload",
+  );
   view.unmount();
   client.clear();
 });

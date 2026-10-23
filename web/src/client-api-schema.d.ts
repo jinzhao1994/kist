@@ -1206,6 +1206,10 @@ export interface components {
             server: string;
         };
         ClientConnectionStatus: {
+            /** Format: int64 */
+            pending_download?: number;
+            /** Format: int64 */
+            pending_upload: number;
             server?: string;
             /** @enum {string} */
             state: "connected" | "unreachable" | "unauthorized" | "incompatible" | "unconfigured";
