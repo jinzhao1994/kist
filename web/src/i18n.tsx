@@ -37,7 +37,7 @@ export const en = {
   settingTerrainAttribution: "Terrain attribution",
   settingMapOrigins: "Additional map resource origins",
   settingTimezoneHint:
-    "The library time zone interprets timestamps without a zone. It is independent of the browser’s display time zone.",
+    "Used when a file’s timestamp does not specify a time zone.",
   settingCredentialStored:
     "A credential is stored. Enter a new credential to update the connection.",
   settingCredentialsHint:
@@ -729,8 +729,7 @@ export const zh: Record<MessageKey, string> = {
   settingTerrainTiles: "地形瓦片地址",
   settingTerrainAttribution: "地形来源署名",
   settingMapOrigins: "额外地图资源来源",
-  settingTimezoneHint:
-    "资料库时区用于解释未注明时区的原始时间，与浏览器的显示时区不同。",
+  settingTimezoneHint: "文件中的时间未注明时区时，使用此时区。",
   settingCredentialStored: "已保存凭据。修改连接时请填写新凭据。",
   settingCredentialsHint:
     "为每个客户端创建独立凭据。撤销后，该客户端的新同步请求将被拒绝。",
