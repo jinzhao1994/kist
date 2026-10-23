@@ -74,7 +74,7 @@ type ClientSyncResult struct {
 // Synchronize permits NAS writes and new local edits during network I/O.
 // A separate cross-process lock prevents overlapping manual synchronization.
 func (c *Client) Synchronize(ctx context.Context, peer SyncPeer) (ClientSyncResult, error) {
-	return c.synchronize(ctx, peer, false)
+	return c.SynchronizeWithProgress(ctx, peer, false, nil)
 }
 
 // ConditionalSyncPeer supports an atomic remote head precondition.
@@ -85,21 +85,35 @@ type ConditionalSyncPeer interface {
 
 // SynchronizeAutomatic refuses to merge independently changed histories.
 func (c *Client) SynchronizeAutomatic(ctx context.Context, peer SyncPeer) (ClientSyncResult, error) {
-	result, err := c.synchronize(ctx, peer, true)
-	if errors.Is(err, ErrSyncConflict) {
+	return c.SynchronizeWithProgress(ctx, peer, true, nil)
+}
+
+// ClientSyncProgress describes the current transfer, not durable synchronization state.
+type ClientSyncProgress struct {
+	Direction string `json:"direction" enum:"download,upload"`
+	Count     int64  `json:"count"`
+}
+
+// SynchronizeWithProgress reports transfer phases while retaining the same sync locks.
+func (c *Client) SynchronizeWithProgress(ctx context.Context, peer SyncPeer, automatic bool, report func(ClientSyncProgress)) (ClientSyncResult, error) {
+	result, err := c.synchronize(ctx, peer, automatic, report)
+	if automatic && errors.Is(err, ErrSyncConflict) {
 		result.ManualRequired = true
 		return result, nil
 	}
 	return result, err
 }
 
-func (c *Client) synchronize(ctx context.Context, peer SyncPeer, automatic bool) (ClientSyncResult, error) {
+func (c *Client) synchronize(ctx context.Context, peer SyncPeer, automatic bool, report func(ClientSyncProgress)) (ClientSyncResult, error) {
 	var result ClientSyncResult
 	release, err := lockfile.New(filepath.Join(c.root, "sync.lock")).Acquire(ctx)
 	if err != nil {
 		return result, err
 	}
 	defer release()
+	if report != nil {
+		defer report(ClientSyncProgress{})
+	}
 	settings, err := c.settings()
 	if err != nil {
 		return result, err
@@ -152,7 +166,7 @@ func (c *Client) synchronize(ctx context.Context, peer SyncPeer, automatic bool)
 		}
 	}
 	if !skipPull {
-		if err := c.pullCatalogMode(ctx, peer, automatic); err != nil {
+		if err := c.pullCatalogMode(ctx, peer, automatic, report); err != nil {
 			return result, err
 		}
 		if automatic {
@@ -185,6 +199,19 @@ func (c *Client) synchronize(ctx context.Context, peer SyncPeer, automatic bool)
 			if head != expected {
 				return result, ErrSyncConflict
 			}
+		}
+		if report != nil {
+			entries, err := c.queue.snapshot(ctx)
+			if err != nil {
+				return result, err
+			}
+			var count int64
+			for _, pending := range entries {
+				if pending.active() {
+					count++
+				}
+			}
+			report(ClientSyncProgress{Direction: "upload", Count: count})
 		}
 		p := entry.Proposal
 		result.BlockedID = p.ID
@@ -219,7 +246,7 @@ func (c *Client) synchronize(ctx context.Context, peer SyncPeer, automatic bool)
 				if automatic {
 					return result, ErrSyncConflict
 				}
-				if refreshErr := c.pullCatalog(ctx, peer); refreshErr != nil {
+				if refreshErr := c.pullCatalogMode(ctx, peer, false, report); refreshErr != nil {
 					return result, errors.Join(err, refreshErr)
 				}
 			}
@@ -240,7 +267,7 @@ func (c *Client) synchronize(ctx context.Context, peer SyncPeer, automatic bool)
 			}
 		}
 	}
-	if err := c.pullCatalogMode(ctx, peer, automatic); err != nil {
+	if err := c.pullCatalogMode(ctx, peer, automatic, report); err != nil {
 		return result, err
 	}
 	entries, err := c.queue.snapshot(ctx)
@@ -260,9 +287,9 @@ func (c *Client) synchronize(ctx context.Context, peer SyncPeer, automatic bool)
 }
 
 func (c *Client) pullCatalog(ctx context.Context, peer SyncPeer) error {
-	return c.pullCatalogMode(ctx, peer, false)
+	return c.pullCatalogMode(ctx, peer, false, nil)
 }
-func (c *Client) pullCatalogMode(ctx context.Context, peer SyncPeer, automatic bool) error {
+func (c *Client) pullCatalogMode(ctx context.Context, peer SyncPeer, automatic bool, report func(ClientSyncProgress)) error {
 	status, err := c.CatalogStatus(ctx)
 	if err != nil {
 		return err
@@ -278,6 +305,9 @@ func (c *Client) pullCatalogMode(ctx context.Context, peer SyncPeer, automatic b
 	}
 	after := status.Downloaded
 	for {
+		if report != nil {
+			report(ClientSyncProgress{Direction: "download", Count: max(0, head.OpID-after)})
+		}
 		page, err := peer.Catalog(ctx, head, after, 128, 4<<20)
 		if err != nil {
 			return err

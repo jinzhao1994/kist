@@ -42,6 +42,7 @@ type Options struct {
 
 type Server struct {
 	autoSyncRunning  atomic.Int64
+	syncProgress     atomic.Pointer[library.ClientSyncProgress]
 	autoSyncWake     chan struct{}
 	current          atomic.Pointer[runtimeSettings]
 	reloadMu         sync.Mutex

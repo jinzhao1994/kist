@@ -56,6 +56,8 @@ export const en = {
   clientDownloadCount: "{count} operations to download",
   clientUploadCount: "{count} operations to upload",
   clientSyncing: "Synchronizing…",
+  clientSyncDownloading: "Downloading {count} operations…",
+  clientSyncUploading: "Uploading {count} operations…",
   clientSynced: "Up to date",
   clientManualSyncRequired: "Manual merge required",
   remoteConnected: "Remote connected",
@@ -780,6 +782,8 @@ export const zh: Record<MessageKey, string> = {
   clientDownloadCount: "待下载 {count} 个操作",
   clientUploadCount: "待上传 {count} 个操作",
   clientSyncing: "同步中…",
+  clientSyncDownloading: "正在同步下载 {count} 个操作",
+  clientSyncUploading: "正在同步上传 {count} 个操作",
   clientSynced: "已同步",
   clientManualSyncRequired: "需要手动合并",
   remoteConnected: "远端已连接",
@@ -1470,6 +1474,8 @@ interface Parameters {
   clientOfflineMissing: { ready: number; total: number };
   clientOfflinePreviews: { ready: number; total: number };
   clientDownloadCount: { count: number | string };
+  clientSyncDownloading: { count: number };
+  clientSyncUploading: { count: number };
   clientUploadCount: { count: number | string };
   clientPending: { count: number };
   clientCacheUsed: { size: string };

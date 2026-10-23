@@ -290,7 +290,26 @@ func TestAutomaticSyncDirectionsAndRaces(t *testing.T) {
 				local()
 				peer.loseReply = true
 			}
-			result, err := c.SynchronizeAutomatic(ctx, peer)
+			var progress []ClientSyncProgress
+			result, err := c.SynchronizeWithProgress(ctx, peer, true, func(p ClientSyncProgress) { progress = append(progress, p) })
+			if len(progress) == 0 || progress[len(progress)-1] != (ClientSyncProgress{}) {
+				t.Fatal("progress was not cleared", progress)
+			}
+			if scenario == "download" || scenario == "upload" {
+				expected := ClientSyncProgress{Direction: scenario, Count: 1}
+				if scenario == "upload" {
+					expected.Count = 2
+				}
+				found := false
+				for _, p := range progress {
+					if p == expected {
+						found = true
+					}
+				}
+				if !found {
+					t.Fatal("missing transfer progress", expected, progress)
+				}
+			}
 			if scenario == "lost-reply" {
 				if !errors.Is(err, io.ErrUnexpectedEOF) {
 					t.Fatal(err)

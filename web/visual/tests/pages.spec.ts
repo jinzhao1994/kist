@@ -3027,6 +3027,10 @@ for (const panel of [
             pending_download: 3,
             pending_upload: 2,
             syncing: panel === "syncing",
+            progress:
+              panel === "syncing"
+                ? { direction: "download", count: 3 }
+                : undefined,
             manual_required: panel !== "syncing",
           },
         });
@@ -3292,7 +3296,7 @@ for (const panel of [
       .getByRole("button", { name: "数据同步", exact: true })
       .click();
     await expect(page.locator(".client-connection-status")).toContainText(
-      panel === "syncing" ? "同步中…" : "需要手动合并",
+      panel === "syncing" ? "正在同步下载 3 个操作" : "需要手动合并",
     );
     let dialog = page.getByRole("region", { name: "数据同步", exact: true });
     await expect(page).toHaveURL(/\/sync$/);

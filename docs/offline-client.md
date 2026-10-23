@@ -230,6 +230,6 @@ Connection and cache policies are under **Settings**. Synchronization, offline c
 
 ## Automatic synchronization while online
 
-While the client service is running, it checks at startup and every 30 seconds; completed local web edits trigger an immediate check. Remote-only changes are downloaded automatically, and local-only changes are uploaded automatically. Independent changes on both sides or recorded conflicts require a manual merge under **Data synchronization**. Closing the browser does not stop the service worker. Older remotes without conditional submission support still require manual uploads.
+While the client service is running, it checks at startup and every 30 seconds; completed local web edits trigger an immediate check. A browser status check that finds one-way pending changes also wakes synchronization immediately. Remote-only changes are downloaded automatically, and local-only changes are uploaded automatically. Independent changes on both sides or recorded conflicts require a manual merge under **Data synchronization**. Closing the browser does not stop the service worker. Older remotes without conditional submission support still require manual uploads.
 
 The sidebar distinguishes **Synchronizing…**, **Up to date**, and **Manual merge required**, and hides zero operation counts. Counts refer to operations, not files. Original files remain cached on demand. File lists refresh when synchronization advances the local catalog.

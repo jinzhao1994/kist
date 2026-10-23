@@ -88,6 +88,23 @@ func TestAutomaticWorkerPullsAndWakesAfterLocalWrite(t *testing.T) {
 		current, _ := nas.SyncHead(ctx)
 		return catalog.Confirmed == current
 	})
+	// A page probe can wake a new download without waiting for the 30-second tick.
+	if _, err := nas.CreateBox(ctx, "after-startup", "", domain.LocalDate{}, domain.LocalDate{}); err != nil {
+		t.Fatal(err)
+	}
+	probe := decodeBody[clientConnectionStatus](t, server, "/client/connection-status")
+	if probe.PendingDownload == nil || *probe.PendingDownload != 1 {
+		t.Fatal(probe)
+	}
+	wake := call(server, "POST", Prefix+"/client/sync/automatic", "", `{}`)
+	if wake.Code != 200 {
+		t.Fatal(wake.Code, wake.Body)
+	}
+	wait(func() bool {
+		catalog, _ := client.CatalogStatus(ctx)
+		current, _ := nas.SyncHead(ctx)
+		return catalog.Confirmed == current
+	})
 	w := call(server, "POST", Prefix+"/boxes", "automatic-create-box", `{"name":"local"}`)
 	if w.Code != 200 {
 		t.Fatal(w.Code, w.Body)
@@ -98,7 +115,7 @@ func TestAutomaticWorkerPullsAndWakesAfterLocalWrite(t *testing.T) {
 		t.Fatal("local mutation did not wake worker")
 	}
 	status := decodeBody[clientConnectionStatus](t, server, "/client/connection-status")
-	if !status.Syncing || status.PendingUpload != 1 {
+	if !status.Syncing || status.PendingUpload != 1 || status.Progress == nil || status.Progress.Direction != "upload" || status.Progress.Count != 1 {
 		t.Fatal(status)
 	}
 	once.Do(func() { close(release) })

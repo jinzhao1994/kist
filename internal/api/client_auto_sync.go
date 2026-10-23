@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"github.com/jinzhao1994/kist/internal/library"
 	"time"
 )
 
@@ -32,9 +33,17 @@ func (s *Server) RunAutoSync(ctx context.Context) {
 		peer, err := s.clientPeer(attempt)
 		if err == nil {
 			s.autoSyncRunning.Add(1)
-			_, _ = s.client.SynchronizeAutomatic(attempt, peer)
+			_, _ = s.client.SynchronizeWithProgress(attempt, peer, true, s.reportSyncProgress)
 			s.autoSyncRunning.Add(-1)
 		}
 		cancel()
+	}
+}
+
+func (s *Server) reportSyncProgress(progress library.ClientSyncProgress) {
+	if progress.Direction == "" {
+		s.syncProgress.Store(nil)
+	} else {
+		s.syncProgress.Store(&progress)
 	}
 }

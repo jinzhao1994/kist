@@ -1,5 +1,6 @@
 import {
   useConnectionStatus,
+  syncProgressLabel,
   connectionStatusKey,
   type ConnectionStatus,
 } from "./ClientConnectionStatus";
@@ -142,13 +143,13 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
                   ) : (
                     <Stack gap="md">
                       <Text size="sm" role="status" c="dimmed">
-                        {t(
-                          connection.data?.syncing
-                            ? "clientSyncing"
-                            : connection.data?.manual_required
-                              ? "clientManualSyncRequired"
-                              : "clientSyncDescription",
-                        )}
+                        {connection.data?.syncing
+                          ? syncProgressLabel(connection.data, t)
+                          : t(
+                              connection.data?.manual_required
+                                ? "clientManualSyncRequired"
+                                : "clientSyncDescription",
+                            )}
                       </Text>
                       <div className="sync-status-row">
                         <div>

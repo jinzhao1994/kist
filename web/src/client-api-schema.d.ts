@@ -450,6 +450,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/client/sync/automatic": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 client sync automatic */
+        post: operations["post-api-v1-client-sync-automatic"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/entries": {
         parameters: {
             query?: never;
@@ -1214,6 +1231,7 @@ export interface components {
             pending_download?: number;
             /** Format: int64 */
             pending_upload: number;
+            progress?: components["schemas"]["ClientSyncProgress"];
             server?: string;
             /** @enum {string} */
             state: "connected" | "unreachable" | "unauthorized" | "incompatible" | "unconfigured";
@@ -1328,6 +1346,12 @@ export interface components {
             connection?: components["schemas"]["ClientConnection"];
             pending: components["schemas"]["ClientPendingStatus"][] | null;
             settings: components["schemas"]["ClientSettings"];
+        };
+        ClientSyncProgress: {
+            /** Format: int64 */
+            count: number;
+            /** @enum {string} */
+            direction: "download" | "upload";
         };
         ClientSyncResponse: {
             result: components["schemas"]["ClientSyncResult"];
@@ -1617,6 +1641,7 @@ export interface components {
             reason: string;
             replacement?: components["schemas"]["SyncProposal"];
         };
+        "Post-api-v1-client-sync-automaticRequest": Record<string, never>;
         "Post-api-v1-client-syncRequest": Record<string, never>;
         Preview: {
             encoding: string;
@@ -2994,6 +3019,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClientSyncResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-client-sync-automatic": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-client-sync-automaticRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutputStruct {}Body"];
                 };
             };
             /** @description Error */

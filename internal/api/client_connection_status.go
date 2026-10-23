@@ -12,14 +12,15 @@ import (
 )
 
 type clientConnectionStatus struct {
-	CatalogComplete bool   `json:"catalog_complete"`
-	CatalogOpID     int64  `json:"catalog_op_id"`
-	Syncing         bool   `json:"syncing"`
-	ManualRequired  bool   `json:"manual_required"`
-	State           string `json:"state" enum:"connected,unreachable,unauthorized,incompatible,unconfigured"`
-	Server          string `json:"server,omitempty"`
-	PendingDownload *int64 `json:"pending_download,omitempty"`
-	PendingUpload   int    `json:"pending_upload"`
+	Progress        *library.ClientSyncProgress `json:"progress,omitempty"`
+	CatalogComplete bool                        `json:"catalog_complete"`
+	CatalogOpID     int64                       `json:"catalog_op_id"`
+	Syncing         bool                        `json:"syncing"`
+	ManualRequired  bool                        `json:"manual_required"`
+	State           string                      `json:"state" enum:"connected,unreachable,unauthorized,incompatible,unconfigured"`
+	Server          string                      `json:"server,omitempty"`
+	PendingDownload *int64                      `json:"pending_download,omitempty"`
+	PendingUpload   int                         `json:"pending_upload"`
 }
 
 func (s *Server) clientConnectionStatusRoute() {
@@ -71,6 +72,8 @@ func (s *Server) clientConnectionStatusRoute() {
 		if errors.As(err, &remote) && (remote.Status == 401 || remote.Status == 403) {
 			status.State = "unauthorized"
 		}
+		status.Progress = s.syncProgress.Load()
+		status.Syncing = s.autoSyncRunning.Load() > 0
 		return response(status, nil)
 	})
 }

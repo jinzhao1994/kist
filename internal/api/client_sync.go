@@ -33,6 +33,11 @@ func (s *Server) clientPeer(ctx context.Context) (*syncclient.Peer, error) {
 }
 
 func (s *Server) clientSyncRoutes() {
+	huma.Post(s.contract, Prefix+"/client/sync/automatic", func(ctx context.Context, _ *struct{ Body struct{} }) (*output[struct{}], error) {
+		s.wakeAutoSync()
+		return response(struct{}{}, nil)
+	})
+
 	huma.Get(s.contract, Prefix+"/client/pending/{id}/edit", func(ctx context.Context, in *struct {
 		ID string `path:"id" minLength:"1" maxLength:"256"`
 	}) (*output[library.ClientConflictEdit], error) {
@@ -83,7 +88,7 @@ func (s *Server) clientSyncRoutes() {
 		}
 		s.autoSyncRunning.Add(1)
 		defer s.autoSyncRunning.Add(-1)
-		result, err := s.client.Synchronize(ctx, peer)
+		result, err := s.client.SynchronizeWithProgress(ctx, peer, false, s.reportSyncProgress)
 		if err != nil && !errors.Is(err, library.ErrSyncConflict) {
 			return nil, failure(err)
 		}

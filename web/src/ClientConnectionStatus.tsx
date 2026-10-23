@@ -3,7 +3,8 @@ import { useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, type MediaJob } from "./api";
 import type { components } from "./client-api-schema";
-import { useI18n } from "./i18n";
+import { useI18n, type Translate } from "./i18n";
+import { clientCommand } from "./offline-client";
 
 export type ConnectionStatus = components["schemas"]["ClientConnectionStatus"];
 export const connectionStatusKey = ["client", "connection-status"];
@@ -11,8 +12,27 @@ export const connectionStatusKey = ["client", "connection-status"];
 export function useConnectionStatus() {
   return useQuery({
     queryKey: connectionStatusKey,
-    queryFn: ({ signal }) =>
-      get<ConnectionStatus>("/client/connection-status", signal),
+    queryFn: async ({ signal }) => {
+      const status = await get<ConnectionStatus>(
+        "/client/connection-status",
+        signal,
+      );
+      if (
+        status.state === "connected" &&
+        !status.syncing &&
+        !status.manual_required &&
+        ((status.pending_download != null &&
+          status.pending_download > 0 &&
+          status.pending_upload === 0) ||
+          (status.pending_download === 0 && status.pending_upload > 0))
+      ) {
+        // The worker rechecks both histories. A failed wake is retried by its timer.
+        await clientCommand("/sync/automatic", {}, "POST", signal).catch(
+          () => undefined,
+        );
+      }
+      return status;
+    },
     retry: false,
     refetchInterval: (query) =>
       query.state.data?.syncing ||
@@ -22,6 +42,21 @@ export function useConnectionStatus() {
         : 30000,
     refetchIntervalInBackground: false,
   });
+}
+
+export function syncProgressLabel(
+  status: ConnectionStatus | undefined,
+  t: Translate,
+): string {
+  if (status?.progress && status.progress.count > 0) {
+    return t(
+      status.progress.direction === "download"
+        ? "clientSyncDownloading"
+        : "clientSyncUploading",
+      { count: status.progress.count },
+    );
+  }
+  return t("clientSyncing");
 }
 
 export function ClientConnectionStatus({ openSync }: { openSync: () => void }) {
@@ -54,27 +89,28 @@ export function ClientConnectionStatus({ openSync }: { openSync: () => void }) {
       },
     });
   }, [queries, state, query.dataUpdatedAt]);
-  const label = t(
+  const label =
     query.data?.syncing && !query.isError
-      ? "clientSyncing"
-      : state === "connected"
-        ? query.data?.manual_required
-          ? "clientManualSyncRequired"
-          : query.data?.catalog_complete &&
-              query.data.pending_download === 0 &&
-              query.data.pending_upload === 0
-            ? "clientSynced"
-            : "remoteConnected"
-        : state === "unauthorized"
-          ? "remoteUnauthorized"
-          : state === "incompatible"
-            ? "remoteIncompatible"
-            : state === "unconfigured"
-              ? "remoteUnconfigured"
-              : state === "unreachable"
-                ? "remoteDisconnected"
-                : "remoteChecking",
-  );
+      ? syncProgressLabel(query.data, t)
+      : t(
+          state === "connected"
+            ? query.data?.manual_required
+              ? "clientManualSyncRequired"
+              : query.data?.catalog_complete &&
+                  query.data.pending_download === 0 &&
+                  query.data.pending_upload === 0
+                ? "clientSynced"
+                : "remoteConnected"
+            : state === "unauthorized"
+              ? "remoteUnauthorized"
+              : state === "incompatible"
+                ? "remoteIncompatible"
+                : state === "unconfigured"
+                  ? "remoteUnconfigured"
+                  : state === "unreachable"
+                    ? "remoteDisconnected"
+                    : "remoteChecking",
+        );
   return (
     <Tooltip label={query.data?.server || label}>
       <UnstyledButton className="client-connection-status" onClick={openSync}>
@@ -85,29 +121,31 @@ export function ClientConnectionStatus({ openSync }: { openSync: () => void }) {
         />
         <span role="status">
           <span className="connection-label">{label}</span>
-          <span className="connection-counts">
-            {query.data?.pending_download !== 0 && (
-              <span>
-                {t("clientDownloadCount", {
-                  count:
-                    !query.isError &&
-                    state === "connected" &&
-                    query.data?.pending_download != null
-                      ? query.data.pending_download
-                      : "—",
-                })}
-              </span>
-            )}
-            {query.data?.pending_upload !== 0 && (
-              <span>
-                {t("clientUploadCount", {
-                  count: query.isError
-                    ? "—"
-                    : (query.data?.pending_upload ?? "—"),
-                })}
-              </span>
-            )}
-          </span>
+          {!query.data?.syncing && (
+            <span className="connection-counts">
+              {query.data?.pending_download !== 0 && (
+                <span>
+                  {t("clientDownloadCount", {
+                    count:
+                      !query.isError &&
+                      state === "connected" &&
+                      query.data?.pending_download != null
+                        ? query.data.pending_download
+                        : "—",
+                  })}
+                </span>
+              )}
+              {query.data?.pending_upload !== 0 && (
+                <span>
+                  {t("clientUploadCount", {
+                    count: query.isError
+                      ? "—"
+                      : (query.data?.pending_upload ?? "—"),
+                  })}
+                </span>
+              )}
+            </span>
+          )}
         </span>
       </UnstyledButton>
     </Tooltip>

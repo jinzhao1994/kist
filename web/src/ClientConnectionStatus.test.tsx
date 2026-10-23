@@ -51,6 +51,14 @@ it.each([
 it.each([
   [{ syncing: true, pending_download: 3 }, "Synchronizing…"],
   [
+    { syncing: true, progress: { direction: "download", count: 6 } },
+    "Downloading 6 operations…",
+  ],
+  [
+    { syncing: true, progress: { direction: "upload", count: 2 } },
+    "Uploading 2 operations…",
+  ],
+  [
     { manual_required: true, pending_download: 3, pending_upload: 2 },
     "Manual merge required",
   ],
@@ -90,6 +98,65 @@ it.each([
     expect(
       screen.queryByText("0 operations to download"),
     ).not.toBeInTheDocument();
+    view.unmount();
+    client.clear();
+  },
+);
+
+it.each([
+  [6, 0, false, false, "connected", true],
+  [0, 2, false, false, "connected", true],
+  [6, 2, false, false, "connected", false],
+  [0, 0, false, false, "connected", false],
+  [6, 0, true, false, "connected", false],
+  [6, 0, false, true, "connected", false],
+  [6, 0, false, false, "unreachable", false],
+])(
+  "wakes only eligible one-way synchronization (%s/%s)",
+  async (download, upload, syncing, manual, state, wake) => {
+    const fetcher = vi.fn(async (url: string) =>
+      Response.json(
+        url.endsWith("/sync/automatic")
+          ? {}
+          : {
+              state,
+              pending_download: download,
+              pending_upload: upload,
+              syncing,
+              manual_required: manual,
+            },
+      ),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const view = render(
+      <QueryClientProvider client={client}>
+        <I18nProvider>
+          <ThemeProvider>
+            <ClientConnectionStatus openSync={() => {}} />
+          </ThemeProvider>
+        </I18nProvider>
+      </QueryClientProvider>,
+    );
+    await screen.findByText(
+      syncing
+        ? "Synchronizing…"
+        : state === "unreachable"
+          ? "Remote unavailable"
+          : manual
+            ? "Manual merge required"
+            : "Remote connected",
+    );
+    expect(
+      fetcher.mock.calls.some(([url]) => url.endsWith("/sync/automatic")),
+    ).toBe(wake);
+    if (wake)
+      expect(fetcher).toHaveBeenCalledWith(
+        "/api/v1/client/sync/automatic",
+        expect.objectContaining({ method: "POST" }),
+      );
     view.unmount();
     client.clear();
   },
