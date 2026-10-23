@@ -1,5 +1,5 @@
 import { Anchor } from "@mantine/core";
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useI18n } from "./i18n";
 
 export function SectionIndex({
@@ -10,6 +10,31 @@ export function SectionIndex({
   children: ReactNode;
 }) {
   const { t } = useI18n();
+  const body = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    let frame = 0;
+    const restore = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        let id: string;
+        try {
+          id = decodeURIComponent(window.location.hash.slice(1));
+        } catch {
+          return;
+        }
+        const target = document.getElementById(id);
+        if (target && body.current?.contains(target))
+          target.scrollIntoView({ block: "start", behavior: "instant" });
+      });
+    };
+    // Sections mount after their data loads, too late for native fragment scrolling.
+    restore();
+    window.addEventListener("hashchange", restore);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("hashchange", restore);
+    };
+  }, []);
   return (
     <div className="section-layout">
       <nav className="section-index" aria-label={t("pageContents")}>
@@ -19,7 +44,9 @@ export function SectionIndex({
           </Anchor>
         ))}
       </nav>
-      <div className="section-body">{children}</div>
+      <div ref={body} className="section-body">
+        {children}
+      </div>
     </div>
   );
 }

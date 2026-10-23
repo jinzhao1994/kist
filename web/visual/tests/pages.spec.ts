@@ -3677,11 +3677,14 @@ for (const scenario of [
           scenario === "credentials"
             ? [
                 {
-                  id: "travel-credential",
+                  id: "0123456789abcdef0123456789abcdef",
                   note: "旅行备用机",
                   created_at: "2026-10-23T00:00:00Z",
                 },
-                { id: "older-credential", created_at: "2026-10-21T00:00:00Z" },
+                {
+                  id: "fedcba9876543210fedcba9876543210",
+                  created_at: "2026-10-21T00:00:00Z",
+                },
               ]
             : [],
       }),
@@ -3740,10 +3743,17 @@ for (const scenario of [
       ).toBeFocused();
     }
     if (scenario === "credentials") {
-      await settings
-        .getByRole("link", { name: "访问凭据", exact: true })
-        .click();
+      await page.goto("/settings#settings-access");
+      await expect(settings.locator("#settings-access-title")).toBeInViewport();
+      await page.reload();
+      await expect(settings.locator("#settings-access-title")).toBeInViewport();
       await expect(settings).toContainText("旅行备用机");
+      await expect(
+        settings.getByRole("cell", {
+          name: "0123456789abcdef0123456789abcdef",
+          exact: true,
+        }),
+      ).toBeVisible();
       await expect(settings).toContainText("未填写备注");
       await settings
         .getByRole("button", { name: "编辑备注", exact: true })

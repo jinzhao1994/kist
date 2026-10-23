@@ -740,7 +740,7 @@ function Credentials({
           <code className="setting-secret">{secret}</code>
         </Alert>
       )}
-      <Table.ScrollContainer minWidth={520}>
+      <Table.ScrollContainer minWidth={720}>
         <Table
           highlightOnHover
           verticalSpacing="xs"
@@ -750,6 +750,7 @@ function Credentials({
           <Table.Thead>
             <Table.Tr>
               <Table.Th>{t("settingCredentialNoteHeading")}</Table.Th>
+              <Table.Th>{t("settingCredentialDetails")}</Table.Th>
               <Table.Th>{t("settingCredentialCreated")}</Table.Th>
               <Table.Th>
                 <span className="sr-only">{t("settingCredentialActions")}</span>
@@ -759,7 +760,7 @@ function Credentials({
           <Table.Tbody>
             {query.data?.length === 0 && (
               <Table.Tr>
-                <Table.Td colSpan={3}>
+                <Table.Td colSpan={4}>
                   <Text size="sm" c="dimmed">
                     {t("settingCredentialsEmpty")}
                   </Text>
@@ -784,15 +785,15 @@ function Credentials({
                       autoFocus
                     />
                   ) : (
-                    <Group gap="xs" wrap="nowrap">
-                      <Text size="sm" className="credential-note">
-                        {item.note || t("settingCredentialUnnamed")}
-                      </Text>
-                      <HelpTooltip label={t("settingCredentialDetails")}>
-                        {item.id}
-                      </HelpTooltip>
-                    </Group>
+                    <Text size="sm" className="credential-note">
+                      {item.note || t("settingCredentialUnnamed")}
+                    </Text>
                   )}
+                </Table.Td>
+                <Table.Td className="credential-id">
+                  <Text size="xs" c="dimmed" ff="monospace">
+                    {item.id}
+                  </Text>
                 </Table.Td>
                 <Table.Td className="credential-created">
                   <Text size="xs" c="dimmed">

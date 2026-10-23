@@ -96,7 +96,11 @@ beforeEach(() => {
     }),
   );
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  window.history.replaceState(null, "", "/");
+});
 function mount() {
   render(
     <QueryClientProvider
@@ -112,6 +116,23 @@ function mount() {
     </QueryClientProvider>,
   );
 }
+it("restores a fragment after settings load without scrolling again on edits", async () => {
+  window.history.replaceState(null, "", "/settings#settings-access");
+  const scroll = vi.spyOn(Element.prototype, "scrollIntoView");
+  mount();
+  await waitFor(() => expect(scroll).toHaveBeenCalled());
+  expect(scroll.mock.instances.at(-1)).toBe(
+    document.getElementById("settings-access"),
+  );
+  scroll.mockClear();
+  await userEvent.setup().click(screen.getByRole("radio", { name: "Orange" }));
+  expect(scroll).not.toHaveBeenCalled();
+  window.location.hash = "settings-service";
+  await waitFor(() => expect(scroll).toHaveBeenCalled());
+  expect(scroll.mock.instances.at(-1)).toBe(
+    document.getElementById("settings-service"),
+  );
+});
 it("does not save on open; resetting removes the explicit value using the loaded revision", async () => {
   const user = userEvent.setup();
   mount();

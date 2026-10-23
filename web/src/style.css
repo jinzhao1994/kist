@@ -3461,9 +3461,13 @@ main.upload-drag-active {
 .credential-table td:first-child {
   inline-size: 100%;
 }
+.credential-table :is(th, td):first-child {
+  padding-inline-start: 0;
+}
 .credential-note {
   overflow-wrap: anywhere;
 }
+.credential-id,
 .credential-created {
   white-space: nowrap;
 }
