@@ -511,7 +511,13 @@ export function App() {
               <p role="status">{t("loading")}</p>
             ) : info.data?.client ? (
               <OfflineClient
-                openSettings={() => go({ files: false, section: "settings" })}
+                openSettings={() =>
+                  go(
+                    { files: false, section: "settings" },
+                    false,
+                    "settings-storage",
+                  )
+                }
               />
             ) : (
               <p>{t("notFound")}</p>

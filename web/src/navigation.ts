@@ -52,7 +52,7 @@ function read(): Route {
     fileset: url.searchParams.get("fileset") || undefined,
   };
 }
-export function routeURL(next: Route): string {
+export function routeURL(next: Route, anchor?: string): string {
   const path = next.section
     ? `/${next.section}`
     : next.tag
@@ -71,7 +71,11 @@ export function routeURL(next: Route): string {
   if (next.section && next.box) params.set("box", next.box);
   writeURLFilters(params, next.boxFilters, true);
   writeURLFilters(params, next.filters);
-  return path + (params.size ? `?${params}` : "");
+  return (
+    path +
+    (params.size ? `?${params}` : "") +
+    (anchor ? `#${encodeURIComponent(anchor)}` : "")
+  );
 }
 export function useNavigation() {
   const [route, setRoute] = useState(read);
@@ -82,7 +86,7 @@ export function useNavigation() {
   }, []);
   return {
     route,
-    go: (next: Route, replace = false) => {
+    go: (next: Route, replace = false, anchor?: string) => {
       const opening = !!next.file && !route.file && !next.section;
       const state = replace
         ? history.state
@@ -92,7 +96,7 @@ export function useNavigation() {
       history[replace ? "replaceState" : "pushState"](
         state,
         "",
-        routeURL(next),
+        routeURL(next, anchor),
       );
       setRoute(next);
     },
