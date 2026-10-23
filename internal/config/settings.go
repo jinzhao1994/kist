@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/BurntSushi/toml"
 	"github.com/jinzhao1994/kist/internal/domain"
@@ -44,12 +45,18 @@ type Server struct {
 	MapResourceOrigins    []string `toml:"map_resource_origins" json:"map_resource_origins"`
 }
 type Grant struct {
+	Note      string    `toml:"note,omitempty" json:"note,omitempty"`
 	ID        string    `toml:"id" json:"id"`
 	CreatedAt time.Time `toml:"created_at" json:"created_at"`
 	Digest    string    `toml:"digest" json:"-"`
 }
 type Sync struct {
 	Grants []Grant `toml:"grants,omitempty" json:"-"`
+}
+
+// ValidCredentialNote bounds human-readable labels without changing token semantics.
+func ValidCredentialNote(note string) bool {
+	return utf8.ValidString(note) && utf8.RuneCountInString(note) <= 200
 }
 
 func Defaults(mode string) *Config {
@@ -134,7 +141,7 @@ func (c *Config) Validate() error {
 	seen := map[string]bool{}
 	for _, g := range c.Sync.Grants {
 		d, err := hex.DecodeString(g.Digest)
-		if err != nil || len(d) != sha256.Size || g.ID == "" || seen[g.ID] || g.CreatedAt.IsZero() {
+		if err != nil || len(d) != sha256.Size || g.ID == "" || seen[g.ID] || g.CreatedAt.IsZero() || !ValidCredentialNote(g.Note) {
 			return fmt.Errorf("invalid sync credential")
 		}
 		seen[g.ID] = true

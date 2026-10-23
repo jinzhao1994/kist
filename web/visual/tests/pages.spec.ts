@@ -3577,6 +3577,8 @@ for (const scenario of [
   "appearance",
   "service",
   "maps",
+  "credentials",
+  "credentials-create",
   "hint",
   "client-storage",
   "mobile",
@@ -3670,7 +3672,19 @@ for (const scenario of [
       }),
     );
     await page.route("**/api/v1/settings/credentials", (route) =>
-      route.fulfill({ json: [] }),
+      route.fulfill({
+        json:
+          scenario === "credentials"
+            ? [
+                {
+                  id: "travel-credential",
+                  note: "旅行备用机",
+                  created_at: "2026-10-23T00:00:00Z",
+                },
+                { id: "older-credential", created_at: "2026-10-21T00:00:00Z" },
+              ]
+            : [],
+      }),
     );
     await page.route("**/api/v1/settings", (route) =>
       route.fulfill({
@@ -3710,6 +3724,36 @@ for (const scenario of [
       ).toBeInViewport();
       await expect(settings).toContainText("127.0.0.1:19000");
       await expect(settings).toContainText("重启");
+    }
+    if (scenario === "credentials-create") {
+      await settings
+        .getByRole("link", { name: "访问凭据", exact: true })
+        .click();
+      await expect(
+        settings.getByRole("textbox", { name: "备注（可选）", exact: true }),
+      ).toHaveCount(0);
+      await settings
+        .getByRole("button", { name: "创建凭据", exact: true })
+        .click();
+      await expect(
+        settings.getByRole("textbox", { name: "备注（可选）", exact: true }),
+      ).toBeFocused();
+    }
+    if (scenario === "credentials") {
+      await settings
+        .getByRole("link", { name: "访问凭据", exact: true })
+        .click();
+      await expect(settings).toContainText("旅行备用机");
+      await expect(settings).toContainText("未填写备注");
+      await settings
+        .getByRole("button", { name: "编辑备注", exact: true })
+        .first()
+        .click();
+      await expect(
+        settings
+          .getByRole("textbox", { name: "备注（可选）", exact: true })
+          .first(),
+      ).toHaveValue("旅行备用机");
     }
     if (scenario === "maps") {
       await settings.getByRole("link", { name: "地图", exact: true }).click();

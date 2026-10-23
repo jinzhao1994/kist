@@ -14,6 +14,7 @@ import (
 )
 
 type SyncCredential struct {
+	Note      string    `json:"note,omitempty"`
 	ID        string    `json:"id"`
 	CreatedAt time.Time `json:"created_at"`
 }
@@ -42,7 +43,7 @@ func (l *Library) syncAccess() (syncAccess, error) {
 	}
 	access := syncAccess{Version: 1, Grants: []syncGrant{}}
 	for _, g := range cfg.Sync.Grants {
-		access.Grants = append(access.Grants, syncGrant{SyncCredential: SyncCredential{ID: g.ID, CreatedAt: g.CreatedAt}, Digest: g.Digest})
+		access.Grants = append(access.Grants, syncGrant{SyncCredential: SyncCredential{ID: g.ID, CreatedAt: g.CreatedAt, Note: g.Note}, Digest: g.Digest})
 	}
 	return access, nil
 }
@@ -51,6 +52,16 @@ func (l *Library) syncAccess() (syncAccess, error) {
 // revocable credential. Operational credentials are configuration, not archive
 // events, and cannot be restored by undoing an archive operation.
 func (l *Library) AuthorizeSync(ctx context.Context) (NewSyncCredential, error) {
+	return l.AuthorizeSyncWithNote(ctx, "")
+}
+
+// AuthorizeSyncWithNote creates a credential with an optional human-readable label.
+func (l *Library) AuthorizeSyncWithNote(ctx context.Context, note string) (NewSyncCredential, error) {
+	note = strings.TrimSpace(note)
+	if !config.ValidCredentialNote(note) {
+		return NewSyncCredential{}, ErrInvalidRequest
+	}
+
 	release, err := l.lock.Acquire(ctx)
 	if err != nil {
 		return NewSyncCredential{}, err
@@ -68,7 +79,7 @@ func (l *Library) AuthorizeSync(ctx context.Context) (NewSyncCredential, error) 
 	if _, err := rand.Read(secret[:]); err != nil {
 		return NewSyncCredential{}, err
 	}
-	credential := NewSyncCredential{SyncCredential: SyncCredential{ID: hex.EncodeToString(id[:]), CreatedAt: l.now().UTC()}}
+	credential := NewSyncCredential{SyncCredential: SyncCredential{ID: hex.EncodeToString(id[:]), CreatedAt: l.now().UTC(), Note: note}}
 	credential.Token = "kist_sync." + credential.ID + "." + base64.RawURLEncoding.EncodeToString(secret[:])
 	digest := sha256.Sum256([]byte(credential.Token))
 	access.Grants = append(access.Grants, syncGrant{SyncCredential: credential.SyncCredential, Digest: hex.EncodeToString(digest[:])})
@@ -112,6 +123,30 @@ func (l *Library) RevokeSync(ctx context.Context, id string) (bool, error) {
 	return false, nil
 }
 
+// SetSyncCredentialNote changes only the display label of an existing grant.
+func (l *Library) SetSyncCredentialNote(ctx context.Context, id, note string) (bool, error) {
+	note = strings.TrimSpace(note)
+	if !config.ValidCredentialNote(note) {
+		return false, ErrInvalidRequest
+	}
+	release, err := l.lock.Acquire(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer release()
+	access, err := l.syncAccess()
+	if err != nil {
+		return false, err
+	}
+	for i := range access.Grants {
+		if access.Grants[i].ID == id {
+			access.Grants[i].Note = note
+			return true, l.saveSyncAccess(ctx, access)
+		}
+	}
+	return false, nil
+}
+
 // CheckSyncCredential reads current configuration on every request, so a grant
 // revoked in another process cannot survive in a running server's memory.
 func (l *Library) CheckSyncCredential(ctx context.Context, token string) (bool, error) {
@@ -143,7 +178,7 @@ func (l *Library) CheckSyncCredential(ctx context.Context, token string) (bool, 
 func (l *Library) saveSyncAccess(ctx context.Context, access syncAccess) error {
 	grants := []config.Grant{}
 	for _, g := range access.Grants {
-		grants = append(grants, config.Grant{ID: g.ID, CreatedAt: g.CreatedAt, Digest: g.Digest})
+		grants = append(grants, config.Grant{ID: g.ID, CreatedAt: g.CreatedAt, Note: g.Note, Digest: g.Digest})
 	}
 	return updateInstanceConfig(ctx, l.layout.Root, "", map[string]any{"sync.grants": grants})
 }

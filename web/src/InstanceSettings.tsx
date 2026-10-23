@@ -12,6 +12,7 @@ import {
   PasswordInput,
   Radio,
   Stack,
+  Table,
   Text,
   Textarea,
   TextInput,
@@ -659,19 +660,79 @@ function Credentials({
   const { t, prefs } = useI18n();
   const queries = useQueryClient();
   const [secret, setSecret] = useState("");
+  const [note, setNote] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<{ id: string; note: string }>();
   const query = useQuery({
     queryKey: ["sync-credentials"],
     queryFn: ({ signal }) =>
-      get<{ id: string; created_at: string }[]>(
+      get<components["schemas"]["SyncCredential"][]>(
         "/settings/credentials",
         signal,
       ),
   });
   return (
     <Stack gap="md">
-      <Text size="sm" c="dimmed">
-        {t("settingCredentialsHint")}
-      </Text>
+      <Group justify="space-between" align="start">
+        <Text size="sm" c="dimmed" style={{ flex: 1 }}>
+          {t("settingCredentialsHint")}
+        </Text>
+        {!creating && (
+          <Button
+            disabled={busy || !!editing}
+            onClick={() => setCreating(true)}
+          >
+            {t("settingCreateCredential")}
+          </Button>
+        )}
+      </Group>
+      {creating && (
+        <form
+          className="credential-create-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void run(async (signal) => {
+              const result = await request<{ token: string }>(
+                "/settings/credentials",
+                "POST",
+                { note },
+                signal,
+              );
+              setSecret(result.token);
+              setNote("");
+              setCreating(false);
+              await queries.invalidateQueries({
+                queryKey: ["sync-credentials"],
+              });
+              await saved(signal);
+            });
+          }}
+        >
+          <TextInput
+            label={t("settingCredentialNote")}
+            placeholder={t("settingCredentialNoteExample")}
+            value={note}
+            onChange={(event) => setNote(event.currentTarget.value)}
+            maxLength={200}
+            disabled={busy}
+            autoFocus
+          />
+          <Group gap="xs">
+            <Button type="submit" variant="filled" disabled={busy}>
+              {t("settingCreateCredential")}
+            </Button>
+            <Button
+              disabled={busy}
+              onClick={() => {
+                setCreating(false);
+                setNote("");
+              }}
+            >
+              {t("cancel")}
+            </Button>
+          </Group>
+        </form>
+      )}
       {query.error && <Text role="alert">{errorMessage(query.error, t)}</Text>}
       {secret && (
         <Alert>
@@ -679,59 +740,144 @@ function Credentials({
           <code className="setting-secret">{secret}</code>
         </Alert>
       )}
-      {query.data?.map((item) => (
-        <Group key={item.id} justify="space-between">
-          <div>
-            <Text size="sm">{item.id}</Text>
-            <Text size="xs" c="dimmed">
-              {formatInstant(item.created_at, prefs)}
-            </Text>
-          </div>
-          <Button
-            disabled={busy}
-            color="red"
-            onClick={() =>
-              void run(async (signal) => {
-                await request(
-                  `/settings/credentials/${encodeURIComponent(item.id)}`,
-                  "DELETE",
-                  undefined,
-                  signal,
-                );
-                setSecret("");
-                await queries.invalidateQueries({
-                  queryKey: ["sync-credentials"],
-                });
-                await saved(signal);
-              })
-            }
-          >
-            {t("settingRevoke")}
-          </Button>
-        </Group>
-      ))}
-      <Group>
-        <Button
-          disabled={busy}
-          onClick={() =>
-            void run(async (signal) => {
-              const result = await request<{ token: string }>(
-                "/settings/credentials",
-                "POST",
-                {},
-                signal,
-              );
-              setSecret(result.token);
-              await queries.invalidateQueries({
-                queryKey: ["sync-credentials"],
-              });
-              await saved(signal);
-            })
-          }
+      <Table.ScrollContainer minWidth={520}>
+        <Table
+          highlightOnHover
+          verticalSpacing="xs"
+          horizontalSpacing="sm"
+          className="credential-table"
         >
-          {t("settingCreateCredential")}
-        </Button>
-      </Group>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>{t("settingCredentialNoteHeading")}</Table.Th>
+              <Table.Th>{t("settingCredentialCreated")}</Table.Th>
+              <Table.Th>
+                <span className="sr-only">{t("settingCredentialActions")}</span>
+              </Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {query.data?.length === 0 && (
+              <Table.Tr>
+                <Table.Td colSpan={3}>
+                  <Text size="sm" c="dimmed">
+                    {t("settingCredentialsEmpty")}
+                  </Text>
+                </Table.Td>
+              </Table.Tr>
+            )}
+            {query.data?.map((item) => (
+              <Table.Tr key={item.id} className="credential-row">
+                <Table.Td>
+                  {editing?.id === item.id ? (
+                    <TextInput
+                      aria-label={t("settingCredentialNote")}
+                      value={editing.note}
+                      maxLength={200}
+                      disabled={busy}
+                      onChange={(event) =>
+                        setEditing({
+                          id: item.id,
+                          note: event.currentTarget.value,
+                        })
+                      }
+                      autoFocus
+                    />
+                  ) : (
+                    <Group gap="xs" wrap="nowrap">
+                      <Text size="sm" className="credential-note">
+                        {item.note || t("settingCredentialUnnamed")}
+                      </Text>
+                      <HelpTooltip label={t("settingCredentialDetails")}>
+                        {item.id}
+                      </HelpTooltip>
+                    </Group>
+                  )}
+                </Table.Td>
+                <Table.Td className="credential-created">
+                  <Text size="xs" c="dimmed">
+                    {formatInstant(item.created_at, prefs)}
+                  </Text>
+                </Table.Td>
+                <Table.Td>
+                  <Group gap="xs" justify="flex-end" wrap="nowrap">
+                    {editing?.id === item.id ? (
+                      <>
+                        <Button
+                          size="compact-sm"
+                          variant="subtle"
+                          disabled={busy}
+                          onClick={() =>
+                            void run(async (signal) => {
+                              await request(
+                                `/settings/credentials/${encodeURIComponent(item.id)}`,
+                                "PUT",
+                                { note: editing.note },
+                                signal,
+                              );
+                              setEditing(undefined);
+                              await queries.invalidateQueries({
+                                queryKey: ["sync-credentials"],
+                              });
+                              await saved(signal);
+                            })
+                          }
+                        >
+                          {t("save")}
+                        </Button>
+                        <Button
+                          size="compact-sm"
+                          variant="subtle"
+                          disabled={busy}
+                          onClick={() => setEditing(undefined)}
+                        >
+                          {t("cancel")}
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          size="compact-sm"
+                          variant="subtle"
+                          disabled={busy || !!editing || creating}
+                          onClick={() =>
+                            setEditing({ id: item.id, note: item.note || "" })
+                          }
+                        >
+                          {t("settingEditCredentialNote")}
+                        </Button>
+                        <Button
+                          size="compact-sm"
+                          variant="subtle"
+                          disabled={busy || !!editing || creating}
+                          color="red"
+                          onClick={() =>
+                            void run(async (signal) => {
+                              await request(
+                                `/settings/credentials/${encodeURIComponent(item.id)}`,
+                                "DELETE",
+                                undefined,
+                                signal,
+                              );
+                              setSecret("");
+                              await queries.invalidateQueries({
+                                queryKey: ["sync-credentials"],
+                              });
+                              await saved(signal);
+                            })
+                          }
+                        >
+                          {t("settingRevoke")}
+                        </Button>
+                      </>
+                    )}
+                  </Group>
+                </Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      </Table.ScrollContainer>
     </Stack>
   );
 }

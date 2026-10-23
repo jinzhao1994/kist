@@ -620,7 +620,8 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
+        /** Put API v1 settings credentials by ID */
+        put: operations["put-api-v1-settings-credentials-by-id"];
         post?: never;
         /** Delete API v1 settings credentials by ID */
         delete: operations["delete-api-v1-settings-credentials-by-id"];
@@ -1421,6 +1422,7 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             id: string;
+            note?: string;
             token: string;
         };
         "OutputStruct {}Body": Record<string, never>;
@@ -1428,7 +1430,9 @@ export interface components {
             name: string;
             parent?: string;
         };
-        "Post-api-v1-settings-credentialsRequest": Record<string, never>;
+        "Post-api-v1-settings-credentialsRequest": {
+            note?: string;
+        };
         Preview: {
             encoding: string;
             reason?: string;
@@ -1438,6 +1442,9 @@ export interface components {
         };
         "Put-api-v1-boxes-by-id-coverRequest": {
             file_id: string;
+        };
+        "Put-api-v1-settings-credentials-by-idRequest": {
+            note: string;
         };
         Ref: {
             id: string;
@@ -1627,6 +1634,7 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             id: string;
+            note?: string;
         };
         SyncDeletionBasis: {
             box: string;
@@ -3461,6 +3469,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NewSyncCredential"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "put-api-v1-settings-credentials-by-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Put-api-v1-settings-credentials-by-idRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutputStruct {}Body"];
                 };
             };
             /** @description Error */

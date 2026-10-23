@@ -3452,3 +3452,33 @@ main.upload-drag-active {
   flex-wrap: wrap;
   gap: var(--mantine-spacing-md) var(--mantine-spacing-xl);
 }
+
+.credential-table th {
+  color: var(--muted);
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 500;
+}
+.credential-table td:first-child {
+  inline-size: 100%;
+}
+.credential-note {
+  overflow-wrap: anywhere;
+}
+.credential-created {
+  white-space: nowrap;
+}
+.credential-create-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--mantine-spacing-sm);
+}
+@media (max-width: 600px) {
+  .credential-create-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.credential-table tbody tr:focus-within {
+  background: var(--mantine-color-default-hover);
+}

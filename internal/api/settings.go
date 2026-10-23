@@ -110,10 +110,30 @@ func (s *Server) settingsRoutes(opt Options) error {
 			out, err := s.library.SyncCredentials(ctx)
 			return response(out, err)
 		})
-		huma.Post(s.contract, Prefix+"/settings/credentials", func(ctx context.Context, _ *struct{ Body struct{} }) (*output[library.NewSyncCredential], error) {
-			out, err := s.library.AuthorizeSync(ctx)
+		huma.Post(s.contract, Prefix+"/settings/credentials", func(ctx context.Context, in *struct {
+			Body struct {
+				Note string `json:"note,omitempty" maxLength:"200"`
+			}
+		}) (*output[library.NewSyncCredential], error) {
+			out, err := s.library.AuthorizeSyncWithNote(ctx, in.Body.Note)
 			return response(out, err)
 		})
+		huma.Put(s.contract, Prefix+"/settings/credentials/{id}", func(ctx context.Context, in *struct {
+			ID   string `path:"id"`
+			Body struct {
+				Note string `json:"note" maxLength:"200"`
+			}
+		}) (*output[struct{}], error) {
+			found, err := s.library.SetSyncCredentialNote(ctx, in.ID, in.Body.Note)
+			if err != nil {
+				return response(struct{}{}, err)
+			}
+			if !found {
+				return nil, huma.Error404NotFound("No such credential")
+			}
+			return response(struct{}{}, nil)
+		})
+
 		huma.Delete(s.contract, Prefix+"/settings/credentials/{id}", func(ctx context.Context, in *struct {
 			ID string `path:"id"`
 		}) (*output[struct{}], error) {

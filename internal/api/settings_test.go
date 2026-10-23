@@ -87,3 +87,58 @@ func TestSettingsStorageUsage(t *testing.T) {
 		t.Fatalf("usage: %v", usage)
 	}
 }
+
+func TestCredentialNotesDoNotRotateOrRestoreTokens(t *testing.T) {
+	s, l := testServer(t)
+	w := call(s, "POST", Prefix+"/settings/credentials", "", `{"note":"  旅行备用机  "}`)
+	if w.Code != 200 {
+		t.Fatalf("create: %d %s", w.Code, w.Body)
+	}
+	var created struct {
+		ID    string `json:"id"`
+		Token string `json:"token"`
+		Note  string `json:"note"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+	if created.Note != "旅行备用机" {
+		t.Fatalf("note: %q", created.Note)
+	}
+	for _, note := range []string{"旅行电脑", ""} {
+		body, _ := json.Marshal(map[string]string{"note": note})
+		w = call(s, "PUT", Prefix+"/settings/credentials/"+created.ID, "", string(body))
+		if w.Code != 200 {
+			t.Fatalf("rename: %d %s", w.Code, w.Body)
+		}
+		if ok, err := l.CheckSyncCredential(t.Context(), created.Token); err != nil || !ok {
+			t.Fatalf("token changed: %v", err)
+		}
+		items, err := l.SyncCredentials(t.Context())
+		if err != nil || len(items) != 1 || items[0].Note != note {
+			t.Fatalf("notes: %+v %v", items, err)
+		}
+		cfg, err := config.Load(l.Layout().ConfigPath())
+		if err != nil || cfg.Sync.Grants[0].Note != note {
+			t.Fatalf("persisted note: %+v %v", cfg, err)
+		}
+	}
+	w = call(s, "GET", Prefix+"/settings/credentials", "", "")
+	if strings.Contains(w.Body.String(), created.Token) || strings.Contains(w.Body.String(), "digest") {
+		t.Fatal("list leaked secret")
+	}
+	body, _ := json.Marshal(map[string]string{"note": strings.Repeat("a", 201)})
+	if w = call(s, "PUT", Prefix+"/settings/credentials/"+created.ID, "", string(body)); w.Code < 400 {
+		t.Fatal("oversized note accepted")
+	}
+	if _, err := l.RevokeSync(t.Context(), created.ID); err != nil {
+		t.Fatal(err)
+	}
+	w = call(s, "PUT", Prefix+"/settings/credentials/"+created.ID, "", `{"note":"old"}`)
+	if w.Code != 404 {
+		t.Fatalf("revoked note: %d", w.Code)
+	}
+	if ok, _ := l.CheckSyncCredential(t.Context(), created.Token); ok {
+		t.Fatal("rename restored revoked grant")
+	}
+}

@@ -97,7 +97,7 @@ func migrateInstanceConfig(ctx context.Context, root, mode string) error {
 				return ErrSyncVersion
 			}
 			for _, g := range access.Grants {
-				grants = append(grants, config.Grant{ID: g.ID, CreatedAt: g.CreatedAt, Digest: g.Digest})
+				grants = append(grants, config.Grant{ID: g.ID, CreatedAt: g.CreatedAt, Digest: g.Digest, Note: g.Note})
 			}
 		}
 		if cfg.Library.Timezone == "" {
