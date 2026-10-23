@@ -3365,7 +3365,7 @@ main.upload-drag-active {
   grid-column: 2;
   grid-row: 1;
   position: sticky;
-  inset-block-start: var(--mantine-spacing-lg);
+  inset-block-start: var(--section-top-offset, var(--mantine-spacing-lg));
   padding-inline-start: var(--mantine-spacing-lg);
   display: flex;
   flex-direction: column;
@@ -3381,7 +3381,10 @@ main.upload-drag-active {
   color: var(--brand);
 }
 .flat-page-section {
-  scroll-margin-block-start: var(--mantine-spacing-lg);
+  scroll-margin-block-start: var(
+    --section-top-offset,
+    var(--mantine-spacing-lg)
+  );
   padding-block: var(--mantine-spacing-lg);
 }
 .flat-page-section + .flat-page-section {
@@ -3406,4 +3409,14 @@ main.upload-drag-active {
   .section-body {
     grid-row: 2;
   }
+}
+
+.settings-page-header {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 3;
+  background: var(--mantine-color-body);
+  box-shadow:
+    0 -2.4rem 0 var(--mantine-color-body),
+    0 1rem 0 var(--mantine-color-body);
 }

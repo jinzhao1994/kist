@@ -35,7 +35,7 @@ func fieldDefinitions(mode string) []Field {
 	if mode == "client" {
 		return append(fields, Field{Key: "client.cache_max_age", Kind: "text"}, Field{Key: "client.cache_max_bytes", Kind: "integer"})
 	}
-	return append(fields, Field{Key: "library.timezone", Kind: "text", Restart: true}, Field{Key: "storage.link_mode", Kind: "select", Restart: true, Options: []string{"", "copy", "reflink", "hardlink", "symlink"}}, Field{Key: "remote", Kind: "remotes", Restart: true})
+	return append(fields, Field{Key: "library.timezone", Kind: "text", Restart: true}, Field{Key: "storage.link_mode", Kind: "select", Restart: true, Options: []string{"", "copy", "reflink", "hardlink", "symlink"}})
 }
 
 func values(c *Config) (map[string]any, error) {
@@ -77,7 +77,7 @@ func Fields(raw []byte) ([]Field, error) {
 		f.Value = lookup(effective, f.Key)
 		f.Default = lookup(defaults, f.Key)
 		f.Explicit = lookup(explicit, f.Key) != nil
-		if f.Kind == "list" || f.Kind == "remotes" {
+		if f.Kind == "list" {
 			if f.Value == nil {
 				f.Value = []any{}
 			}
@@ -142,25 +142,6 @@ func NormalizeChanges(mode string, changes map[string]any) (map[string]any, erro
 					return nil, fmt.Errorf("%s requires text entries", key)
 				}
 				list = append(list, s)
-			}
-			value = list
-		case "remotes":
-			items, ok := value.([]any)
-			if !ok {
-				return nil, fmt.Errorf("remote requires a list")
-			}
-			list := []Remote{}
-			for _, v := range items {
-				m, ok := v.(map[string]any)
-				if !ok || len(m) != 2 {
-					return nil, fmt.Errorf("repair source requires name and path")
-				}
-				name, n := m["name"].(string)
-				path, p := m["path"].(string)
-				if !n || !p {
-					return nil, fmt.Errorf("repair source requires name and path")
-				}
-				list = append(list, Remote{Name: name, Path: path})
 			}
 			value = list
 		}

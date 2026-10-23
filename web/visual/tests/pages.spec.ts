@@ -3671,6 +3671,15 @@ for (const scenario of [
     ).toHaveClass(/active/);
     if (scenario === "service") {
       await settings.getByRole("link", { name: "服务", exact: true }).click();
+      await expect(
+        settings.getByRole("heading", { name: "设置", exact: true }),
+      ).toBeInViewport();
+      await expect(
+        settings.getByRole("button", { name: "保存", exact: true }),
+      ).toBeInViewport();
+      await expect(
+        settings.getByRole("button", { name: "重新加载设置", exact: true }),
+      ).toBeInViewport();
       await expect(settings).toContainText("127.0.0.1:19000");
       await expect(settings).toContainText("重启");
     }

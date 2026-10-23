@@ -14,7 +14,8 @@ import {
   Textarea,
   TextInput,
 } from "@mantine/core";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useElementSize } from "@mantine/hooks";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { APIError, get, result } from "./api";
 import type { components } from "./api-schema";
@@ -29,7 +30,6 @@ const labels: Record<string, MessageKey> = {
   "appearance.primary_color": "primaryColor",
   "library.timezone": "settingLibraryTimezone",
   "storage.link_mode": "settingLinkMode",
-  remote: "settingRepairSources",
   "client.cache_max_age": "clientMaxAge",
   "client.cache_max_bytes": "settingCacheBytes",
   "server.listen": "settingListen",
@@ -65,6 +65,7 @@ async function request<T>(
 }
 
 export function InstanceSettings() {
+  const { ref: headerRef, height: headerHeight } = useElementSize();
   const { t } = useI18n();
   const queries = useQueryClient();
   const query = useQuery({
@@ -138,8 +139,13 @@ export function InstanceSettings() {
       setNotice(t("settingsSaved"));
     });
   return (
-    <section aria-label={t("instanceSettings")}>
-      <header className="page-header">
+    <section
+      aria-label={t("instanceSettings")}
+      style={
+        { "--section-top-offset": `${headerHeight + 40}px` } as CSSProperties
+      }
+    >
+      <header ref={headerRef} className="page-header settings-page-header">
         <div>
           <h1>{t("instanceSettings")}</h1>
           <Text size="sm" c="dimmed">
@@ -412,61 +418,7 @@ function SettingInput({
         minRows={2}
       />
     );
-  if (field.kind === "remotes") {
-    const sources = (Array.isArray(value) ? value : []) as {
-      name: string;
-      path: string;
-    }[];
-    return (
-      <Stack gap="sm">
-        <Text size="sm" fw={500}>
-          {label}
-        </Text>
-        {sources.map((source, i) => (
-          <Group key={i} align="end" wrap="wrap">
-            <TextInput
-              label={t("name")}
-              value={source.name}
-              disabled={disabled}
-              onChange={(e) =>
-                change(
-                  sources.map((v, n) =>
-                    n === i ? { ...v, name: e.currentTarget.value } : v,
-                  ),
-                )
-              }
-            />
-            <TextInput
-              label={t("path")}
-              value={source.path}
-              disabled={disabled}
-              onChange={(e) =>
-                change(
-                  sources.map((v, n) =>
-                    n === i ? { ...v, path: e.currentTarget.value } : v,
-                  ),
-                )
-              }
-            />
-            <Button
-              disabled={disabled}
-              onClick={() => change(sources.filter((_, n) => n !== i))}
-            >
-              {t("remove")}
-            </Button>
-          </Group>
-        ))}
-        <Group>
-          <Button
-            disabled={disabled}
-            onClick={() => change([...sources, { name: "", path: "" }])}
-          >
-            {t("settingAddSource")}
-          </Button>
-        </Group>
-      </Stack>
-    );
-  }
+
   return (
     <TextInput
       label={label}

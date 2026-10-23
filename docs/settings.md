@@ -13,8 +13,8 @@ identity; do not copy a client identity to another independent client.
 
 Settings are grouped into Appearance, Storage, Connection (clients) or Sync
 credentials (libraries), and Service. Storage includes client cache age and size
-limits, or the library's capture-time fallback zone, projection mode and repair
-sources. Service includes listen address, allowed web origins, upload limits and
+limits, or the library's capture-time fallback zone and projection mode. Service
+includes listen address, allowed web origins, upload limits and
 map resources. The UI displays current defaults and marks options requiring a
 restart. Explicit command-line flags override stored service settings without
 rewriting the file; the UI shows their effective values. Projection changes do
