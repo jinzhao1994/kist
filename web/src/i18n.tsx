@@ -194,8 +194,6 @@ export const en = {
     "Protected local originals: {originals} · Local history: {journal}. These are excluded from automatic cache cleanup.",
   clientCacheOverLimit:
     "Retained or active content exceeds the cache limit. Increase the limit or reduce offline retention.",
-  clientPrune: "Clean expired cache",
-  clientCachePruned: "Cache cleanup complete",
   clientServer: "remote address",
   clientToken: "Sync credential",
   clientCredentialHelp: "Credential help",
@@ -909,8 +907,6 @@ export const zh: Record<MessageKey, string> = {
     "受保护的本地原文件：{originals} · 本地历史：{journal}，均不受自动缓存清理影响。",
   clientCacheOverLimit:
     "保留或正在使用的内容已超过缓存上限，请提高上限或减少离线保留。",
-  clientPrune: "清理到期缓存",
-  clientCachePruned: "缓存清理完成",
   clientServer: "远端地址",
   clientToken: "同步凭据",
   clientCredentialHelp: "凭据说明",

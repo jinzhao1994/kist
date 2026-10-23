@@ -345,22 +345,6 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
                       <Button onClick={openSettings} disabled={busy}>
                         {t("settingManageCache")}
                       </Button>
-                      <Button
-                        disabled={busy}
-                        onClick={() =>
-                          run(async (signal) => {
-                            await clientCommand(
-                              "/cache/prune",
-                              {},
-                              "POST",
-                              signal,
-                            );
-                            setNotice(t("clientCachePruned"));
-                          })
-                        }
-                      >
-                        {t("clientPrune")}
-                      </Button>
                     </Group>
                   </Stack>
                 </section>

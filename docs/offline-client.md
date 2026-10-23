@@ -235,3 +235,5 @@ While the client service is running, it checks at startup and every 30 seconds; 
 The sidebar distinguishes **Synchronizing…**, **Up to date**, and **Manual merge required**, and hides zero operation counts. Counts refer to operations, not files. Original files remain cached on demand. File lists refresh when synchronization advances the local catalog.
 
 Cache retention defaults to `180d`. Integer `d` values represent 24-hour days; existing durations such as `720h` remain supported. Explicit settings are preserved.
+
+The client service cleans eligible cache entries at startup and every hour, including while offline. The web UI needs no manual cleanup; the prune API and CLI remain available. Retained, pending and actively used content stays protected.

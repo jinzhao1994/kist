@@ -58,7 +58,9 @@ func newClientServeCmd() *cobra.Command {
 		go func() { handler.RunMedia(uploadCtx); close(mediaDone) }()
 		syncDone := make(chan struct{})
 		go func() { handler.RunAutoSync(uploadCtx); close(syncDone) }()
-		defer func() { cancelUploads(); <-uploadDone; <-mediaDone; <-syncDone }()
+		cacheDone := make(chan struct{})
+		go func() { handler.RunCacheMaintenance(uploadCtx); close(cacheDone) }()
+		defer func() { cancelUploads(); <-uploadDone; <-mediaDone; <-syncDone; <-cacheDone }()
 		fmt.Fprintf(cmd.ErrOrStderr(), "Serving kist offline client on %s\n", listener.Addr())
 		return serveHTTP(ctx, listener, handler)
 	}}

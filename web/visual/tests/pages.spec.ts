@@ -3300,6 +3300,9 @@ for (const panel of [
     );
     let dialog = page.getByRole("region", { name: "数据同步", exact: true });
     await expect(page).toHaveURL(/\/sync$/);
+    await expect(
+      dialog.getByRole("button", { name: "清理到期缓存", exact: true }),
+    ).toHaveCount(0);
     await expect(dialog.locator(".settings-page-header")).toBeVisible();
     await expect(dialog.locator(".settings-page-header")).not.toContainText(
       "https://nas.example",
