@@ -205,7 +205,8 @@ export const en = {
     "Use a sync credential created on the remote. This client remains bound to the same library.",
   clientConnect: "Verify and connect",
   clientMaxAge: "Maximum cache age",
-  clientMaxAgeHint: "Measured since last access, for example 720h for 30 days.",
+  clientMaxAgeHint:
+    "Measured since last access. Use 180d for 180 days; h and m are also supported.",
   clientMaxSize: "Maximum cache size (MiB)",
 
   filesetLabel: "File set",
@@ -919,7 +920,8 @@ export const zh: Record<MessageKey, string> = {
     "使用远端上创建的同步凭据，此客户端始终绑定同一个资料库。",
   clientConnect: "验证并连接",
   clientMaxAge: "最长缓存保留时间",
-  clientMaxAgeHint: "从最近访问起计算，例如 720h 表示 30 天。",
+  clientMaxAgeHint:
+    "从最近访问起计算；180d 表示 180 天，也支持 h（小时）、m（分钟）。",
   clientMaxSize: "缓存体积上限（MiB）",
 
   filesetLabel: "文件组合",

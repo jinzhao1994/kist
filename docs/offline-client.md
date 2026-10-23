@@ -105,7 +105,7 @@ These commands work without contacting the NAS:
 
 ```sh
 kist client cache status /path/to/laptop-client
-kist client cache configure /path/to/laptop-client --max-age 720h --max-bytes 10737418240
+kist client cache configure /path/to/laptop-client --max-age 180d --max-bytes 10737418240
 kist client cache prune /path/to/laptop-client
 kist client cache rebuild /path/to/laptop-client
 ```
@@ -233,3 +233,5 @@ Connection and cache policies are under **Settings**. Synchronization, offline c
 While the client service is running, it checks at startup and every 30 seconds; completed local web edits trigger an immediate check. A browser status check that finds one-way pending changes also wakes synchronization immediately. Remote-only changes are downloaded automatically, and local-only changes are uploaded automatically. Independent changes on both sides or recorded conflicts require a manual merge under **Data synchronization**. Closing the browser does not stop the service worker. Older remotes without conditional submission support still require manual uploads.
 
 The sidebar distinguishes **Synchronizing…**, **Up to date**, and **Manual merge required**, and hides zero operation counts. Counts refer to operations, not files. Original files remain cached on demand. File lists refresh when synchronization advances the local catalog.
+
+Cache retention defaults to `180d`. Integer `d` values represent 24-hour days; existing durations such as `720h` remain supported. Explicit settings are preserved.

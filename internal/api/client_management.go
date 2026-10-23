@@ -2,9 +2,9 @@ package api
 
 import (
 	"context"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/jinzhao1994/kist/internal/config"
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/library"
 )
@@ -39,7 +39,7 @@ func (s *Server) clientManagementRoutes() {
 		return response(status, err)
 	})
 	huma.Put(s.contract, Prefix+"/client/cache", func(ctx context.Context, in *clientCacheSettings) (*output[library.ClientCacheStatus], error) {
-		age, err := time.ParseDuration(in.Body.MaxAge)
+		age, err := config.ParseCacheMaxAge(in.Body.MaxAge)
 		if err != nil || age <= 0 {
 			return nil, invalid("Invalid cache retention time")
 		}

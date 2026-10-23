@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jinzhao1994/kist/internal/blob"
+	"github.com/jinzhao1994/kist/internal/config"
 	"github.com/jinzhao1994/kist/internal/lockfile"
 )
 
@@ -303,7 +304,7 @@ func (c *Client) pruneCacheLocked(ctx context.Context, reserve int64, skip strin
 		return status, err
 	}
 	budget := status.CachedBytes + status.PartialBytes + status.ReservedBytes
-	age, _ := time.ParseDuration(settings.CacheMaxAge)
+	age, _ := config.ParseCacheMaxAge(settings.CacheMaxAge)
 	cutoff := time.Now().UTC().Add(-age)
 	slices.SortFunc(entries, func(a, b cacheEntry) int {
 		if order := a.AccessedAt.Compare(b.AccessedAt); order != 0 {

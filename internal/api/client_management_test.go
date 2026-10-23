@@ -33,7 +33,7 @@ func TestClientManagementPersistsLocalSettingsWithoutNASWrites(t *testing.T) {
 	if initial.Catalog.Complete || len(initial.Pending) != 0 || initial.Connection != nil {
 		t.Fatal(initial)
 	}
-	changed := call(server, "PUT", Prefix+"/client/cache", "", `{"max_age":"48h","max_bytes":1024}`)
+	changed := call(server, "PUT", Prefix+"/client/cache", "", `{"max_age":"2d","max_bytes":1024}`)
 	if changed.Code != 200 {
 		t.Fatal(changed.Code, changed.Body)
 	}

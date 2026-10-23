@@ -67,7 +67,7 @@ func Defaults(mode string) *Config {
 	return &Config{Version: CurrentVersion, Mode: mode,
 		Appearance: Appearance{PrimaryColor: "blue"},
 		Library:    Library{Timezone: "UTC"},
-		Client:     Client{CacheMaxAge: "720h", CacheMaxBytes: 10 << 30},
+		Client:     Client{CacheMaxAge: "180d", CacheMaxBytes: 10 << 30},
 		Server: Server{Listen: listen, AllowedOrigins: []string{}, MaxUploadBytes: 32 << 30, MaxUploadFiles: 1000,
 			MapStyle: "https://tiles.openfreemap.org/styles/liberty", MapTerrainTiles: "https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png", MapTerrainAttribution: `<a href="https://www.mapzen.com/rights/">Mapzen terrain</a>`, MapResourceOrigins: []string{}},
 	}
@@ -99,7 +99,7 @@ func (c *Config) Validate() error {
 			return err
 		}
 	}
-	age, err := time.ParseDuration(c.Client.CacheMaxAge)
+	age, err := ParseCacheMaxAge(c.Client.CacheMaxAge)
 	if err != nil || age <= 0 || c.Client.CacheMaxBytes <= 0 {
 		return fmt.Errorf("invalid cache limits")
 	}

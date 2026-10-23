@@ -36,7 +36,7 @@ func (s ClientSettings) validate() error {
 	if s.Version != 1 {
 		return ErrSyncVersion
 	}
-	age, err := time.ParseDuration(s.CacheMaxAge)
+	age, err := config.ParseCacheMaxAge(s.CacheMaxAge)
 	if err != nil || age <= 0 || s.CacheMaxBytes <= 0 || s.ID.IsZero() || s.LibraryID.IsZero() {
 		return ErrInvalidRequest
 	}
@@ -64,7 +64,7 @@ func CreateClient(ctx context.Context, root string, settings ClientSettings) (*C
 		settings.Timezone = "UTC"
 	}
 	if settings.CacheMaxAge == "" {
-		settings.CacheMaxAge = "720h"
+		settings.CacheMaxAge = config.Defaults("client").Client.CacheMaxAge
 	}
 	if settings.CacheMaxBytes == 0 {
 		settings.CacheMaxBytes = 10 << 30

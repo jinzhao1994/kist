@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"time"
 
+	"github.com/jinzhao1994/kist/internal/config"
 	"github.com/jinzhao1994/kist/internal/library"
 	"github.com/spf13/cobra"
 )
@@ -46,7 +46,7 @@ func newClientCacheCmd() *cobra.Command {
 			return err
 		})
 	}})
-	var age time.Duration
+	var ageText string
 	var maxBytes int64
 	configure := &cobra.Command{Use: "configure DIRECTORY", Short: "Set cache retention and capacity, then prune eligible content", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 		if !cmd.Flags().Changed("max-age") && !cmd.Flags().Changed("max-bytes") {
@@ -62,10 +62,11 @@ func newClientCacheCmd() *cobra.Command {
 			return err
 		}
 		if !cmd.Flags().Changed("max-age") {
-			age, err = time.ParseDuration(current.Settings.CacheMaxAge)
-			if err != nil {
-				return err
-			}
+			ageText = current.Settings.CacheMaxAge
+		}
+		age, err := config.ParseCacheMaxAge(ageText)
+		if err != nil {
+			return err
 		}
 		if !cmd.Flags().Changed("max-bytes") {
 			maxBytes = current.Settings.CacheMaxBytes
@@ -76,7 +77,7 @@ func newClientCacheCmd() *cobra.Command {
 		}
 		return printCacheStatus(cmd, status)
 	}}
-	configure.Flags().DurationVar(&age, "max-age", 0, "maximum age since last access, for example 720h")
+	configure.Flags().StringVar(&ageText, "max-age", "", "maximum age since last access, for example 180d or 24h")
 	configure.Flags().Int64Var(&maxBytes, "max-bytes", 0, "maximum cache budget in bytes, including download reservations")
 	root.AddCommand(configure)
 	return root
