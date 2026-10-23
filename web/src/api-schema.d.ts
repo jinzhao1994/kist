@@ -629,6 +629,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/storage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 settings storage */
+        get: operations["get-api-v1-settings-storage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sync/capabilities": {
         parameters: {
             query?: never;
@@ -1551,6 +1568,14 @@ export interface components {
             supported: boolean;
             truncated: boolean;
             widths: number[] | null;
+        };
+        StorageUsage: {
+            /** Format: int64 */
+            metadata_bytes: number;
+            /** Format: int64 */
+            originals_bytes: number;
+            /** Format: int64 */
+            previews_bytes: number;
         };
         "Sync-derived-describeRequest": {
             key: string;
@@ -3467,6 +3492,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OutputStruct {}Body"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-settings-storage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageUsage"];
                 };
             };
             /** @description Error */

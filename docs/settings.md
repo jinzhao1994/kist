@@ -57,3 +57,5 @@ Operational state (pending operations, downloaded catalog, cache inventory and
 pinned selections) remains separate from configuration.
 
 Capacity fields accept values such as `32 GB`, `32G`, and `32 GiB`. GB uses powers of 1000; GiB uses powers of 1024. Configuration files still store integer bytes, and editable display values preserve exact limits. Allowed access URLs contain the scheme, host, and optional port used to open kist, without a path. Enter one per line; local-only access can leave this empty.
+
+Map options have their own Maps section. Storage shows local file sizes for originals, archive information, and thumbnail/preview caches, with manual refresh. This includes historical versions and downloaded content, excludes projection copies and temporary data, and does not measure filesystem allocation after compression or block sharing.

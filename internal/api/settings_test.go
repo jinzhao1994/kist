@@ -72,3 +72,18 @@ func TestInstanceSettingsCASDefaultsAndSecrets(t *testing.T) {
 		t.Fatal("settings created archive ops")
 	}
 }
+
+func TestSettingsStorageUsage(t *testing.T) {
+	s, _ := testServer(t)
+	w := call(s, "GET", Prefix+"/settings/storage", "", "")
+	if w.Code != 200 {
+		t.Fatalf("storage: %d %s", w.Code, w.Body)
+	}
+	var usage map[string]int64
+	if err := json.Unmarshal(w.Body.Bytes(), &usage); err != nil {
+		t.Fatal(err)
+	}
+	if len(usage) != 3 || usage["metadata_bytes"] <= 0 {
+		t.Fatalf("usage: %v", usage)
+	}
+}

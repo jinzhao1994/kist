@@ -80,6 +80,15 @@ func (s *Server) settingsRoutes(opt Options) error {
 		out, err := s.settingsView(ctx)
 		return response(out, err)
 	})
+	huma.Get(s.contract, Prefix+"/settings/storage", func(ctx context.Context, _ *struct{}) (*output[library.StorageUsage], error) {
+		if s.client != nil {
+			usage, err := s.client.StorageUsage(ctx)
+			return response(usage, err)
+		}
+		usage, err := s.library.StorageUsage(ctx)
+		return response(usage, err)
+	})
+
 	huma.Put(s.contract, Prefix+"/settings", func(ctx context.Context, in *settingsInput) (*output[settingsResponse], error) {
 		var err error
 		if s.client != nil {

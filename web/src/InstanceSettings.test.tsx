@@ -64,6 +64,14 @@ beforeEach(() => {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (_path: string, options?: RequestInit) => {
+      if (_path.endsWith("/settings/storage"))
+        return new Response(
+          JSON.stringify({
+            originals_bytes: 1024,
+            metadata_bytes: 512,
+            previews_bytes: 256,
+          }),
+        );
       const data = initial();
       if (options?.method === "PUT") {
         const body = JSON.parse(options.body as string);

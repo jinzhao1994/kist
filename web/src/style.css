@@ -3446,3 +3446,9 @@ main.upload-drag-active {
 .setting-field-footer > .mantine-Button-root:disabled {
   background: transparent;
 }
+
+.storage-usage-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mantine-spacing-md) var(--mantine-spacing-xl);
+}

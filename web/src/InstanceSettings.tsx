@@ -21,7 +21,7 @@ import { useElementSize } from "@mantine/hooks";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { APIError, get, result } from "./api";
 import type { components } from "./api-schema";
-import { useI18n, formatInstant, type MessageKey } from "./i18n";
+import { useI18n, formatInstant, formatBytes, type MessageKey } from "./i18n";
 import { errorMessage } from "./mutations";
 import { Select } from "./Select";
 import { colors } from "./theme";
@@ -46,9 +46,11 @@ const labels: Record<string, MessageKey> = {
 function category(field: SettingField) {
   return field.key.startsWith("appearance.")
     ? "appearance"
-    : field.key.startsWith("server.")
-      ? "service"
-      : "storage";
+    : field.key.startsWith("server.map_")
+      ? "maps"
+      : field.key.startsWith("server.")
+        ? "service"
+        : "storage";
 }
 async function request<T>(
   path: string,
@@ -189,6 +191,7 @@ export function InstanceSettings() {
                 { id: "settings-appearance", label: t("settingAppearance") },
                 { id: "settings-storage", label: t("settingStorage") },
                 { id: "settings-service", label: t("settingService") },
+                { id: "settings-maps", label: t("settingMaps") },
                 {
                   id: "settings-access",
                   label: t(
@@ -199,7 +202,7 @@ export function InstanceSettings() {
                 },
               ]}
             >
-              {["appearance", "storage", "service"].map((group) => (
+              {["appearance", "storage", "service", "maps"].map((group) => (
                 <section
                   key={group}
                   id={`settings-${group}`}
@@ -212,10 +215,13 @@ export function InstanceSettings() {
                         ? "settingAppearance"
                         : group === "storage"
                           ? "settingStorage"
-                          : "settingService",
+                          : group === "maps"
+                            ? "settingMaps"
+                            : "settingService",
                     )}
                   </h2>
                   <Stack gap="lg">
+                    {group === "storage" && <StorageUsage />}
                     {(snapshot.fields || [])
                       .filter((field) => category(field) === group)
                       .map((field) => {
@@ -345,6 +351,63 @@ export function InstanceSettings() {
           </>
         )}
       </div>
+    </section>
+  );
+}
+function StorageUsage() {
+  const { t, prefs } = useI18n();
+  const usage = useQuery({
+    queryKey: ["instance-storage-usage"],
+    queryFn: ({ signal }) =>
+      get<components["schemas"]["StorageUsage"]>("/settings/storage", signal),
+    refetchOnWindowFocus: false,
+  });
+  return (
+    <section aria-label={t("settingStorageUsage")}>
+      <Group gap="xs" mb="sm">
+        <Text size="sm" fw={500}>
+          {t("settingStorageUsage")}
+        </Text>
+        <HelpTooltip label={t("settingStorageUsage")}>
+          {t("settingStorageUsageHint")}
+        </HelpTooltip>
+        <Button
+          size="compact-xs"
+          variant="subtle"
+          loading={usage.isFetching}
+          onClick={() => void usage.refetch()}
+        >
+          {t("refresh")}
+        </Button>
+      </Group>
+      {usage.isPending && (
+        <Text size="sm" c="dimmed" role="status">
+          {t("loading")}
+        </Text>
+      )}
+      {usage.error && (
+        <Text size="sm" c="red" role="alert">
+          {errorMessage(usage.error, t)}
+        </Text>
+      )}
+      {usage.data && (
+        <div className="storage-usage-values">
+          {(
+            [
+              ["originals_bytes", "settingOriginalsUsage"],
+              ["metadata_bytes", "settingMetadataUsage"],
+              ["previews_bytes", "settingPreviewsUsage"],
+            ] as const
+          ).map(([key, label]) => (
+            <div key={key}>
+              <Text size="xs" c="dimmed">
+                {t(label)}
+              </Text>
+              <Text>{formatBytes(usage.data[key], prefs)}</Text>
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

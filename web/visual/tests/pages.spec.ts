@@ -2981,6 +2981,15 @@ for (const panel of [
         },
       }),
     );
+    await page.route("**/api/v1/settings/storage", (route) =>
+      route.fulfill({
+        json: {
+          originals_bytes: 2147483648,
+          metadata_bytes: 8388608,
+          previews_bytes: 134217728,
+        },
+      }),
+    );
     await page.route("**/api/v1/settings/credentials", (route) =>
       route.fulfill({ json: [] }),
     );
@@ -3567,6 +3576,7 @@ for (const mode of ["grid", "list", "mobile", "dark", "prepare"] as const) {
 for (const scenario of [
   "appearance",
   "service",
+  "maps",
   "hint",
   "client-storage",
   "mobile",
@@ -3588,6 +3598,14 @@ for (const scenario of [
         default: "blue",
         explicit: false,
         restart: false,
+      },
+      {
+        key: "server.map_style",
+        kind: "text",
+        value: "https://tiles.openfreemap.org/styles/liberty",
+        default: "https://tiles.openfreemap.org/styles/liberty",
+        explicit: false,
+        restart: true,
       },
       {
         key: "server.listen",
@@ -3642,6 +3660,15 @@ for (const scenario of [
           ]
         : []),
     ];
+    await page.route("**/api/v1/settings/storage", (route) =>
+      route.fulfill({
+        json: {
+          originals_bytes: 2147483648,
+          metadata_bytes: 8388608,
+          previews_bytes: 134217728,
+        },
+      }),
+    );
     await page.route("**/api/v1/settings/credentials", (route) =>
       route.fulfill({ json: [] }),
     );
@@ -3683,6 +3710,12 @@ for (const scenario of [
       ).toBeInViewport();
       await expect(settings).toContainText("127.0.0.1:19000");
       await expect(settings).toContainText("重启");
+    }
+    if (scenario === "maps") {
+      await settings.getByRole("link", { name: "地图", exact: true }).click();
+      await expect(
+        settings.getByRole("heading", { name: "地图", exact: true }),
+      ).toBeInViewport();
     }
     if (scenario === "hint") {
       await settings.getByRole("link", { name: "服务", exact: true }).click();
