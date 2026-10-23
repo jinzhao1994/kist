@@ -3442,3 +3442,7 @@ main.upload-drag-active {
 .setting-field-footer > .mantine-Button-root {
   flex-shrink: 0;
 }
+
+.setting-field-footer > .mantine-Button-root:disabled {
+  background: transparent;
+}
