@@ -3373,6 +3373,13 @@ main.upload-drag-active {
   gap: var(--mantine-spacing-sm);
   padding-block: var(--mantine-spacing-lg);
 }
+.section-index::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block: var(--mantine-spacing-lg);
+  border-inline-start: 1px solid var(--mantine-color-default-border);
+}
 .section-index a {
   color: var(--muted);
 }
@@ -3401,8 +3408,9 @@ main.upload-drag-active {
     gap: var(--mantine-spacing-sm);
   }
   .section-index {
-    padding-inline-start: 0;
-    position: static;
+    padding-inline-start: var(--mantine-spacing-lg);
+    position: relative;
+    inset-block-start: auto;
     grid-column: 1;
     grid-row: 1;
   }
