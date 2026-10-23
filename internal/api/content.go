@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"io"
 	"mime"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/library"
 )
 
 type contentInput struct {
@@ -53,6 +55,11 @@ func (s *Server) contentRoutes() {
 						return err
 					})
 				}
+				if s.client != nil && in.At != 0 && errors.Is(err, library.ErrNotCached) {
+					if err = s.cacheClientOriginal(ctx, file.BlobKey); err == nil {
+						handle, err = s.client.OpenOriginal(ctx, file.BlobKey)
+					}
+				}
 				if handle != nil {
 					defer handle.Close()
 				}
@@ -93,7 +100,13 @@ func (s *Server) contentRoutes() {
 // openCurrentContent keeps client cache leases attached to the returned handle.
 func (s *Server) openCurrentContent(ctx context.Context, id domain.FileID) (domain.File, io.ReadSeekCloser, error) {
 	if s.client != nil {
-		return s.client.OpenContent(ctx, id)
+		file, handle, err := s.client.OpenContent(ctx, id)
+		if errors.Is(err, library.ErrNotCached) {
+			if err = s.cacheClientOriginal(ctx, file.BlobKey); err == nil {
+				handle, err = s.client.OpenOriginal(ctx, file.BlobKey)
+			}
+		}
+		return file, handle, err
 	}
 	return s.library.OpenContent(ctx, id)
 }

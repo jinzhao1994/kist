@@ -1,3 +1,7 @@
+import {
+  connectionStatusKey,
+  type ConnectionStatus,
+} from "./ClientConnectionStatus";
 import { mediaProfile } from "./media-profile";
 import livePhotoIcon from "./assets/live-photo.svg?no-inline";
 import { Button } from "@mantine/core";
@@ -321,16 +325,28 @@ export function Media({
     (detail ? profile?.detail : profile?.thumbnail) || "thumb_512_v1";
   const path = mediaPath(file, recipe);
   const key = mediaKey(file, recipe);
-  const readerPDF = detail && file.media_type === "application/pdf";
+  const readerPDF = detail && profile?.id === "pdf";
   const originalImage = detail && usesOriginalImage(file);
   const enabled =
     active && hasDerivedMedia(file) && !readerPDF && !originalImage;
   const [failedGeneration, setFailedGeneration] = useState("");
+  const connectionRetry = useRef(0);
   const query = useQuery({
     queryKey: key,
     enabled: enabled && !paused,
     queryFn: async ({ signal }) => {
       const state = await get<MediaJob>(path, signal);
+      const connection =
+        client.getQueryState<ConnectionStatus>(connectionStatusKey);
+      if (
+        state.state === "blocked" &&
+        state.reason === "not_cached" &&
+        connection?.data?.state === "connected" &&
+        connection.dataUpdatedAt > connectionRetry.current
+      ) {
+        connectionRetry.current = connection.dataUpdatedAt;
+        return mediaAction(path, "retry", signal);
+      }
       return state.state === "missing"
         ? mediaAction(path, "request", signal)
         : state;
@@ -389,7 +405,7 @@ export function Media({
         />
       </Suspense>
     );
-  if (livePhoto && detail && file.kind === "video") {
+  if (livePhoto && detail && profile?.id === "video") {
     const retryable =
       query.isError ||
       failed ||
@@ -437,7 +453,7 @@ export function Media({
           <GPXPreview key={src} src={src} name={file.name} detail={detail} />
         </Suspense>
       );
-    return detail && file.kind === "video" ? (
+    return detail && profile?.id === "video" ? (
       <video
         ref={playerRef}
         className="detail-image"

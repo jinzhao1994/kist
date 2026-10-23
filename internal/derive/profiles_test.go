@@ -5,6 +5,11 @@ import "testing"
 func TestPreviewProfilesMatchSupportedBrowserFormats(t *testing.T) {
 	cases := []struct{ name, kind, mime, thumbnail, detail string }{
 		{"photo.png", "image", "image/png", Thumbnail, ""},
+		{"photo.PNG", "", "", Thumbnail, ""},
+		{"photo.heic", "", "", Thumbnail, Preview},
+		{"clip.mov", "", "", VideoThumbnail, Video},
+		{"scan.pdf", "", "", Thumbnail, ""},
+		{"renamed.png", "image", "image/heic", Thumbnail, Preview},
 		{"photo.heic", "image", "image/heic", Thumbnail, Preview},
 		{"clip.mov", "video", "video/quicktime", VideoThumbnail, Video},
 		{"scan.pdf", "document", "application/pdf", Thumbnail, ""},

@@ -1227,6 +1227,7 @@ export interface components {
             no_primary?: boolean;
             path?: string;
             primary_id?: string;
+            primary_name?: string;
             /** Format: int64 */
             size?: number;
             type_label?: string;

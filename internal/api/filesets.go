@@ -139,6 +139,7 @@ func renderEntries(ctx context.Context, reader entryReader, entries []library.Br
 			result.FilesetID = e.Fileset.String()
 			result.PrimaryID = e.Primary.String()
 			result.NoPrimary = e.Primary.IsZero()
+			result.PrimaryName = item.Name
 			result.Name = e.File.Name
 			result.FolderID = e.File.FolderID.String()
 			result.UpdatedAt = e.File.UpdatedAt

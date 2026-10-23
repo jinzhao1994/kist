@@ -1,3 +1,4 @@
+import { ClientConnectionStatus } from "./ClientConnectionStatus";
 import { useBoxCover } from "./BoxCover";
 import { WriteFeedback } from "./mutations";
 import { DialogPresence } from "./Dialog";
@@ -306,11 +307,18 @@ export function App() {
               )}
             </details>
           </div>
-          <div className="sidebar-footer">
-            <small>kist · {info.data?.version || "v0.1"}</small>
-            <UnstyledButton onClick={() => setSettings(true)}>
-              {t("settings")}
-            </UnstyledButton>
+          <div className="sidebar-footer-area">
+            {info.data?.client && (
+              <ClientConnectionStatus
+                openSettings={() => go({ files: false, section: "settings" })}
+              />
+            )}
+            <div className="sidebar-footer">
+              <small>kist · {info.data?.version || "v0.1"}</small>
+              <UnstyledButton onClick={() => setSettings(true)}>
+                {t("settings")}
+              </UnstyledButton>
+            </div>
           </div>
         </aside>
         <main

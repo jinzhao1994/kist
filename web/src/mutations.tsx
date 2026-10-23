@@ -4,6 +4,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { APIError, createWrite } from "./api";
 import { useI18n, type Translate } from "./i18n";
 export function errorMessage(error: unknown, t: Translate) {
+  if (error instanceof APIError && error.body.code === "not_cached")
+    return t("clientOriginalUnavailable");
   if (error instanceof APIError) {
     if (error.body.code === "request_conflict") return t("requestConflict");
     if (error.status === 404) return t("notFound");

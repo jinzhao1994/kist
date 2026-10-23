@@ -59,7 +59,7 @@ func TestFilesetHTTPConfigurationAndSearch(t *testing.T) {
 		t.Fatal(history)
 	}
 	entries := decodeBody[fileSearchResult](t, s, "/entries?name_equals=episode")
-	if len(entries.Files) != 1 || entries.Files[0].FilesetID != folder.String() || entries.Files[0].ID != video.String() {
+	if len(entries.Files) != 1 || entries.Files[0].FilesetID != folder.String() || entries.Files[0].ID != video.String() || entries.Files[0].PrimaryName != "movie.mkv" {
 		t.Fatal(entries)
 	}
 	hidden := decodeBody[fileSearchResult](t, s, "/entries?keyword=sub.srt")

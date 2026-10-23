@@ -38,9 +38,10 @@ type fileDetail struct {
 	Tags []string `json:"tags"`
 }
 type fileSearchItem struct {
-	FilesetID string `json:"fileset_id,omitempty"`
-	PrimaryID string `json:"primary_id,omitempty"`
-	NoPrimary bool   `json:"no_primary,omitempty"`
+	FilesetID   string `json:"fileset_id,omitempty"`
+	PrimaryID   string `json:"primary_id,omitempty"`
+	PrimaryName string `json:"primary_name,omitempty"`
+	NoPrimary   bool   `json:"no_primary,omitempty"`
 	wire.File
 	DisplayTags []displayTag `json:"display_tags,omitempty"`
 }

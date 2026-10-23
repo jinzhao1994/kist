@@ -72,3 +72,11 @@
 
 - box/folder/tag 的创建、更新、空对象删除与改名/移动：已直接核对各 handler 的字段 before、父节点/名称/子对象/引用约束和 Inverse；`client_commands_test.go` 验证独立字段合并、目录所有权和重复名称，`client_tags_test.go` 验证树约束和移动合并 NAS 独立改名。set_fileset 以完整配置比较，不对页序逐行合并；引用校验与嵌套删除回归已核对。协议能力清单由 TestSyncActionCoverage 对照实际注册表，内部 request_receipt 排除。
 - 本地历史 UI 可达性：`LocalHistory.tsx` 原先用 `!op.undo` 隐藏撤销事件的撤销按钮，而客户端 Undo API 与 `TestClientUndoLocalThenRedoAfterNASAcceptance` 已允许对撤销事件再次撤销（重做）。已移除多余隐藏条件，两个状态的组件回归先失败后通过，保留确认与幂等行为；新增桌面/手机正式视觉场景已完整采集审阅，完整检查已通过（`/tmp/kist-local-redo-complete-check.log`），真实 Chrome 两种尺寸已查看；正式视觉接受流程 39708286364 已通过。
+
+### 2026-10-24：在线浏览按需缓存补充
+
+- 新增原件与元数据提取的在线缓存缺失测试，覆盖真实认证远端、凭据撤销、断连后缓存命中以及未缓存内容的 `not_cached` 响应。
+- 补充未提取媒体事实时的扩展名预览选择，以及组合显示名称与主文件名分离的契约断言；连接状态组件覆盖连接正常、不可达、凭据失效、库不匹配和未配置。
+- 本地 Chrome 验证 `19604/files` 的 8 张缩略图全部加载（包含嵌套多页、实况与视频字幕组合），无页面脚本错误；未缓存原图的详情页也能自动下载并显示。浏览验证仅填充缓存，不执行目录同步、批量提取或提交待同步修改。
+- 本轮按用户要求仅做本地验证，不运行或等待 GitHub 工作流；正式视觉基准未更新。
+- 最终 `GO_TEST_TIMEOUT=20m make check` 通过（前端契约、格式、测试、构建、Go vet、全量 race 测试与单二进制构建）。

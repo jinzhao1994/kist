@@ -53,6 +53,14 @@ export const en = {
     "Used when a file’s timestamp does not specify a time zone.",
   settingCredentialStored:
     "A credential is stored. Enter a new credential to update the connection.",
+  remoteConnected: "Remote connected",
+  remoteDisconnected: "Remote unavailable",
+  remoteUnauthorized: "Invalid credential",
+  remoteIncompatible: "Remote mismatch",
+  remoteUnconfigured: "Remote not configured",
+  remoteChecking: "Checking connection…",
+  clientOriginalUnavailable:
+    "This file is not cached and could not be downloaded. Check the remote connection and retry.",
   settingCredentialsHint:
     "Used to connect to this instance. Use a separate credential for each device; revoking it stops synchronization.",
   settingCredentialOnce:
@@ -764,6 +772,14 @@ export const zh: Record<MessageKey, string> = {
   settingMapOrigins: "额外地图资源来源",
   settingTimezoneHint: "文件中的时间未注明时区时，使用此时区。",
   settingCredentialStored: "已保存凭据。修改连接时请填写新凭据。",
+  remoteConnected: "远端已连接",
+  remoteDisconnected: "远端未连接",
+  remoteUnauthorized: "凭据无效",
+  remoteIncompatible: "远端不匹配",
+  remoteUnconfigured: "未配置远端",
+  remoteChecking: "正在检查连接…",
+  clientOriginalUnavailable:
+    "此文件尚未缓存，暂时无法从远端下载。请检查连接后重试。",
   settingCredentialsHint:
     "用于连接此实例。建议每台设备使用独立凭据，撤销后无法继续同步。",
   settingCredentialOnce: "请现在复制此凭据，之后不会再次显示。",

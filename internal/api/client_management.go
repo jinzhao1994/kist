@@ -29,6 +29,7 @@ type clientOfflineUpdate struct {
 
 // Client settings and retention are local runtime state, never NAS archive ops.
 func (s *Server) clientManagementRoutes() {
+	s.clientConnectionStatusRoute()
 	huma.Get(s.contract, Prefix+"/client/status", func(ctx context.Context, _ *struct{}) (*output[library.ClientStatus], error) {
 		status, err := s.client.Status(ctx)
 		return response(status, err)

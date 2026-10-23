@@ -244,6 +244,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/client/connection-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 client connection status */
+        get: operations["get-api-v1-client-connection-status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/client/history": {
         parameters: {
             query?: never;
@@ -1188,6 +1205,11 @@ export interface components {
             allow_http: boolean;
             server: string;
         };
+        ClientConnectionStatus: {
+            server?: string;
+            /** @enum {string} */
+            state: "connected" | "unreachable" | "unauthorized" | "incompatible" | "unconfigured";
+        };
         ClientDeletionPreview: {
             /** Format: int64 */
             file_count: number;
@@ -1381,6 +1403,7 @@ export interface components {
             no_primary?: boolean;
             path?: string;
             primary_id?: string;
+            primary_name?: string;
             /** Format: int64 */
             size?: number;
             type_label?: string;
@@ -2512,6 +2535,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClientStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-client-connection-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientConnectionStatus"];
                 };
             };
             /** @description Error */

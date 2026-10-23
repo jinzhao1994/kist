@@ -40,7 +40,7 @@ export const mediaProfiles = [
   },
   {
     id: "pdf",
-    extensions: [],
+    extensions: [".pdf"],
     media_types: ["application/pdf"],
     kind: "",
     thumbnail: "thumb_512_v1",
@@ -48,7 +48,7 @@ export const mediaProfiles = [
   },
   {
     id: "native-image",
-    extensions: [],
+    extensions: [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".ico"],
     media_types: [
       "image/jpeg",
       "image/png",
@@ -63,7 +63,7 @@ export const mediaProfiles = [
   },
   {
     id: "image",
-    extensions: [],
+    extensions: [".heic", ".heif", ".tif", ".tiff", ".avif"],
     media_types: [],
     kind: "image",
     thumbnail: "thumb_512_v1",
@@ -71,7 +71,16 @@ export const mediaProfiles = [
   },
   {
     id: "video",
-    extensions: [],
+    extensions: [
+      ".mp4",
+      ".mov",
+      ".m4v",
+      ".webm",
+      ".mkv",
+      ".avi",
+      ".mpeg",
+      ".mpg",
+    ],
     media_types: [],
     kind: "video",
     thumbnail: "video_thumb_512_v2",

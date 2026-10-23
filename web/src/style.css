@@ -91,8 +91,10 @@ small {
   background: var(--selected);
   color: var(--selected-text);
 }
-.sidebar-footer {
+.sidebar-footer-area {
   margin-block-start: auto;
+}
+.sidebar-footer {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -3493,4 +3495,22 @@ main.upload-drag-active {
 
 .credential-table tbody tr:focus-within {
   background: var(--mantine-color-default-hover);
+}
+
+.client-connection-status {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  padding-block: var(--mantine-spacing-xs);
+  color: var(--muted);
+  font-size: var(--mantine-font-size-xs);
+}
+.connection-dot {
+  inline-size: 0.4rem;
+  block-size: 0.4rem;
+  border-radius: 50%;
+  background: var(--mantine-color-gray-5);
+}
+.connection-dot[data-connected="true"] {
+  background: var(--mantine-color-green-6);
 }

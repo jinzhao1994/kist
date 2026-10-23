@@ -24,10 +24,10 @@ func PreviewProfiles() []PreviewProfile {
 		{ID: "word", Extensions: []string{".doc", ".docx"}, MediaTypes: []string{"application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}, Thumbnail: OfficeThumbnail, Detail: OfficePDF},
 		{ID: "gpx", Extensions: []string{".gpx"}, MediaTypes: []string{"application/gpx+xml"}, Thumbnail: GPXMap, Detail: GPXMap},
 		{ID: "stl", Extensions: []string{".stl"}, MediaTypes: []string{"model/stl"}, Thumbnail: STLThumbnail, Detail: STLPreview},
-		{ID: "pdf", MediaTypes: []string{"application/pdf"}, Thumbnail: Thumbnail},
-		{ID: "native-image", Kind: "image", MediaTypes: []string{"image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp", "image/x-icon"}, Thumbnail: Thumbnail},
-		{ID: "image", Kind: "image", Thumbnail: Thumbnail, Detail: Preview},
-		{ID: "video", Kind: "video", Thumbnail: VideoThumbnail, Detail: Video},
+		{ID: "pdf", Extensions: []string{".pdf"}, MediaTypes: []string{"application/pdf"}, Thumbnail: Thumbnail},
+		{ID: "native-image", Extensions: []string{".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".ico"}, Kind: "image", MediaTypes: []string{"image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp", "image/x-icon"}, Thumbnail: Thumbnail},
+		{ID: "image", Extensions: []string{".heic", ".heif", ".tif", ".tiff", ".avif"}, Kind: "image", Thumbnail: Thumbnail, Detail: Preview},
+		{ID: "video", Extensions: []string{".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi", ".mpeg", ".mpg"}, Kind: "video", Thumbnail: VideoThumbnail, Detail: Video},
 	}
 	for i := range profiles {
 		if profiles[i].Extensions == nil {
@@ -43,10 +43,12 @@ func PreviewProfiles() []PreviewProfile {
 func PreviewFor(name, kind, mime string) (PreviewProfile, bool) {
 	extension := strings.ToLower(filepath.Ext(name))
 	for _, profile := range PreviewProfiles() {
-		if profile.Kind != "" && profile.Kind != kind {
+		extensionMatch := slices.Contains(profile.Extensions, extension) && (profile.Kind == "" || mime == "")
+		kindMatch := profile.Kind != "" && profile.Kind == kind
+		if profile.Kind != "" && !kindMatch && !(kind == "" && extensionMatch) {
 			continue
 		}
-		if len(profile.Extensions)+len(profile.MediaTypes) > 0 && !slices.Contains(profile.Extensions, extension) && !slices.Contains(profile.MediaTypes, mime) {
+		if len(profile.Extensions)+len(profile.MediaTypes) > 0 && !extensionMatch && !slices.Contains(profile.MediaTypes, mime) && !(kindMatch && len(profile.MediaTypes) == 0) {
 			continue
 		}
 		return profile, true

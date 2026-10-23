@@ -2,6 +2,10 @@ import { expect, it } from "vitest";
 import { mediaProfile } from "./media-profile";
 
 it.each([
+  ["photo.PNG", "", "", "thumb_512_v1", ""],
+  ["photo.heic", "", "", "thumb_512_v1", "preview_2048_v1"],
+  ["clip.mov", "", "", "video_thumb_512_v2", "preview_1080p_v1"],
+  ["scan.pdf", "", "", "thumb_512_v1", ""],
   ["photo.png", "image", "image/png", "thumb_512_v1", ""],
   ["photo.heic", "image", "image/heic", "thumb_512_v1", "preview_2048_v1"],
   [
@@ -35,4 +39,10 @@ it("leaves text and spreadsheet readers on their original bytes", () => {
     mediaProfile({ name: "note.txt", kind: "text", media_type: "text/plain" }),
   ).toBeUndefined();
   expect(mediaProfile({ name: "sheet.xlsx", kind: "other" })).toBeUndefined();
+});
+
+it("uses a combination's primary filename to select its preview", () => {
+  expect(
+    mediaProfile({ name: "Passport", primary_name: "front.png" })?.id,
+  ).toBe("native-image");
 });
