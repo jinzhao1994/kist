@@ -10,8 +10,6 @@ import {
 export const en = {
   pageContents: "On this page",
   instanceSettings: "Settings",
-  instanceSettingsHint:
-    "Saved in this instance’s kist.toml. Browser display preferences are separate.",
   settingsSaved: "Settings saved.",
   settingsPending:
     "Save your other settings before changing the connection or credentials.",
@@ -709,7 +707,6 @@ export type MessageKey = keyof typeof en;
 export const zh: Record<MessageKey, string> = {
   pageContents: "页面目录",
   instanceSettings: "设置",
-  instanceSettingsHint: "保存到当前实例的 kist.toml，浏览器显示偏好单独保存。",
   settingsSaved: "设置已保存。",
   settingsPending: "请先保存其他设置，再修改连接或凭据。",
   settingsConflict: "设置已在别处更改。当前编辑已保留，请重新加载后再保存。",

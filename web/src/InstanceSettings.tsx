@@ -148,9 +148,6 @@ export function InstanceSettings() {
       <header ref={headerRef} className="page-header settings-page-header">
         <div>
           <h1>{t("instanceSettings")}</h1>
-          <Text size="sm" c="dimmed">
-            {t("instanceSettingsHint")}
-          </Text>
         </div>
         <Group className="header-actions">
           <Button
