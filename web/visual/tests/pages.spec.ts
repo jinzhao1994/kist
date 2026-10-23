@@ -85,6 +85,7 @@ const panorama = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="30
 const modelPage = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><rect width="512" height="512" fill="#f3f4f6"/><path d="M256 72L432 168 256 272 80 168Z" fill="#6796b5"/><path d="M80 168L256 272V440L80 336Z" fill="#355e7b"/><path d="M256 272L432 168V336L256 440Z" fill="#4f7c9c"/></svg>`;
 
 type Options = {
+  client?: boolean;
   cover?: boolean;
   primaryColor?: Appearance["primaryColor"];
   mode?: Appearance["mode"];
@@ -454,6 +455,7 @@ async function prepare(page: Page, options: Options = {}) {
       body = {
         version: "visual",
         primary_color: options.primaryColor || "blue",
+        client: options.client || false,
         timezone: "UTC",
         projection_dirty: false,
         max_upload_bytes: 1073741824,
@@ -2543,6 +2545,18 @@ for (const kind of ["box", "file", "folder", "breadcrumb"] as const) {
       await expect(
         page.getByRole("menuitem", { name: "编辑归档盒", exact: true }),
       ).toBeVisible();
+      await expect
+        .poll(() =>
+          page.getByRole("menu").evaluate((menu) => {
+            const rect = menu.getBoundingClientRect();
+            const scale = window.devicePixelRatio;
+            return (
+              Number.isInteger(rect.x * scale) &&
+              Number.isInteger(rect.y * scale)
+            );
+          }),
+        )
+        .toBe(true);
     } else if (kind === "breadcrumb") {
       await expect(
         page
@@ -3557,6 +3571,7 @@ for (const scenario of [
   test(`instance-settings-${scenario}`, async ({ page }, info) => {
     const errors = await prepare(page, {
       mode: scenario === "dark" ? "dark" : "light",
+      client: scenario === "client-storage",
     });
     if (scenario === "mobile")
       await page.setViewportSize({ width: 390, height: 844 });

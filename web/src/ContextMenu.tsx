@@ -13,7 +13,11 @@ export function useContextMenu<T>() {
   const close = () => setMenu(null);
   const atElement = (item: T, target: HTMLElement) => {
     const rect = target.getBoundingClientRect();
-    setMenu({ item, x: rect.left, y: rect.bottom });
+    // A fractional fixed anchor can rasterize text on adjacent pixel rows
+    // when the fade layer is composited and then removed.
+    const scale = window.devicePixelRatio || 1;
+    const snap = (value: number) => Math.round(value * scale) / scale;
+    setMenu({ item, x: snap(rect.left), y: snap(rect.bottom) });
   };
   return {
     menu,
