@@ -3334,9 +3334,6 @@ main.upload-drag-active {
   display: grid;
   gap: var(--mantine-spacing-md);
 }
-.instance-settings-content .mantine-Tabs-list {
-  flex-wrap: wrap;
-}
 .instance-setting {
   min-inline-size: 0;
 }
@@ -3351,4 +3348,28 @@ main.upload-drag-active {
   gap: var(--mantine-spacing-xl);
   padding-block: var(--mantine-spacing-md);
   border-block-end: 1px solid var(--mantine-color-default-border);
+}
+
+.section-index {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mantine-spacing-xs) var(--mantine-spacing-lg);
+  padding-block: var(--mantine-spacing-sm);
+  background: var(--mantine-color-body);
+  border-block-end: 1px solid var(--mantine-color-default-border);
+}
+.flat-page-section {
+  scroll-margin-block-start: 5rem;
+  padding-block: var(--mantine-spacing-lg);
+}
+.flat-page-section + .flat-page-section {
+  border-block-start: 1px solid var(--mantine-color-default-border);
+}
+.flat-page-section > h2 {
+  font-size: var(--mantine-font-size-lg);
+  font-weight: 600;
+  margin-block: 0 var(--mantine-spacing-lg);
 }

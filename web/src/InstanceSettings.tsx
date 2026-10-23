@@ -1,3 +1,4 @@
+import { SectionIndex } from "./SectionIndex";
 import {
   Alert,
   Button,
@@ -9,7 +10,6 @@ import {
   PasswordInput,
   Radio,
   Stack,
-  Tabs,
   Text,
   Textarea,
   TextInput,
@@ -73,7 +73,6 @@ export function InstanceSettings() {
   });
   const [snapshot, setSnapshot] = useState<SettingsData>();
   const [changes, setChanges] = useState<Record<string, unknown>>({});
-  const [tab, setTab] = useState<string | null>("appearance");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -180,103 +179,119 @@ export function InstanceSettings() {
         )}
         {snapshot && (
           <>
-            <Tabs value={tab} onChange={(v) => !busy && setTab(v)}>
-              <Tabs.List>
-                <Tabs.Tab value="appearance">{t("settingAppearance")}</Tabs.Tab>
-                <Tabs.Tab value="storage">{t("settingStorage")}</Tabs.Tab>
-                <Tabs.Tab
-                  value={
-                    snapshot.mode === "client" ? "connection" : "credentials"
-                  }
-                >
-                  {t(
+            <SectionIndex
+              items={[
+                { id: "settings-appearance", label: t("settingAppearance") },
+                { id: "settings-storage", label: t("settingStorage") },
+                { id: "settings-service", label: t("settingService") },
+                {
+                  id: "settings-access",
+                  label: t(
                     snapshot.mode === "client"
                       ? "clientConnection"
                       : "settingCredentials",
+                  ),
+                },
+              ]}
+            />
+            {["appearance", "storage", "service"].map((group) => (
+              <section
+                key={group}
+                id={`settings-${group}`}
+                className="flat-page-section"
+                aria-labelledby={`settings-${group}-title`}
+              >
+                <h2 id={`settings-${group}-title`}>
+                  {t(
+                    group === "appearance"
+                      ? "settingAppearance"
+                      : group === "storage"
+                        ? "settingStorage"
+                        : "settingService",
                   )}
-                </Tabs.Tab>
-                <Tabs.Tab value="service">{t("settingService")}</Tabs.Tab>
-              </Tabs.List>
-              {["appearance", "storage", "service"].map((group) => (
-                <Tabs.Panel key={group} value={group} pt="lg">
-                  <Stack gap="lg">
-                    {(snapshot.fields || [])
-                      .filter((field) => category(field) === group)
-                      .map((field) => {
-                        const changed = Object.hasOwn(changes, field.key);
-                        const value = changed
-                          ? changes[field.key] === null
-                            ? field.default
-                            : changes[field.key]
-                          : field.value;
-                        const overridden = (snapshot.overrides || []).includes(
-                          field.key,
-                        );
-                        return (
-                          <div key={field.key} className="instance-setting">
-                            <SettingInput
-                              field={field}
-                              value={value}
-                              disabled={busy}
-                              change={(value) =>
+                </h2>
+                <Stack gap="lg">
+                  {(snapshot.fields || [])
+                    .filter((field) => category(field) === group)
+                    .map((field) => {
+                      const changed = Object.hasOwn(changes, field.key);
+                      const value = changed
+                        ? changes[field.key] === null
+                          ? field.default
+                          : changes[field.key]
+                        : field.value;
+                      const overridden = (snapshot.overrides || []).includes(
+                        field.key,
+                      );
+                      return (
+                        <div key={field.key} className="instance-setting">
+                          <SettingInput
+                            field={field}
+                            value={value}
+                            disabled={busy}
+                            change={(value) =>
+                              setChanges((old) => ({
+                                ...old,
+                                [field.key]: value,
+                              }))
+                            }
+                          />
+                          <Group justify="space-between" gap="xs" mt="xs">
+                            <Text size="xs" c="dimmed">
+                              {t(
+                                (changed && changes[field.key] === null) ||
+                                  (!changed && !field.explicit)
+                                  ? "settingDefaultValue"
+                                  : "settingCustomValue",
+                              )}
+                              {field.restart ? ` · ${t("settingRestart")}` : ""}
+                            </Text>
+                            <Button
+                              size="compact-xs"
+                              variant="subtle"
+                              disabled={busy || (!field.explicit && !changed)}
+                              onClick={() =>
                                 setChanges((old) => ({
                                   ...old,
-                                  [field.key]: value,
+                                  [field.key]: null,
                                 }))
                               }
-                            />
-                            <Group justify="space-between" gap="xs" mt="xs">
-                              <Text size="xs" c="dimmed">
-                                {t(
-                                  (changed && changes[field.key] === null) ||
-                                    (!changed && !field.explicit)
-                                    ? "settingDefaultValue"
-                                    : "settingCustomValue",
-                                )}
-                                {field.restart
-                                  ? ` · ${t("settingRestart")}`
-                                  : ""}
-                              </Text>
-                              <Button
-                                size="compact-xs"
-                                variant="subtle"
-                                disabled={busy || (!field.explicit && !changed)}
-                                onClick={() =>
-                                  setChanges((old) => ({
-                                    ...old,
-                                    [field.key]: null,
-                                  }))
-                                }
-                              >
-                                {t("settingReset")}
-                              </Button>
-                            </Group>
-                            {overridden && (
+                            >
+                              {t("settingReset")}
+                            </Button>
+                          </Group>
+                          {overridden && (
+                            <Text size="sm" c="dimmed">
+                              {t("settingOverride")}{" "}
+                              {JSON.stringify(snapshot.effective[field.key])}
+                            </Text>
+                          )}
+                          {!overridden &&
+                            (snapshot.restart_required || []).includes(
+                              field.key,
+                            ) && (
                               <Text size="sm" c="dimmed">
-                                {t("settingOverride")}{" "}
-                                {JSON.stringify(snapshot.effective[field.key])}
+                                {t("settingRestartPending")}
                               </Text>
                             )}
-                            {!overridden &&
-                              (snapshot.restart_required || []).includes(
-                                field.key,
-                              ) && (
-                                <Text size="sm" c="dimmed">
-                                  {t("settingRestartPending")}
-                                </Text>
-                              )}
-                          </div>
-                        );
-                      })}
-                    {group === "storage" && snapshot.mode === "library" && (
-                      <Text size="sm" c="dimmed">
-                        {t("settingTimezoneHint")}
-                      </Text>
-                    )}
-                  </Stack>
-                </Tabs.Panel>
-              ))}
-              <Tabs.Panel value="connection" pt="lg">
+                        </div>
+                      );
+                    })}
+                  {group === "storage" && snapshot.mode === "library" && (
+                    <Text size="sm" c="dimmed">
+                      {t("settingTimezoneHint")}
+                    </Text>
+                  )}
+                </Stack>
+              </section>
+            ))}
+            {snapshot.mode === "client" && (
+              <section
+                id="settings-access"
+                className="flat-page-section"
+                aria-labelledby="settings-access-title"
+              >
+                <h2 id="settings-access-title">{t("clientConnection")}</h2>
                 {Object.keys(changes).length > 0 && (
                   <Text size="sm" c="dimmed" mb="md">
                     {t("settingsPending")}
@@ -291,22 +306,29 @@ export function InstanceSettings() {
                     saved={reload}
                   />
                 )}
-              </Tabs.Panel>
-              <Tabs.Panel value="credentials" pt="lg">
+              </section>
+            )}
+            {snapshot.mode === "library" && (
+              <section
+                id="settings-access"
+                className="flat-page-section"
+                aria-labelledby="settings-access-title"
+              >
+                <h2 id="settings-access-title">{t("settingCredentials")}</h2>
                 {Object.keys(changes).length > 0 && (
                   <Text size="sm" c="dimmed" mb="md">
                     {t("settingsPending")}
                   </Text>
                 )}
-                {snapshot.mode === "library" && tab === "credentials" && (
+                {snapshot.mode === "library" && (
                   <Credentials
                     busy={busy || Object.keys(changes).length > 0}
                     run={run}
                     saved={reload}
                   />
                 )}
-              </Tabs.Panel>
-            </Tabs>
+              </section>
+            )}
           </>
         )}
       </div>

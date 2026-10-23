@@ -206,6 +206,13 @@ export function App() {
                 <NavigationIcon kind={section} /> <span>{t(section)}</span>
               </UnstyledButton>
             ))}
+            <UnstyledButton
+              className={`nav-link ${settingsPage ? "active" : ""}`}
+              onClick={() => go({ files: false, section: "settings" })}
+            >
+              <NavigationIcon kind="settings" />
+              <span>{t("instanceSettings")}</span>
+            </UnstyledButton>
             {info.data?.client && (
               <UnstyledButton
                 className={`nav-link ${syncPage ? "active" : ""}`}
@@ -214,13 +221,6 @@ export function App() {
                 <NavigationIcon kind="client" /> <span>{t("clientTitle")}</span>
               </UnstyledButton>
             )}
-            <UnstyledButton
-              className={`nav-link ${settingsPage ? "active" : ""}`}
-              onClick={() => go({ files: false, section: "settings" })}
-            >
-              <NavigationIcon kind="settings" />
-              <span>{t("instanceSettings")}</span>
-            </UnstyledButton>
           </nav>
           <SavedSearches
             current={currentSearch}

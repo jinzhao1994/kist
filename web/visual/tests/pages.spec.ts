@@ -2981,6 +2981,9 @@ for (const panel of [
         },
       }),
     );
+    await page.route("**/api/v1/settings/credentials", (route) =>
+      route.fulfill({ json: [] }),
+    );
     await page.route("**/api/v1/settings", (route) =>
       route.fulfill({
         json: {
@@ -3315,7 +3318,7 @@ for (const panel of [
         dialog.getByRole("button", { name: "保存调整后的修改" }),
       ).toBeEnabled();
     } else if (panel === "cache") {
-      await dialog.getByRole("tab", { name: "离线内容", exact: true }).click();
+      await dialog.getByRole("link", { name: "离线内容", exact: true }).click();
       await expect(
         dialog.getByText("山间清晨.jpg", { exact: true }),
       ).toBeVisible();
@@ -3329,13 +3332,13 @@ for (const panel of [
         .getByRole("button", { name: "设置", exact: true })
         .click();
       dialog = page.getByRole("region", { name: "设置", exact: true });
-      await dialog.getByRole("tab", { name: "连接", exact: true }).click();
+      await dialog.getByRole("link", { name: "连接", exact: true }).click();
       await expect(dialog.getByLabel(/^远端地址/)).toHaveValue(
         "https://nas.example",
       );
       await expect(dialog.getByLabel(/^同步凭据/)).toHaveValue("");
     } else if (panel.startsWith("history")) {
-      await dialog.getByRole("tab", { name: "本机操作", exact: true }).click();
+      await dialog.getByRole("link", { name: "本机操作", exact: true }).click();
       await expect(dialog).toContainText("远端已接纳");
       if (historyUndo) {
         await dialog.getByRole("button", { name: "撤销", exact: true }).click();
@@ -3638,6 +3641,9 @@ for (const scenario of [
           ]
         : []),
     ];
+    await page.route("**/api/v1/settings/credentials", (route) =>
+      route.fulfill({ json: [] }),
+    );
     await page.route("**/api/v1/settings", (route) =>
       route.fulfill({
         json: {
@@ -3664,12 +3670,12 @@ for (const scenario of [
         .getByRole("button", { name: "设置", exact: true }),
     ).toHaveClass(/active/);
     if (scenario === "service") {
-      await settings.getByRole("tab", { name: "服务", exact: true }).click();
+      await settings.getByRole("link", { name: "服务", exact: true }).click();
       await expect(settings).toContainText("127.0.0.1:19000");
       await expect(settings).toContainText("重启");
     }
     if (client)
-      await settings.getByRole("tab", { name: "存储", exact: true }).click();
+      await settings.getByRole("link", { name: "存储", exact: true }).click();
     await capture(page, errors, info.title);
   });
 }

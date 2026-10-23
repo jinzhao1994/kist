@@ -130,9 +130,10 @@ it("keeps edits on conflict and does not retry the write", async () => {
 it("allows multi-line origins and keeps stored credentials out of inputs", async () => {
   const user = userEvent.setup();
   mount();
-  await user.click(await screen.findByRole("tab", { name: "Connection" }));
+  await screen.findByRole("heading", { name: "Connection" });
   expect(screen.getByLabelText(/^Sync credential/)).toHaveValue("");
-  await user.click(screen.getByRole("tab", { name: "Service" }));
+  expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Service" })).toBeVisible();
   const origins = screen.getByRole("textbox", { name: "Allowed web origins" });
   await user.type(origins, "https://one.example{Enter}https://two.example");
   expect(origins).toHaveValue("https://one.example\nhttps://two.example");

@@ -1,12 +1,5 @@
-import {
-  Alert,
-  Button,
-  Checkbox,
-  Group,
-  Stack,
-  Tabs,
-  Text,
-} from "@mantine/core";
+import { SectionIndex } from "./SectionIndex";
+import { Alert, Button, Checkbox, Group, Stack, Text } from "@mantine/core";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ClientConflictEditor } from "./ClientConflictEditor";
@@ -38,7 +31,6 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
   });
   const [busy, setBusy] = useState(false);
   const [historyLocked, setHistoryLocked] = useState(false);
-  const [tab, setTab] = useState<string | null>("sync");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [editing, setEditing] = useState<{ id: string; action: string }>();
@@ -111,18 +103,20 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
           )}
           {notice && <Text role="status">{notice}</Text>}
           {data && (
-            <Tabs
-              value={tab}
-              onChange={(value) => {
-                if (!busy && !historyLocked) setTab(value);
-              }}
-            >
-              <Tabs.List>
-                <Tabs.Tab value="sync">{t("clientSync")}</Tabs.Tab>
-                <Tabs.Tab value="cache">{t("clientCache")}</Tabs.Tab>
-                <Tabs.Tab value="history">{t("clientHistory")}</Tabs.Tab>
-              </Tabs.List>
-              <Tabs.Panel value="sync" pt="md">
+            <>
+              <SectionIndex
+                items={[
+                  { id: "sync-status", label: t("clientSync") },
+                  { id: "sync-cache", label: t("clientCache") },
+                  { id: "sync-history", label: t("clientHistory") },
+                ]}
+              />
+              <section
+                id="sync-status"
+                className="flat-page-section"
+                aria-labelledby="sync-status-title"
+              >
+                <h2 id="sync-status-title">{t("clientSync")}</h2>
                 {editing ? (
                   <ClientConflictEditor
                     key={editing.id}
@@ -239,8 +233,13 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
                     ))}
                   </Stack>
                 )}
-              </Tabs.Panel>
-              <Tabs.Panel value="cache" pt="md">
+              </section>
+              <section
+                id="sync-cache"
+                className="flat-page-section"
+                aria-labelledby="sync-cache-title"
+              >
+                <h2 id="sync-cache-title">{t("clientCache")}</h2>
                 <Stack gap="md">
                   {cache.error && (
                     <Text role="alert">{errorMessage(cache.error, t)}</Text>
@@ -284,11 +283,7 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
                       })}
                     </Text>
                   )}
-                  <OfflineRetention
-                    active={tab === "cache"}
-                    busy={busy}
-                    run={run}
-                  />
+                  <OfflineRetention active busy={busy} run={run} />
                   <Text size="sm" c="dimmed">
                     {t("clientSyncCacheNote")}
                   </Text>
@@ -316,14 +311,16 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
                     </Button>
                   </Group>
                 </Stack>
-              </Tabs.Panel>
-              <Tabs.Panel value="history" pt="md">
-                <LocalHistory
-                  active={tab === "history"}
-                  onLocked={setHistoryLocked}
-                />
-              </Tabs.Panel>
-            </Tabs>
+              </section>
+              <section
+                id="sync-history"
+                className="flat-page-section"
+                aria-labelledby="sync-history-title"
+              >
+                <h2 id="sync-history-title">{t("clientHistory")}</h2>
+                <LocalHistory active onLocked={setHistoryLocked} />
+              </section>
+            </>
           )}
           <div className="actions">
             {busy && (
