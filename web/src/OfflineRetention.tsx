@@ -1,3 +1,4 @@
+import { EmptyHint } from "./EmptyHint";
 import { Button, Group, Stack, Text } from "@mantine/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -35,9 +36,7 @@ export function OfflineRetention({ active, busy, run }: Props) {
         <Text role="alert">{errorMessage(selections.error, t)}</Text>
       )}
       {selections.data && Object.keys(selections.data).length === 0 && (
-        <Text size="sm" c="dimmed">
-          {t("clientRetainedEmpty")}
-        </Text>
+        <EmptyHint>{t("clientRetainedEmpty")}</EmptyHint>
       )}
       {active &&
         Object.entries(selections.data || {})

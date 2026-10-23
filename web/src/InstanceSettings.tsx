@@ -1,3 +1,4 @@
+import { EmptyHint } from "./EmptyHint";
 import { HelpTooltip } from "./HelpTooltip";
 import { SectionIndex } from "./SectionIndex";
 import {
@@ -793,9 +794,7 @@ function Credentials({
             {query.data?.length === 0 && (
               <Table.Tr>
                 <Table.Td colSpan={4}>
-                  <Text size="sm" c="dimmed">
-                    {t("settingCredentialsEmpty")}
-                  </Text>
+                  <EmptyHint>{t("settingCredentialsEmpty")}</EmptyHint>
                 </Table.Td>
               </Table.Tr>
             )}

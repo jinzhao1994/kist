@@ -1,3 +1,4 @@
+import { EmptyHint } from "./EmptyHint";
 import { Button, Group, Stack, Text, UnstyledButton } from "@mantine/core";
 import { useEffect, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
@@ -89,7 +90,7 @@ export function LocalHistory({
       {!selected && (
         <>
           {list.data?.pages[0]?.entries.length === 0 && (
-            <Text c="dimmed">{t("clientHistoryEmpty")}</Text>
+            <EmptyHint>{t("clientHistoryEmpty")}</EmptyHint>
           )}
           {list.data?.pages
             .flatMap((page) => page.entries)
