@@ -198,6 +198,8 @@ export const en = {
   clientCachePruned: "Cache cleanup complete",
   clientServer: "remote address",
   clientToken: "Sync credential",
+  clientCredentialHelp: "Credential help",
+  clientCredentialSaved: "Credential saved",
   clientAllowHTTP: "Allow unencrypted HTTP outside this computer",
   clientConnectionHint:
     "Use a sync credential created on the remote. This client remains bound to the same library.",
@@ -910,6 +912,8 @@ export const zh: Record<MessageKey, string> = {
   clientCachePruned: "缓存清理完成",
   clientServer: "远端地址",
   clientToken: "同步凭据",
+  clientCredentialHelp: "凭据说明",
+  clientCredentialSaved: "已保存凭据",
   clientAllowHTTP: "允许使用未加密的远程 HTTP 连接",
   clientConnectionHint:
     "使用远端上创建的同步凭据，此客户端始终绑定同一个资料库。",

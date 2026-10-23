@@ -3372,6 +3372,12 @@ for (const panel of [
         "https://nas.example",
       );
       await expect(dialog.getByLabel(/^同步凭据/)).toHaveValue("");
+      await expect(
+        dialog.getByRole("button", { name: "凭据说明", exact: true }),
+      ).toBeVisible();
+      await expect(
+        dialog.getByText("已保存凭据", { exact: true }),
+      ).toBeVisible();
     } else if (panel.startsWith("history")) {
       await dialog.getByRole("link", { name: "本机操作", exact: true }).click();
       await expect(dialog).toContainText("远端已接纳");

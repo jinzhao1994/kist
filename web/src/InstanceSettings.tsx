@@ -596,6 +596,8 @@ function ConnectionSettings({
   saved: (signal?: AbortSignal) => Promise<void>;
 }) {
   const { t } = useI18n();
+  const serverId = useId();
+  const tokenId = useId();
   const [server, setServer] = useState(settings.connection?.server || "");
   const [token, setToken] = useState("");
   const [allowHTTP, setAllowHTTP] = useState(
@@ -622,37 +624,54 @@ function ConnectionSettings({
         });
       }}
     >
-      <Stack gap="md">
-        <TextInput
-          label={t("clientServer")}
-          value={server}
-          onChange={(e) => setServer(e.currentTarget.value)}
-          disabled={busy}
-          required
-          type="url"
-        />
-        <PasswordInput
-          label={t("clientToken")}
-          description={
-            settings.credential_configured
-              ? t("settingCredentialStored")
-              : undefined
-          }
-          value={token}
-          onChange={(e) => setToken(e.currentTarget.value)}
-          disabled={busy}
-          required
-          autoComplete="off"
-        />
+      <Stack gap="lg">
+        <div>
+          <Group className="setting-field-heading" gap="xs" mb={4}>
+            <Input.Label htmlFor={serverId} required>
+              {t("clientServer")}
+            </Input.Label>
+          </Group>
+          <TextInput
+            id={serverId}
+            value={server}
+            onChange={(e) => setServer(e.currentTarget.value)}
+            disabled={busy}
+            required
+            type="url"
+          />
+        </div>
+        <div>
+          <Group className="setting-field-heading" gap="xs" mb={4}>
+            <Input.Label htmlFor={tokenId} required>
+              {t("clientToken")}
+            </Input.Label>
+            <HelpTooltip label={t("clientCredentialHelp")}>
+              {t("clientConnectionHint")}
+              {settings.credential_configured &&
+                ` ${t("settingCredentialStored")}`}
+            </HelpTooltip>
+            {settings.credential_configured && (
+              <Text size="xs" c="dimmed">
+                {t("clientCredentialSaved")}
+              </Text>
+            )}
+          </Group>
+          <PasswordInput
+            id={tokenId}
+            value={token}
+            onChange={(e) => setToken(e.currentTarget.value)}
+            disabled={busy}
+            required
+            autoComplete="off"
+          />
+        </div>
         <Checkbox
           label={t("clientAllowHTTP")}
+          size="sm"
           checked={allowHTTP}
           onChange={(e) => setAllowHTTP(e.currentTarget.checked)}
           disabled={busy}
         />
-        <Text size="sm" c="dimmed">
-          {t("clientConnectionHint")}
-        </Text>
         <Group>
           <Button type="submit" disabled={busy}>
             {t("clientConnect")}
