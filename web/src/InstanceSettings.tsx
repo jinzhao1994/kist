@@ -350,7 +350,7 @@ function SettingInput(props: {
         : undefined;
   return (
     <>
-      <Group gap="xs" mb={4}>
+      <Group className="setting-field-heading" gap="xs" mb={4}>
         <Input.Label htmlFor={id}>{label}</Input.Label>
         {hint && <HelpTooltip label={label}>{hint}</HelpTooltip>}
         {field.restart && (

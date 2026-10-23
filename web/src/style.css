@@ -3428,3 +3428,9 @@ main.upload-drag-active {
     0 -2.4rem 0 var(--mantine-color-body),
     0 1rem 0 var(--mantine-color-body);
 }
+
+.setting-field-heading > .mantine-InputWrapper-label,
+.setting-field-heading > .mantine-Text-root {
+  margin-block: 0;
+  line-height: 1.5rem;
+}
