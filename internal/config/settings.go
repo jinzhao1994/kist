@@ -161,6 +161,12 @@ var ErrChanged = errors.New("configuration changed; reload before saving")
 // Update is called under the instance configuration lock. An empty revision is
 // reserved for internal read-modify-write operations that already hold it.
 func Update(path, revision string, changes map[string]any) error {
+	return UpdateValidated(path, revision, changes, nil)
+}
+
+// UpdateValidated validates runtime prerequisites before publishing the file.
+// The caller holds the instance configuration lock.
+func UpdateValidated(path, revision string, changes map[string]any, validate func(*Config) error) error {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -197,8 +203,14 @@ func Update(path, revision string, changes map[string]any) error {
 	if err != nil {
 		return err
 	}
-	if _, err = Decode(canonical); err != nil {
+	candidate, err := Decode(canonical)
+	if err != nil {
 		return err
+	}
+	if validate != nil {
+		if err := validate(candidate); err != nil {
+			return err
+		}
 	}
 	// Preserve common hand-written files, including comments and untouched tables.
 	// Complex TOML syntax falls back to semantic encoding, never string guessing.

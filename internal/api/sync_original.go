@@ -34,7 +34,7 @@ func originalUploadState(state staging.State) syncOriginalUpload {
 
 func (s *Server) syncOriginalAction(ctx context.Context, id string, fn func(*staging.Session) error) (syncOriginalUpload, error) {
 	var result syncOriginalUpload
-	err := s.syncUploads.With(ctx, id, func(session *staging.Session) error {
+	err := s.runtime(ctx).syncUploads.With(ctx, id, func(session *staging.Session) error {
 		if fn != nil {
 			if err := fn(session); err != nil {
 				return err
@@ -74,7 +74,7 @@ func (s *Server) syncOriginalRoutes() {
 			return nil, invalid("Invalid original address")
 		}
 		manifest := staging.Manifest{Box: "sync", Folder: "original", Target: key.Hex(), DestinationToken: string(key), Files: []staging.File{{Path: "original", Size: in.Body.Size, SHA256: key.Hex()}}}
-		state, err := s.syncUploads.Create(ctx, "sync-original:"+string(key), manifest)
+		state, err := s.runtime(ctx).syncUploads.Create(ctx, "sync-original:"+string(key), manifest)
 		if err != nil {
 			return nil, failure(err)
 		}

@@ -3607,7 +3607,7 @@ for (const scenario of [
         value: "https://tiles.openfreemap.org/styles/liberty",
         default: "https://tiles.openfreemap.org/styles/liberty",
         explicit: false,
-        restart: true,
+        restart: false,
       },
       {
         key: "server.listen",
@@ -3623,7 +3623,7 @@ for (const scenario of [
         value: ["https://archive.example"],
         default: [],
         explicit: true,
-        restart: true,
+        restart: false,
       },
       {
         key: "server.max_upload_bytes",
@@ -3631,7 +3631,7 @@ for (const scenario of [
         value: 34359738368,
         default: 34359738368,
         explicit: false,
-        restart: true,
+        restart: false,
       },
       {
         key: "server.max_upload_files",
@@ -3639,7 +3639,7 @@ for (const scenario of [
         value: 1000,
         default: 1000,
         explicit: false,
-        restart: true,
+        restart: false,
       },
       ...(client
         ? [
@@ -3700,7 +3700,7 @@ for (const scenario of [
           fields,
           effective: { "server.listen": "127.0.0.1:19000" },
           overrides: ["server.listen"],
-          restart_required: ["server.allowed_origins"],
+          restart_required: ["server.listen"],
         },
       }),
     );

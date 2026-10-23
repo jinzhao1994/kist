@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"log/slog"
 	"path/filepath"
+	"sync/atomic"
 	"time"
 
 	"github.com/jinzhao1994/kist/internal/blob"
@@ -20,10 +21,10 @@ import (
 // write to one (invariant 2). api and cmd hold one of these; neither can reach
 // store's write side, because the write path is unexported.
 type Library struct {
-	layout Layout
-	cfg    *config.Config
-	db     *sql.DB
-	blobs  *blob.Dir
+	layout   Layout
+	settings atomic.Pointer[loadedSettings]
+	db       *sql.DB
+	blobs    *blob.Dir
 	// ops is the authoritative log. The database is a projection of it
 	// (invariant 1); everything written here lands in ops first.
 	ops *journal.Dir
@@ -34,9 +35,6 @@ type Library struct {
 	log   *slog.Logger
 	now   func() time.Time
 	hooks hooks
-	// loc is the library's timezone, resolved once at Open. It interprets a
-	// date range against capture instants and renders one back (spec 1.5.2).
-	loc *time.Location
 	// noRecovery suppresses Open's catch-up. See WithoutRecovery.
 	noRecovery bool
 }
@@ -93,7 +91,6 @@ func Open(root string, opts ...Option) (*Library, error) {
 
 	l := &Library{
 		layout: layout,
-		cfg:    cfg,
 		log:    slog.Default(),
 		now:    time.Now,
 		lock:   lockfile.New(layout.LockPath()),
@@ -102,9 +99,11 @@ func Open(root string, opts ...Option) (*Library, error) {
 		opt(l)
 	}
 
-	if l.loc, err = cfg.Library.Zone(); err != nil {
+	zone, err := cfg.Library.Zone()
+	if err != nil {
 		return nil, err
 	}
+	l.settings.Store(&loadedSettings{config: cfg, zone: zone})
 	if l.db, err = store.Open(layout.DB()); err != nil {
 		return nil, err
 	}
@@ -173,14 +172,14 @@ func (l *Library) TagTree() (*TagTree, map[domain.TagID]int, error) {
 
 // zone is the library's configured timezone (spec 1.5.2). It interprets a date
 // range against capture instants and renders one back.
-func (l *Library) zone() *time.Location { return l.loc }
+func (l *Library) zone() *time.Location { return l.settings.Load().zone }
 
 // Zone is the timezone this library renders instants in.
 //
 // It is exported because a capture time is an instant and rendering it is the
 // caller's decision (spec 1.5.2): cmd needs it to put an offset on the JSON,
 // and api will need it for the same reason.
-func (l *Library) Zone() *time.Location { return l.loc }
+func (l *Library) Zone() *time.Location { return l.settings.Load().zone }
 
 // Box reads one box.
 func (l *Library) Box(ctx context.Context, id domain.BoxID) (domain.Box, bool, error) {

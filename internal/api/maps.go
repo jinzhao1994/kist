@@ -60,7 +60,9 @@ func (p MapProvider) connectSources() (string, error) {
 	return strings.Join(origins, " "), nil
 }
 
-func (s *Server) mapRoutes(p MapProvider) {
+func (s *Server) mapRoutes() {
 	type output struct{ Body MapProvider }
-	huma.Get(s.contract, Prefix+"/map-provider", func(context.Context, *struct{}) (*output, error) { return &output{Body: p}, nil })
+	huma.Get(s.contract, Prefix+"/map-provider", func(ctx context.Context, _ *struct{}) (*output, error) {
+		return &output{Body: s.runtime(ctx).provider}, nil
+	})
 }

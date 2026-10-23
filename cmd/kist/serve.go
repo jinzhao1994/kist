@@ -42,6 +42,7 @@ func newServeCmd() *cobra.Command {
 			return err
 		}
 		applyServiceSettings(&opt, effective, overrides)
+		opt.ResolveSettings = reloadResolver(cmd, effective.Listen)
 		opt.UI = web.Handler()
 		handler, err := api.New(l, opt)
 		if err != nil {
@@ -53,6 +54,8 @@ func newServeCmd() *cobra.Command {
 		}
 		ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
+		stopReload := watchConfigReload(ctx, handler, cmd.ErrOrStderr())
+		defer stopReload()
 		mediaCtx, cancelMedia := context.WithCancel(ctx)
 		mediaDone := make(chan struct{})
 		go func() { handler.RunMedia(mediaCtx); close(mediaDone) }()

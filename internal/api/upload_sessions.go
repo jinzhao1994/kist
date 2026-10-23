@@ -104,7 +104,7 @@ func (s *Server) uploadSessionRoutes() {
 		if m.ConflictMode != "" && m.ConflictMode != "overwrite" && m.ConflictMode != "keep_both" {
 			return nil, invalid("Unknown conflict mode")
 		}
-		if len(files) == 0 || len(files) > s.maxUploadFiles {
+		if len(files) == 0 || len(files) > s.runtime(ctx).maxUploadFiles {
 			return nil, invalid("Invalid upload file count")
 		}
 		if in.Body.Version == 2 {
@@ -121,7 +121,7 @@ func (s *Server) uploadSessionRoutes() {
 		// A lost creation response must return the original snapshot, even if
 		// the target changed since then. The final commit rechecks that snapshot.
 		var existing staging.State
-		existingErr := s.uploads.With(ctx, id, func(v *staging.Session) error {
+		existingErr := s.runtime(ctx).uploads.With(ctx, id, func(v *staging.Session) error {
 			existing = v.State()
 			if sessionRequest(id, existing.Manifest).Digest != sessionRequest(id, m).Digest {
 				return library.ErrRequestConflict
@@ -158,7 +158,7 @@ func (s *Server) uploadSessionRoutes() {
 		if err != nil {
 			return nil, failure(err)
 		}
-		state, err := s.uploads.Create(ctx, in.Key, m)
+		state, err := s.runtime(ctx).uploads.Create(ctx, in.Key, m)
 		return response(sessionStatus{Session: &state}, err)
 	})
 	huma.Get(s.contract, Prefix+"/upload-sessions/{id}", func(ctx context.Context, in *sessionInput) (*output[sessionStatus], error) {
@@ -176,7 +176,7 @@ func (s *Server) uploadSessionRoutes() {
 		if (err == nil || gone) && !status.completed() {
 			// The cancellation marker is durable even if cleanup fails. Periodic
 			// cleanup retries it; an archived receipt is never canceled.
-			if sweepErr := s.uploads.Sweep(ctx); sweepErr != nil {
+			if sweepErr := s.runtime(ctx).uploads.Sweep(ctx); sweepErr != nil {
 				slog.Warn("upload cleanup", "error", sweepErr)
 			}
 		}
@@ -214,7 +214,7 @@ func (s *Server) sessionAction(ctx context.Context, id string, fn func(*staging.
 	if found {
 		return receipt, nil
 	}
-	err = s.uploads.With(ctx, id, func(v *staging.Session) error {
+	err = s.runtime(ctx).uploads.With(ctx, id, func(v *staging.Session) error {
 		receipt, found, err := s.checkUploadRequest(ctx, sessionRequest(id, v.State().Manifest))
 		if err != nil {
 			return err
@@ -379,11 +379,11 @@ func (s *Server) RunUploads(ctx context.Context) {
 	ticker := time.NewTicker(time.Hour)
 	defer ticker.Stop()
 	for {
-		if err := s.uploads.Sweep(ctx); err != nil && ctx.Err() == nil {
+		if err := s.runtime(ctx).uploads.Sweep(ctx); err != nil && ctx.Err() == nil {
 			slog.Warn("upload cleanup", "error", err)
 		}
-		if s.syncUploads != nil {
-			if err := s.syncUploads.Sweep(ctx); err != nil && ctx.Err() == nil {
+		if s.runtime(ctx).syncUploads != nil {
+			if err := s.runtime(ctx).syncUploads.Sweep(ctx); err != nil && ctx.Err() == nil {
 				slog.Warn("sync upload cleanup", "error", err)
 			}
 		}

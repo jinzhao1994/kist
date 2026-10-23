@@ -116,7 +116,9 @@ func (l *Library) ViewAt(ctx context.Context, target int64, fn func(*HistoricalV
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	view := &HistoricalView{historicalReader: &Library{db: db, blobs: l.blobs, loc: l.loc}}
+	reader := &Library{db: db, blobs: l.blobs}
+	reader.settings.Store(l.settings.Load())
+	view := &HistoricalView{historicalReader: reader}
 	if err := fn(view); err != nil {
 		return err
 	}

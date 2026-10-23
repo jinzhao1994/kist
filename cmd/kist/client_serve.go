@@ -36,6 +36,7 @@ func newClientServeCmd() *cobra.Command {
 			return err
 		}
 		applyServiceSettings(&opt, effective, overrides)
+		opt.ResolveSettings = reloadResolver(cmd, effective.Listen)
 		opt.UI = web.Handler()
 		opt.ClientRenderer = runClientRenderer
 		handler, err := api.NewClient(client, opt)
@@ -48,6 +49,8 @@ func newClientServeCmd() *cobra.Command {
 		}
 		ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
+		stopReload := watchConfigReload(ctx, handler, cmd.ErrOrStderr())
+		defer stopReload()
 		uploadCtx, cancelUploads := context.WithCancel(ctx)
 		uploadDone := make(chan struct{})
 		go func() { handler.RunUploads(uploadCtx); close(uploadDone) }()

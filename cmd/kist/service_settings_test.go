@@ -28,3 +28,26 @@ func TestServiceSettingsOnlyExplicitFlagsOverrideFile(t *testing.T) {
 		t.Fatalf("client defaults: %v", err)
 	}
 }
+
+func TestReloadResolverKeepsListenerAndExplicitLimits(t *testing.T) {
+	cmd := newServeCmd()
+	if err := cmd.Flags().Set("max-upload-files", "19"); err != nil {
+		t.Fatal(err)
+	}
+	stored := config.Defaults("library").Server
+	stored.Listen = "127.0.0.1:19002"
+	stored.MaxUploadFiles = 7
+	stored.MapStyle = "https://maps.example/style.json"
+	opt, err := reloadResolver(cmd, "127.0.0.1:19001")(stored)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opt.ServiceSettings.Listen != "127.0.0.1:19001" || opt.MaxUploadFiles != 19 || opt.MapProvider.StyleURL != stored.MapStyle {
+		t.Fatal(opt)
+	}
+	for _, host := range opt.AllowedHosts {
+		if host == "127.0.0.1:19002" {
+			t.Fatal("allowed unbound listener", host)
+		}
+	}
+}

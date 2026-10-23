@@ -8,11 +8,11 @@ import (
 	"fmt"
 	"mime"
 	"net/http"
-	"net/url"
 	"path"
-	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
@@ -27,6 +27,7 @@ const maxJSONBody = 1 << 20
 // Options declares trusted authorities. Hosts include ports; wildcard hosts
 // are deliberately unsupported. AllowedOrigins are full scheme/host origins.
 type Options struct {
+	ResolveSettings  func(config.Server) (Options, error)
 	ServiceSettings  *config.Server
 	SettingOverrides []string
 	ClientRenderer   library.ClientRenderer
@@ -40,9 +41,12 @@ type Options struct {
 }
 
 type Server struct {
+	current          atomic.Pointer[runtimeSettings]
+	reloadMu         sync.Mutex
+	resolveSettings  func(config.Server) (Options, error)
+	baseHosts        []string
 	startupSettings  map[string]any
 	settingOverrides []string
-	mapConnect       string
 	library          *library.Library
 	client           *library.Client
 	media            *library.Media
@@ -50,14 +54,8 @@ type Server struct {
 	clientRenderer   library.ClientRenderer
 	mux              *http.ServeMux
 	contract         huma.API
-	hosts            map[string]bool
-	origins          map[string]bool
-	maxUploadBytes   int64
-	maxUploadFiles   int
 	uploadTempDir    string
 	historySlots     chan struct{}
-	uploads          *staging.Store
-	syncUploads      *staging.Store
 	uploadSlots      chan struct{}
 	// uploadFault is immutable while serving and used only by fault-injection tests.
 	uploadFault func(string) error
@@ -82,34 +80,14 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 	if opt.MaxUploadBytes < 1 || opt.MaxUploadFiles < 1 {
 		return nil, fmt.Errorf("upload limits must be positive")
 	}
-	s := &Server{maxUploadBytes: opt.MaxUploadBytes, maxUploadFiles: opt.MaxUploadFiles, uploadTempDir: opt.UploadTempDir, library: l, client: c, mux: http.NewServeMux(), hosts: map[string]bool{}, origins: map[string]bool{}}
-	provider := DefaultMapProvider()
-	if opt.MapProvider != nil {
-		provider = *opt.MapProvider
+	s := &Server{uploadTempDir: opt.UploadTempDir, library: l, client: c, mux: http.NewServeMux(), resolveSettings: opt.ResolveSettings, baseHosts: append([]string(nil), opt.AllowedHosts...)}
+	runtime, err := s.buildRuntime(opt)
+	if err != nil {
+		return nil, err
 	}
-	connect, mapErr := provider.connectSources()
-	if mapErr != nil {
-		return nil, mapErr
-	}
-	s.mapConnect = connect
+	s.current.Store(runtime)
 	s.historySlots = make(chan struct{}, 2)
-	if (l == nil && c == nil) || len(opt.AllowedHosts) == 0 {
-		return nil, fmt.Errorf("a library and explicit allowed hosts are required")
-	}
-	for _, host := range opt.AllowedHosts {
-		u, err := url.Parse("http://" + host)
-		if err != nil || u.Host != host || u.Hostname() == "" || u.User != nil || u.Path != "" || strings.ContainsAny(host, "*?#\\") {
-			return nil, fmt.Errorf("invalid allowed host %q", host)
-		}
-		s.hosts[strings.ToLower(host)] = true
-	}
-	for _, origin := range opt.AllowedOrigins {
-		u, err := url.Parse(origin)
-		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
-			return nil, fmt.Errorf("invalid allowed origin %q", origin)
-		}
-		s.origins[origin] = true
-	}
+	s.uploadSlots = make(chan struct{}, staging.MaxSessions)
 	cfg := huma.DefaultConfig("kist API", "1.0.0")
 	cfg.Components.Schemas = huma.NewMapRegistry("#/components/schemas/", func(t reflect.Type, hint string) string {
 		name := huma.DefaultSchemaNamer(t, hint)
@@ -121,32 +99,13 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 		}
 		return name
 	})
-	var err error
-	if l != nil {
-		s.uploads, err = staging.New(filepath.Join(l.Layout().Root, "uploads"), opt.MaxUploadBytes, opt.MaxUploadFiles)
-		if err != nil {
-			return nil, err
-		}
-		s.uploadSlots = make(chan struct{}, staging.MaxSessions)
-		s.syncUploads, err = staging.New(filepath.Join(l.Layout().Root, "sync-uploads"), opt.MaxUploadBytes, 1)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if c != nil {
-		s.uploads, err = staging.New(c.UploadStagingPath(), opt.MaxUploadBytes, opt.MaxUploadFiles)
-		if err != nil {
-			return nil, err
-		}
-		s.uploadSlots = make(chan struct{}, staging.MaxSessions)
-	}
 	cfg.OpenAPIPath = Prefix + "/openapi"
 	cfg.DocsPath = "" // An embedded UI will link to the offline JSON contract.
 	cfg.SchemasPath = ""
 	cfg.CreateHooks = nil
 	cfg.Transformers = nil // Keep wire JSON identical to the CLI: no injected $schema.
 	s.contract = humago.New(s.mux, cfg)
-	s.mapRoutes(provider)
+	s.mapRoutes()
 	if err := s.settingsRoutes(opt); err != nil {
 		return nil, err
 	}
@@ -197,11 +156,13 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	runtime := s.current.Load()
+	r = r.WithContext(context.WithValue(r.Context(), runtimeKey{}, runtime))
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Referrer-Policy", "no-referrer")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; worker-src 'self'; font-src 'self' blob:; img-src 'self' blob: data:; media-src 'self' blob:; connect-src "+s.mapConnect)
-	if !s.hosts[strings.ToLower(r.Host)] {
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; worker-src 'self'; font-src 'self' blob:; img-src 'self' blob: data:; media-src 'self' blob:; connect-src "+runtime.mapConnect)
+	if !runtime.hosts[strings.ToLower(r.Host)] {
 		writeFailure(w, huma.Error403Forbidden("Host is not allowed"))
 		return
 	}
@@ -211,7 +172,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		scheme = "https"
 	}
 	sameOrigin := scheme + "://" + r.Host
-	if origin != "" && origin != sameOrigin && !s.origins[origin] {
+	if origin != "" && origin != sameOrigin && !runtime.origins[origin] {
 		writeFailure(w, huma.Error403Forbidden("Origin is not allowed"))
 		return
 	}
@@ -248,7 +209,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		upload := r.Method == "POST" && strings.HasPrefix(r.URL.Path, Prefix+"/boxes/") && strings.HasSuffix(r.URL.Path, "/uploads")
 		if upload && err == nil && media == "multipart/form-data" {
-			r.Body = http.MaxBytesReader(w, r.Body, s.maxUploadBytes)
+			r.Body = http.MaxBytesReader(w, r.Body, runtime.maxUploadBytes)
 			s.mux.ServeHTTP(w, r)
 			return
 		}

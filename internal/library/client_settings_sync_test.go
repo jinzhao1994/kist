@@ -15,7 +15,7 @@ func TestClientInheritsNASTimezoneWithoutRewritingPending(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	nas.loc = zone
+	nas.settings.Load().zone = zone
 	f := importOneFile(t, nas, box, "photo.jpg", "original")
 	extractWith(t, nas, &fakeExtractor{id: "exif-ish", version: 1, ns: []string{"exif"}, tags: []extract.KV{text("exif:DateTimeOriginal", "2019:08:12 14:03:22")}})
 	extractWith(t, nas, &fakeExtractor{id: "geo-ish", version: 1, ns: []string{"geo"}, tags: []extract.KV{text("geo:timezone", "America/Los_Angeles")}})

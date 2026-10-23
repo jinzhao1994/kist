@@ -200,7 +200,7 @@ func (c *Client) PrimaryColor() (string, error) {
 	return cfg.Appearance.PrimaryColor, nil
 }
 
-func (l *Library) UpdateSettings(ctx context.Context, revision string, changes map[string]any) error {
+func (l *Library) UpdateSettings(ctx context.Context, revision string, changes map[string]any, validators ...func(config.Server) error) error {
 	normalized, err := config.NormalizeChanges("library", changes)
 	if err != nil {
 		return err
@@ -208,9 +208,9 @@ func (l *Library) UpdateSettings(ctx context.Context, revision string, changes m
 	if revision == "" {
 		return config.ErrChanged
 	}
-	return updateInstanceConfig(ctx, l.layout.Root, revision, normalized)
+	return l.configure(ctx, revision, normalized, validators...)
 }
-func (c *Client) UpdateSettings(ctx context.Context, revision string, changes map[string]any) error {
+func (c *Client) UpdateSettings(ctx context.Context, revision string, changes map[string]any, validators ...func(config.Server) error) error {
 	normalized, err := config.NormalizeChanges("client", changes)
 	if err != nil {
 		return err
@@ -218,5 +218,5 @@ func (c *Client) UpdateSettings(ctx context.Context, revision string, changes ma
 	if revision == "" {
 		return config.ErrChanged
 	}
-	return updateInstanceConfig(ctx, c.root, revision, normalized)
+	return c.configure(ctx, revision, normalized, validators...)
 }

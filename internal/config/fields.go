@@ -25,18 +25,18 @@ func fieldDefinitions(mode string) []Field {
 	fields := []Field{
 		{Key: "appearance.primary_color", Kind: "select", Options: []string{"gray", "green", "yellow", "pink", "blue", "orange"}},
 		{Key: "server.listen", Kind: "text", Restart: true},
-		{Key: "server.allowed_origins", Kind: "list", Restart: true},
-		{Key: "server.max_upload_bytes", Kind: "bytes", Restart: true},
-		{Key: "server.max_upload_files", Kind: "integer", Restart: true},
-		{Key: "server.map_style", Kind: "text", Restart: true},
-		{Key: "server.map_terrain_tiles", Kind: "text", Restart: true},
-		{Key: "server.map_terrain_attribution", Kind: "text", Restart: true},
-		{Key: "server.map_resource_origins", Kind: "list", Restart: true},
+		{Key: "server.allowed_origins", Kind: "list"},
+		{Key: "server.max_upload_bytes", Kind: "bytes"},
+		{Key: "server.max_upload_files", Kind: "integer"},
+		{Key: "server.map_style", Kind: "text"},
+		{Key: "server.map_terrain_tiles", Kind: "text"},
+		{Key: "server.map_terrain_attribution", Kind: "text"},
+		{Key: "server.map_resource_origins", Kind: "list"},
 	}
 	if mode == "client" {
 		return append(fields, Field{Key: "client.cache_max_age", Kind: "text"}, Field{Key: "client.cache_max_bytes", Kind: "bytes"})
 	}
-	return append(fields, Field{Key: "library.timezone", Kind: "text", Restart: true}, Field{Key: "storage.link_mode", Kind: "select", Restart: true, Options: []string{"", "copy", "reflink", "hardlink", "symlink"}})
+	return append(fields, Field{Key: "library.timezone", Kind: "text"}, Field{Key: "storage.link_mode", Kind: "select", Options: []string{"", "copy", "reflink", "hardlink", "symlink"}})
 }
 
 func values(c *Config) (map[string]any, error) {

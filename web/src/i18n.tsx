@@ -34,6 +34,8 @@ export const en = {
   settingOnePerLine: "One value per line",
   settingLibraryTimezone: "Library time zone",
   settingLinkMode: "File projection method",
+  settingLinkModeHint:
+    "Used for new projections. Saving does not convert existing files.",
   settingCacheBytes: "Maximum cache size",
   settingListen: "Listen address",
   settingOrigins: "Allowed access URLs",
@@ -747,6 +749,7 @@ export const zh: Record<MessageKey, string> = {
   settingOnePerLine: "每行填写一项",
   settingLibraryTimezone: "资料库时区",
   settingLinkMode: "文件投影方式",
+  settingLinkModeHint: "用于新建投影，保存时不会转换已有文件。",
   settingCacheBytes: "缓存体积上限",
   settingListen: "监听地址",
   settingOrigins: "允许使用的访问网址",

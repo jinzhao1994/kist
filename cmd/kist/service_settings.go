@@ -56,3 +56,20 @@ func applyServiceSettings(opt *api.Options, settings config.Server, overrides []
 	opt.MaxUploadFiles = settings.MaxUploadFiles
 	opt.MapProvider = &api.MapProvider{StyleURL: settings.MapStyle, TerrainTiles: settings.MapTerrainTiles, TerrainAttribution: settings.MapTerrainAttribution, ResourceOrigins: settings.MapResourceOrigins}
 }
+
+// reloadResolver preserves the actual listener while reapplying explicit flags.
+func reloadResolver(cmd *cobra.Command, listen string) func(config.Server) (api.Options, error) {
+	return func(stored config.Server) (api.Options, error) {
+		effective, overrides, err := resolveServiceSettings(cmd, stored)
+		if err != nil {
+			return api.Options{}, err
+		}
+		effective.Listen = listen
+		opt, err := serveOptions(effective.Listen, effective.AllowedOrigins)
+		if err != nil {
+			return opt, err
+		}
+		applyServiceSettings(&opt, effective, overrides)
+		return opt, nil
+	}
+}

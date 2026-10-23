@@ -43,11 +43,11 @@ func TestInstanceSettingsCASDefaultsAndSecrets(t *testing.T) {
 		t.Fatalf("stale save=%d", code)
 	}
 	changed := fetch()
-	if len(changed.RestartRequired) != 1 || changed.RestartRequired[0] != "server.max_upload_files" {
+	if len(changed.RestartRequired) != 0 {
 		t.Fatalf("restart=%v", changed.RestartRequired)
 	}
 	info := call(s, "GET", Prefix+"/info", "", "")
-	if !strings.Contains(info.Body.String(), `"primary_color":"green"`) {
+	if !strings.Contains(info.Body.String(), `"primary_color":"green"`) || !strings.Contains(info.Body.String(), `"max_upload_files":123`) {
 		t.Fatal("live color did not change")
 	}
 	if code := save(changed.Revision, map[string]any{"appearance.primary_color": nil}); code != 200 {

@@ -89,7 +89,7 @@ func (l *Library) Repair(ctx context.Context, opt RepairOptions) (RepairResult, 
 		dir  *blob.Dir
 	}
 	var remotes []remote
-	for _, r := range l.cfg.Remotes {
+	for _, r := range l.settings.Load().config.Remotes {
 		d, err := blob.OpenDir(r.Path, l.log)
 		if err != nil {
 			// One unplugged drive must not stop the repair: another remote may
@@ -100,7 +100,7 @@ func (l *Library) Repair(ctx context.Context, opt RepairOptions) (RepairResult, 
 		remotes = append(remotes, remote{r.Name, d})
 		res.Remotes = append(res.Remotes, r.Name)
 	}
-	if len(l.cfg.Remotes) == 0 {
+	if len(l.settings.Load().config.Remotes) == 0 {
 		return res, ErrNoRemotes
 	}
 
@@ -231,7 +231,7 @@ func (l *Library) brokenBlobs(ctx context.Context, deep bool) ([]string, error) 
 }
 
 // Remotes lists the configured remotes, for a command that wants to show them.
-func (l *Library) Remotes() []config.Remote { return l.cfg.Remotes }
+func (l *Library) Remotes() []config.Remote { return l.settings.Load().config.Remotes }
 
 // RemoteStatus is one remote and whether it can be read right now.
 type RemoteStatus struct {
@@ -245,8 +245,8 @@ type RemoteStatus struct {
 // It exists so that a mistyped path says so at once, rather than the day the
 // library is damaged and repair quietly finds nothing.
 func (l *Library) CheckRemotes() []RemoteStatus {
-	out := make([]RemoteStatus, 0, len(l.cfg.Remotes))
-	for _, r := range l.cfg.Remotes {
+	out := make([]RemoteStatus, 0, len(l.settings.Load().config.Remotes))
+	for _, r := range l.settings.Load().config.Remotes {
 		st := RemoteStatus{Remote: r}
 		d, err := blob.OpenDir(r.Path, l.log)
 		if err != nil {

@@ -39,7 +39,7 @@ func mirrorBlobs(t *testing.T, l *Library, name string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	l.cfg.Remotes = append(l.cfg.Remotes, config.Remote{Name: name, Path: dst})
+	l.settings.Load().config.Remotes = append(l.settings.Load().config.Remotes, config.Remote{Name: name, Path: dst})
 	return dst
 }
 
@@ -206,7 +206,7 @@ func TestRepairKeepsGoingWhenARemoteIsUnreachable(t *testing.T) {
 	if _, err := l.Import(t.Context(), src, ImportOptions{Box: box}); err != nil {
 		t.Fatal(err)
 	}
-	l.cfg.Remotes = append(l.cfg.Remotes, config.Remote{
+	l.settings.Load().config.Remotes = append(l.settings.Load().config.Remotes, config.Remote{
 		Name: "unplugged", Path: filepath.Join(t.TempDir(), "not-mounted"),
 	})
 	mirrorBlobs(t, l, "backup")

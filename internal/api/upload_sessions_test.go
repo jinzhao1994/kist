@@ -87,7 +87,7 @@ func TestResumableUploadRestartReceiptRebuildAndUndo(t *testing.T) {
 	if result.OpID == 0 {
 		t.Fatal(result)
 	}
-	if err := restarted.uploads.Sweep(t.Context()); err != nil {
+	if err := restarted.current.Load().uploads.Sweep(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	// A receipt survives staging deletion, database rebuild and a later undo.

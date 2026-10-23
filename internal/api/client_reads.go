@@ -53,7 +53,7 @@ func (s *Server) clientReadRoutes() {
 		if err != nil {
 			return nil, failure(err)
 		}
-		out := libraryInfo{PrimaryColor: color, Client: true, Version: buildinfo.Get().Version, MaxUploadBytes: s.maxUploadBytes, MaxUploadFiles: s.maxUploadFiles, ResumableUploadVersion: staging.ProtocolVersion, UploadChunkBytes: staging.ChunkBytes}
+		out := libraryInfo{PrimaryColor: color, Client: true, Version: buildinfo.Get().Version, MaxUploadBytes: s.runtime(ctx).maxUploadBytes, MaxUploadFiles: s.runtime(ctx).maxUploadFiles, ResumableUploadVersion: staging.ProtocolVersion, UploadChunkBytes: staging.ChunkBytes}
 		err = s.client.View(ctx, func(v *library.ClientView) error { out.Timezone = v.Zone().String(); return nil })
 		return response(out, err)
 	})

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/jinzhao1994/kist/internal/config"
@@ -36,8 +37,26 @@ func (s *Server) settingsView(ctx context.Context) (settingsResponse, error) {
 		return settingsResponse{}, err
 	}
 	out := settingsResponse{InstanceSettings: settings, Effective: map[string]any{}, Overrides: s.settingOverrides, RestartRequired: []string{}}
+	runtime := s.current.Load()
+	var timezone, projection string
+	if s.library != nil {
+		timezone, projection = s.library.RuntimeStorageSettings()
+	}
 	for _, f := range settings.Fields {
 		v := f.Value
+		if s.library != nil {
+			switch f.Key {
+			case "library.timezone":
+				v = timezone
+			case "storage.link_mode":
+				v = projection
+			}
+		}
+		if strings.HasPrefix(f.Key, "server.") {
+			if effective, ok := runtime.service[strings.TrimPrefix(f.Key, "server.")]; ok {
+				v = effective
+			}
+		}
 		if f.Restart {
 			v = s.startupSettings[f.Key]
 			if !reflect.DeepEqual(jsonValue(v), jsonValue(f.Value)) {
@@ -90,12 +109,13 @@ func (s *Server) settingsRoutes(opt Options) error {
 	})
 
 	huma.Put(s.contract, Prefix+"/settings", func(ctx context.Context, in *settingsInput) (*output[settingsResponse], error) {
-		var err error
-		if s.client != nil {
-			err = s.client.UpdateSettings(ctx, in.Body.Revision, in.Body.Changes)
-		} else {
-			err = s.library.UpdateSettings(ctx, in.Body.Revision, in.Body.Changes)
+		s.reloadMu.Lock()
+		defer s.reloadMu.Unlock()
+		changes := in.Body.Changes
+		if changes == nil {
+			changes = map[string]any{}
 		}
+		err := s.reloadSettings(ctx, in.Body.Revision, changes)
 		if errors.Is(err, config.ErrChanged) {
 			return nil, huma.Error409Conflict("Settings changed; reload before saving.")
 		}

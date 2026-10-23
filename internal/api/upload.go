@@ -116,7 +116,7 @@ func (s *Server) receiveUpload(r *http.Request, key string, opt library.ImportOp
 	if err := decoder.Decode(new(any)); err != io.EOF {
 		return zero, invalid("Trailing data in upload manifest")
 	}
-	if len(declared.Files) == 0 || len(declared.Files) > s.maxUploadFiles {
+	if len(declared.Files) == 0 || len(declared.Files) > s.runtime(r.Context()).maxUploadFiles {
 		return zero, invalid("Upload file count is outside the configured limit")
 	}
 	manifest := uploadManifest{Files: make([]uploadFile, 0, len(declared.Files))}

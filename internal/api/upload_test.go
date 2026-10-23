@@ -147,10 +147,10 @@ func TestUploadRejectsIncompleteOrUnsafeBatches(t *testing.T) {
 			s, l := testServer(t)
 			s.uploadTempDir = t.TempDir()
 			if tc.limit > 0 {
-				s.maxUploadBytes = tc.limit
+				s.current.Load().maxUploadBytes = tc.limit
 			}
 			if tc.count > 0 {
-				s.maxUploadFiles = tc.count
+				s.current.Load().maxUploadFiles = tc.count
 			}
 			box, err := l.CreateBox(t.Context(), "upload", "", domain.LocalDate{}, domain.LocalDate{})
 			if err != nil {

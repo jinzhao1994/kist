@@ -104,7 +104,7 @@ func (s *Server) readRoutes() {
 		if err != nil {
 			return nil, failure(err)
 		}
-		return response(libraryInfo{PrimaryColor: color, Version: buildinfo.Get().Version, Timezone: s.library.Zone().String(), ProjectionDirty: s.library.ProjectionDirty(), MaxUploadBytes: s.maxUploadBytes, MaxUploadFiles: s.maxUploadFiles, ResumableUploadVersion: staging.ProtocolVersion, UploadChunkBytes: staging.ChunkBytes}, nil)
+		return response(libraryInfo{PrimaryColor: color, Version: buildinfo.Get().Version, Timezone: s.library.Zone().String(), ProjectionDirty: s.library.ProjectionDirty(), MaxUploadBytes: s.runtime(ctx).maxUploadBytes, MaxUploadFiles: s.runtime(ctx).maxUploadFiles, ResumableUploadVersion: staging.ProtocolVersion, UploadChunkBytes: staging.ChunkBytes}, nil)
 	})
 	huma.Get(s.contract, Prefix+"/boxes", func(ctx context.Context, in *struct {
 		Tag string `query:"tag"`

@@ -29,7 +29,7 @@ const initial = () => ({
       value: 32 * 2 ** 30,
       default: 32 * 2 ** 30,
       explicit: false,
-      restart: true,
+      restart: false,
     },
     {
       key: "server.allowed_origins",
@@ -37,7 +37,7 @@ const initial = () => ({
       value: [],
       default: [],
       explicit: false,
-      restart: true,
+      restart: false,
     },
   ],
   effective: {},

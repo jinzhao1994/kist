@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/jinzhao1994/kist/internal/config"
@@ -153,7 +154,7 @@ func TestSettingsConcurrentEditorsAndExplicitCopy(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer reopened.Close()
-	if reopened.cfg.Storage.LinkMode != "copy" {
+	if reopened.settings.Load().config.Storage.LinkMode != "copy" {
 		t.Fatal("explicit copy was overridden")
 	}
 }
@@ -176,5 +177,56 @@ func TestLegacyClientRejectsUnknownOrTrailingConfiguration(t *testing.T) {
 				t.Fatal("legacy configuration modified")
 			}
 		})
+	}
+}
+
+func TestSettingsReloadTimezoneAndProjectionWithoutArchiveWrites(t *testing.T) {
+	l, box := openWithBox(t)
+	file := importOneFile(t, l, box, "existing.txt", "unchanged original")
+	dirs, _, err := l.boxDirs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	projected := filepath.Join(l.layout.Boxes(), dirs[box], "existing.txt")
+	beforeFile, err := os.Stat(projected)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, _ := l.OpCount(t.Context())
+	snapshot, err := l.InstanceSettings(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := l.UpdateSettings(t.Context(), snapshot.Revision, map[string]any{"library.timezone": "America/New_York", "storage.link_mode": "copy"}); err != nil {
+		t.Fatal(err)
+	}
+	afterFile, err := os.Stat(projected)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(beforeFile, afterFile) {
+		t.Fatal("reload rebuilt projection")
+	}
+	got, found, err := l.File(t.Context(), file.ID)
+	if err != nil || !found || !reflect.DeepEqual(got, file) {
+		t.Fatal("reload changed archived file", err)
+	}
+	if l.Zone().String() != "America/New_York" || l.syncer().LinkMode != "copy" {
+		t.Fatal("settings not activated")
+	}
+	after, _ := l.OpCount(t.Context())
+	if after != before {
+		t.Fatal("configuration wrote archive ops")
+	}
+	// Rejected runtime prerequisites must leave both file and runtime unchanged.
+	snapshot, _ = l.InstanceSettings(t.Context())
+	active := l.settings.Load()
+	reject := errors.New("cannot prepare runtime")
+	if err := l.UpdateSettings(t.Context(), snapshot.Revision, map[string]any{"library.timezone": "UTC"}, func(config.Server) error { return reject }); !errors.Is(err, reject) {
+		t.Fatal(err)
+	}
+	next, _ := l.InstanceSettings(t.Context())
+	if next.Revision != snapshot.Revision || l.settings.Load() != active {
+		t.Fatal("failed validation published settings")
 	}
 }

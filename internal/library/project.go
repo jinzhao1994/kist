@@ -52,7 +52,7 @@ func (l *Library) clearDirty() {
 func (l *Library) syncer() *projection.Syncer {
 	return &projection.Syncer{
 		Root:     l.layout.Boxes(),
-		LinkMode: l.cfg.Storage.LinkMode,
+		LinkMode: l.settings.Load().config.Storage.LinkMode,
 		Locate:   func(key string) (string, bool) { return l.blobs.LocalPath(blobKey(key)) },
 		Log:      l.log,
 	}
@@ -255,7 +255,7 @@ func (l *Library) checkLinkMode() error {
 	if err := os.MkdirAll(l.layout.Boxes(), 0o755); err != nil {
 		return fmt.Errorf("create boxes/: %w", err)
 	}
-	if mode := l.cfg.Storage.LinkMode; mode != "" {
+	if mode := l.settings.Load().config.Storage.LinkMode; mode != "" {
 		if err := blob.CheckLinkMode(l.blobs.Root(), l.layout.Boxes(), mode); err != nil {
 			return fmt.Errorf("configured link mode %s is unavailable: %w", mode, err)
 		}
@@ -265,6 +265,6 @@ func (l *Library) checkLinkMode() error {
 	if err != nil {
 		return err
 	}
-	l.cfg.Storage.LinkMode = mode
+	l.settings.Load().config.Storage.LinkMode = mode
 	return nil
 }
