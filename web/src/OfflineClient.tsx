@@ -7,7 +7,8 @@ import {
 } from "./ClientConnectionStatus";
 import { SectionIndex } from "./SectionIndex";
 import { Alert, Button, Checkbox, Group, Stack, Text } from "@mantine/core";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useElementSize } from "@mantine/hooks";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ClientConflictEditor } from "./ClientConflictEditor";
 import { OfflineRetention } from "./OfflineRetention";
@@ -22,6 +23,7 @@ import {
 } from "./offline-client";
 
 export function OfflineClient({ openSettings }: { openSettings: () => void }) {
+  const { ref: headerRef, height: headerHeight } = useElementSize();
   const { t, prefs } = useI18n();
   const connection = useConnectionStatus();
   const queries = useQueryClient();
@@ -69,13 +71,15 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
       : 0;
   const uploads = data?.pending?.length ?? 0;
   return (
-    <section aria-label={t("clientTitle")}>
-      <header className="page-header">
+    <section
+      aria-label={t("clientTitle")}
+      style={
+        { "--section-top-offset": `${headerHeight + 40}px` } as CSSProperties
+      }
+    >
+      <header ref={headerRef} className="page-header settings-page-header">
         <div>
           <h1>{t("clientTitle")}</h1>
-          <Text size="sm" c="dimmed">
-            {data?.connection?.server || t("clientNotConnected")}
-          </Text>
         </div>
         <Group className="header-actions">
           <Button
@@ -116,17 +120,26 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
       </header>
       <div className="instance-settings-content">
         <Stack gap="md">
-          {status.isPending && <p role="status">{t("loading")}</p>}
-          {status.error && <p role="alert">{errorMessage(status.error, t)}</p>}
+          {status.isPending && <Text role="status">{t("loading")}</Text>}
+          {status.error && (
+            <Alert color="red" role="alert">
+              {errorMessage(status.error, t)}
+            </Alert>
+          )}
           {error && (
             <Alert color="red" role="alert">
               {error}
             </Alert>
           )}
-          {notice && <Text role="status">{notice}</Text>}
+          {notice && (
+            <Text size="sm" role="status">
+              {notice}
+            </Text>
+          )}
           {data && (
             <>
               <SectionIndex
+                ready={headerHeight > 0}
                 items={[
                   { id: "sync-status", label: t("clientSync") },
                   { id: "sync-cache", label: t("clientCache") },
@@ -156,6 +169,11 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
                     />
                   ) : (
                     <Stack gap="sm">
+                      <Text size="sm" c="dimmed">
+                        {data?.connection?.server
+                          ? `${t("clientServer")}: ${data.connection.server}`
+                          : t("clientNotConnected")}
+                      </Text>
                       <Text size="sm" role="status">
                         {connectionStatusLabel(
                           connection.data,
@@ -269,14 +287,22 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
                   className="flat-page-section"
                   aria-labelledby="sync-cache-title"
                 >
-                  <h2 id="sync-cache-title">{t("clientCache")}</h2>
+                  <h2
+                    id="sync-cache-title"
+                    className="settings-section-heading"
+                  >
+                    {t("clientCache")}
+                    <HelpTooltip label={t("clientCache")}>
+                      {t("clientSyncCacheNote")}
+                    </HelpTooltip>
+                  </h2>
                   <Stack gap="md">
                     {cache.error && (
                       <Text role="alert">{errorMessage(cache.error, t)}</Text>
                     )}
                     {cache.data && (
                       <>
-                        <Text>
+                        <Text size="sm">
                           {t("clientCacheUsed", {
                             size: formatBytes(
                               cache.data.cached_bytes +
@@ -315,15 +341,10 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
                       </Text>
                     )}
                     <OfflineRetention active busy={busy} run={run} />
-                    <Text size="sm" c="dimmed">
-                      {t("clientSyncCacheNote")}
-                    </Text>
                     <Group>
                       <Button onClick={openSettings} disabled={busy}>
                         {t("settingManageCache")}
                       </Button>
-                    </Group>
-                    <Group>
                       <Button
                         disabled={busy}
                         onClick={() =>
@@ -348,7 +369,15 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
                   className="flat-page-section"
                   aria-labelledby="sync-history-title"
                 >
-                  <h2 id="sync-history-title">{t("clientHistory")}</h2>
+                  <h2
+                    id="sync-history-title"
+                    className="settings-section-heading"
+                  >
+                    {t("clientHistory")}
+                    <HelpTooltip label={t("clientHistory")}>
+                      {t("clientHistoryHint")}
+                    </HelpTooltip>
+                  </h2>
                   <LocalHistory active onLocked={setHistoryLocked} />
                 </section>
               </SectionIndex>

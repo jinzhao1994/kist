@@ -27,7 +27,9 @@ export function OfflineRetention({ active, busy, run }: Props) {
   });
   return (
     <Stack gap="sm">
-      <Text fw={600}>{t("clientRetainedItems")}</Text>
+      <Text size="sm" fw={600}>
+        {t("clientRetainedItems")}
+      </Text>
       {selections.isPending && <Text role="status">{t("loading")}</Text>}
       {selections.error && (
         <Text role="alert">{errorMessage(selections.error, t)}</Text>

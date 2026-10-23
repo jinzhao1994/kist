@@ -62,9 +62,6 @@ export function LocalHistory({
   const error = selected ? detail.error : list.error;
   return (
     <Stack gap="md">
-      <Text size="sm" c="dimmed">
-        {t("clientHistoryHint")}
-      </Text>
       {selected && (
         <Group>
           <Button
