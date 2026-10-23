@@ -41,6 +41,8 @@ type Options struct {
 }
 
 type Server struct {
+	autoSyncRunning  atomic.Int64
+	autoSyncWake     chan struct{}
 	current          atomic.Pointer[runtimeSettings]
 	reloadMu         sync.Mutex
 	resolveSettings  func(config.Server) (Options, error)
@@ -80,7 +82,7 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 	if opt.MaxUploadBytes < 1 || opt.MaxUploadFiles < 1 {
 		return nil, fmt.Errorf("upload limits must be positive")
 	}
-	s := &Server{uploadTempDir: opt.UploadTempDir, library: l, client: c, mux: http.NewServeMux(), resolveSettings: opt.ResolveSettings, baseHosts: append([]string(nil), opt.AllowedHosts...)}
+	s := &Server{autoSyncWake: make(chan struct{}, 1), uploadTempDir: opt.UploadTempDir, library: l, client: c, mux: http.NewServeMux(), resolveSettings: opt.ResolveSettings, baseHosts: append([]string(nil), opt.AllowedHosts...)}
 	runtime, err := s.buildRuntime(opt)
 	if err != nil {
 		return nil, err
@@ -218,7 +220,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		limit := int64(maxJSONBody)
-		if path.Clean(r.URL.Path) == Prefix+"/sync/submit" {
+		if path.Clean(r.URL.Path) == Prefix+"/sync/submit" || path.Clean(r.URL.Path) == Prefix+"/sync/submit-conditional" {
 			limit = maxSyncBody
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, limit)

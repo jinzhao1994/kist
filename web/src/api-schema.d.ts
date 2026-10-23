@@ -855,6 +855,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sync/submit-conditional": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sync-submit-conditional"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tags": {
         parameters: {
             query?: never;
@@ -1595,6 +1611,10 @@ export interface components {
             /** Format: int64 */
             size: number;
         };
+        "Sync-submit-conditionalRequest": {
+            expected: components["schemas"]["SyncBoundary"];
+            proposal: components["schemas"]["SyncProposal"];
+        };
         SyncBoundary: {
             library_id: string;
             /** Format: int64 */
@@ -1603,6 +1623,7 @@ export interface components {
         };
         SyncCapabilities: {
             actions: string[] | null;
+            conditional_submit: boolean;
             deletion_snapshots: boolean;
             derived_previews: boolean;
             /** Format: int64 */
@@ -4031,6 +4052,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["SyncProposal"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncSubmitResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "sync-submit-conditional": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Sync-submit-conditionalRequest"];
             };
         };
         responses: {

@@ -2902,6 +2902,7 @@ test("fileset-gallery-navigation", async ({ page }, info) => {
 
 for (const panel of [
   "sync",
+  "syncing",
   "cache",
   "connection",
   "history",
@@ -3025,6 +3026,8 @@ for (const panel of [
             server: "https://nas.example",
             pending_download: 3,
             pending_upload: 2,
+            syncing: panel === "syncing",
+            manual_required: panel !== "syncing",
           },
         });
       if (route.request().method() !== "GET") {
@@ -3289,13 +3292,13 @@ for (const panel of [
       .getByRole("button", { name: "数据同步", exact: true })
       .click();
     await expect(page.locator(".client-connection-status")).toContainText(
-      "远端已连接",
+      panel === "syncing" ? "同步中…" : "需要手动合并",
     );
     let dialog = page.getByRole("region", { name: "数据同步", exact: true });
     await expect(page).toHaveURL(/\/sync$/);
-    await expect(
-      dialog.getByRole("button", { name: "立即同步" }),
-    ).toBeEnabled();
+    await expect(dialog.getByRole("button", { name: "立即同步" }))[
+      panel === "syncing" ? "toBeDisabled" : "toBeEnabled"
+    ]();
     if (deletionConflict) {
       await dialog
         .getByRole("button", { name: "查看本机修改", exact: true })

@@ -12,6 +12,10 @@ import (
 )
 
 type clientConnectionStatus struct {
+	CatalogComplete bool   `json:"catalog_complete"`
+	CatalogOpID     int64  `json:"catalog_op_id"`
+	Syncing         bool   `json:"syncing"`
+	ManualRequired  bool   `json:"manual_required"`
 	State           string `json:"state" enum:"connected,unreachable,unauthorized,incompatible,unconfigured"`
 	Server          string `json:"server,omitempty"`
 	PendingDownload *int64 `json:"pending_download,omitempty"`
@@ -28,7 +32,7 @@ func (s *Server) clientConnectionStatusRoute() {
 		if err != nil {
 			return nil, failure(err)
 		}
-		status := clientConnectionStatus{State: "unconfigured", PendingUpload: len(local.Pending)}
+		status := clientConnectionStatus{State: "unconfigured", PendingUpload: len(local.Pending), CatalogOpID: local.Catalog.Confirmed.OpID, CatalogComplete: local.Catalog.Complete, Syncing: s.autoSyncRunning.Load() > 0, ManualRequired: local.BlockedID != ""}
 		if settings.Connection == nil || settings.Connection.Server == "" || !settings.CredentialConfigured {
 			return response(status, nil)
 		}
@@ -54,6 +58,10 @@ func (s *Server) clientConnectionStatusRoute() {
 							// Authoritative journal IDs form a contiguous sequence.
 							pending := head.OpID - local.Catalog.Confirmed.OpID
 							status.PendingDownload = &pending
+							status.ManualRequired = status.ManualRequired || (pending > 0 && status.PendingUpload > 0) || (status.PendingUpload > 0 && !caps.ConditionalSubmit)
+							for _, entry := range local.Pending {
+								status.ManualRequired = status.ManualRequired || entry.Conflict != ""
+							}
 						}
 					}
 				}

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jinzhao1994/kist/internal/blob"
+	"github.com/jinzhao1994/kist/internal/config"
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/journal"
 	"github.com/jinzhao1994/kist/internal/oplog"
@@ -184,7 +185,17 @@ func (p SyncProposal) digest() (string, error) {
 
 // AcceptSync serializes receipt lookup, precondition checks and the durable
 // write with all NAS writers. No network handler may bypass this path.
-func (l *Library) AcceptSync(ctx context.Context, p SyncProposal) (result SyncResult, resultErr error) {
+func (l *Library) AcceptSync(ctx context.Context, p SyncProposal) (SyncResult, error) {
+	return l.acceptSync(ctx, p, nil)
+}
+
+// AcceptSyncAt accepts an automatic submission only against the checked head.
+// Existing receipts are returned before the condition, preserving safe retries.
+func (l *Library) AcceptSyncAt(ctx context.Context, p SyncProposal, expected SyncBoundary) (SyncResult, error) {
+	return l.acceptSync(ctx, p, &expected)
+}
+
+func (l *Library) acceptSync(ctx context.Context, p SyncProposal, expected *SyncBoundary) (result SyncResult, resultErr error) {
 	// Until receipt lookup succeeds, a previous attempt may already have
 	// committed. In particular, lock and catch-up failures are not rejection.
 	canReject := false
@@ -217,6 +228,23 @@ func (l *Library) AcceptSync(ctx context.Context, p SyncProposal) (result SyncRe
 		return SyncResult{OpID: id, AcceptedAt: at}, nil
 	}
 	canReject = true
+	if expected != nil {
+		cfg, err := config.Load(l.layout.ConfigPath())
+		if err != nil {
+			return SyncResult{}, err
+		}
+		head := SyncBoundary{LibraryID: cfg.Library.ID}
+		last, found, err := l.ops.Last()
+		if err != nil {
+			return SyncResult{}, err
+		}
+		if found {
+			head.OpID, head.Sum = last.ID, last.Sum
+		}
+		if head != *expected {
+			return SyncResult{}, ErrSyncConflict
+		}
+	}
 	for _, dep := range p.Requires {
 		if _, err := l.syncReference(SyncReference{LocalID: dep}); err != nil {
 			return SyncResult{}, err

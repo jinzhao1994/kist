@@ -3,7 +3,7 @@
 [中文](offline-client.zh-CN.md)
 
 The development build provides NAS pairing, a local web interface, selected-content
-caching, offline edits and manual synchronization. Functional, fault-recovery and visual
+caching, offline edits, automatic one-way synchronization and manual merging. Functional, fault-recovery and visual
 acceptance are complete; this feature has not been released. See the
 [acceptance evidence (Chinese)](plans/2026-10-22-offline-client-acceptance.md).
 
@@ -227,3 +227,9 @@ such. Open an entry for its original identity, sync receipt, related operations,
 and available undo action.
 
 Connection and cache policies are under **Settings**. Synchronization, offline content and local history are under **Data sync**. Persistent configuration is consolidated in this instance’s `kist.toml`; see [Instance settings](settings.md).
+
+## Automatic synchronization while online
+
+While the client service is running, it checks at startup and every 30 seconds; completed local web edits trigger an immediate check. Remote-only changes are downloaded automatically, and local-only changes are uploaded automatically. Independent changes on both sides or recorded conflicts require a manual merge under **Data synchronization**. Closing the browser does not stop the service worker. Older remotes without conditional submission support still require manual uploads.
+
+The sidebar distinguishes **Synchronizing…**, **Up to date**, and **Manual merge required**, and hides zero operation counts. Counts refer to operations, not files. Original files remain cached on demand. File lists refresh when synchronization advances the local catalog.

@@ -67,6 +67,9 @@ func (s *Server) prepareUpload(ctx context.Context, sources []library.ImportSour
 func (s *Server) executeUpload(ctx context.Context, request library.Request, command func(context.Context) error) (sessionStatus, error) {
 	if s.client != nil {
 		result, err := s.client.ExecuteRequest(ctx, request, command)
+		if err == nil {
+			s.wakeAutoSync()
+		}
 		return sessionStatus{LocalID: result.LocalID, Noop: result.Noop}, err
 	}
 	result, err := s.library.ExecuteRequest(ctx, request, command)

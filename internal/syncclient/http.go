@@ -140,12 +140,24 @@ func (p *Peer) HasOriginal(ctx context.Context, key string) (bool, error) {
 	return out.Present, err
 }
 func (p *Peer) Submit(ctx context.Context, proposal library.SyncProposal) (library.SyncResult, error) {
+	return p.submit(ctx, "submit", proposal)
+}
+
+// SubmitAt keeps the head condition outside the immutable intent and its digest.
+func (p *Peer) SubmitAt(ctx context.Context, proposal library.SyncProposal, expected library.SyncBoundary) (library.SyncResult, error) {
+	return p.submit(ctx, "submit-conditional", struct {
+		Proposal library.SyncProposal `json:"proposal"`
+		Expected library.SyncBoundary `json:"expected"`
+	}{proposal, expected})
+}
+
+func (p *Peer) submit(ctx context.Context, path string, body any) (library.SyncResult, error) {
 	var out struct {
 		Result   *library.SyncResult `json:"result"`
 		Rejected bool                `json:"rejected"`
 		Error    *wire.Error         `json:"error"`
 	}
-	if err := p.json(ctx, "POST", "submit", proposal, &out, 1<<20); err != nil {
+	if err := p.json(ctx, "POST", path, body, &out, 1<<20); err != nil {
 		return library.SyncResult{}, err
 	}
 	if out.Result != nil && out.Error == nil && !out.Rejected && out.Result.OpID > 0 && !out.Result.AcceptedAt.IsZero() {

@@ -47,3 +47,50 @@ it.each([
   view.unmount();
   client.clear();
 });
+
+it.each([
+  [{ syncing: true, pending_download: 3 }, "Synchronizing…"],
+  [
+    { manual_required: true, pending_download: 3, pending_upload: 2 },
+    "Manual merge required",
+  ],
+  [{}, "Up to date"],
+])(
+  "shows synchronization progress and hides zero counts",
+  async (overrides, label) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          state: "connected",
+          catalog_complete: true,
+          catalog_op_id: 10,
+          pending_download: 0,
+          pending_upload: 0,
+          ...overrides,
+        }),
+      ),
+    );
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const view = render(
+      <QueryClientProvider client={client}>
+        <I18nProvider>
+          <ThemeProvider>
+            <ClientConnectionStatus openSync={() => {}} />
+          </ThemeProvider>
+        </I18nProvider>
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText(label)).toBeInTheDocument();
+    expect(
+      screen.queryByText("0 operations to upload"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("0 operations to download"),
+    ).not.toBeInTheDocument();
+    view.unmount();
+    client.clear();
+  },
+);

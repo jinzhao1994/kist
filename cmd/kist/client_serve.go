@@ -17,7 +17,7 @@ import (
 func newClientServeCmd() *cobra.Command {
 	var address string
 	var origins []string
-	cmd := &cobra.Command{Use: "serve DIRECTORY", Short: "Serve the laptop client locally without contacting the NAS", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+	cmd := &cobra.Command{Use: "serve DIRECTORY", Short: "Serve the offline client with automatic one-way synchronization", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := library.OpenClient(cmd.Context(), args[0])
 		if err != nil {
 			return err
@@ -56,7 +56,9 @@ func newClientServeCmd() *cobra.Command {
 		go func() { handler.RunUploads(uploadCtx); close(uploadDone) }()
 		mediaDone := make(chan struct{})
 		go func() { handler.RunMedia(uploadCtx); close(mediaDone) }()
-		defer func() { cancelUploads(); <-uploadDone; <-mediaDone }()
+		syncDone := make(chan struct{})
+		go func() { handler.RunAutoSync(uploadCtx); close(syncDone) }()
+		defer func() { cancelUploads(); <-uploadDone; <-mediaDone; <-syncDone }()
 		fmt.Fprintf(cmd.ErrOrStderr(), "Serving kist offline client on %s\n", listener.Addr())
 		return serveHTTP(ctx, listener, handler)
 	}}

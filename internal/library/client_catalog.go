@@ -56,11 +56,24 @@ func (c *Client) catalogStatusLocked() (ClientCatalogStatus, error) {
 // ReceiveCatalogPage durably resumes an authenticated NAS history transfer.
 // Partial downloads never advance the visible/complete metadata boundary.
 func (c *Client) ReceiveCatalogPage(ctx context.Context, page SyncCatalogPage) error {
+	return c.receiveCatalogPage(ctx, page, false)
+}
+
+func (c *Client) receiveCatalogPage(ctx context.Context, page SyncCatalogPage, automatic bool) error {
 	release, err := c.lock.Acquire(ctx)
 	if err != nil {
 		return err
 	}
 	defer release()
+	if automatic {
+		allowed, err := c.automaticBoundaryAllowedLocked(ctx, page.Boundary)
+		if err != nil {
+			return err
+		}
+		if !allowed {
+			return ErrSyncConflict
+		}
+	}
 	status, err := c.catalogStatusLocked()
 	if err != nil {
 		return err
@@ -142,4 +155,44 @@ func (c *Client) ReceiveCatalogPage(ctx context.Context, page SyncCatalogPage) e
 	}
 	_, err = c.rebuildLocked(ctx)
 	return err
+}
+
+// Acknowledged local writes may be reconciled even if a new local edit arrived.
+// They are not independent remote changes. Receipts must cover the whole delta.
+func (c *Client) automaticBoundaryAllowedLocked(ctx context.Context, head SyncBoundary) (bool, error) {
+	status, err := c.catalogStatusLocked()
+	if err != nil {
+		return false, err
+	}
+	queue, err := c.queue.read(ctx)
+	if err != nil {
+		return false, err
+	}
+	pending := false
+	acknowledged := map[int64]bool{}
+	for _, entry := range queue.entries {
+		pending = pending || entry.active()
+		if entry.Receipt != nil && entry.Receipt.OpID > status.Confirmed.OpID && entry.Receipt.OpID <= head.OpID {
+			acknowledged[entry.Receipt.OpID] = true
+		}
+	}
+	if !pending {
+		return true, nil
+	}
+	if head.LibraryID != status.Confirmed.LibraryID || head.OpID < status.Confirmed.OpID {
+		return false, nil
+	}
+	if head.OpID == status.Confirmed.OpID {
+		return head == status.Confirmed, nil
+	}
+	return int64(len(acknowledged)) == head.OpID-status.Confirmed.OpID, nil
+}
+
+func (c *Client) automaticBoundaryAllowed(ctx context.Context, head SyncBoundary) (bool, error) {
+	release, err := c.lock.Acquire(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer release()
+	return c.automaticBoundaryAllowedLocked(ctx, head)
 }

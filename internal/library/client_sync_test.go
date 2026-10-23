@@ -219,3 +219,171 @@ func TestClientSynchronizeConcurrentConflictAndResolution(t *testing.T) {
 		t.Fatal("resolved client did not converge")
 	}
 }
+
+type automaticPeer struct {
+	*testSyncPeer
+	beforeCatalog func()
+}
+
+func (p *automaticPeer) Capabilities(ctx context.Context) (SyncCapabilities, error) {
+	caps, err := p.testSyncPeer.Capabilities(ctx)
+	caps.ConditionalSubmit = true
+	return caps, err
+}
+func (p *automaticPeer) Catalog(ctx context.Context, head SyncBoundary, after int64, limit, bytes int) (SyncCatalogPage, error) {
+	if p.beforeCatalog != nil {
+		fn := p.beforeCatalog
+		p.beforeCatalog = nil
+		fn()
+	}
+	return p.testSyncPeer.Catalog(ctx, head, after, limit, bytes)
+}
+func (p *automaticPeer) SubmitAt(ctx context.Context, proposal SyncProposal, expected SyncBoundary) (SyncResult, error) {
+	if p.beforeSubmit != nil {
+		fn := p.beforeSubmit
+		p.beforeSubmit = nil
+		fn()
+	}
+	result, err := p.nas.AcceptSyncAt(ctx, proposal, expected)
+	if err == nil && p.loseReply {
+		p.loseReply = false
+		return SyncResult{}, io.ErrUnexpectedEOF
+	}
+	return result, err
+}
+func TestAutomaticSyncDirectionsAndRaces(t *testing.T) {
+	for _, scenario := range []string{"download", "upload", "both", "remote-race", "local-race", "lost-reply"} {
+		t.Run(scenario, func(t *testing.T) {
+			ctx := t.Context()
+			nas := openTestLibrary(t)
+			c := newSyncClient(t, nas)
+			peer := &automaticPeer{testSyncPeer: &testSyncPeer{nas: nas}}
+			before, _ := c.CatalogStatus(ctx)
+			remote := func() {
+				if _, err := nas.AcceptSync(ctx, syncBox(t, "remote-change")); err != nil {
+					t.Fatal(err)
+				}
+			}
+			local := func() {
+				if err := c.Stage(ctx, syncBox(t, "local-change")); err != nil {
+					t.Fatal(err)
+				}
+			}
+			switch scenario {
+			case "download":
+				remote()
+			case "upload":
+				local()
+				if err := c.Stage(ctx, syncBox(t, "second-local")); err != nil {
+					t.Fatal(err)
+				}
+			case "both":
+				remote()
+				local()
+			case "remote-race":
+				local()
+				peer.beforeSubmit = remote
+			case "local-race":
+				remote()
+				peer.beforeCatalog = local
+			case "lost-reply":
+				local()
+				peer.loseReply = true
+			}
+			result, err := c.SynchronizeAutomatic(ctx, peer)
+			if scenario == "lost-reply" {
+				if !errors.Is(err, io.ErrUnexpectedEOF) {
+					t.Fatal(err)
+				}
+				status, _ := c.Status(ctx)
+				if len(status.Pending) != 1 || !status.Pending[0].AwaitingReceipt {
+					t.Fatal(status)
+				}
+				if _, err := c.Synchronize(ctx, peer); err != nil {
+					t.Fatal(err)
+				}
+				head, _ := nas.SyncHead(ctx)
+				if head.OpID != before.Confirmed.OpID+1 {
+					t.Fatal("duplicate submission", head)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			status, err := c.Status(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if scenario == "download" || scenario == "upload" {
+				head, _ := nas.SyncHead(ctx)
+				if !result.Complete || result.ManualRequired || len(status.Pending) != 0 || status.Catalog.Confirmed != head {
+					t.Fatal(result, status)
+				}
+			} else {
+				if !result.ManualRequired || len(status.Pending) != 1 || status.Catalog.Confirmed != before.Confirmed {
+					t.Fatal("automatic merge occurred", result, status)
+				}
+				head, _ := nas.SyncHead(ctx)
+				if head.OpID != before.Confirmed.OpID+1 {
+					t.Fatal("unexpected remote write", head)
+				}
+				if _, err := c.Synchronize(ctx, peer); err != nil {
+					if scenario != "remote-race" || !errors.Is(err, ErrSyncConflict) {
+						t.Fatal("manual merge failed", err)
+					}
+					replacement := syncBox(t, "confirmed-local")
+					if err := c.Resolve(ctx, status.Pending[0].ID, &replacement, "confirmed after remote change"); err != nil {
+						t.Fatal(err)
+					}
+					if _, err := c.Synchronize(ctx, peer); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestConditionalSyncReceiptPrecedesHeadCheck(t *testing.T) {
+	nas := openTestLibrary(t)
+	ctx := t.Context()
+	head, _ := nas.SyncHead(ctx)
+	p := syncBox(t, "conditional-retry")
+	first, err := nas.AcceptSyncAt(ctx, p, head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := nas.AcceptSync(ctx, syncBox(t, "later-remote")); err != nil {
+		t.Fatal(err)
+	}
+	repeated, err := nas.AcceptSyncAt(ctx, p, head)
+	if err != nil || repeated != first {
+		t.Fatal(repeated, err)
+	}
+	if _, err := nas.AcceptSyncAt(ctx, syncBox(t, "stale-new"), head); !errors.Is(err, ErrSyncConflict) {
+		t.Fatal(err)
+	}
+}
+
+func TestAutomaticSyncReconcilesOwnReceiptsWithNewLocalEdits(t *testing.T) {
+	ctx := t.Context()
+	nas := openTestLibrary(t)
+	c := newSyncClient(t, nas)
+	if err := c.Stage(ctx, syncBox(t, "first-online-edit")); err != nil {
+		t.Fatal(err)
+	}
+	peer := &automaticPeer{testSyncPeer: &testSyncPeer{nas: nas}, beforeCatalog: func() {
+		if err := c.Stage(ctx, syncBox(t, "next-online-edit")); err != nil {
+			t.Fatal(err)
+		}
+	}}
+	first, err := c.SynchronizeAutomatic(ctx, peer)
+	if err != nil || first.ManualRequired || first.Remaining != 1 {
+		t.Fatal(first, err)
+	}
+	second, err := c.SynchronizeAutomatic(ctx, peer)
+	if err != nil || second.ManualRequired || !second.Complete {
+		t.Fatal(second, err)
+	}
+}

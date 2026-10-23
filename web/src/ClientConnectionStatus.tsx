@@ -1,5 +1,5 @@
 import { Tooltip, UnstyledButton } from "@mantine/core";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, type MediaJob } from "./api";
 import type { components } from "./client-api-schema";
@@ -14,7 +14,12 @@ export function useConnectionStatus() {
     queryFn: ({ signal }) =>
       get<ConnectionStatus>("/client/connection-status", signal),
     retry: false,
-    refetchInterval: 30000,
+    refetchInterval: (query) =>
+      query.state.data?.syncing ||
+      query.state.data?.pending_upload ||
+      query.state.data?.pending_download
+        ? 2000
+        : 30000,
     refetchIntervalInBackground: false,
   });
 }
@@ -23,6 +28,21 @@ export function ClientConnectionStatus({ openSync }: { openSync: () => void }) {
   const { t } = useI18n();
   const queries = useQueryClient();
   const query = useConnectionStatus();
+  const catalog = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!query.data) return;
+    const version = `${query.data.catalog_op_id}:${query.data.pending_upload}`;
+    const previous = catalog.current;
+    catalog.current = version;
+    if (previous !== undefined && previous !== version) {
+      void queries.invalidateQueries({
+        predicate: (q) =>
+          !(
+            q.queryKey[0] === "client" && q.queryKey[1] === "connection-status"
+          ),
+      });
+    }
+  }, [queries, query.data]);
   const state = query.isError ? "unreachable" : query.data?.state;
   useEffect(() => {
     if (state !== "connected") return;
@@ -35,17 +55,25 @@ export function ClientConnectionStatus({ openSync }: { openSync: () => void }) {
     });
   }, [queries, state, query.dataUpdatedAt]);
   const label = t(
-    state === "connected"
-      ? "remoteConnected"
-      : state === "unauthorized"
-        ? "remoteUnauthorized"
-        : state === "incompatible"
-          ? "remoteIncompatible"
-          : state === "unconfigured"
-            ? "remoteUnconfigured"
-            : state === "unreachable"
-              ? "remoteDisconnected"
-              : "remoteChecking",
+    query.data?.syncing && !query.isError
+      ? "clientSyncing"
+      : state === "connected"
+        ? query.data?.manual_required
+          ? "clientManualSyncRequired"
+          : query.data?.catalog_complete &&
+              query.data.pending_download === 0 &&
+              query.data.pending_upload === 0
+            ? "clientSynced"
+            : "remoteConnected"
+        : state === "unauthorized"
+          ? "remoteUnauthorized"
+          : state === "incompatible"
+            ? "remoteIncompatible"
+            : state === "unconfigured"
+              ? "remoteUnconfigured"
+              : state === "unreachable"
+                ? "remoteDisconnected"
+                : "remoteChecking",
   );
   return (
     <Tooltip label={query.data?.server || label}>
@@ -58,23 +86,27 @@ export function ClientConnectionStatus({ openSync }: { openSync: () => void }) {
         <span role="status">
           <span className="connection-label">{label}</span>
           <span className="connection-counts">
-            <span>
-              {t("clientDownloadCount", {
-                count:
-                  !query.isError &&
-                  state === "connected" &&
-                  query.data?.pending_download != null
-                    ? query.data.pending_download
-                    : "—",
-              })}
-            </span>
-            <span>
-              {t("clientUploadCount", {
-                count: query.isError
-                  ? "—"
-                  : (query.data?.pending_upload ?? "—"),
-              })}
-            </span>
+            {query.data?.pending_download !== 0 && (
+              <span>
+                {t("clientDownloadCount", {
+                  count:
+                    !query.isError &&
+                    state === "connected" &&
+                    query.data?.pending_download != null
+                      ? query.data.pending_download
+                      : "—",
+                })}
+              </span>
+            )}
+            {query.data?.pending_upload !== 0 && (
+              <span>
+                {t("clientUploadCount", {
+                  count: query.isError
+                    ? "—"
+                    : (query.data?.pending_upload ?? "—"),
+                })}
+              </span>
+            )}
           </span>
         </span>
       </UnstyledButton>

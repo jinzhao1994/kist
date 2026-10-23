@@ -46,7 +46,7 @@ func (s *Server) syncRoutes() {
 		if err != nil {
 			return nil, failure(err)
 		}
-		return response(library.SyncCapabilities{DerivedPreviews: true, DeletionSnapshots: true, Timezone: s.library.Zone().String(), Version: 1, LibraryID: head.LibraryID, JournalVersion: journal.Version, Actions: library.SyncActions(), UndoReferences: true}, nil)
+		return response(library.SyncCapabilities{ConditionalSubmit: true, DerivedPreviews: true, DeletionSnapshots: true, Timezone: s.library.Zone().String(), Version: 1, LibraryID: head.LibraryID, JournalVersion: journal.Version, Actions: library.SyncActions(), UndoReferences: true}, nil)
 	})
 	huma.Register(s.contract, syncOperation("sync-head", "GET", "head"), func(ctx context.Context, _ *struct{}) (*output[library.SyncBoundary], error) {
 		return response(s.library.SyncHead(ctx))
@@ -63,6 +63,21 @@ func (s *Server) syncRoutes() {
 		problem := failure(err).(*HTTPError).ErrorFields
 		return response(SyncSubmitResponse{Rejected: errors.As(err, &rejected), Error: &problem}, nil)
 	})
+	huma.Register(s.contract, syncOperation("sync-submit-conditional", "POST", "submit-conditional"), func(ctx context.Context, in *struct {
+		Body struct {
+			Proposal library.SyncProposal `json:"proposal"`
+			Expected library.SyncBoundary `json:"expected"`
+		}
+	}) (*output[SyncSubmitResponse], error) {
+		result, err := s.library.AcceptSyncAt(ctx, in.Body.Proposal, in.Body.Expected)
+		if err == nil {
+			return response(SyncSubmitResponse{Result: &result}, nil)
+		}
+		var rejected *library.SyncRejectedError
+		problem := failure(err).(*HTTPError).ErrorFields
+		return response(SyncSubmitResponse{Rejected: errors.As(err, &rejected), Error: &problem}, nil)
+	})
+
 }
 
 func (s *Server) authorizeSync(w http.ResponseWriter, r *http.Request) bool {

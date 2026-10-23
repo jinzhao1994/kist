@@ -17,6 +17,7 @@ import (
 )
 
 type SyncCapabilities struct {
+	ConditionalSubmit bool      `json:"conditional_submit"`
 	DerivedPreviews   bool      `json:"derived_previews"`
 	DeletionSnapshots bool      `json:"deletion_snapshots"`
 	Timezone          string    `json:"timezone"`
@@ -63,15 +64,36 @@ func (e *SyncRejectedError) Error() string { return e.Cause.Error() }
 func (e *SyncRejectedError) Unwrap() error { return e.Cause }
 
 type ClientSyncResult struct {
-	Accepted  int    `json:"accepted"`
-	Remaining int    `json:"remaining"`
-	Complete  bool   `json:"complete"`
-	BlockedID string `json:"blocked_id,omitempty"`
+	ManualRequired bool   `json:"manual_required,omitempty"`
+	Accepted       int    `json:"accepted"`
+	Remaining      int    `json:"remaining"`
+	Complete       bool   `json:"complete"`
+	BlockedID      string `json:"blocked_id,omitempty"`
 }
 
 // Synchronize permits NAS writes and new local edits during network I/O.
 // A separate cross-process lock prevents overlapping manual synchronization.
 func (c *Client) Synchronize(ctx context.Context, peer SyncPeer) (ClientSyncResult, error) {
+	return c.synchronize(ctx, peer, false)
+}
+
+// ConditionalSyncPeer supports an atomic remote head precondition.
+type ConditionalSyncPeer interface {
+	SyncPeer
+	SubmitAt(context.Context, SyncProposal, SyncBoundary) (SyncResult, error)
+}
+
+// SynchronizeAutomatic refuses to merge independently changed histories.
+func (c *Client) SynchronizeAutomatic(ctx context.Context, peer SyncPeer) (ClientSyncResult, error) {
+	result, err := c.synchronize(ctx, peer, true)
+	if errors.Is(err, ErrSyncConflict) {
+		result.ManualRequired = true
+		return result, nil
+	}
+	return result, err
+}
+
+func (c *Client) synchronize(ctx context.Context, peer SyncPeer, automatic bool) (ClientSyncResult, error) {
 	var result ClientSyncResult
 	release, err := lockfile.New(filepath.Join(c.root, "sync.lock")).Acquire(ctx)
 	if err != nil {
@@ -95,8 +117,51 @@ func (c *Client) Synchronize(ctx context.Context, peer SyncPeer) (ClientSyncResu
 	if err := c.AdoptSyncSettings(ctx, caps); err != nil {
 		return result, err
 	}
-	if err := c.pullCatalog(ctx, peer); err != nil {
-		return result, err
+	var expected SyncBoundary
+	skipPull := false
+	if automatic {
+		local, err := c.Status(ctx)
+		if err != nil {
+			return result, err
+		}
+		expected, err = peer.Head(ctx)
+		if err != nil {
+			return result, err
+		}
+		if len(local.Pending) == 0 && local.Catalog.Complete && expected == local.Catalog.Confirmed {
+			result.Complete = true
+			return result, nil
+		}
+		for _, entry := range local.Pending {
+			if entry.Conflict != "" {
+				return result, ErrSyncConflict
+			}
+		}
+		if len(local.Pending) > 0 {
+			allowed, err := c.automaticBoundaryAllowed(ctx, expected)
+			if err != nil {
+				return result, err
+			}
+			if !allowed || local.BlockedID != "" {
+				return result, ErrSyncConflict
+			}
+			if _, ok := peer.(ConditionalSyncPeer); !ok || !caps.ConditionalSubmit {
+				return result, ErrSyncConflict
+			}
+			skipPull = expected == local.Catalog.Confirmed
+		}
+	}
+	if !skipPull {
+		if err := c.pullCatalogMode(ctx, peer, automatic); err != nil {
+			return result, err
+		}
+		if automatic {
+			status, err := c.CatalogStatus(ctx)
+			if err != nil {
+				return result, err
+			}
+			expected = status.Confirmed
+		}
 	}
 	for {
 		entry, conflict, err := c.nextSyncIntent(ctx)
@@ -108,6 +173,18 @@ func (c *Client) Synchronize(ctx context.Context, peer SyncPeer) (ClientSyncResu
 		}
 		if entry == nil {
 			break
+		}
+		if automatic {
+			if _, ok := peer.(ConditionalSyncPeer); !ok || !caps.ConditionalSubmit {
+				return result, ErrSyncConflict
+			}
+			head, err := peer.Head(ctx)
+			if err != nil {
+				return result, err
+			}
+			if head != expected {
+				return result, ErrSyncConflict
+			}
 		}
 		p := entry.Proposal
 		result.BlockedID = p.ID
@@ -127,12 +204,20 @@ func (c *Client) Synchronize(ctx context.Context, peer SyncPeer) (ClientSyncResu
 		}
 		// Retry an uncertain submission verbatim. NAS checks ID AND digest
 		// before present-day state; an ID-only status lookup cannot prove that.
-		receipt, err := peer.Submit(ctx, p)
+		var receipt SyncResult
+		if automatic {
+			receipt, err = peer.(ConditionalSyncPeer).SubmitAt(ctx, p, expected)
+		} else {
+			receipt, err = peer.Submit(ctx, p)
+		}
 		if err != nil {
 			var rejected *SyncRejectedError
 			if errors.As(err, &rejected) {
 				if persistErr := c.recordSyncEvent(ctx, "pending_reject", pendingEvent{Target: p.ID, Reason: rejected.Error()}); persistErr != nil {
 					return result, persistErr
+				}
+				if automatic {
+					return result, ErrSyncConflict
 				}
 				if refreshErr := c.pullCatalog(ctx, peer); refreshErr != nil {
 					return result, errors.Join(err, refreshErr)
@@ -145,8 +230,17 @@ func (c *Client) Synchronize(ctx context.Context, peer SyncPeer) (ClientSyncResu
 		}
 		result.Accepted++
 		result.BlockedID = ""
+		if automatic {
+			expected, err = peer.Head(ctx)
+			if err != nil {
+				return result, err
+			}
+			if expected.OpID != receipt.OpID {
+				return result, ErrSyncConflict
+			}
+		}
 	}
-	if err := c.pullCatalog(ctx, peer); err != nil {
+	if err := c.pullCatalogMode(ctx, peer, automatic); err != nil {
 		return result, err
 	}
 	entries, err := c.queue.snapshot(ctx)
@@ -166,6 +260,9 @@ func (c *Client) Synchronize(ctx context.Context, peer SyncPeer) (ClientSyncResu
 }
 
 func (c *Client) pullCatalog(ctx context.Context, peer SyncPeer) error {
+	return c.pullCatalogMode(ctx, peer, false)
+}
+func (c *Client) pullCatalogMode(ctx context.Context, peer SyncPeer, automatic bool) error {
 	status, err := c.CatalogStatus(ctx)
 	if err != nil {
 		return err
@@ -188,7 +285,7 @@ func (c *Client) pullCatalog(ctx context.Context, peer SyncPeer) error {
 		if page.After != after || page.Boundary != head {
 			return ErrSyncConflict
 		}
-		if err := c.ReceiveCatalogPage(ctx, page); err != nil {
+		if err := c.receiveCatalogPage(ctx, page, automatic); err != nil {
 			return err
 		}
 		if page.Done {

@@ -21,6 +21,9 @@ func (s *Server) clientMutate(ctx context.Context, key, method, target string, b
 	}
 	digest := sha256.Sum256(canonical)
 	result, err := s.client.ExecuteRequest(ctx, library.Request{ID: key, Digest: hex.EncodeToString(digest[:])}, fn)
+	if err == nil {
+		s.wakeAutoSync()
+	}
 	return response(result, err)
 }
 

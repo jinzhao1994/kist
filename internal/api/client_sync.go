@@ -81,6 +81,8 @@ func (s *Server) clientSyncRoutes() {
 		if err != nil {
 			return nil, failure(err)
 		}
+		s.autoSyncRunning.Add(1)
+		defer s.autoSyncRunning.Add(-1)
 		result, err := s.client.Synchronize(ctx, peer)
 		if err != nil && !errors.Is(err, library.ErrSyncConflict) {
 			return nil, failure(err)

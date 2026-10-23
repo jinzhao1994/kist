@@ -1206,6 +1206,10 @@ export interface components {
             server: string;
         };
         ClientConnectionStatus: {
+            catalog_complete: boolean;
+            /** Format: int64 */
+            catalog_op_id: number;
+            manual_required: boolean;
             /** Format: int64 */
             pending_download?: number;
             /** Format: int64 */
@@ -1213,6 +1217,7 @@ export interface components {
             server?: string;
             /** @enum {string} */
             state: "connected" | "unreachable" | "unauthorized" | "incompatible" | "unconfigured";
+            syncing: boolean;
         };
         ClientDeletionPreview: {
             /** Format: int64 */
@@ -1333,6 +1338,7 @@ export interface components {
             accepted: number;
             blocked_id?: string;
             complete: boolean;
+            manual_required?: boolean;
             /** Format: int64 */
             remaining: number;
         };

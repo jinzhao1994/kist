@@ -10,7 +10,7 @@ Go 单二进制 + SQLite，Apache-2.0。
 > **v0.1.0 已发布。** 可下载[四平台安装包](https://github.com/jinzhao1994/kist/releases/tag/v0.1.0)，或使用 Docker 部署。
 > M0–M7 已完成，见[里程碑](#里程碑)。当前没有内置登录，历史原文件永久保留。
 
-开发中的笔记本离线客户端：参见[配对、离线准备与手动同步指南](docs/offline-client.zh-CN.md)。该功能仍在验收，尚未正式发布。
+开发中的笔记本离线客户端：参见[配对、离线准备与同步指南](docs/offline-client.zh-CN.md)。该功能仍在验收，尚未正式发布。
 
 ### 文件组合
 

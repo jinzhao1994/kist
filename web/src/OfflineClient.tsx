@@ -1,4 +1,8 @@
-import { useConnectionStatus } from "./ClientConnectionStatus";
+import {
+  useConnectionStatus,
+  connectionStatusKey,
+  type ConnectionStatus,
+} from "./ClientConnectionStatus";
 import { SectionIndex } from "./SectionIndex";
 import { Alert, Button, Checkbox, Group, Stack, Text } from "@mantine/core";
 import { useEffect, useRef, useState } from "react";
@@ -69,10 +73,19 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
         <Group className="header-actions">
           <Button
             variant="filled"
-            loading={busy}
-            disabled={!data?.connection || historyLocked || !!editing}
+            loading={busy || connection.data?.syncing}
+            disabled={
+              !data?.connection ||
+              historyLocked ||
+              !!editing ||
+              connection.data?.syncing
+            }
             onClick={() =>
               run(async (signal) => {
+                queries.setQueryData<ConnectionStatus>(
+                  connectionStatusKey,
+                  (value) => (value ? { ...value, syncing: true } : value),
+                );
                 const response = await clientCommand<SyncResponse>(
                   "/sync",
                   {},
@@ -128,8 +141,14 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
                     />
                   ) : (
                     <Stack gap="md">
-                      <Text size="sm" c="dimmed">
-                        {t("clientSyncDescription")}
+                      <Text size="sm" role="status" c="dimmed">
+                        {t(
+                          connection.data?.syncing
+                            ? "clientSyncing"
+                            : connection.data?.manual_required
+                              ? "clientManualSyncRequired"
+                              : "clientSyncDescription",
+                        )}
                       </Text>
                       <div className="sync-status-row">
                         <div>
