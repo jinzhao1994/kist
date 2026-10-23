@@ -3366,6 +3366,7 @@ main.upload-drag-active {
   grid-row: 1;
   position: sticky;
   inset-block-start: var(--mantine-spacing-lg);
+  padding-inline-start: var(--mantine-spacing-lg);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -3397,6 +3398,7 @@ main.upload-drag-active {
     gap: var(--mantine-spacing-sm);
   }
   .section-index {
+    padding-inline-start: 0;
     position: static;
     grid-column: 1;
     grid-row: 1;
