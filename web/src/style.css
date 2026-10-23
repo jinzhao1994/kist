@@ -3344,12 +3344,6 @@ main.upload-drag-active {
   overflow-wrap: anywhere;
   margin-block-start: var(--mantine-spacing-sm);
 }
-.sync-status-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--mantine-spacing-xl);
-  padding-block: var(--mantine-spacing-md);
-}
 
 /* Keep the document index beside the content without covering form controls. */
 .section-layout {

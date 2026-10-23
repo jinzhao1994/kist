@@ -3300,6 +3300,13 @@ for (const panel of [
     );
     let dialog = page.getByRole("region", { name: "数据同步", exact: true });
     await expect(page).toHaveURL(/\/sync$/);
+    await expect(dialog.locator("#sync-status").getByRole("status")).toHaveText(
+      panel === "syncing" ? "正在同步下载 3 个操作" : "需要手动合并",
+    );
+    await expect(
+      dialog.getByText("可供浏览和检索", { exact: true }),
+    ).toHaveCount(0);
+
     await expect(dialog.getByRole("button", { name: "立即同步" }))[
       panel === "syncing" ? "toBeDisabled" : "toBeEnabled"
     ]();

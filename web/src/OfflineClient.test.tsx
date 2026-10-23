@@ -65,6 +65,14 @@ beforeEach(() => {
         } else body = state;
       } else if (path.endsWith("/offline")) body = {};
       else if (path.includes("/history")) body = { entries: [] };
+      else if (path.endsWith("/connection-status"))
+        body = {
+          state: "connected",
+          catalog_complete: state.catalog.complete,
+          pending_download: 0,
+          pending_upload: state.pending?.length ?? 0,
+          manual_required: (state.pending?.length ?? 0) > 0,
+        };
       else if (path.endsWith("/status")) body = state;
       else if (path.endsWith("/protected-storage"))
         body = { originals_bytes: 100, pending_journal_bytes: 20 };
@@ -160,5 +168,22 @@ it("requires an explicit conflict decision before discarding", async () => {
   expect(writes[0].body.reason).toBeTruthy();
   expect(
     await screen.findByText("Decision saved. Sync again to continue."),
+  ).toBeVisible();
+});
+
+it("shows a compact synchronized state without zero counts or redundant catalog text", async () => {
+  state.catalog.complete = true;
+  setup();
+  expect(await screen.findByText("Up to date")).toBeVisible();
+  expect(
+    screen.queryByText("0 operations to download"),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByText("No local changes to submit."),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByRole("button", {
+      name: "Get remote updates and submit local changes.",
+    }),
   ).toBeVisible();
 });

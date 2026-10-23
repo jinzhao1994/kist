@@ -59,6 +59,35 @@ export function syncProgressLabel(
   return t("clientSyncing");
 }
 
+export function connectionStatusLabel(
+  data: ConnectionStatus | undefined,
+  isError: boolean,
+  t: Translate,
+): string {
+  const state = isError ? "unreachable" : data?.state;
+  return data?.syncing && !isError
+    ? syncProgressLabel(data, t)
+    : t(
+        state === "connected"
+          ? data?.manual_required
+            ? "clientManualSyncRequired"
+            : data?.catalog_complete &&
+                data.pending_download === 0 &&
+                data.pending_upload === 0
+              ? "clientSynced"
+              : "remoteConnected"
+          : state === "unauthorized"
+            ? "remoteUnauthorized"
+            : state === "incompatible"
+              ? "remoteIncompatible"
+              : state === "unconfigured"
+                ? "remoteUnconfigured"
+                : state === "unreachable"
+                  ? "remoteDisconnected"
+                  : "remoteChecking",
+      );
+}
+
 export function ClientConnectionStatus({ openSync }: { openSync: () => void }) {
   const { t } = useI18n();
   const queries = useQueryClient();
@@ -89,28 +118,7 @@ export function ClientConnectionStatus({ openSync }: { openSync: () => void }) {
       },
     });
   }, [queries, state, query.dataUpdatedAt]);
-  const label =
-    query.data?.syncing && !query.isError
-      ? syncProgressLabel(query.data, t)
-      : t(
-          state === "connected"
-            ? query.data?.manual_required
-              ? "clientManualSyncRequired"
-              : query.data?.catalog_complete &&
-                  query.data.pending_download === 0 &&
-                  query.data.pending_upload === 0
-                ? "clientSynced"
-                : "remoteConnected"
-            : state === "unauthorized"
-              ? "remoteUnauthorized"
-              : state === "incompatible"
-                ? "remoteIncompatible"
-                : state === "unconfigured"
-                  ? "remoteUnconfigured"
-                  : state === "unreachable"
-                    ? "remoteDisconnected"
-                    : "remoteChecking",
-        );
+  const label = connectionStatusLabel(query.data, query.isError, t);
   return (
     <Tooltip label={query.data?.server || label}>
       <UnstyledButton className="client-connection-status" onClick={openSync}>

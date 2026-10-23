@@ -1,6 +1,7 @@
+import { HelpTooltip } from "./HelpTooltip";
 import {
   useConnectionStatus,
-  syncProgressLabel,
+  connectionStatusLabel,
   connectionStatusKey,
   type ConnectionStatus,
 } from "./ClientConnectionStatus";
@@ -62,6 +63,11 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
     }
   }
   const data = status.data;
+  const downloads =
+    !connection.isError && connection.data?.state === "connected"
+      ? (connection.data.pending_download ?? 0)
+      : 0;
+  const uploads = data?.pending?.length ?? 0;
   return (
     <section aria-label={t("clientTitle")}>
       <header className="page-header">
@@ -132,7 +138,15 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
                   className="flat-page-section"
                   aria-labelledby="sync-status-title"
                 >
-                  <h2 id="sync-status-title">{t("clientSync")}</h2>
+                  <h2
+                    id="sync-status-title"
+                    className="settings-section-heading"
+                  >
+                    {t("clientSync")}
+                    <HelpTooltip label={t("clientSyncDescription")}>
+                      {t("clientSyncDescription")}
+                    </HelpTooltip>
+                  </h2>
                   {editing ? (
                     <ClientConflictEditor
                       key={editing.id}
@@ -141,56 +155,38 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
                       onLocked={setHistoryLocked}
                     />
                   ) : (
-                    <Stack gap="md">
-                      <Text size="sm" role="status" c="dimmed">
-                        {connection.data?.syncing
-                          ? syncProgressLabel(connection.data, t)
-                          : t(
-                              connection.data?.manual_required
-                                ? "clientManualSyncRequired"
-                                : "clientSyncDescription",
-                            )}
+                    <Stack gap="sm">
+                      <Text size="sm" role="status">
+                        {connectionStatusLabel(
+                          connection.data,
+                          connection.isError,
+                          t,
+                        )}
                       </Text>
-                      <div className="sync-status-row">
-                        <div>
-                          <Text size="xs" c="dimmed">
-                            {t("clientCatalogLabel")}
-                          </Text>
-                          <Text size="sm">
-                            {t(
-                              data.catalog.complete
-                                ? "clientCatalogReady"
-                                : "clientCatalogIncomplete",
-                            )}
-                          </Text>
-                        </div>
-                        <div>
-                          <Text size="xs" c="dimmed">
-                            {t("clientRemoteUpdates")}
-                          </Text>
-                          <Text size="sm">
-                            {t("clientDownloadCount", {
-                              count:
-                                !connection.isError &&
-                                connection.data?.state === "connected"
-                                  ? (connection.data.pending_download ?? "—")
-                                  : "—",
-                            })}
-                          </Text>
-                        </div>
-                      </div>
-                      {Boolean(data.pending?.length) && (
-                        <Text size="sm" fw={600}>
-                          {t("clientPending", {
-                            count: data.pending?.length || 0,
-                          })}
-                        </Text>
-                      )}
-                      {!data.pending?.length && (
+                      {!data.catalog.complete && (
                         <Text size="sm" c="dimmed">
-                          {t("clientNoPending")}
+                          {t("clientCatalogIncomplete")}
                         </Text>
                       )}
+                      {!connection.data?.syncing &&
+                        (downloads > 0 || uploads > 0) && (
+                          <Group gap="lg">
+                            {downloads > 0 && (
+                              <Text size="sm" c="dimmed">
+                                {t("clientDownloadCount", {
+                                  count: downloads,
+                                })}
+                              </Text>
+                            )}
+                            {uploads > 0 && (
+                              <Text size="sm" c="dimmed">
+                                {t("clientUploadCount", {
+                                  count: uploads,
+                                })}
+                              </Text>
+                            )}
+                          </Group>
+                        )}
                       {(data.pending || []).map((op) => (
                         <Stack
                           key={op.id}
