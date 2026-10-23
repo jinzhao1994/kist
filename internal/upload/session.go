@@ -185,7 +185,7 @@ func (s *Store) Create(ctx context.Context, key string, manifest Manifest) (Stat
 	if err != nil {
 		return zero, err
 	}
-	if len(key) == 0 || len(key) > 128 || total > s.maxBytes || len(manifest.Files) > s.maxFiles {
+	if len(key) == 0 || len(key) > 128 {
 		return zero, problem("invalid_manifest")
 	}
 	id := ID(key)
@@ -227,6 +227,10 @@ func (s *Store) Create(ctx context.Context, key string, manifest Manifest) (Stat
 		return session.State(), nil
 	} else if !os.IsNotExist(err) {
 		return zero, err
+	}
+	// Changed limits constrain new sessions, never an idempotent retry.
+	if total > s.maxBytes || len(manifest.Files) > s.maxFiles {
+		return zero, problem("invalid_manifest")
 	}
 	entries, err := root.Open(".")
 	if err != nil {

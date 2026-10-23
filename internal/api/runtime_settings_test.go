@@ -26,7 +26,20 @@ func saveRuntimeSettings(t *testing.T, s *Server, changes map[string]any) {
 
 func TestRuntimeSettingsSaveKeepsUploadsAndHistory(t *testing.T) {
 	s, l := testServer(t)
-	_, upload, _ := sessionFixture(t, s, l, "abcdefghij")
+	_, upload, manifest := sessionFixture(t, s, l, "abcdefghij")
+	var multi map[string]any
+	if err := json.Unmarshal([]byte(manifest), &multi); err != nil {
+		t.Fatal(err)
+	}
+	files := multi["files"].([]any)
+	second := map[string]any{}
+	for k, v := range files[0].(map[string]any) {
+		second[k] = v
+	}
+	second["path"] = "second.bin"
+	multi["files"] = append(files, second)
+	multiBody, _ := json.Marshal(multi)
+	accepted := decodeSession(t, call(s, "POST", Prefix+"/upload-sessions", "multi-before-reload", string(multiBody)))
 	before, _ := l.OpCount(t.Context())
 	old := s.current.Load()
 	captured := context.WithValue(t.Context(), runtimeKey{}, old)
@@ -54,9 +67,18 @@ func TestRuntimeSettingsSaveKeepsUploadsAndHistory(t *testing.T) {
 	if before != after {
 		t.Fatal("reload wrote history")
 	}
+	// Lost creation replies remain retryable under both the new size and count limits.
+	retry := decodeSession(t, call(s, "POST", Prefix+"/upload-sessions", "multi-before-reload", string(multiBody)))
+	if retry.Session.ID != accepted.Session.ID {
+		t.Fatal("retry lost session")
+	}
+	if fresh := call(s, "POST", Prefix+"/upload-sessions", "multi-after-reload", string(multiBody)); fresh.Code != 400 {
+		t.Fatal("new upload ignored limit", fresh.Code)
+	}
 	// A lower limit affects new uploads, not blocks belonging to an accepted session.
 	decodeSession(t, sessionChunk(s, upload.Session.ID, 0, "abcdefghij"))
 	decodeSession(t, call(s, "POST", sessionURL(upload.Session.ID)+"/complete", "", "{}"))
+	decodeSession(t, call(s, "POST", Prefix+"/upload-sessions", "create-resumable-001", manifest))
 	saveRuntimeSettings(t, s, map[string]any{"server.allowed_origins": []string{}})
 	w = httptest.NewRecorder()
 	s.ServeHTTP(w, r)

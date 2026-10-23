@@ -559,3 +559,23 @@ func TestLocalCompletionSurvivesRestartAndAllowsCleanup(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateRetryAfterLimitsShrink(t *testing.T) {
+	path := t.TempDir()
+	original := newStore(t, path, 100)
+	m := manifest([]byte("abcdefghij"))
+	second := m.Files[0]
+	second.Path = "second.bin"
+	m.Files = append(m.Files, second)
+	first := create(t, original, "accepted", m)
+	smaller, err := New(path, 2, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	retried := create(t, smaller, "accepted", m)
+	if retried.ID != first.ID {
+		t.Fatal("retry lost accepted session")
+	}
+	_, err = smaller.Create(t.Context(), "new", m)
+	checkKind(t, err, "invalid_manifest")
+}

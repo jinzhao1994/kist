@@ -104,7 +104,7 @@ func (s *Server) uploadSessionRoutes() {
 		if m.ConflictMode != "" && m.ConflictMode != "overwrite" && m.ConflictMode != "keep_both" {
 			return nil, invalid("Unknown conflict mode")
 		}
-		if len(files) == 0 || len(files) > s.runtime(ctx).maxUploadFiles {
+		if len(files) == 0 {
 			return nil, invalid("Invalid upload file count")
 		}
 		if in.Body.Version == 2 {
@@ -134,6 +134,9 @@ func (s *Server) uploadSessionRoutes() {
 		var absent *staging.Problem
 		if !errors.As(existingErr, &absent) || absent.Kind != "not_found" {
 			return nil, failure(existingErr)
+		}
+		if len(files) > s.runtime(ctx).maxUploadFiles {
+			return nil, invalid("Invalid upload file count")
 		}
 		paths := make([]string, len(files))
 		for i, f := range files {
