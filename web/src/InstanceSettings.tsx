@@ -333,7 +333,15 @@ export function InstanceSettings() {
                   className="flat-page-section"
                   aria-labelledby="settings-access-title"
                 >
-                  <h2 id="settings-access-title">{t("settingCredentials")}</h2>
+                  <h2
+                    id="settings-access-title"
+                    className="settings-section-heading"
+                  >
+                    {t("settingCredentials")}
+                    <HelpTooltip label={t("settingCredentials")}>
+                      {t("settingCredentialsHint")}
+                    </HelpTooltip>
+                  </h2>
                   {Object.keys(changes).length > 0 && (
                     <Text size="sm" c="dimmed" mb="md">
                       {t("settingsPending")}
@@ -673,19 +681,16 @@ function Credentials({
   });
   return (
     <Stack gap="md">
-      <Group justify="space-between" align="start">
-        <Text size="sm" c="dimmed" style={{ flex: 1 }}>
-          {t("settingCredentialsHint")}
-        </Text>
-        {!creating && (
+      {!creating && (
+        <Group justify="flex-end">
           <Button
             disabled={busy || !!editing}
             onClick={() => setCreating(true)}
           >
             {t("settingCreateCredential")}
           </Button>
-        )}
-      </Group>
+        </Group>
+      )}
       {creating && (
         <form
           className="credential-create-form"

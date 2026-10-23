@@ -3402,6 +3402,11 @@ main.upload-drag-active {
   font-weight: 600;
   margin-block: 0 var(--mantine-spacing-lg);
 }
+.settings-section-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}
 @media (max-width: 900px) {
   .section-layout {
     grid-template-columns: minmax(0, 1fr);

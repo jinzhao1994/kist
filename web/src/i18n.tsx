@@ -52,7 +52,7 @@ export const en = {
   settingCredentialStored:
     "A credential is stored. Enter a new credential to update the connection.",
   settingCredentialsHint:
-    "Create an independent credential for each client. Revoking one stops its future synchronization requests.",
+    "Used to connect to this instance. Use a separate credential for each device; revoking it stops synchronization.",
   settingCredentialOnce:
     "Copy this credential now. It will not be shown again.",
   settingRevoke: "Revoke",
@@ -762,7 +762,7 @@ export const zh: Record<MessageKey, string> = {
   settingTimezoneHint: "文件中的时间未注明时区时，使用此时区。",
   settingCredentialStored: "已保存凭据。修改连接时请填写新凭据。",
   settingCredentialsHint:
-    "为每个客户端创建独立凭据。撤销后，该客户端的新同步请求将被拒绝。",
+    "用于连接此实例。建议每台设备使用独立凭据，撤销后无法继续同步。",
   settingCredentialOnce: "请现在复制此凭据，之后不会再次显示。",
   settingRevoke: "撤销凭据",
   settingCredentialNote: "备注（可选）",

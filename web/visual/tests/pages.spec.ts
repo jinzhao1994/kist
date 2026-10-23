@@ -3747,6 +3747,14 @@ for (const scenario of [
       await expect(settings.locator("#settings-access-title")).toBeInViewport();
       await page.reload();
       await expect(settings.locator("#settings-access-title")).toBeInViewport();
+      const help = settings.getByRole("button", {
+        name: "访问凭据",
+        exact: true,
+      });
+      await help.hover();
+      await expect(page.getByRole("tooltip")).toContainText("用于连接此实例");
+      await page.mouse.move(0, 0);
+      await expect(page.getByRole("tooltip")).toHaveCount(0);
       await expect(settings).toContainText("旅行备用机");
       await expect(
         settings.getByRole("cell", {
