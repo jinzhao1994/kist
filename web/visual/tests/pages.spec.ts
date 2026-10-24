@@ -3519,9 +3519,7 @@ test("offline-retention-file", async ({ page }, info) => {
     "所需原文件和预览已全部准备好，可离线使用。",
   );
   await expect(
-    dialog
-      .locator(".actions")
-      .getByRole("button", { name: "关闭", exact: true }),
+    dialog.locator("footer").getByRole("button", { name: "关闭", exact: true }),
   ).toBeEnabled();
   await capture(page, errors, info.title);
 });

@@ -3528,3 +3528,8 @@ main.upload-drag-active {
   margin-block-start: 0.4rem;
   flex-shrink: 0;
 }
+
+.offline-target-name {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}

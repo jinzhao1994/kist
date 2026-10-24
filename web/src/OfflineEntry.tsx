@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { api, get } from "./api";
 import { Dialog } from "./Dialog";
+import { HelpTooltip } from "./HelpTooltip";
 import { useI18n } from "./i18n";
 import { errorMessage } from "./mutations";
 import { clientCommand } from "./offline-client";
@@ -90,49 +91,72 @@ export function OfflineEntry({
       }}
     >
       <Stack gap="md">
-        <Text fw={600}>
-          <bdi>{target.name}</bdi>
-        </Text>
-        <Text size="sm" c="dimmed">
-          {t(target.fileset ? "clientKeepFilesetHint" : "clientKeepFileHint")}
-        </Text>
-        {selections.isPending && <Text role="status">{t("loading")}</Text>}
+        <Group gap="xs" wrap="nowrap" align="center">
+          <Text size="sm" fw={600} className="offline-target-name">
+            <bdi>{target.name}</bdi>
+          </Text>
+          <HelpTooltip label={t("clientKeepOffline")}>
+            {t(target.fileset ? "clientKeepFilesetHint" : "clientKeepFileHint")}{" "}
+            {t("clientRetentionScope")}
+          </HelpTooltip>
+        </Group>
+        {selections.isPending && (
+          <Text size="sm" role="status">
+            {t("loading")}
+          </Text>
+        )}
         {selections.error && (
-          <Text role="alert">{errorMessage(selections.error, t)}</Text>
+          <Text size="sm" role="alert">
+            {errorMessage(selections.error, t)}
+          </Text>
         )}
-        {retained && <Text size="sm">{t("clientRetentionSaved")}</Text>}
-        {status.data && <OfflineReadiness status={status.data} />}
+        {retained && !status.data?.ready && (
+          <Text size="sm" c="dimmed">
+            {t("clientRetentionSaved")}
+          </Text>
+        )}
+        {retained && status.data && <OfflineReadiness status={status.data} />}
         {status.error && (
-          <Text role="alert">{errorMessage(status.error, t)}</Text>
+          <Text size="sm" role="alert">
+            {errorMessage(status.error, t)}
+          </Text>
         )}
-        {error && <Text role="alert">{error}</Text>}
-        <Group>
-          <Button
-            disabled={busy || selections.isPending || selections.isError}
-            onClick={() => run()}
-          >
-            {t(retained ? "clientPrepareAgain" : "clientKeepAndPrepare")}
-          </Button>
-          {retained && (
-            <Button disabled={busy} onClick={() => run(true)}>
+        {error && (
+          <Text size="sm" role="alert">
+            {error}
+          </Text>
+        )}
+        {busy && (
+          <Text size="sm" role="status">
+            {t("clientPreparing")}
+          </Text>
+        )}
+        <Group component="footer" justify="space-between" gap="xs" mt="sm">
+          {retained ? (
+            <Button variant="subtle" disabled={busy} onClick={() => run(true)}>
               {t("clientStopKeeping")}
             </Button>
+          ) : (
+            <span />
           )}
-        </Group>
-        {busy && <Text role="status">{t("clientPreparing")}</Text>}
-        <Text size="xs" c="dimmed">
-          {t("clientRetentionScope")}
-        </Text>
-        <div className="actions">
-          {busy && (
-            <Button onClick={() => active.current?.abort()}>
-              {t("cancel")}
+          <Group gap="xs">
+            {busy ? (
+              <Button onClick={() => active.current?.abort()}>
+                {t("cancel")}
+              </Button>
+            ) : (
+              <Button
+                disabled={selections.isPending || selections.isError}
+                onClick={() => run()}
+              >
+                {t(retained ? "clientPrepareAgain" : "clientKeepAndPrepare")}
+              </Button>
+            )}
+            <Button disabled={busy} onClick={close}>
+              {t("close")}
             </Button>
-          )}
-          <Button disabled={busy} onClick={close}>
-            {t("close")}
-          </Button>
-        </div>
+          </Group>
+        </Group>
       </Stack>
     </Dialog>
   );
@@ -141,8 +165,8 @@ export function OfflineEntry({
 export function OfflineReadiness({ status }: { status: Status }) {
   const { t } = useI18n();
   return (
-    <>
-      <Text role="status">
+    <Stack gap="xs">
+      <Text size="sm" role="status">
         {status.ready
           ? t("clientOfflineReady")
           : t("clientOfflineMissing", {
@@ -158,6 +182,6 @@ export function OfflineReadiness({ status }: { status: Status }) {
           })}
         </Text>
       )}
-    </>
+    </Stack>
   );
 }
