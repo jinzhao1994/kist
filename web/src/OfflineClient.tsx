@@ -120,7 +120,7 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
           </Button>
         </Group>
       </header>
-      <div className="instance-settings-content">
+      <div className="instance-settings-content sync-page-content">
         <Stack gap="md">
           {status.isPending && <Text role="status">{t("loading")}</Text>}
           {status.error && (
@@ -171,18 +171,20 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
                     />
                   ) : (
                     <Stack gap="sm">
-                      <Text size="sm" c="dimmed">
-                        {data?.connection?.server
-                          ? `${t("clientServer")}: ${data.connection.server}`
-                          : t("clientNotConnected")}
-                      </Text>
-                      <Text size="sm" role="status">
-                        {connectionStatusLabel(
-                          connection.data,
-                          connection.isError,
-                          t,
-                        )}
-                      </Text>
+                      <Group justify="space-between" gap="xs">
+                        <Text size="sm" c="dimmed">
+                          {data?.connection?.server
+                            ? `${t("clientServer")}: ${data.connection.server}`
+                            : t("clientNotConnected")}
+                        </Text>
+                        <Text size="sm" role="status">
+                          {connectionStatusLabel(
+                            connection.data,
+                            connection.isError,
+                            t,
+                          )}
+                        </Text>
+                      </Group>
                       {!data.catalog.complete && (
                         <Text size="sm" c="dimmed">
                           {t("clientCatalogIncomplete")}
@@ -301,59 +303,60 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
                   >
                     {t("clientCache")}
                     <HelpTooltip label={t("clientCache")}>
-                      {t("clientSyncCacheNote")}
+                      {t("clientSyncCacheNote")} {t("clientProtectedHint")}
                     </HelpTooltip>
+                    <Button
+                      variant="subtle"
+                      size="compact-sm"
+                      className="section-heading-action"
+                      onClick={openSettings}
+                      disabled={busy}
+                    >
+                      {t("settingManageCache")}
+                    </Button>
                   </h2>
                   <Stack gap="md">
                     {cache.error && (
                       <Text role="alert">{errorMessage(cache.error, t)}</Text>
                     )}
-                    {cache.data && (
-                      <>
-                        <Text size="sm">
-                          {t("clientCacheUsed", {
-                            size: formatBytes(
-                              cache.data.cached_bytes +
-                                cache.data.partial_bytes,
-                              prefs,
-                            ),
-                          })}
-                        </Text>
-                        <Text size="sm" c="dimmed">
-                          {t("clientPinnedUsed", {
-                            size: formatBytes(cache.data.pinned_bytes, prefs),
-                          })}
-                        </Text>
-                        {cache.data.over_limit && (
-                          <Alert color="yellow">
-                            {t("clientCacheOverLimit")}
-                          </Alert>
-                        )}
-                      </>
-                    )}
                     {storage.error && (
                       <Text role="alert">{errorMessage(storage.error, t)}</Text>
                     )}
-                    {storage.data && (
-                      <Text size="sm">
-                        {t("clientProtectedUsed", {
-                          originals: formatBytes(
-                            storage.data.originals_bytes,
-                            prefs,
-                          ),
-                          journal: formatBytes(
-                            storage.data.pending_journal_bytes,
-                            prefs,
-                          ),
-                        })}
-                      </Text>
+                    <div className="storage-usage-values">
+                      {(
+                        [
+                          [
+                            "clientCacheLabel",
+                            cache.data
+                              ? cache.data.cached_bytes +
+                                cache.data.partial_bytes
+                              : undefined,
+                          ],
+                          ["clientPinnedLabel", cache.data?.pinned_bytes],
+                          [
+                            "clientOriginalsLabel",
+                            storage.data?.originals_bytes,
+                          ],
+                          [
+                            "clientJournalLabel",
+                            storage.data?.pending_journal_bytes,
+                          ],
+                        ] as const
+                      ).map(([label, bytes]) => (
+                        <div key={label}>
+                          <Text size="xs" c="dimmed">
+                            {t(label)}
+                          </Text>
+                          <Text>
+                            {bytes == null ? "—" : formatBytes(bytes, prefs)}
+                          </Text>
+                        </div>
+                      ))}
+                    </div>
+                    {cache.data?.over_limit && (
+                      <Alert color="yellow">{t("clientCacheOverLimit")}</Alert>
                     )}
                     <OfflineRetention active busy={busy} run={run} />
-                    <Group>
-                      <Button onClick={openSettings} disabled={busy}>
-                        {t("settingManageCache")}
-                      </Button>
-                    </Group>
                   </Stack>
                 </section>
                 <section

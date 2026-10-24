@@ -3329,6 +3329,18 @@ for (const panel of [
           : "需要手动合并",
     );
     let dialog = page.getByRole("region", { name: "数据同步", exact: true });
+    await expect(dialog.locator(".storage-usage-values")).toContainText(
+      "本机原文件",
+    );
+    await expect(dialog.locator(".retention-table")).toBeVisible();
+    await expect(dialog.locator(".retention-table")).not.toContainText(
+      "0 个组合",
+    );
+    await expect(
+      dialog
+        .locator("#sync-cache-title")
+        .getByRole("button", { name: "缓存设置" }),
+    ).toBeVisible();
     await expect(page).toHaveURL(/\/sync$/);
     await expect(
       dialog.getByRole("button", { name: "清理到期缓存", exact: true }),

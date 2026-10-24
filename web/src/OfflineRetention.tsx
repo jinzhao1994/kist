@@ -1,5 +1,5 @@
 import { EmptyHint } from "./EmptyHint";
-import { Button, Group, Stack, Text } from "@mantine/core";
+import { Button, Group, Stack, Table, Text } from "@mantine/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, get } from "./api";
@@ -38,18 +38,42 @@ export function OfflineRetention({ active, busy, run }: Props) {
       {selections.data && Object.keys(selections.data).length === 0 && (
         <EmptyHint>{t("clientRetainedEmpty")}</EmptyHint>
       )}
-      {active &&
-        Object.entries(selections.data || {})
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([owner, selection]) => (
-            <RetentionItem
-              key={owner}
-              owner={owner}
-              selection={selection}
-              busy={busy}
-              run={run}
-            />
-          ))}
+      {active && !!Object.keys(selections.data || {}).length && (
+        <Table.ScrollContainer minWidth={640}>
+          <Table
+            highlightOnHover
+            verticalSpacing="xs"
+            horizontalSpacing="sm"
+            className="settings-table retention-table"
+          >
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>{t("name")}</Table.Th>
+                <Table.Th>{t("clientRetainedContents")}</Table.Th>
+                <Table.Th>
+                  <span className="sr-only">
+                    {t("settingCredentialActions")}
+                  </span>
+                </Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {active &&
+                Object.entries(selections.data || {})
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .map(([owner, selection]) => (
+                    <RetentionItem
+                      key={owner}
+                      owner={owner}
+                      selection={selection}
+                      busy={busy}
+                      run={run}
+                    />
+                  ))}
+            </Table.Tbody>
+          </Table>
+        </Table.ScrollContainer>
+      )}
     </Stack>
   );
 }
@@ -96,78 +120,95 @@ function RetentionItem({
     refetchOnWindowFocus: false,
   });
   return (
-    <Stack gap="xs">
-      <Group gap="sm" align="baseline">
-        <Text style={{ overflowWrap: "anywhere" }}>
-          <bdi>{name.data || owner}</bdi>
-        </Text>
-        <Text size="sm" c="dimmed">
-          {t("clientRetainedCount", {
-            files: files.length,
-            filesets: filesets.length,
-          })}
-        </Text>
-      </Group>
-      {name.error && (
-        <Text size="xs" c="dimmed">
-          {errorMessage(name.error, t)}
-        </Text>
-      )}
-      <Group gap="xs">
-        <Button
-          disabled={busy}
-          aria-expanded={expanded}
-          onClick={() => {
-            setExpanded(true);
-            if (expanded) void status.refetch();
-          }}
-        >
-          {t("clientRetainedDetails")}
-        </Button>
-        <Button
-          disabled={busy}
-          onClick={() =>
-            run(async (signal) => {
-              try {
-                await clientCommand(`${path}/prepare`, {}, "POST", signal);
-              } finally {
-                // Do not let a pre-download availability check win the refresh.
-                await queries.cancelQueries({
-                  queryKey: ["client", "offline-status", owner],
-                  exact: true,
-                });
-              }
-              setExpanded(true);
-            })
-          }
-        >
-          {t("clientPrepareAgain")}
-        </Button>
-        <Button
-          disabled={busy}
-          onClick={() =>
-            run(async (signal) => {
-              await clientCommand(path, {}, "DELETE", signal);
-            })
-          }
-        >
-          {t("clientStopKeeping")}
-        </Button>
-      </Group>
-      {expanded && (
-        <>
-          {status.isFetching && <Text role="status">{t("loading")}</Text>}
-          {status.error && (
-            <Text role="alert">{errorMessage(status.error, t)}</Text>
-          )}
-          {status.data && !status.isError && (
-            <OfflineReadiness status={status.data} />
-          )}
-          <Text size="xs" c="dimmed">
-            {t("clientRetentionScope")}
+    <>
+      <Table.Tr>
+        <Table.Td>
+          <Text size="sm" className="credential-note">
+            <bdi>{name.data || owner}</bdi>
           </Text>
-        </>
+        </Table.Td>
+        <Table.Td>
+          <Text size="sm" c="dimmed">
+            {t("clientRetainedCount", {
+              files: files.length,
+              filesets: filesets.length,
+            })}
+          </Text>
+        </Table.Td>
+        <Table.Td>
+          {name.error && (
+            <Text size="xs" c="dimmed">
+              {errorMessage(name.error, t)}
+            </Text>
+          )}
+          <Group gap="xs" wrap="nowrap" justify="flex-end">
+            <Button
+              variant="subtle"
+              size="compact-sm"
+              disabled={busy}
+              aria-expanded={expanded}
+              onClick={() => {
+                setExpanded(true);
+                if (expanded) void status.refetch();
+              }}
+            >
+              {t("clientRetainedDetails")}
+            </Button>
+            <Button
+              variant="subtle"
+              size="compact-sm"
+              disabled={busy}
+              onClick={() =>
+                run(async (signal) => {
+                  try {
+                    await clientCommand(`${path}/prepare`, {}, "POST", signal);
+                  } finally {
+                    // Do not let a pre-download availability check win the refresh.
+                    await queries.cancelQueries({
+                      queryKey: ["client", "offline-status", owner],
+                      exact: true,
+                    });
+                  }
+                  setExpanded(true);
+                })
+              }
+            >
+              {t("clientPrepareAgain")}
+            </Button>
+            <Button
+              variant="subtle"
+              size="compact-sm"
+              color="red"
+              disabled={busy}
+              onClick={() =>
+                run(async (signal) => {
+                  await clientCommand(path, {}, "DELETE", signal);
+                })
+              }
+            >
+              {t("clientStopKeeping")}
+            </Button>
+          </Group>
+        </Table.Td>
+      </Table.Tr>
+      {expanded && (
+        <Table.Tr>
+          <Table.Td colSpan={3}>
+            <Stack gap="xs">
+              {status.isFetching && <Text role="status">{t("loading")}</Text>}
+              {status.error && (
+                <Text role="alert">{errorMessage(status.error, t)}</Text>
+              )}
+              {status.data && !status.isError && (
+                <OfflineReadiness status={status.data} />
+              )}
+              <Text size="xs" c="dimmed">
+                {t("clientRetentionScope")}
+              </Text>
+            </Stack>
+          </Table.Td>
+        </Table.Tr>
       )}
-    </Stack>
+    </>
   );
 }

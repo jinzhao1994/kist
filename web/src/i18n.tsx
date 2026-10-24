@@ -102,7 +102,8 @@ export const en = {
   clientRetainedItems: "Retained offline",
   clientRetainedEmpty:
     "No offline selections yet. Use Keep offline in a file or file set menu.",
-  clientRetainedCount: "{files} files · {filesets} file sets",
+  clientRetainedCount:
+    "{files, plural, =0 {} other {# files}}{files, plural, =0 {} other {{filesets, plural, =0 {} other { · }}}}{filesets, plural, =0 {} other {# file sets}}",
   clientRetainedDetails: "Check availability",
   clientKeepOffline: "Keep offline",
   clientKeepFilesetHint:
@@ -193,10 +194,13 @@ export const en = {
     "I want to discard this local change and keep the remote state.",
   clientDiscard: "Discard local change",
   clientResolved: "Decision saved. Sync again to continue.",
-  clientCacheUsed: "Cached content: {size}",
-  clientPinnedUsed: "Retained offline: {size}",
-  clientProtectedUsed:
-    "Protected local originals: {originals} · Local history: {journal}. These are excluded from automatic cache cleanup.",
+  clientCacheLabel: "Cached content",
+  clientPinnedLabel: "Retained offline",
+  clientOriginalsLabel: "Local originals",
+  clientJournalLabel: "Local history",
+  clientProtectedHint:
+    "Local originals and history are excluded from automatic cache cleanup.",
+  clientRetainedContents: "Contents",
   clientCacheOverLimit:
     "Retained or active content exceeds the cache limit. Increase the limit or reduce offline retention.",
   clientServer: "remote address",
@@ -831,7 +835,8 @@ export const zh: Record<MessageKey, string> = {
   clientBatchChanged: "准备期间选择内容发生变化，请重新检查并下载当前成员。",
   clientRetainedItems: "离线保留项",
   clientRetainedEmpty: "尚未保留内容，可在文件或组合的菜单中选择“保留离线”。",
-  clientRetainedCount: "{files} 个文件 · {filesets} 个组合",
+  clientRetainedCount:
+    "{files, plural, =0 {} other {# 个文件}}{files, plural, =0 {} other {{filesets, plural, =0 {} other { · }}}}{filesets, plural, =0 {} other {# 个组合}}",
   clientRetainedDetails: "检查可用状态",
   clientKeepOffline: "保留离线",
   clientKeepFilesetHint:
@@ -910,10 +915,12 @@ export const zh: Record<MessageKey, string> = {
   clientDiscardConfirm: "我确认放弃这条本机修改，保留远端当前状态。",
   clientDiscard: "放弃本机修改",
   clientResolved: "已保存处理决定，请继续同步。",
-  clientCacheUsed: "已缓存内容：{size}",
-  clientPinnedUsed: "保留离线内容：{size}",
-  clientProtectedUsed:
-    "受保护的本地原文件：{originals} · 本地历史：{journal}，均不受自动缓存清理影响。",
+  clientCacheLabel: "已缓存",
+  clientPinnedLabel: "离线保留",
+  clientOriginalsLabel: "本机原文件",
+  clientJournalLabel: "本机历史",
+  clientProtectedHint: "本机原文件和历史不受自动缓存清理影响。",
+  clientRetainedContents: "内容",
   clientCacheOverLimit:
     "保留或正在使用的内容已超过缓存上限，请提高上限或减少离线保留。",
   clientServer: "远端地址",
@@ -1490,9 +1497,6 @@ interface Parameters {
   clientUploadCount: { count: number | string };
   clientAwaitingRootCount: { count: number | string };
   clientPending: { count: number };
-  clientCacheUsed: { size: string };
-  clientPinnedUsed: { size: string };
-  clientProtectedUsed: { originals: string; journal: string };
   historyBoxTarget: { target: string };
   historyFileTarget: { target: string };
   historyNamed: { name: string };

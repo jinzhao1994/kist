@@ -3454,18 +3454,18 @@ main.upload-drag-active {
   gap: var(--mantine-spacing-md) var(--mantine-spacing-xl);
 }
 
-.credential-table th {
+.settings-table th {
   color: var(--muted);
   font-size: var(--mantine-font-size-xs);
   font-weight: 500;
 }
-.credential-table td:first-child {
+.settings-table td:first-child {
   inline-size: 100%;
 }
-.credential-table :is(th, td):first-child {
+.settings-table :is(th, td):first-child {
   padding-inline-start: 0;
 }
-.credential-table :is(th, td):last-child {
+.settings-table :is(th, td):last-child {
   padding-inline-end: 0;
 }
 .credential-note {
@@ -3487,7 +3487,7 @@ main.upload-drag-active {
   }
 }
 
-.credential-table tbody tr:focus-within {
+.settings-table tbody tr:focus-within {
   background: var(--mantine-color-default-hover);
 }
 
@@ -3532,4 +3532,15 @@ main.upload-drag-active {
 .offline-target-name {
   min-inline-size: 0;
   overflow-wrap: anywhere;
+}
+
+.section-heading-action {
+  margin-inline-start: auto;
+  font-weight: 500;
+}
+.sync-page-content .flat-page-section + .flat-page-section {
+  margin-block-start: var(--mantine-spacing-sm);
+}
+.retention-table td:nth-child(2) {
+  white-space: nowrap;
 }

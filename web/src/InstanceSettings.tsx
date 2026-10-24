@@ -777,7 +777,7 @@ function Credentials({
           highlightOnHover
           verticalSpacing="xs"
           horizontalSpacing="sm"
-          className="credential-table"
+          className="settings-table"
         >
           <Table.Thead>
             <Table.Tr>
