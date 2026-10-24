@@ -724,6 +724,30 @@ it("retries immediate tag assignment with the same request key", async () => {
   expect(fetch.mock.calls[1]).toEqual(fetch.mock.calls[0]);
 });
 
+it("keeps pending extraction inside metadata even before any rows exist", () => {
+  render(
+    <FileDetail
+      data={{
+        file: { ...file("file-1"), extraction_pending: ["media"] },
+        tags: [],
+        extracted: [],
+        metadata: [],
+      }}
+      tags={tags}
+      history={vi.fn()}
+    />,
+    { wrapper },
+  );
+  const section = screen.getByRole("heading", {
+    name: "Metadata",
+  }).parentElement!;
+  expect(within(section).getByRole("status")).toBeVisible();
+  expect(
+    within(section).getByRole("button", { name: "Read metadata" }),
+  ).toBeVisible();
+  expect(section.querySelector(".tag-assignment")).toBeNull();
+});
+
 it("groups preview metadata and opens tag selection only on request", async () => {
   const user = userEvent.setup();
   const history = vi.fn();

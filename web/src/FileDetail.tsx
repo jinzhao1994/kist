@@ -138,10 +138,13 @@ export function FileDetail({
         tags={tags}
         assigned={data.tags || []}
       />
-      <ExtractionStatus files={[file]} state={extraction} />
-      {!!data.metadata?.length && (
+      {(!!data.metadata?.length ||
+        !!file.extraction_pending?.length ||
+        extraction.busy ||
+        extraction.failed) && (
         <section className="file-metadata">
           <h3>{t("metadata")}</h3>
+          <ExtractionStatus files={[file]} state={extraction} />
           {Array.from(groups, ([source, rows]) => (
             <section className="file-metadata-group" key={source}>
               {source && (
