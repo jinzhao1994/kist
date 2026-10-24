@@ -26,6 +26,7 @@ type pendingEntry struct {
 	Proposal   SyncProposal
 	Digest     string
 	Receipt    *SyncResult
+	Custody    *RelayReceipt
 	Sending    bool
 	Conflict   string
 	Discarded  bool
@@ -42,15 +43,16 @@ type pendingEvent struct {
 	Target   string        `json:"target,omitempty"`
 	Proposal *SyncProposal `json:"proposal,omitempty"`
 	Receipt  *SyncResult   `json:"receipt,omitempty"`
+	Custody  *RelayReceipt `json:"custody,omitempty"`
 	Reason   string        `json:"reason,omitempty"`
 	Request  *Request      `json:"request,omitempty"`
 }
 
 func (e pendingEvent) validate(action string) error {
-	if e.Version != 1 && e.Version != 2 {
+	if e.Version != 1 && e.Version != 2 && e.Version != 3 {
 		return ErrSyncVersion
 	}
-	if e.Version == 1 && e.Request != nil || e.Version == 2 && e.Request == nil {
+	if (e.Version == 2) != (e.Request != nil) || (e.Version == 3) != (e.Custody != nil) {
 		return ErrInvalidRequest
 	}
 	if e.Request != nil && (!e.Request.Valid() || action != "pending_enqueue" && action != "pending_request") {
@@ -60,6 +62,10 @@ func (e pendingEvent) validate(action string) error {
 		return ErrInvalidRequest
 	}
 	switch action {
+	case "pending_custody":
+		if e.Target == "" || e.Custody == nil || e.Proposal != nil || e.Receipt != nil || e.Request != nil || e.Reason != "" || !e.Custody.valid() || e.Target != e.Custody.ProposalID {
+			return ErrInvalidRequest
+		}
 	case "pending_request":
 		if e.Request == nil || e.Proposal != nil || e.Target != "" || e.Receipt != nil || e.Reason != "" {
 			return ErrInvalidRequest
@@ -82,6 +88,9 @@ func (e pendingEvent) validate(action string) error {
 		}
 	default:
 		return ErrSyncVersion
+	}
+	if e.Custody != nil && action != "pending_custody" {
+		return ErrInvalidRequest
 	}
 	if e.Proposal != nil {
 		_, err := e.Proposal.digest()
@@ -198,10 +207,15 @@ func (s *pendingState) apply(action string, e pendingEvent, sequence int64) erro
 		return nil
 	}
 	i, exists := s.byID[e.Target]
-	if !exists || !s.entries[i].active() {
+	if !exists || (!s.entries[i].active() && action != "pending_custody") {
 		return ErrSyncConflict
 	}
 	switch action {
+	case "pending_custody":
+		if s.entries[i].Custody != nil || e.Custody.Digest != s.entries[i].Digest {
+			return ErrRequestConflict
+		}
+		s.entries[i].Custody = e.Custody
 	case "pending_send":
 		next, err := s.next()
 		if err != nil {
@@ -329,6 +343,9 @@ func (q *pendingQueue) appendLocked(ctx context.Context, action string, event pe
 	if event.Request != nil {
 		event.Version = 2
 	}
+	if event.Custody != nil {
+		event.Version = 3
+	}
 	if err := event.validate(action); err != nil {
 		return err
 	}
@@ -370,6 +387,9 @@ func (q *pendingQueue) appendLocked(ctx context.Context, action string, event pe
 	}
 	if i, found := s.byID[event.Target]; found {
 		old := s.entries[i]
+		if action == "pending_custody" && old.Custody != nil && event.Custody != nil && *old.Custody == *event.Custody {
+			return nil
+		}
 		if action == "pending_send" && old.Sending {
 			return nil
 		}
