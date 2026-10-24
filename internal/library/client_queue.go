@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"path/filepath"
 	"time"
 
+	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/journal"
 	"github.com/jinzhao1994/kist/internal/lockfile"
 )
@@ -26,6 +28,8 @@ type pendingEntry struct {
 	Proposal   SyncProposal
 	Digest     string
 	Receipt    *SyncResult
+	Forwarded  *RelayReceipt
+	Upstream   *relayOrder
 	Custody    *RelayReceipt
 	Sending    bool
 	Conflict   string
@@ -39,6 +43,7 @@ func (e pendingEntry) active() bool {
 }
 
 type pendingEvent struct {
+	Relay    *RelayPage    `json:"relay,omitempty"`
 	Version  int           `json:"version"`
 	Target   string        `json:"target,omitempty"`
 	Proposal *SyncProposal `json:"proposal,omitempty"`
@@ -49,10 +54,10 @@ type pendingEvent struct {
 }
 
 func (e pendingEvent) validate(action string) error {
-	if e.Version != 1 && e.Version != 2 && e.Version != 3 {
+	if e.Version != 1 && e.Version != 2 && e.Version != 3 && e.Version != 4 {
 		return ErrSyncVersion
 	}
-	if (e.Version == 2) != (e.Request != nil) || (e.Version == 3) != (e.Custody != nil) {
+	if (e.Version == 2) != (e.Request != nil) || (e.Version == 3) != (e.Custody != nil) || (e.Version == 4) != (e.Relay != nil) {
 		return ErrInvalidRequest
 	}
 	if e.Request != nil && (!e.Request.Valid() || action != "pending_enqueue" && action != "pending_request") {
@@ -62,7 +67,12 @@ func (e pendingEvent) validate(action string) error {
 		return ErrInvalidRequest
 	}
 	switch action {
-	case "pending_custody":
+	case "pending_relay_page":
+		if e.Relay == nil || e.Target != "" || e.Proposal != nil || e.Receipt != nil || e.Request != nil || e.Custody != nil || e.Reason != "" {
+			return ErrInvalidRequest
+		}
+		return e.Relay.validate()
+	case "pending_custody", "pending_relay_ack":
 		if e.Target == "" || e.Custody == nil || e.Proposal != nil || e.Receipt != nil || e.Request != nil || e.Reason != "" || !e.Custody.valid() || e.Target != e.Custody.ProposalID {
 			return ErrInvalidRequest
 		}
@@ -89,7 +99,7 @@ func (e pendingEvent) validate(action string) error {
 	default:
 		return ErrSyncVersion
 	}
-	if e.Custody != nil && action != "pending_custody" {
+	if (e.Custody != nil && action != "pending_custody" && action != "pending_relay_ack") || (e.Relay != nil && action != "pending_relay_page") {
 		return ErrInvalidRequest
 	}
 	if e.Proposal != nil {
@@ -100,10 +110,15 @@ func (e pendingEvent) validate(action string) error {
 }
 
 type pendingState struct {
-	last     int64
-	entries  []pendingEntry
-	byID     map[string]int
-	requests map[string]pendingRequest
+	sum           string
+	relaySource   domain.ID
+	relayHead     *RelayHead
+	relayItems    []RelayItem
+	relayTransfer *relayTransfer
+	last          int64
+	entries       []pendingEntry
+	byID          map[string]int
+	requests      map[string]pendingRequest
 }
 
 type pendingRequest struct {
@@ -122,11 +137,19 @@ func openPendingQueue(root string) (*pendingQueue, error) {
 }
 
 func (q *pendingQueue) read(ctx context.Context) (pendingState, error) {
+	return q.readThrough(ctx, math.MaxInt64)
+}
+
+func (q *pendingQueue) readThrough(ctx context.Context, through int64) (pendingState, error) {
 	s := pendingState{byID: map[string]int{}}
 	if _, err := q.log.RecoverTail(); err != nil {
 		return s, err
 	}
+	end := errors.New("pending prefix reached")
 	err := q.log.Iter(func(line journal.Line) error {
+		if line.ID > through {
+			return end
+		}
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -146,9 +169,12 @@ func (q *pendingQueue) read(ctx context.Context) (pendingState, error) {
 			}
 			return fmt.Errorf("%w: pending event %d: %v", journal.ErrCorrupt, line.ID, err)
 		}
-		s.last = line.ID
+		s.last, s.sum = line.ID, line.Sum
 		return nil
 	})
+	if errors.Is(err, end) {
+		err = nil
+	}
 	return s, err
 }
 
@@ -188,6 +214,9 @@ func (s *pendingState) apply(action string, e pendingEvent, sequence int64) erro
 	if err := e.validate(action); err != nil {
 		return err
 	}
+	if action == "pending_relay_page" {
+		return s.receiveRelayPage(*e.Relay, sequence)
+	}
 	if e.Request != nil {
 		if _, exists := s.requests[e.Request.ID]; exists {
 			return ErrRequestConflict
@@ -211,6 +240,12 @@ func (s *pendingState) apply(action string, e pendingEvent, sequence int64) erro
 		return ErrSyncConflict
 	}
 	switch action {
+	case "pending_relay_ack":
+		if !s.entries[i].Sending || s.entries[i].Digest != e.Custody.Digest || s.relaySource != e.Custody.RelayID || s.relayHead == nil || s.relayHead.Root.LibraryID != e.Custody.LibraryID {
+			return ErrSyncConflict
+		}
+		s.entries[i].Forwarded = e.Custody
+		s.entries[i].Sending = false
 	case "pending_custody":
 		if s.entries[i].Custody != nil || e.Custody.Digest != s.entries[i].Digest {
 			return ErrRequestConflict
@@ -218,6 +253,9 @@ func (s *pendingState) apply(action string, e pendingEvent, sequence int64) erro
 		s.entries[i].Custody = e.Custody
 	case "pending_send":
 		next, err := s.next()
+		if s.relayHead != nil {
+			next, err = s.nextRelay()
+		}
 		if err != nil {
 			return err
 		}
@@ -243,7 +281,7 @@ func (s *pendingState) apply(action string, e pendingEvent, sequence int64) erro
 		s.entries[i].Receipt = e.Receipt
 		s.entries[i].Sending = false
 	case "pending_discard", "pending_resolve":
-		if s.entries[i].Sending {
+		if s.entries[i].Sending || s.entries[i].Upstream != nil || s.entries[i].Forwarded != nil {
 			return ErrSyncConflict
 		}
 		if e.Proposal != nil {
@@ -286,12 +324,15 @@ func (s *pendingState) next() (*pendingEntry, error) {
 	var next *pendingEntry
 	for i := range s.entries {
 		e := &s.entries[i]
-		if e.active() && (next == nil || e.Sequence < next.Sequence) {
+		if e.active() && (next == nil || comparePending(*e, *next) < 0) {
 			next = e
 		}
 	}
 	if next == nil {
 		return nil, nil
+	}
+	if next.Upstream != nil || next.Forwarded != nil {
+		return next, ErrSyncDependency
 	}
 	if next.Conflict != "" {
 		return next, ErrSyncConflict
@@ -340,6 +381,9 @@ func (q *pendingQueue) appendLocked(ctx context.Context, action string, event pe
 		return err
 	}
 	event.Version = 1
+	if event.Relay != nil {
+		event.Version = 4
+	}
 	if event.Request != nil {
 		event.Version = 2
 	}
@@ -387,6 +431,9 @@ func (q *pendingQueue) appendLocked(ctx context.Context, action string, event pe
 	}
 	if i, found := s.byID[event.Target]; found {
 		old := s.entries[i]
+		if action == "pending_relay_ack" && old.Forwarded != nil && event.Custody != nil && *old.Forwarded == *event.Custody {
+			return nil
+		}
 		if action == "pending_custody" && old.Custody != nil && event.Custody != nil && *old.Custody == *event.Custody {
 			return nil
 		}
@@ -410,8 +457,15 @@ func (q *pendingQueue) appendLocked(ctx context.Context, action string, event pe
 			return ErrRequestConflict
 		}
 	}
+	relayRetry := false
+	if p := event.Relay; p != nil {
+		relayRetry = (s.relayHead != nil && *s.relayHead == p.Head && s.relayTransfer == nil) || (s.relayTransfer != nil && s.relayTransfer.Head == p.Head && p.Next <= len(s.relayTransfer.Items))
+	}
 	if err := s.apply(action, event, s.last+1); err != nil {
 		return err
+	}
+	if relayRetry {
+		return nil
 	}
 	raw, err := json.Marshal(event)
 	if err != nil {

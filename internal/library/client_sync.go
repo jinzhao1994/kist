@@ -379,6 +379,11 @@ func (c *Client) Resolve(ctx context.Context, id string, replacement *SyncPropos
 	if err != nil {
 		return err
 	}
+	// Only the upstream can resolve an intent it already owns. A later
+	// imported decision will update this replica without rewriting the proposal.
+	if i, found := state.byID[id]; found && (state.entries[i].Upstream != nil || state.entries[i].Forwarded != nil) && state.entries[i].active() {
+		return ErrSyncConflict
+	}
 	// A repeated decision remains idempotent even after its replacement syncs.
 	if i, found := state.byID[id]; found && !state.entries[i].active() {
 		if err := c.queue.appendLocked(ctx, action, event); err != nil {
@@ -409,7 +414,12 @@ func (c *Client) Resolve(ctx context.Context, id string, replacement *SyncPropos
 	return err
 }
 
-func (c *Client) uploadIntentOriginals(ctx context.Context, peer SyncPeer, p SyncProposal) error {
+type originalUploadPeer interface {
+	HasOriginal(context.Context, string) (bool, error)
+	UploadOriginal(context.Context, string, int64, io.ReadSeeker) error
+}
+
+func (c *Client) uploadIntentOriginals(ctx context.Context, peer originalUploadPeer, p SyncProposal) error {
 	if p.Undo != nil {
 		// The target must already be accepted before its inverse is sent.
 		// NAS retains historical originals, so undo requires no new content.

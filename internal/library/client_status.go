@@ -58,7 +58,9 @@ func (c *Client) Status(ctx context.Context) (ClientStatus, error) {
 		return status, err
 	}
 	status.Pending = []ClientPendingStatus{}
-	for _, entry := range state.entries {
+	entries := slices.Clone(state.entries)
+	slices.SortStableFunc(entries, comparePending)
+	for _, entry := range entries {
 		if !entry.active() {
 			continue
 		}
@@ -71,14 +73,6 @@ func (c *Client) Status(ctx context.Context) (ClientStatus, error) {
 		}
 		status.Pending = append(status.Pending, item)
 	}
-	slices.SortStableFunc(status.Pending, func(a, b ClientPendingStatus) int {
-		if a.Sequence < b.Sequence {
-			return -1
-		}
-		if a.Sequence > b.Sequence {
-			return 1
-		}
-		return 0
-	})
+
 	return status, nil
 }

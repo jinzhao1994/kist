@@ -73,6 +73,11 @@ func (l *Library) SyncCatalog(ctx context.Context, boundary SyncBoundary, after 
 	if cfg.Library.ID != boundary.LibraryID {
 		return page, fmt.Errorf("%w: library identity differs", ErrSyncConflict)
 	}
+	return exportSyncCatalog(ctx, l.ops, page, limit, maxBytes)
+}
+
+func exportSyncCatalog(ctx context.Context, log *journal.Dir, page SyncCatalogPage, limit, maxBytes int) (SyncCatalogPage, error) {
+	boundary, after := page.Boundary, page.After
 	var last int64
 	var bytes int
 	full := false
@@ -80,7 +85,7 @@ func (l *Library) SyncCatalog(ctx context.Context, boundary SyncBoundary, after 
 	end := errors.New("sync boundary reached")
 	// Keep validating through the boundary after filling a page. This avoids
 	// returning a plausible page from a replaced or truncated authoritative log.
-	err = l.ops.Iter(func(line journal.Line) error {
+	err := log.Iter(func(line journal.Line) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}

@@ -82,15 +82,7 @@ func rebuildClientPrefixInto(ctx context.Context, db *sql.DB, confirmed *journal
 		return result, fmt.Errorf("%w: incomplete client catalog prefix", journal.ErrCorrupt)
 	}
 	entries := slices.Clone(pending.entries)
-	slices.SortStableFunc(entries, func(a, b pendingEntry) int {
-		if a.Sequence < b.Sequence {
-			return -1
-		}
-		if a.Sequence > b.Sequence {
-			return 1
-		}
-		return 0
-	})
+	slices.SortStableFunc(entries, comparePending)
 	for _, entry := range entries {
 		if err := ctx.Err(); err != nil {
 			return result, err
