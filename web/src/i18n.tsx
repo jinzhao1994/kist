@@ -151,8 +151,7 @@ export const en = {
     "Network request stopped. Local progress is retained; sync again to confirm the result.",
   clientTitle: "Data sync",
   clientHistory: "Local operations",
-  clientHistoryHint:
-    "Local operations keep their original identity. remote history contains only accepted operations.",
+  clientHistoryHint: "View changes made on this device and their sync status.",
   clientHistoryBack: "Back to local operations",
   clientHistoryEmpty: "No local operations yet.",
   clientHistoryPending: "Pending sync",
@@ -200,7 +199,15 @@ export const en = {
   clientJournalLabel: "Local history",
   clientProtectedHint:
     "Local originals and history are excluded from automatic cache cleanup.",
-  clientRetainedContents: "Contents",
+  clientOfflineStatus: "Offline status",
+  clientOfflineChecking: "Checking…",
+  clientOfflineAvailable: "Available offline",
+  clientOfflineIncomplete: "Not ready yet",
+  clientRetainedFile: "File",
+  clientPrepareOffline: "Prepare offline",
+  clientCancelRetention: "Stop retaining",
+  clientRetentionHelp:
+    "Content selected for offline use. Stopping retention does not delete files; cached copies may be cleaned up later.",
   clientCacheOverLimit:
     "Retained or active content exceeds the cache limit. Increase the limit or reduce offline retention.",
   clientServer: "remote address",
@@ -833,7 +840,7 @@ export const zh: Record<MessageKey, string> = {
   clientBatchInterrupted:
     "已停止。保存的保留项和已下载内容会留下，再次检查并下载即可继续。",
   clientBatchChanged: "准备期间选择内容发生变化，请重新检查并下载当前成员。",
-  clientRetainedItems: "离线保留项",
+  clientRetainedItems: "离线保留",
   clientRetainedEmpty: "尚未保留内容，可在文件或组合的菜单中选择“保留离线”。",
   clientRetainedCount:
     "{files, plural, =0 {} other {# 个文件}}{files, plural, =0 {} other {{filesets, plural, =0 {} other { · }}}}{filesets, plural, =0 {} other {# 个组合}}",
@@ -879,7 +886,7 @@ export const zh: Record<MessageKey, string> = {
   clientInterrupted: "已停止网络请求，本地进度已保留，请重新同步以核对结果。",
   clientTitle: "数据同步",
   clientHistory: "本机操作",
-  clientHistoryHint: "本机操作保留原始身份；远端正式历史只包含已接纳的操作。",
+  clientHistoryHint: "查看在本机进行的修改及其同步状态。",
   clientHistoryBack: "返回本机操作",
   clientHistoryEmpty: "暂无本机操作。",
   clientHistoryPending: "待同步",
@@ -920,7 +927,15 @@ export const zh: Record<MessageKey, string> = {
   clientOriginalsLabel: "本机原文件",
   clientJournalLabel: "本机历史",
   clientProtectedHint: "本机原文件和历史不受自动缓存清理影响。",
-  clientRetainedContents: "内容",
+  clientOfflineStatus: "离线状态",
+  clientOfflineChecking: "检查中…",
+  clientOfflineAvailable: "可离线使用",
+  clientOfflineIncomplete: "还需下载",
+  clientRetainedFile: "文件",
+  clientPrepareOffline: "准备离线",
+  clientCancelRetention: "取消保留",
+  clientRetentionHelp:
+    "你选择保留在本机、供离线使用的内容。取消保留不会删除文件，缓存之后可自动清理。",
   clientCacheOverLimit:
     "保留或正在使用的内容已超过缓存上限，请提高上限或减少离线保留。",
   clientServer: "远端地址",

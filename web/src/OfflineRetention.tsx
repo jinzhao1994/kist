@@ -1,14 +1,13 @@
 import { EmptyHint } from "./EmptyHint";
-import { Button, Group, Stack, Table, Text } from "@mantine/core";
+import { Anchor, Button, Group, Stack, Table, Text } from "@mantine/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { routeURL } from "./navigation";
 import { api, get } from "./api";
 import type { components } from "./client-api-schema";
 import type { components as Archive } from "./api-schema";
 import { useI18n } from "./i18n";
 import { errorMessage } from "./mutations";
 import { clientCommand } from "./offline-client";
-import { OfflineReadiness } from "./OfflineEntry";
 
 type Selection = components["schemas"]["ClientOfflineSelection"];
 type Status = components["schemas"]["ClientOfflineStatus"];
@@ -28,9 +27,6 @@ export function OfflineRetention({ active, busy, run }: Props) {
   });
   return (
     <Stack gap="sm">
-      <Text size="sm" fw={600}>
-        {t("clientRetainedItems")}
-      </Text>
       {selections.isPending && <Text role="status">{t("loading")}</Text>}
       {selections.error && (
         <Text role="alert">{errorMessage(selections.error, t)}</Text>
@@ -49,7 +45,8 @@ export function OfflineRetention({ active, busy, run }: Props) {
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>{t("name")}</Table.Th>
-                <Table.Th>{t("clientRetainedContents")}</Table.Th>
+                <Table.Th>{t("type")}</Table.Th>
+                <Table.Th>{t("clientOfflineStatus")}</Table.Th>
                 <Table.Th>
                   <span className="sr-only">
                     {t("settingCredentialActions")}
@@ -89,7 +86,10 @@ function RetentionItem({
 }) {
   const { t } = useI18n();
   const queries = useQueryClient();
-  const [expanded, setExpanded] = useState(false);
+  const singleFile =
+    (selection.files || []).length === 1 && !selection.filesets?.length;
+  const singleSet =
+    (selection.filesets || []).length === 1 && !selection.files?.length;
   const files = selection.files || [];
   const filesets = selection.filesets || [];
   const path = `/offline/${encodeURIComponent(owner)}`;
@@ -116,44 +116,60 @@ function RetentionItem({
   const status = useQuery({
     queryKey: ["client", "offline-status", owner],
     queryFn: ({ signal }) => get<Status>(`/client${path}`, signal),
-    enabled: expanded,
+    enabled: true,
     refetchOnWindowFocus: false,
   });
   return (
-    <>
-      <Table.Tr>
-        <Table.Td>
-          <Text size="sm" className="credential-note">
-            <bdi>{name.data || owner}</bdi>
-          </Text>
-        </Table.Td>
-        <Table.Td>
-          <Text size="sm" c="dimmed">
-            {t("clientRetainedCount", {
-              files: files.length,
-              filesets: filesets.length,
+    <Table.Tr>
+      <Table.Td>
+        {singleFile || singleSet ? (
+          <Anchor
+            size="sm"
+            className="credential-note"
+            href={routeURL({
+              files: true,
+              file: singleFile ? files[0] : filesets[0],
             })}
+          >
+            <bdi>{name.data || owner}</bdi>
+          </Anchor>
+        ) : (
+          <Text size="sm" className="credential-note">
+            <bdi>{owner}</bdi>
           </Text>
-        </Table.Td>
-        <Table.Td>
-          {name.error && (
-            <Text size="xs" c="dimmed">
-              {errorMessage(name.error, t)}
-            </Text>
-          )}
-          <Group gap="xs" wrap="nowrap" justify="flex-end">
-            <Button
-              variant="subtle"
-              size="compact-sm"
-              disabled={busy}
-              aria-expanded={expanded}
-              onClick={() => {
-                setExpanded(true);
-                if (expanded) void status.refetch();
-              }}
-            >
-              {t("clientRetainedDetails")}
-            </Button>
+        )}
+        {name.error && (
+          <Text size="xs" c="dimmed">
+            {errorMessage(name.error, t)}
+          </Text>
+        )}
+      </Table.Td>
+      <Table.Td>
+        <Text size="sm" c="dimmed">
+          {singleSet
+            ? t("filesetLabel")
+            : singleFile
+              ? t("clientRetainedFile")
+              : t("clientRetainedCount", {
+                  files: files.length,
+                  filesets: filesets.length,
+                })}
+        </Text>
+      </Table.Td>
+      <Table.Td>
+        <Text size="sm" role={status.isError ? "alert" : "status"}>
+          {status.isError
+            ? errorMessage(status.error, t)
+            : status.isPending
+              ? t("clientOfflineChecking")
+              : status.data.ready
+                ? t("clientOfflineAvailable")
+                : t("clientOfflineIncomplete")}
+        </Text>
+      </Table.Td>
+      <Table.Td>
+        <Group gap="xs" wrap="nowrap" justify="flex-end">
+          {!status.data?.ready && (
             <Button
               variant="subtle"
               size="compact-sm"
@@ -163,52 +179,36 @@ function RetentionItem({
                   try {
                     await clientCommand(`${path}/prepare`, {}, "POST", signal);
                   } finally {
-                    // Do not let a pre-download availability check win the refresh.
+                    // Cancel stale reads before refreshing the prepared state.
                     await queries.cancelQueries({
                       queryKey: ["client", "offline-status", owner],
                       exact: true,
                     });
+                    await queries.invalidateQueries({
+                      queryKey: ["client", "offline-status", owner],
+                      exact: true,
+                    });
                   }
-                  setExpanded(true);
                 })
               }
             >
-              {t("clientPrepareAgain")}
+              {t("clientPrepareOffline")}
             </Button>
-            <Button
-              variant="subtle"
-              size="compact-sm"
-              color="red"
-              disabled={busy}
-              onClick={() =>
-                run(async (signal) => {
-                  await clientCommand(path, {}, "DELETE", signal);
-                })
-              }
-            >
-              {t("clientStopKeeping")}
-            </Button>
-          </Group>
-        </Table.Td>
-      </Table.Tr>
-      {expanded && (
-        <Table.Tr>
-          <Table.Td colSpan={3}>
-            <Stack gap="xs">
-              {status.isFetching && <Text role="status">{t("loading")}</Text>}
-              {status.error && (
-                <Text role="alert">{errorMessage(status.error, t)}</Text>
-              )}
-              {status.data && !status.isError && (
-                <OfflineReadiness status={status.data} />
-              )}
-              <Text size="xs" c="dimmed">
-                {t("clientRetentionScope")}
-              </Text>
-            </Stack>
-          </Table.Td>
-        </Table.Tr>
-      )}
-    </>
+          )}
+          <Button
+            variant="subtle"
+            size="compact-sm"
+            disabled={busy}
+            onClick={() =>
+              run(async (signal) => {
+                await clientCommand(path, {}, "DELETE", signal);
+              })
+            }
+          >
+            {t("clientCancelRetention")}
+          </Button>
+        </Group>
+      </Table.Td>
+    </Table.Tr>
   );
 }

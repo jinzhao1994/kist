@@ -3332,7 +3332,6 @@ main.upload-drag-active {
 }
 
 .instance-settings-content {
-  max-inline-size: 66rem;
   display: grid;
   gap: var(--mantine-spacing-md);
 }
@@ -3348,7 +3347,7 @@ main.upload-drag-active {
 /* Keep the document index beside the content without covering form controls. */
 .section-layout {
   display: grid;
-  grid-template-columns: minmax(0, 52rem) 9rem;
+  grid-template-columns: minmax(0, 1fr) 9rem;
   gap: 3rem;
   align-items: start;
 }
@@ -3421,6 +3420,7 @@ main.upload-drag-active {
 }
 
 .settings-page-header {
+  padding-inline-end: 12rem;
   position: sticky;
   inset-block-start: 0;
   z-index: 3;
@@ -3543,4 +3543,13 @@ main.upload-drag-active {
 }
 .retention-table td:nth-child(2) {
   white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .settings-page-header {
+    padding-inline-end: 0;
+  }
+}
+.retention-table td:nth-child(3) {
+  min-inline-size: 7rem;
 }

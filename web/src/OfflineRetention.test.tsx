@@ -80,25 +80,23 @@ function setup() {
     </QueryClientProvider>,
   );
 }
-it("lists named selections without hashing their content until requested", async () => {
+it("automatically checks retained selections on entry", async () => {
   setup();
   expect(await screen.findByText("Travel / documents")).toBeVisible();
   expect(screen.getByText("2 files · 1 file sets")).toBeVisible();
-  expect(requests).toEqual([
-    { path: "/api/v1/client/offline", method: undefined },
-  ]);
-  await userEvent.click(
-    screen.getByRole("button", { name: "Check availability" }),
-  );
-  expect(await screen.findByText(/1 of 2 originals available/)).toBeVisible();
-  expect(requests.at(-1)?.path).toBe(
-    "/api/v1/client/offline/Travel%20%2F%20documents",
-  );
+  expect(await screen.findByText("Not ready yet")).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: "Check availability" }),
+  ).toBeNull();
+  expect(requests).toContainEqual({
+    path: "/api/v1/client/offline/Travel%20%2F%20documents",
+    method: undefined,
+  });
 });
 it("prepares an existing selection without overwriting its members", async () => {
   setup();
   await userEvent.click(
-    await screen.findByRole("button", { name: "Check and download" }),
+    await screen.findByRole("button", { name: "Prepare offline" }),
   );
   await waitFor(() =>
     expect(requests.filter((r) => r.method)).toEqual([
@@ -108,19 +106,14 @@ it("prepares an existing selection without overwriting its members", async () =>
       },
     ]),
   );
-  expect(await screen.findByText(/1 of 2 originals available/)).toBeVisible();
+  expect(await screen.findByText("Not ready yet")).toBeVisible();
 });
 it("can remove retention even when one of its targets no longer resolves", async () => {
   fail = true;
   setup();
-  await userEvent.click(
-    await screen.findByRole("button", { name: "Check availability" }),
-  );
   expect(await screen.findByText(/Unavailable member/)).toBeVisible();
   fail = false;
-  await userEvent.click(
-    screen.getByRole("button", { name: "Stop retaining offline" }),
-  );
+  await userEvent.click(screen.getByRole("button", { name: "Stop retaining" }));
   expect(await screen.findByText(/No offline selections yet/)).toBeVisible();
   expect(requests.filter((r) => r.method)).toEqual([
     {
@@ -133,7 +126,11 @@ it("uses the current name for a file retained from its menu", async () => {
   selections = { "file:one": { files: ["one"], filesets: [] } };
   setup();
   expect(await screen.findByText("Passport.png")).toBeVisible();
-  expect(requests.some((r) => r.path.includes("/offline/"))).toBe(false);
+  expect(screen.getByRole("link", { name: "Passport.png" })).toHaveAttribute(
+    "href",
+    "/files?file=one",
+  );
+  expect(await screen.findByText("Not ready yet")).toBeVisible();
 });
 
 it("refreshes an in-flight availability check after preparation", async () => {
@@ -167,22 +164,14 @@ it("refreshes an in-flight availability check after preparation", async () => {
     }),
   );
   setup();
-  await userEvent.click(
-    await screen.findByRole("button", { name: "Check availability" }),
-  );
   await waitFor(() => expect(started).toBe(true));
   await userEvent.click(
-    screen.getByRole("button", { name: "Check and download" }),
+    screen.getByRole("button", { name: "Prepare offline" }),
   );
-  expect(
-    await screen.findByText(
-      "All required originals and previews are available offline.",
-    ),
-  ).toBeVisible();
+  expect(await screen.findByText("Available offline")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Prepare offline" })).toBeNull();
   release();
   await waitFor(() =>
-    expect(
-      screen.queryByText(/1 of 2 originals available/),
-    ).not.toBeInTheDocument(),
+    expect(screen.queryByText("Not ready yet")).not.toBeInTheDocument(),
   );
 });

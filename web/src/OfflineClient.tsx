@@ -145,6 +145,7 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
                 items={[
                   { id: "sync-status", label: t("clientSync") },
                   { id: "sync-cache", label: t("clientCache") },
+                  { id: "sync-retention", label: t("clientRetainedItems") },
                   { id: "sync-history", label: t("clientHistory") },
                 ]}
               >
@@ -356,8 +357,23 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
                     {cache.data?.over_limit && (
                       <Alert color="yellow">{t("clientCacheOverLimit")}</Alert>
                     )}
-                    <OfflineRetention active busy={busy} run={run} />
                   </Stack>
+                </section>
+                <section
+                  id="sync-retention"
+                  className="flat-page-section"
+                  aria-labelledby="sync-retention-title"
+                >
+                  <h2
+                    id="sync-retention-title"
+                    className="settings-section-heading"
+                  >
+                    {t("clientRetainedItems")}
+                    <HelpTooltip label={t("clientRetainedItems")}>
+                      {t("clientRetentionHelp")}
+                    </HelpTooltip>
+                  </h2>
+                  <OfflineRetention active busy={busy} run={run} />
                 </section>
                 <section
                   id="sync-history"

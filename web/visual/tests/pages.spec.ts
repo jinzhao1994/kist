@@ -3313,6 +3313,16 @@ for (const panel of [
             旅行资料: { files: ["file-1", "file-2"], filesets: [] },
           },
         });
+      if (path.includes("/offline/"))
+        return route.fulfill({
+          json: {
+            ready: true,
+            available: 1,
+            originals: [{ key: "fixture" }],
+            previews: [],
+            previews_available: 0,
+          },
+        });
       errors.push(`Unexpected client API: ${path}`);
       return route.abort();
     });
@@ -3333,9 +3343,14 @@ for (const panel of [
       "本机原文件",
     );
     await expect(dialog.locator(".retention-table")).toBeVisible();
-    await expect(dialog.locator(".retention-table")).not.toContainText(
-      "0 个组合",
+    await expect(dialog.locator(".retention-table")).toContainText(
+      "可离线使用",
     );
+    await expect(
+      dialog
+        .locator(".retention-table")
+        .getByRole("button", { name: "准备离线" }),
+    ).toHaveCount(0);
     await expect(
       dialog
         .locator("#sync-cache-title")
