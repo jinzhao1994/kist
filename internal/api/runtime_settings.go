@@ -72,8 +72,9 @@ func (s *Server) buildRuntime(opt Options) (*runtimeSettings, error) {
 	if err != nil {
 		return nil, err
 	}
-	if s.library != nil {
-		r.syncUploads, err = staging.New(filepath.Join(s.library.Layout().Root, "sync-uploads"), r.maxUploadBytes, 1)
+	{
+		syncPath := filepath.Join(filepath.Dir(uploadPath), "sync-uploads")
+		r.syncUploads, err = staging.New(syncPath, r.maxUploadBytes, 1)
 		if err != nil {
 			return nil, err
 		}

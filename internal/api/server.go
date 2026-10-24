@@ -122,6 +122,7 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 		s.mediaRoutes()
 		s.clientManagementRoutes()
 		s.clientSyncRoutes()
+		s.relayRoutes()
 		s.clientWriteRoutes()
 		s.clientExtractionRoutes()
 		s.textRoutes()
@@ -199,8 +200,16 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	if s.library != nil && strings.HasPrefix(path.Clean(r.URL.Path), Prefix+"/sync/") && !s.authorizeSync(w, r) {
-		return
+	if strings.HasPrefix(path.Clean(r.URL.Path), Prefix+"/sync/") {
+		if !s.authorizeSync(w, r) {
+			return
+		}
+		routed, err := s.syncRouteContext(r)
+		if err != nil {
+			writeFailure(w, huma.Error409Conflict("Cyclic or invalid relay route"))
+			return
+		}
+		r = r.WithContext(routed)
 	}
 	if r.Method == "POST" || r.Method == "PUT" || r.Method == "PATCH" || (r.Method == "DELETE" && r.ContentLength != 0) {
 		media, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -221,7 +230,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		limit := int64(maxJSONBody)
-		if path.Clean(r.URL.Path) == Prefix+"/sync/submit" || path.Clean(r.URL.Path) == Prefix+"/sync/submit-conditional" {
+		if path.Clean(r.URL.Path) == Prefix+"/sync/submit" || path.Clean(r.URL.Path) == Prefix+"/sync/submit-conditional" || path.Clean(r.URL.Path) == Prefix+"/sync/relay/submit" {
 			limit = maxSyncBody
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, limit)

@@ -46,7 +46,7 @@ func (s *Server) syncRoutes() {
 		if err != nil {
 			return nil, failure(err)
 		}
-		return response(library.SyncCapabilities{ConditionalSubmit: true, DerivedPreviews: true, DeletionSnapshots: true, Timezone: s.library.Zone().String(), Version: 1, LibraryID: head.LibraryID, JournalVersion: journal.Version, Actions: library.SyncActions(), UndoReferences: true}, nil)
+		return response(library.SyncCapabilities{NodeID: head.LibraryID, ConditionalSubmit: true, DerivedPreviews: true, DeletionSnapshots: true, Timezone: s.library.Zone().String(), Version: 1, LibraryID: head.LibraryID, JournalVersion: journal.Version, Actions: library.SyncActions(), UndoReferences: true}, nil)
 	})
 	huma.Register(s.contract, syncOperation("sync-head", "GET", "head"), func(ctx context.Context, _ *struct{}) (*output[library.SyncBoundary], error) {
 		return response(s.library.SyncHead(ctx))
@@ -89,7 +89,7 @@ func (s *Server) authorizeSync(w http.ResponseWriter, r *http.Request) bool {
 			token = parts[1]
 		}
 	}
-	ok, err := s.library.CheckSyncCredential(r.Context(), token)
+	ok, err := s.syncAccessBackend().CheckSyncCredential(r.Context(), token)
 	if err != nil {
 		writeFailure(w, err)
 		return false

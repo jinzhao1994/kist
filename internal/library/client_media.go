@@ -173,6 +173,10 @@ func (m *ClientMedia) Request(ctx context.Context, id domain.FileID, recipe stri
 	if err != nil {
 		return j, err
 	}
+	return m.requestJob(ctx, j, retry)
+}
+
+func (m *ClientMedia) requestJob(ctx context.Context, j MediaJob, retry bool) (MediaJob, error) {
 	unlock, err := m.state.Acquire(ctx)
 	if err != nil {
 		return j, err
@@ -410,4 +414,23 @@ func (m *ClientMedia) transfer(ctx context.Context, j MediaJob) error {
 		}
 	}
 	return m.save(j)
+}
+
+// DescribeSyncDerived queues a preview by immutable content identity.
+func (m *ClientMedia) DescribeSyncDerived(ctx context.Context, key, recipe string, retry bool) (SyncDerived, error) {
+	if _, ok := derive.Lookup(recipe); !ok {
+		return SyncDerived{}, ErrInvalidRequest
+	}
+	if _, err := m.client.originalSize(ctx, key); err != nil {
+		return SyncDerived{}, err
+	}
+	job, err := m.requestJob(ctx, MediaJob{BlobKey: key, Recipe: recipe, State: "missing"}, retry)
+	if err != nil || job.State != "ready" {
+		return SyncDerived{Job: job}, err
+	}
+	d, r, err := m.client.OpenDerived(ctx, key, recipe)
+	if r != nil {
+		r.Close()
+	}
+	return d, err
 }

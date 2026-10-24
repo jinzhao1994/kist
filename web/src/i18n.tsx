@@ -156,6 +156,7 @@ export const en = {
   clientHistoryEmpty: "No local operations yet.",
   clientHistoryPending: "Pending sync",
   clientHistoryAwaiting: "Awaiting confirmation",
+  clientHistoryAwaitingRoot: "Awaiting root confirmation",
   clientHistoryConflict: "Conflict",
   clientHistoryAccepted: "Accepted by remote",
   clientHistoryDiscarded: "Discarded",
@@ -182,6 +183,10 @@ export const en = {
     "Sync paused for a conflict. Your local change has been retained.",
   clientPending: "Pending changes · {count}",
   clientNoPending: "No local changes to submit.",
+  clientRelayUpdates: "Remote relay has updates",
+  clientAwaitingRootCount: "Awaiting root confirmation · {count}",
+  clientAwaitingRoot:
+    "Held by the remote; awaiting root confirmation. Resolve changes at the remote.",
   clientAwaitingReceipt:
     "The last submission is awaiting confirmation. Sync again to check its result.",
   clientDiscardConfirm:
@@ -874,6 +879,7 @@ export const zh: Record<MessageKey, string> = {
   clientHistoryEmpty: "暂无本机操作。",
   clientHistoryPending: "待同步",
   clientHistoryAwaiting: "等待确认",
+  clientHistoryAwaitingRoot: "等待主库确认",
   clientHistoryConflict: "存在冲突",
   clientHistoryAccepted: "远端已接纳",
   clientHistoryDiscarded: "已放弃",
@@ -897,6 +903,9 @@ export const zh: Record<MessageKey, string> = {
   clientSyncConflict: "同步遇到冲突，已保留本机修改。",
   clientPending: "本机待提交修改 · {count}",
   clientNoPending: "本机没有待提交的修改",
+  clientRelayUpdates: "远端中继有更新",
+  clientAwaitingRootCount: "待主库确认 · {count}",
+  clientAwaitingRoot: "已交给远端，等待主库确认。如需处理冲突，请在远端操作。",
   clientAwaitingReceipt: "上次提交尚待确认，请重新同步以查询结果。",
   clientDiscardConfirm: "我确认放弃这条本机修改，保留远端当前状态。",
   clientDiscard: "放弃本机修改",
@@ -913,7 +922,7 @@ export const zh: Record<MessageKey, string> = {
   clientCredentialSaved: "已保存凭据",
   clientAllowHTTP: "允许使用未加密的远程 HTTP 连接",
   clientConnectionHint:
-    "使用远端上创建的同步凭据，此客户端始终绑定同一个资料库。",
+    "远端可以是主库或同一资料库的客户端。请使用该远端创建的凭据；未确认的中继操作须先完成交接，才能切换上游。",
   clientConnect: "验证并连接",
   clientMaxAge: "最长缓存保留时间",
   clientMaxAgeHint:
@@ -1479,6 +1488,7 @@ interface Parameters {
   clientSyncDownloading: { count: number };
   clientSyncUploading: { count: number };
   clientUploadCount: { count: number | string };
+  clientAwaitingRootCount: { count: number | string };
   clientPending: { count: number };
   clientCacheUsed: { size: string };
   clientPinnedUsed: { size: string };

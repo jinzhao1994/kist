@@ -68,6 +68,7 @@ beforeEach(() => {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (_path: string, options?: RequestInit) => {
+      if (_path.endsWith("/settings/credentials")) return new Response("[]");
       if (_path.endsWith("/settings/storage"))
         return new Response(
           JSON.stringify({

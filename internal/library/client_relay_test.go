@@ -280,3 +280,22 @@ func TestRelayConflictResolutionRemainsExplicit(t *testing.T) {
 		t.Fatalf("resolution not forwarded: %+v %v", got, err)
 	}
 }
+
+func TestRelayTopologyRejectsUnusableDepth(t *testing.T) {
+	c := newSyncClient(t, openTestLibrary(t))
+	caps, err := c.RelayCapabilities(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	caps.NodeID = domain.NewID()
+	for range 30 {
+		caps.Ancestors = append(caps.Ancestors, domain.NewID())
+	}
+	if err = c.ValidateUpstream(t.Context(), caps); err != nil {
+		t.Fatalf("32-node chain rejected: %v", err)
+	}
+	caps.Ancestors = append(caps.Ancestors, domain.NewID())
+	if err = c.ValidateUpstream(t.Context(), caps); !errors.Is(err, ErrSyncConflict) {
+		t.Fatalf("unusable chain accepted: %v", err)
+	}
+}

@@ -15,6 +15,7 @@ function stateLabel(state: Entry["state"], t: Translate) {
   const labels = {
     pending: "clientHistoryPending",
     awaiting_receipt: "clientHistoryAwaiting",
+    awaiting_root: "clientHistoryAwaitingRoot",
     conflict: "clientHistoryConflict",
     accepted: "clientHistoryAccepted",
     discarded: "clientHistoryDiscarded",

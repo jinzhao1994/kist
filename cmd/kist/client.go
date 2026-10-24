@@ -42,7 +42,7 @@ func newClientCmd() *cobra.Command {
 			return syncErr
 		}
 		if err := emit(cmd, result, func(w io.Writer) error {
-			_, err := fmt.Fprintf(w, "Accepted: %d\nRemaining: %d\nComplete: %t\n", result.Accepted, result.Remaining, result.Complete)
+			_, err := fmt.Fprintf(w, "Accepted: %d\nRemaining: %d\nAwaiting root: %d\nComplete: %t\n", result.Accepted, result.Remaining, result.AwaitingRoot, result.Complete)
 			if err == nil && result.BlockedID != "" {
 				_, err = fmt.Fprintf(w, "Stopped at: %s\n", result.BlockedID)
 			}

@@ -25,14 +25,16 @@ type Appearance struct {
 	PrimaryColor string `toml:"primary_color" json:"primary_color"`
 }
 type Client struct {
-	ID            domain.ID `toml:"id" json:"id"`
-	LibraryID     domain.ID `toml:"library_id" json:"library_id"`
-	Timezone      string    `toml:"timezone" json:"timezone"`
-	CacheMaxAge   string    `toml:"cache_max_age" json:"cache_max_age"`
-	CacheMaxBytes int64     `toml:"cache_max_bytes" json:"cache_max_bytes"`
-	Server        string    `toml:"server,omitempty" json:"server"`
-	AllowHTTP     bool      `toml:"allow_http,omitempty" json:"allow_http"`
-	Token         string    `toml:"token,omitempty" json:"-"`
+	ParentID      domain.ID   `toml:"parent_id,omitempty" json:"parent_id"`
+	Ancestors     []domain.ID `toml:"ancestors,omitempty" json:"ancestors"`
+	ID            domain.ID   `toml:"id" json:"id"`
+	LibraryID     domain.ID   `toml:"library_id" json:"library_id"`
+	Timezone      string      `toml:"timezone" json:"timezone"`
+	CacheMaxAge   string      `toml:"cache_max_age" json:"cache_max_age"`
+	CacheMaxBytes int64       `toml:"cache_max_bytes" json:"cache_max_bytes"`
+	Server        string      `toml:"server,omitempty" json:"server"`
+	AllowHTTP     bool        `toml:"allow_http,omitempty" json:"allow_http"`
+	Token         string      `toml:"token,omitempty" json:"-"`
 }
 type Server struct {
 	Listen                string   `toml:"listen" json:"listen"`
@@ -87,6 +89,19 @@ func (c *Config) Validate() error {
 		return err
 	}
 	if c.Mode == "client" {
+		seenNodes := map[domain.ID]bool{c.Client.ID: true}
+		if len(c.Client.Ancestors) > 31 {
+			return fmt.Errorf("too many relay ancestors")
+		}
+		for _, id := range c.Client.Ancestors {
+			if id.IsZero() || seenNodes[id] {
+				return fmt.Errorf("cyclic relay ancestry")
+			}
+			seenNodes[id] = true
+		}
+		if len(c.Client.Ancestors) > 0 && c.Client.ParentID != c.Client.Ancestors[0] {
+			return fmt.Errorf("invalid parent identity")
+		}
 		if c.Client.ID.IsZero() || c.Client.LibraryID.IsZero() || c.Client.Timezone == "" {
 			return fmt.Errorf("client identity and timezone are required")
 		}

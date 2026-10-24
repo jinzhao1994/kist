@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/library"
 	"github.com/jinzhao1994/kist/internal/wire"
 )
@@ -24,6 +25,7 @@ type Options struct {
 }
 
 type Peer struct {
+	node            domain.ID
 	validateBinding func(context.Context) error
 	base            string
 	token           string
@@ -58,6 +60,11 @@ func NewForClient(ctx context.Context, client *library.Client) (*Peer, error) {
 	if err != nil {
 		return nil, err
 	}
+	caps, err := client.RelayCapabilities(ctx)
+	if err != nil {
+		return nil, err
+	}
+	peer.node = caps.NodeID
 	peer.validateBinding = func(ctx context.Context) error {
 		current, credential, err := client.Connection(ctx)
 		if err != nil {
@@ -92,6 +99,20 @@ func (p *Peer) request(ctx context.Context, method, path string, body io.Reader,
 	}
 	for k, values := range headers {
 		r.Header[k] = values
+	}
+	route := library.RelayRoute(ctx)
+	if !p.node.IsZero() && (len(route) == 0 || route[len(route)-1] != p.node) {
+		route = append(route, p.node)
+	}
+	if len(route) > 32 {
+		return nil, library.ErrSyncConflict
+	}
+	if len(route) > 0 {
+		ids := make([]string, len(route))
+		for i, id := range route {
+			ids[i] = id.String()
+		}
+		r.Header.Set("X-Kist-Route", strings.Join(ids, ","))
 	}
 	r.Header.Set("Authorization", "Bearer "+p.token)
 	return p.client.Do(r)

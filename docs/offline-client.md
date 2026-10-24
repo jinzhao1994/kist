@@ -237,3 +237,29 @@ The sidebar distinguishes **Synchronizing…**, **Up to date**, and **Manual mer
 Cache retention defaults to `180d`. Integer `d` values represent 24-hour days; existing durations such as `720h` remain supported. Explicit settings are preserved.
 
 The client service cleans eligible cache entries at startup and every hour, including while offline. The web UI needs no manual cleanup; the prune API and CLI remain available. Retained, pending and actively used content stays protected.
+
+## Use another client as a relay
+
+A client can use another client of the same library as its upstream. For example,
+a phone-role client connects to a laptop, which connects to the authoritative
+library. This does not include a native phone application.
+
+Create a separate downstream credential in the laptop's **Settings → Access
+credentials**. Initialize the downstream with `client init --server` pointing to
+the laptop, or change an existing client's connection in Settings. Use the
+laptop's credential, not the authoritative library's credential. The laptop's
+service must be reachable under the usual host and transport configuration.
+
+Both clients can exchange temporary operations and originals while the library
+is unavailable. **Awaiting root confirmation** means the relay has durable
+custody, not that the library has committed the operation. Protected originals
+remain outside the evictable cache. Resolve conflicts at the upstream holding
+the operation. Once the laptop syncs to the library, sync the downstream again
+to receive final confirmation.
+
+Single-direction changes synchronize automatically; changes on both sides require
+a manual merge. Changing an address for the same node preserves its temporary
+branch. Before switching to another relay or directly to the library, retrieve
+all final outcomes from the previous relay. Pending custody, uncertain submissions
+and incomplete relay snapshots block node changes. Different libraries, divergent
+known history, self-connections and cycles are rejected.

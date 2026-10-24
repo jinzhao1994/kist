@@ -7,6 +7,8 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
+	"github.com/jinzhao1994/kist/internal/lockfile"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -36,8 +38,8 @@ type syncAccess struct {
 	Grants  []syncGrant `json:"grants"`
 }
 
-func (l *Library) syncAccess() (syncAccess, error) {
-	cfg, err := config.Load(l.layout.ConfigPath())
+func (l syncAccessStore) syncAccess() (syncAccess, error) {
+	cfg, err := config.Load(filepath.Join(l.root, "kist.toml"))
 	if err != nil {
 		return syncAccess{}, err
 	}
@@ -51,12 +53,12 @@ func (l *Library) syncAccess() (syncAccess, error) {
 // AuthorizeSync explicitly enables read/write sync for one independently
 // revocable credential. Operational credentials are configuration, not archive
 // events, and cannot be restored by undoing an archive operation.
-func (l *Library) AuthorizeSync(ctx context.Context) (NewSyncCredential, error) {
+func (l syncAccessStore) AuthorizeSync(ctx context.Context) (NewSyncCredential, error) {
 	return l.AuthorizeSyncWithNote(ctx, "")
 }
 
 // AuthorizeSyncWithNote creates a credential with an optional human-readable label.
-func (l *Library) AuthorizeSyncWithNote(ctx context.Context, note string) (NewSyncCredential, error) {
+func (l syncAccessStore) AuthorizeSyncWithNote(ctx context.Context, note string) (NewSyncCredential, error) {
 	note = strings.TrimSpace(note)
 	if !config.ValidCredentialNote(note) {
 		return NewSyncCredential{}, ErrInvalidRequest
@@ -89,7 +91,7 @@ func (l *Library) AuthorizeSyncWithNote(ctx context.Context, note string) (NewSy
 	return credential, nil
 }
 
-func (l *Library) SyncCredentials(ctx context.Context) ([]SyncCredential, error) {
+func (l syncAccessStore) SyncCredentials(ctx context.Context) ([]SyncCredential, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -104,7 +106,7 @@ func (l *Library) SyncCredentials(ctx context.Context) ([]SyncCredential, error)
 	return out, nil
 }
 
-func (l *Library) RevokeSync(ctx context.Context, id string) (bool, error) {
+func (l syncAccessStore) RevokeSync(ctx context.Context, id string) (bool, error) {
 	release, err := l.lock.Acquire(ctx)
 	if err != nil {
 		return false, err
@@ -124,7 +126,7 @@ func (l *Library) RevokeSync(ctx context.Context, id string) (bool, error) {
 }
 
 // SetSyncCredentialNote changes only the display label of an existing grant.
-func (l *Library) SetSyncCredentialNote(ctx context.Context, id, note string) (bool, error) {
+func (l syncAccessStore) SetSyncCredentialNote(ctx context.Context, id, note string) (bool, error) {
 	note = strings.TrimSpace(note)
 	if !config.ValidCredentialNote(note) {
 		return false, ErrInvalidRequest
@@ -149,7 +151,7 @@ func (l *Library) SetSyncCredentialNote(ctx context.Context, id, note string) (b
 
 // CheckSyncCredential reads current configuration on every request, so a grant
 // revoked in another process cannot survive in a running server's memory.
-func (l *Library) CheckSyncCredential(ctx context.Context, token string) (bool, error) {
+func (l syncAccessStore) CheckSyncCredential(ctx context.Context, token string) (bool, error) {
 	if err := ctx.Err(); err != nil {
 		return false, err
 	}
@@ -175,10 +177,65 @@ func (l *Library) CheckSyncCredential(ctx context.Context, token string) (bool, 
 	return false, nil
 }
 
-func (l *Library) saveSyncAccess(ctx context.Context, access syncAccess) error {
+func (l syncAccessStore) saveSyncAccess(ctx context.Context, access syncAccess) error {
 	grants := []config.Grant{}
 	for _, g := range access.Grants {
 		grants = append(grants, config.Grant{ID: g.ID, CreatedAt: g.CreatedAt, Note: g.Note, Digest: g.Digest})
 	}
-	return updateInstanceConfig(ctx, l.layout.Root, "", map[string]any{"sync.grants": grants})
+	return updateInstanceConfig(ctx, l.root, "", map[string]any{"sync.grants": grants})
+}
+
+// syncAccessStore is operational configuration shared by root and relay nodes.
+type syncAccessStore struct {
+	root string
+	lock *lockfile.Locker
+	now  func() time.Time
+}
+
+func (l *Library) AuthorizeSync(ctx context.Context) (NewSyncCredential, error) {
+	return (syncAccessStore{root: l.layout.Root, lock: l.lock, now: l.now}).AuthorizeSync(ctx)
+}
+
+func (l *Library) AuthorizeSyncWithNote(ctx context.Context, note string) (NewSyncCredential, error) {
+	return (syncAccessStore{root: l.layout.Root, lock: l.lock, now: l.now}).AuthorizeSyncWithNote(ctx, note)
+}
+
+func (l *Library) SyncCredentials(ctx context.Context) ([]SyncCredential, error) {
+	return (syncAccessStore{root: l.layout.Root, lock: l.lock, now: l.now}).SyncCredentials(ctx)
+}
+
+func (l *Library) RevokeSync(ctx context.Context, id string) (bool, error) {
+	return (syncAccessStore{root: l.layout.Root, lock: l.lock, now: l.now}).RevokeSync(ctx, id)
+}
+
+func (l *Library) SetSyncCredentialNote(ctx context.Context, id, note string) (bool, error) {
+	return (syncAccessStore{root: l.layout.Root, lock: l.lock, now: l.now}).SetSyncCredentialNote(ctx, id, note)
+}
+
+func (l *Library) CheckSyncCredential(ctx context.Context, token string) (bool, error) {
+	return (syncAccessStore{root: l.layout.Root, lock: l.lock, now: l.now}).CheckSyncCredential(ctx, token)
+}
+
+func (l *Client) AuthorizeSync(ctx context.Context) (NewSyncCredential, error) {
+	return (syncAccessStore{root: l.root, lock: l.lock, now: time.Now}).AuthorizeSync(ctx)
+}
+
+func (l *Client) AuthorizeSyncWithNote(ctx context.Context, note string) (NewSyncCredential, error) {
+	return (syncAccessStore{root: l.root, lock: l.lock, now: time.Now}).AuthorizeSyncWithNote(ctx, note)
+}
+
+func (l *Client) SyncCredentials(ctx context.Context) ([]SyncCredential, error) {
+	return (syncAccessStore{root: l.root, lock: l.lock, now: time.Now}).SyncCredentials(ctx)
+}
+
+func (l *Client) RevokeSync(ctx context.Context, id string) (bool, error) {
+	return (syncAccessStore{root: l.root, lock: l.lock, now: time.Now}).RevokeSync(ctx, id)
+}
+
+func (l *Client) SetSyncCredentialNote(ctx context.Context, id, note string) (bool, error) {
+	return (syncAccessStore{root: l.root, lock: l.lock, now: time.Now}).SetSyncCredentialNote(ctx, id, note)
+}
+
+func (l *Client) CheckSyncCredential(ctx context.Context, token string) (bool, error) {
+	return (syncAccessStore{root: l.root, lock: l.lock, now: time.Now}).CheckSyncCredential(ctx, token)
 }

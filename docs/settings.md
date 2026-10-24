@@ -11,8 +11,8 @@ explicit option when you save. A typical initialized library needs only its
 version, mode, identity, time zone and chosen projection mode. Keep the generated
 identity; do not copy a client identity to another independent client.
 
-Settings are grouped into Appearance, Storage, Connection (clients) or Sync
-credentials (libraries), and Service. Storage includes client cache age and size
+Settings are grouped into Appearance, Storage, Service, Maps, Connection
+(clients), and Access credentials (both libraries and clients). Storage includes client cache age and size
 limits, or the library's capture-time fallback zone and projection mode. Service
 includes listen address, allowed web origins, upload limits and
 map resources. The UI displays current defaults and marks options requiring a

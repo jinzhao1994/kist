@@ -129,6 +129,7 @@ it("retains a pending change after a failed sync", async () => {
       sequence: 1,
       occurred_at: "2026-10-21T00:00:00Z",
       awaiting_receipt: true,
+      awaiting_root: false,
     },
   ];
   failSync = true;
@@ -150,6 +151,7 @@ it("requires an explicit conflict decision before discarding", async () => {
       sequence: 1,
       occurred_at: "2026-10-21T00:00:00Z",
       awaiting_receipt: false,
+      awaiting_root: false,
       conflict: "Name changed on NAS",
     },
   ];
@@ -186,4 +188,30 @@ it("shows a compact synchronized state without zero counts or redundant catalog 
       name: "Get remote updates and submit local changes.",
     }),
   ).toBeVisible();
+});
+
+it("keeps relay custody distinct from final confirmation and delegates conflict decisions", async () => {
+  state.catalog.complete = true;
+  state.pending = [
+    {
+      id: "held",
+      sequence: 1,
+      action: "create_box",
+      occurred_at: "2026-10-24T00:00:00Z",
+      awaiting_receipt: false,
+      awaiting_root: true,
+      conflict: "Remote conflict",
+    },
+  ];
+  state.blocked_id = "held";
+  setup();
+  expect(
+    await screen.findByText(
+      "Held by the remote; awaiting root confirmation. Resolve changes at the remote.",
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Discard local change" }),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByText("1 operations to upload")).not.toBeInTheDocument();
 });

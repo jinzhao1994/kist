@@ -42,10 +42,10 @@ func TestClientServerCatalogAndAccessProtection(t *testing.T) {
 	if status.Complete {
 		t.Fatal("unreceived catalog reported complete")
 	}
-	if result := call(server, "GET", Prefix+"/sync/capabilities", "", ""); result.Code != http.StatusNotFound {
-		t.Fatalf("NAS route: %d", result.Code)
+	if result := call(server, "GET", Prefix+"/sync/capabilities", "", ""); result.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated relay route: %d", result.Code)
 	}
-	for _, dir := range []string{"ops", "blobs", "sync-uploads"} {
+	for _, dir := range []string{"ops", "blobs"} {
 		if _, err := os.Stat(filepath.Join(root, dir)); !os.IsNotExist(err) {
 			t.Fatalf("NAS directory %s: %v", dir, err)
 		}

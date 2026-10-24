@@ -16,7 +16,7 @@ type ClientLocalHistoryEntry struct {
 	OccurredAt time.Time       `json:"occurred_at"`
 	Action     string          `json:"action"`
 	Origin     string          `json:"origin"`
-	State      string          `json:"state" enum:"pending,awaiting_receipt,conflict,accepted,discarded,replaced"`
+	State      string          `json:"state" enum:"pending,awaiting_receipt,awaiting_root,conflict,accepted,discarded,replaced"`
 	Receipt    *SyncResult     `json:"receipt,omitempty"`
 	ReplacedBy string          `json:"replaced_by,omitempty"`
 	Reason     string          `json:"reason,omitempty"`
@@ -172,6 +172,8 @@ func (c *Client) localHistoryEntry(entry pendingEntry, view clientOverlay) (Clie
 		if view.Conflict != nil {
 			item.Reason = view.Conflict.Error()
 		}
+	case entry.Upstream != nil || entry.Forwarded != nil:
+		item.State = "awaiting_root"
 	}
 	return item, nil
 }

@@ -22,7 +22,7 @@ export function useConnectionStatus() {
         !status.syncing &&
         !status.manual_required &&
         ((status.pending_download != null &&
-          status.pending_download > 0 &&
+          (status.pending_download > 0 || status.relay_updates) &&
           status.pending_upload === 0) ||
           (status.pending_download === 0 && status.pending_upload > 0))
       ) {
@@ -73,7 +73,9 @@ export function connectionStatusLabel(
             ? "clientManualSyncRequired"
             : data?.catalog_complete &&
                 data.pending_download === 0 &&
-                data.pending_upload === 0
+                data.pending_upload === 0 &&
+                !data.awaiting_root &&
+                !data.relay_updates
               ? "clientSynced"
               : "remoteConnected"
           : state === "unauthorized"
@@ -95,7 +97,7 @@ export function ClientConnectionStatus({ openSync }: { openSync: () => void }) {
   const catalog = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!query.data) return;
-    const version = `${query.data.catalog_op_id}:${query.data.pending_upload}`;
+    const version = `${query.data.catalog_op_id}:${query.data.pending_upload}:${query.data.relay_sequence}:${query.data.awaiting_root}`;
     const previous = catalog.current;
     catalog.current = version;
     if (previous !== undefined && previous !== version) {
@@ -140,6 +142,16 @@ export function ClientConnectionStatus({ openSync }: { openSync: () => void }) {
                       query.data?.pending_download != null
                         ? query.data.pending_download
                         : "—",
+                  })}
+                </span>
+              )}
+              {query.data?.relay_updates && (
+                <span>{t("clientRelayUpdates")}</span>
+              )}
+              {!!query.data?.awaiting_root && (
+                <span>
+                  {t("clientAwaitingRootCount", {
+                    count: query.data.awaiting_root,
                   })}
                 </span>
               )}

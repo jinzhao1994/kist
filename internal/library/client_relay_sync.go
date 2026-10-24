@@ -5,6 +5,7 @@ import (
 	"errors"
 	"path/filepath"
 
+	"github.com/jinzhao1994/kist/internal/config"
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/lockfile"
 )
@@ -27,6 +28,10 @@ type RelaySyncResult struct {
 // SynchronizeRelay exchanges published root metadata and relay overlays, then
 // hands local intents to that relay. It never labels custody as final sync.
 func (c *Client) SynchronizeRelay(ctx context.Context, peer RelayPeer) (RelaySyncResult, error) {
+	return c.synchronizeRelay(ctx, peer, false, nil)
+}
+
+func (c *Client) synchronizeRelay(ctx context.Context, peer RelayPeer, automatic bool, report func(ClientSyncProgress)) (RelaySyncResult, error) {
 	var result RelaySyncResult
 	if ctx.Value(clientRequestContextKey{}) != nil || ctx.Value(clientViewContextKey{}) != nil {
 		return result, ErrRequestScope
@@ -36,6 +41,33 @@ func (c *Client) SynchronizeRelay(ctx context.Context, peer RelayPeer) (RelaySyn
 		return result, err
 	}
 	defer release()
+	head, err := peer.RelayHead(ctx)
+	if err != nil {
+		return result, err
+	}
+	if automatic {
+		entries, err := c.queue.snapshot(ctx)
+		if err != nil {
+			return result, err
+		}
+		old, _, err := c.RelayTransfer(ctx)
+		if err != nil {
+			return result, err
+		}
+		for _, e := range entries {
+			if e.active() && e.Upstream == nil && e.Forwarded == nil {
+				if old == nil || *old != head {
+					return result, ErrSyncConflict
+				}
+				if _, ok := peer.(ConditionalRelayPeer); !ok {
+					return result, ErrSyncConflict
+				}
+			}
+		}
+	}
+	if report != nil {
+		report(ClientSyncProgress{Direction: "download", Count: int64(head.Count)})
+	}
 	if err := c.pullRelay(ctx, peer); err != nil {
 		return result, err
 	}
@@ -46,6 +78,13 @@ func (c *Client) SynchronizeRelay(ctx context.Context, peer RelayPeer) (RelaySyn
 		}
 		if entry == nil {
 			break
+		}
+		conditional, conditionalOK := peer.(ConditionalRelayPeer)
+		if automatic && !conditionalOK {
+			return result, ErrSyncConflict
+		}
+		if report != nil {
+			report(ClientSyncProgress{Direction: "upload", Count: 1})
 		}
 		if !entry.Sending {
 			if err := c.uploadIntentOriginals(ctx, peer, entry.Proposal); err != nil {
@@ -59,7 +98,12 @@ func (c *Client) SynchronizeRelay(ctx context.Context, peer RelayPeer) (RelaySyn
 		if err != nil {
 			return result, err
 		}
-		outcome, err := peer.ReceiveRelay(ctx, settings.LibraryID, entry.Proposal)
+		var outcome RelayOutcome
+		if automatic {
+			outcome, err = conditional.ReceiveRelayAt(ctx, settings.LibraryID, entry.Proposal, head)
+		} else {
+			outcome, err = peer.ReceiveRelay(ctx, settings.LibraryID, entry.Proposal)
+		}
 		if err != nil {
 			var rejected *SyncRejectedError
 			if errors.As(err, &rejected) {
@@ -77,6 +121,9 @@ func (c *Client) SynchronizeRelay(ctx context.Context, peer RelayPeer) (RelaySyn
 			return result, err
 		}
 		result.Submitted++
+		if automatic {
+			break
+		}
 	}
 	if err := c.pullRelay(ctx, peer); err != nil {
 		return result, err
@@ -109,6 +156,13 @@ func (c *Client) pullRelay(ctx context.Context, peer RelayPeer) error {
 	settings, err := c.settings()
 	if err != nil {
 		return err
+	}
+	cfg, err := config.Load(filepath.Join(c.root, "kist.toml"))
+	if err != nil {
+		return err
+	}
+	if !cfg.Client.ParentID.IsZero() && cfg.Client.ParentID != head.Node {
+		return ErrSyncConflict
 	}
 	if head.Node == settings.ID || head.Root.LibraryID != settings.LibraryID {
 		return ErrSyncConflict
@@ -226,4 +280,19 @@ func (c *Client) nextRelayIntent(ctx context.Context) (*pendingEntry, error) {
 		return entry, ErrSyncConflict
 	}
 	return entry, nil
+}
+
+// ConditionalRelayPeer prevents automatic merges with an independently edited view.
+type ConditionalRelayPeer interface {
+	ReceiveRelayAt(context.Context, domain.ID, SyncProposal, RelayHead) (RelayOutcome, error)
+}
+
+func (c *Client) synchronizeRelayMode(ctx context.Context, peer RelayPeer, automatic bool, report func(ClientSyncProgress)) (ClientSyncResult, error) {
+	result, err := c.synchronizeRelay(ctx, peer, automatic, report)
+	out := ClientSyncResult{AwaitingRoot: result.AwaitingRoot, Remaining: result.AwaitingRoot, Complete: err == nil}
+	if automatic && errors.Is(err, ErrSyncConflict) {
+		out.ManualRequired = true
+		return out, nil
+	}
+	return out, err
 }

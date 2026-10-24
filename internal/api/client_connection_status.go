@@ -20,6 +20,9 @@ type clientConnectionStatus struct {
 	State           string                      `json:"state" enum:"connected,unreachable,unauthorized,incompatible,unconfigured"`
 	Server          string                      `json:"server,omitempty"`
 	PendingDownload *int64                      `json:"pending_download,omitempty"`
+	AwaitingRoot    int                         `json:"awaiting_root"`
+	RelaySequence   int64                       `json:"relay_sequence"`
+	RelayUpdates    bool                        `json:"relay_updates"`
 	PendingUpload   int                         `json:"pending_upload"`
 }
 
@@ -34,6 +37,19 @@ func (s *Server) clientConnectionStatusRoute() {
 			return nil, failure(err)
 		}
 		status := clientConnectionStatus{State: "unconfigured", PendingUpload: len(local.Pending), CatalogOpID: local.Catalog.Confirmed.OpID, CatalogComplete: local.Catalog.Complete, Syncing: s.autoSyncRunning.Load() > 0, ManualRequired: local.BlockedID != ""}
+		for _, entry := range local.Pending {
+			if entry.AwaitingRoot {
+				status.AwaitingRoot++
+				status.PendingUpload--
+			}
+		}
+		old, _, transferErr := s.client.RelayTransfer(ctx)
+		if transferErr != nil {
+			return nil, failure(transferErr)
+		}
+		if old != nil {
+			status.RelaySequence = old.Sequence
+		}
 		if settings.Connection == nil || settings.Connection.Server == "" || !settings.CredentialConfigured {
 			return response(status, nil)
 		}
@@ -46,7 +62,7 @@ func (s *Server) clientConnectionStatusRoute() {
 			caps, probeErr := peer.Capabilities(probe)
 			err = probeErr
 			if err == nil {
-				if caps.LibraryID.String() != settings.LibraryID || library.ValidateSyncCapabilities(caps) != nil {
+				if caps.LibraryID.String() != settings.LibraryID || s.client.ValidateBoundUpstream(probe, caps) != nil {
 					status.State = "incompatible"
 				} else {
 					head, headErr := peer.Head(probe)
@@ -59,7 +75,15 @@ func (s *Server) clientConnectionStatusRoute() {
 							// Authoritative journal IDs form a contiguous sequence.
 							pending := head.OpID - local.Catalog.Confirmed.OpID
 							status.PendingDownload = &pending
-							status.ManualRequired = status.ManualRequired || (pending > 0 && status.PendingUpload > 0) || (status.PendingUpload > 0 && !caps.ConditionalSubmit)
+							if caps.Relay {
+								relayHead, relayErr := peer.RelayHead(probe)
+								if relayErr != nil {
+									return nil, failure(relayErr)
+								}
+								status.RelayUpdates = old == nil || *old != relayHead
+							}
+
+							status.ManualRequired = status.ManualRequired || ((pending > 0 || status.RelayUpdates) && status.PendingUpload > 0) || (status.PendingUpload > 0 && !caps.ConditionalSubmit)
 							for _, entry := range local.Pending {
 								status.ManualRequired = status.ManualRequired || entry.Conflict != ""
 							}

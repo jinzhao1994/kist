@@ -20,7 +20,11 @@ func (s *ClientSource) Capabilities(ctx context.Context) (library.SyncCapabiliti
 	if err != nil {
 		return library.SyncCapabilities{}, err
 	}
-	return peer.Capabilities(ctx)
+	caps, err := peer.Capabilities(ctx)
+	if err == nil {
+		err = s.client.ValidateBoundUpstream(ctx, caps)
+	}
+	return caps, err
 }
 func (s *ClientSource) OpenOriginal(ctx context.Context, key string, size, offset int64) (io.ReadCloser, error) {
 	peer, err := s.peer(ctx)

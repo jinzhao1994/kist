@@ -18,7 +18,7 @@ func (s *Server) syncDerivedRoutes() {
 			Retry  bool   `json:"retry,omitempty"`
 		}
 	}) (*output[library.SyncDerived], error) {
-		return response(s.media.DescribeSyncDerived(ctx, in.Body.Key, in.Body.Recipe, in.Body.Retry))
+		return response(s.describeSyncDerived(ctx, in.Body.Key, in.Body.Recipe, in.Body.Retry))
 	})
 	for _, method := range []string{"GET", "HEAD"} {
 		op := syncOperation(method+"-sync-derived-content", method, "derived/content")
@@ -31,7 +31,7 @@ func (s *Server) syncDerivedRoutes() {
 		}) (*huma.StreamResponse, error) {
 			return &huma.StreamResponse{Body: func(hctx huma.Context) {
 				req, w := humago.Unwrap(hctx)
-				job, file, err := s.media.OpenSyncDerived(ctx, in.Key, in.Recipe, in.Generation, in.ContentKey)
+				job, file, err := s.openSyncDerived(ctx, in.Key, in.Recipe, in.Generation, in.ContentKey)
 				if err != nil {
 					writeFailure(w, err)
 					return

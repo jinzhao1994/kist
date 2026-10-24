@@ -2902,6 +2902,7 @@ test("fileset-gallery-navigation", async ({ page }, info) => {
 
 for (const panel of [
   "sync",
+  "relay",
   "syncing",
   "cache",
   "connection",
@@ -3024,14 +3025,15 @@ for (const panel of [
           json: {
             state: "connected",
             server: "https://nas.example",
-            pending_download: 3,
-            pending_upload: 2,
+            pending_download: panel === "relay" ? 0 : 3,
+            pending_upload: panel === "relay" ? 0 : 2,
+            awaiting_root: panel === "relay" ? 1 : 0,
             syncing: panel === "syncing",
             progress:
               panel === "syncing"
                 ? { direction: "download", count: 3 }
                 : undefined,
-            manual_required: panel !== "syncing",
+            manual_required: panel !== "syncing" && panel !== "relay",
           },
         });
       if (route.request().method() !== "GET") {
@@ -3072,6 +3074,7 @@ for (const panel of [
                       : "create_box",
                 conflict: conflict ? "配置已被修改" : undefined,
                 awaiting_receipt: false,
+                awaiting_root: panel === "relay",
               },
             ],
           },
@@ -3296,7 +3299,11 @@ for (const panel of [
       .getByRole("button", { name: "数据同步", exact: true })
       .click();
     await expect(page.locator(".client-connection-status")).toContainText(
-      panel === "syncing" ? "正在同步下载 3 个操作" : "需要手动合并",
+      panel === "syncing"
+        ? "正在同步下载 3 个操作"
+        : panel === "relay"
+          ? "远端已连接"
+          : "需要手动合并",
     );
     let dialog = page.getByRole("region", { name: "数据同步", exact: true });
     await expect(page).toHaveURL(/\/sync$/);
@@ -3311,7 +3318,11 @@ for (const panel of [
       "远端地址: https://nas.example",
     );
     await expect(dialog.locator("#sync-status").getByRole("status")).toHaveText(
-      panel === "syncing" ? "正在同步下载 3 个操作" : "需要手动合并",
+      panel === "syncing"
+        ? "正在同步下载 3 个操作"
+        : panel === "relay"
+          ? "远端已连接"
+          : "需要手动合并",
     );
     await expect(
       dialog.getByText("可供浏览和检索", { exact: true }),
@@ -3320,6 +3331,15 @@ for (const panel of [
     await expect(dialog.getByRole("button", { name: "立即同步" }))[
       panel === "syncing" ? "toBeDisabled" : "toBeEnabled"
     ]();
+    if (panel === "relay") {
+      await expect(dialog).toContainText("已交给远端，等待主库确认");
+      await expect(page.locator(".client-connection-status")).toContainText(
+        "待主库确认 · 1",
+      );
+      await expect(
+        dialog.getByRole("button", { name: "查看本机修改", exact: true }),
+      ).toHaveCount(0);
+    }
     if (deletionConflict) {
       await dialog
         .getByRole("button", { name: "查看本机修改", exact: true })

@@ -866,6 +866,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List API v1 settings credentials */
+        get: operations["list-api-v1-settings-credentials"];
+        put?: never;
+        /** Post API v1 settings credentials */
+        post: operations["post-api-v1-settings-credentials"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/credentials/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put API v1 settings credentials by ID */
+        put: operations["put-api-v1-settings-credentials-by-id"];
+        post?: never;
+        /** Delete API v1 settings credentials by ID */
+        delete: operations["delete-api-v1-settings-credentials-by-id"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/storage": {
         parameters: {
             query?: never;
@@ -877,6 +913,246 @@ export interface paths {
         get: operations["get-api-v1-settings-storage"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sync/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["sync-capabilities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sync/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sync-catalog"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sync/derived/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GET-sync-derived-content"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head: operations["HEAD-sync-derived-content"];
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sync/derived/describe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sync-derived-describe"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sync/head": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["sync-head"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sync/original-uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sync-original-upload-create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sync/original-uploads/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["sync-original-upload-status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sync/original-uploads/{id}/files/{index}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["sync-original-upload-chunk"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sync/original-uploads/{id}/finish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sync-original-upload-finish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sync/original-uploads/{id}/prefix": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sync-original-upload-prefix"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sync/originals/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["sync-original-status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sync/originals/{key}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["sync-original-content"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sync/relay/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["relay-catalog"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sync/relay/head": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["relay-head"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sync/relay/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["relay-submit"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1223,6 +1499,8 @@ export interface components {
             server: string;
         };
         ClientConnectionStatus: {
+            /** Format: int64 */
+            awaiting_root: number;
             catalog_complete: boolean;
             /** Format: int64 */
             catalog_op_id: number;
@@ -1232,6 +1510,9 @@ export interface components {
             /** Format: int64 */
             pending_upload: number;
             progress?: components["schemas"]["ClientSyncProgress"];
+            /** Format: int64 */
+            relay_sequence: number;
+            relay_updates: boolean;
             server?: string;
             /** @enum {string} */
             state: "connected" | "unreachable" | "unauthorized" | "incompatible" | "unconfigured";
@@ -1260,7 +1541,7 @@ export interface components {
             receipt?: components["schemas"]["SyncResult"];
             replaced_by?: string;
             /** @enum {string} */
-            state: "pending" | "awaiting_receipt" | "conflict" | "accepted" | "discarded" | "replaced";
+            state: "pending" | "awaiting_receipt" | "awaiting_root" | "conflict" | "accepted" | "discarded" | "replaced";
             summary?: components["schemas"]["HistorySummary"];
             undo?: components["schemas"]["SyncReference"];
         };
@@ -1275,7 +1556,7 @@ export interface components {
             receipt?: components["schemas"]["SyncResult"];
             replaced_by?: string;
             /** @enum {string} */
-            state: "pending" | "awaiting_receipt" | "conflict" | "accepted" | "discarded" | "replaced";
+            state: "pending" | "awaiting_receipt" | "awaiting_root" | "conflict" | "accepted" | "discarded" | "replaced";
             summary?: components["schemas"]["HistorySummary"];
             undo?: components["schemas"]["SyncReference"];
         };
@@ -1313,6 +1594,7 @@ export interface components {
         ClientPendingStatus: {
             action: string;
             awaiting_receipt: boolean;
+            awaiting_root: boolean;
             conflict?: string;
             id: string;
             /** Format: date-time */
@@ -1360,6 +1642,8 @@ export interface components {
         ClientSyncResult: {
             /** Format: int64 */
             accepted: number;
+            /** Format: int64 */
+            awaiting_root?: number;
             blocked_id?: string;
             complete: boolean;
             manual_required?: boolean;
@@ -1380,6 +1664,22 @@ export interface components {
         EntryRenameInputBody: {
             before: string;
             name: string;
+        };
+        Error: {
+            /** Format: int64 */
+            blocking_op?: number;
+            candidates?: components["schemas"]["Ref"][] | null;
+            class: string;
+            code: string;
+            existing_id?: string;
+            holder?: string;
+            message: string;
+            /** Format: int64 */
+            op_id?: number;
+            /** Format: int64 */
+            reverted_by?: number;
+            /** Format: int64 */
+            upload_offset?: number;
         };
         ExtractionInputBody: Record<string, never>;
         Field: {
@@ -1629,6 +1929,13 @@ export interface components {
         MoveTagInputBody: {
             parent_id: string | null;
         };
+        NewSyncCredential: {
+            /** Format: date-time */
+            created_at: string;
+            id: string;
+            note?: string;
+            token: string;
+        };
         "OutputStruct {}Body": Record<string, never>;
         "Post-api-v1-boxes-by-id-foldersRequest": {
             name: string;
@@ -1643,6 +1950,9 @@ export interface components {
         };
         "Post-api-v1-client-sync-automaticRequest": Record<string, never>;
         "Post-api-v1-client-syncRequest": Record<string, never>;
+        "Post-api-v1-settings-credentialsRequest": {
+            note?: string;
+        };
         Preview: {
             encoding: string;
             reason?: string;
@@ -1653,9 +1963,74 @@ export interface components {
         "Put-api-v1-boxes-by-id-coverRequest": {
             file_id: string;
         };
+        "Put-api-v1-settings-credentials-by-idRequest": {
+            note: string;
+        };
         Ref: {
             id: string;
             name: string;
+        };
+        "Relay-catalogRequest": {
+            /** Format: int64 */
+            after: number;
+            head: components["schemas"]["RelayHead"];
+            /** Format: int64 */
+            limit: number;
+            /** Format: int64 */
+            max_bytes: number;
+        };
+        "Relay-submitRequest": {
+            expected?: components["schemas"]["RelayHead"];
+            library_id: string;
+            proposal: components["schemas"]["SyncProposal"];
+        };
+        RelayHead: {
+            /** Format: int64 */
+            count: number;
+            node: string;
+            root: components["schemas"]["SyncBoundary"];
+            /** Format: int64 */
+            sequence: number;
+            sum: string;
+        };
+        RelayItem: {
+            confirmed?: components["schemas"]["SyncResult"];
+            conflict?: string;
+            discarded: boolean;
+            proposal: components["schemas"]["SyncProposal"];
+            reason?: string;
+            replaced_by?: string;
+        };
+        RelayOutcome: {
+            confirmed?: components["schemas"]["SyncResult"];
+            conflict?: string;
+            custody: components["schemas"]["RelayReceipt"];
+            discarded: boolean;
+            reason?: string;
+            replacement?: components["schemas"]["SyncProposal"];
+            sending: boolean;
+        };
+        RelayPage: {
+            /** Format: int64 */
+            after: number;
+            done: boolean;
+            head: components["schemas"]["RelayHead"];
+            items: components["schemas"]["RelayItem"][] | null;
+            /** Format: int64 */
+            next: number;
+        };
+        RelayReceipt: {
+            digest: string;
+            library_id: string;
+            proposal_id: string;
+            /** Format: date-time */
+            received_at: string;
+            relay_id: string;
+        };
+        RelaySubmitResponse: {
+            error?: components["schemas"]["Error"];
+            rejected: boolean;
+            result?: components["schemas"]["RelayOutcome"];
         };
         RenameTagInputBody: {
             name: string;
@@ -1787,19 +2162,88 @@ export interface components {
             /** Format: int64 */
             previews_bytes: number;
         };
+        "Sync-derived-describeRequest": {
+            key: string;
+            recipe: string;
+            retry?: boolean;
+        };
+        "Sync-original-upload-createRequest": {
+            key: string;
+            /** Format: int64 */
+            size: number;
+        };
         SyncBoundary: {
             library_id: string;
             /** Format: int64 */
             op_id: number;
             sum: string;
         };
+        SyncCapabilities: {
+            actions: string[] | null;
+            ancestors?: string[] | null;
+            conditional_submit: boolean;
+            deletion_snapshots: boolean;
+            derived_previews: boolean;
+            /** Format: int64 */
+            journal_version: number;
+            library_id: string;
+            node_id?: string;
+            relay?: boolean;
+            timezone: string;
+            undo_references: boolean;
+            /** Format: int64 */
+            version: number;
+        };
+        SyncCatalogInputBody: {
+            /** Format: int64 */
+            after: number;
+            boundary: components["schemas"]["SyncBoundary"];
+            /** Format: int64 */
+            limit: number;
+            /** Format: int64 */
+            max_bytes: number;
+        };
+        SyncCatalogPage: {
+            /** Format: int64 */
+            after: number;
+            boundary: components["schemas"]["SyncBoundary"];
+            done: boolean;
+            lines: unknown[] | null;
+            /** Format: int64 */
+            next: number;
+        };
+        SyncCredential: {
+            /** Format: date-time */
+            created_at: string;
+            id: string;
+            note?: string;
+        };
         SyncDeletionBasis: {
             box: string;
             last: string;
         };
+        SyncDerived: {
+            content_key?: string;
+            job: components["schemas"]["MediaJob"];
+        };
         SyncFileState: {
             blob_key: string;
             id: string;
+        };
+        SyncOriginalStatus: {
+            present: boolean;
+            /** Format: int64 */
+            size: number;
+        };
+        SyncOriginalUpload: {
+            /** Format: int64 */
+            chunk_bytes: number;
+            id: string;
+            key: string;
+            /** Format: int64 */
+            offset: number;
+            /** Format: int64 */
+            size: number;
         };
         SyncProposal: {
             action?: string;
@@ -4153,6 +4597,134 @@ export interface operations {
             };
         };
     };
+    "list-api-v1-settings-credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncCredential"][] | null;
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-settings-credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-settings-credentialsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NewSyncCredential"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "put-api-v1-settings-credentials-by-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Put-api-v1-settings-credentials-by-idRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutputStruct {}Body"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "delete-api-v1-settings-credentials-by-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutputStruct {}Body"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
     "get-api-v1-settings-storage": {
         parameters: {
             query?: never;
@@ -4169,6 +4741,544 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StorageUsage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "sync-capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncCapabilities"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "sync-catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyncCatalogInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncCatalogPage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "GET-sync-derived-content": {
+        parameters: {
+            query: {
+                key: string;
+                recipe: string;
+                generation: string;
+                content_key: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable derived bytes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Requested byte range */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The requested generation changed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unsatisfiable byte range */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "HEAD-sync-derived-content": {
+        parameters: {
+            query: {
+                key: string;
+                recipe: string;
+                generation: string;
+                content_key: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable derived bytes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Requested byte range */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The requested generation changed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unsatisfiable byte range */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "sync-derived-describe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Sync-derived-describeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncDerived"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "sync-head": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncBoundary"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "sync-original-upload-create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Sync-original-upload-createRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncOriginalUpload"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "sync-original-upload-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncOriginalUpload"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "sync-original-upload-chunk": {
+        parameters: {
+            query: {
+                offset: number;
+            };
+            header: {
+                "Upload-SHA256": string;
+                "Upload-Length": number;
+            };
+            path: {
+                id: string;
+                index: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+            };
+        };
+        responses: {
+            /** @description Durable original upload progress */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncOriginalUpload"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "sync-original-upload-finish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncOriginalUpload"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "sync-original-upload-prefix": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionPrefixBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncOriginalUpload"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "sync-original-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncOriginalStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "sync-original-content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "relay-catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Relay-catalogRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayPage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "relay-head": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelayHead"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "relay-submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Relay-submitRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelaySubmitResponse"];
                 };
             };
             /** @description Error */

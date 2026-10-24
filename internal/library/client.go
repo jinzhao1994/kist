@@ -222,17 +222,17 @@ func (c *Client) stageLocked(ctx context.Context, p SyncProposal, request *Reque
 		return err
 	}
 	if err := state.add(p, state.last+1); err != nil {
-		return err
+		return &SyncRejectedError{Cause: err}
 	}
 	view, err := c.rebuildLocked(ctx)
 	if err != nil {
 		return err
 	}
 	if view.Conflict != nil {
-		return fmt.Errorf("%w: resolve pending %s first", ErrSyncConflict, view.BlockedID)
+		return &SyncRejectedError{Cause: fmt.Errorf("%w: resolve pending %s first", ErrSyncConflict, view.BlockedID)}
 	}
 	if err := c.validateIntentLocked(ctx, p, view, state); err != nil {
-		return err
+		return &SyncRejectedError{Cause: err}
 	}
 	if err := c.queue.appendLocked(ctx, "pending_enqueue", pendingEvent{Proposal: &p, Request: request}); err != nil {
 		return err

@@ -198,14 +198,15 @@ export function InstanceSettings() {
                 { id: "settings-storage", label: t("settingStorage") },
                 { id: "settings-service", label: t("settingService") },
                 { id: "settings-maps", label: t("settingMaps") },
-                {
-                  id: "settings-access",
-                  label: t(
-                    snapshot.mode === "client"
-                      ? "clientConnection"
-                      : "settingCredentials",
-                  ),
-                },
+                ...(snapshot.mode === "client"
+                  ? [
+                      {
+                        id: "settings-connection",
+                        label: t("clientConnection"),
+                      },
+                    ]
+                  : []),
+                { id: "settings-access", label: t("settingCredentials") },
               ]}
             >
               {["appearance", "storage", "service", "maps"].map((group) => (
@@ -311,11 +312,13 @@ export function InstanceSettings() {
               ))}
               {snapshot.mode === "client" && (
                 <section
-                  id="settings-access"
+                  id="settings-connection"
                   className="flat-page-section"
-                  aria-labelledby="settings-access-title"
+                  aria-labelledby="settings-connection-title"
                 >
-                  <h2 id="settings-access-title">{t("clientConnection")}</h2>
+                  <h2 id="settings-connection-title">
+                    {t("clientConnection")}
+                  </h2>
                   {Object.keys(changes).length > 0 && (
                     <Text size="sm" c="dimmed" mb="md">
                       {t("settingsPending")}
@@ -332,35 +335,31 @@ export function InstanceSettings() {
                   )}
                 </section>
               )}
-              {snapshot.mode === "library" && (
-                <section
-                  id="settings-access"
-                  className="flat-page-section"
-                  aria-labelledby="settings-access-title"
+              <section
+                id="settings-access"
+                className="flat-page-section"
+                aria-labelledby="settings-access-title"
+              >
+                <h2
+                  id="settings-access-title"
+                  className="settings-section-heading"
                 >
-                  <h2
-                    id="settings-access-title"
-                    className="settings-section-heading"
-                  >
-                    {t("settingCredentials")}
-                    <HelpTooltip label={t("settingCredentials")}>
-                      {t("settingCredentialsHint")}
-                    </HelpTooltip>
-                  </h2>
-                  {Object.keys(changes).length > 0 && (
-                    <Text size="sm" c="dimmed" mb="md">
-                      {t("settingsPending")}
-                    </Text>
-                  )}
-                  {snapshot.mode === "library" && (
-                    <Credentials
-                      busy={busy || Object.keys(changes).length > 0}
-                      run={run}
-                      saved={reload}
-                    />
-                  )}
-                </section>
-              )}
+                  {t("settingCredentials")}
+                  <HelpTooltip label={t("settingCredentials")}>
+                    {t("settingCredentialsHint")}
+                  </HelpTooltip>
+                </h2>
+                {Object.keys(changes).length > 0 && (
+                  <Text size="sm" c="dimmed" mb="md">
+                    {t("settingsPending")}
+                  </Text>
+                )}
+                <Credentials
+                  busy={busy || Object.keys(changes).length > 0}
+                  run={run}
+                  saved={reload}
+                />
+              </section>
             </SectionIndex>
           </>
         )}

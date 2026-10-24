@@ -17,18 +17,24 @@ import (
 )
 
 type SyncCapabilities struct {
-	ConditionalSubmit bool      `json:"conditional_submit"`
-	DerivedPreviews   bool      `json:"derived_previews"`
-	DeletionSnapshots bool      `json:"deletion_snapshots"`
-	Timezone          string    `json:"timezone"`
-	Version           int       `json:"version"`
-	LibraryID         domain.ID `json:"library_id"`
-	JournalVersion    int       `json:"journal_version"`
-	Actions           []string  `json:"actions"`
-	UndoReferences    bool      `json:"undo_references"`
+	Relay             bool        `json:"relay,omitempty"`
+	NodeID            domain.ID   `json:"node_id,omitempty"`
+	Ancestors         []domain.ID `json:"ancestors,omitempty"`
+	ConditionalSubmit bool        `json:"conditional_submit"`
+	DerivedPreviews   bool        `json:"derived_previews"`
+	DeletionSnapshots bool        `json:"deletion_snapshots"`
+	Timezone          string      `json:"timezone"`
+	Version           int         `json:"version"`
+	LibraryID         domain.ID   `json:"library_id"`
+	JournalVersion    int         `json:"journal_version"`
+	Actions           []string    `json:"actions"`
+	UndoReferences    bool        `json:"undo_references"`
 }
 
 func ValidateSyncCapabilities(caps SyncCapabilities) error {
+	if caps.Relay && caps.NodeID.IsZero() {
+		return ErrSyncVersion
+	}
 	if caps.Version != 1 || caps.JournalVersion != journal.Version || !caps.UndoReferences {
 		return ErrSyncVersion
 	}
@@ -64,6 +70,7 @@ func (e *SyncRejectedError) Error() string { return e.Cause.Error() }
 func (e *SyncRejectedError) Unwrap() error { return e.Cause }
 
 type ClientSyncResult struct {
+	AwaitingRoot   int    `json:"awaiting_root,omitempty"`
 	ManualRequired bool   `json:"manual_required,omitempty"`
 	Accepted       int    `json:"accepted"`
 	Remaining      int    `json:"remaining"`
@@ -96,6 +103,29 @@ type ClientSyncProgress struct {
 
 // SynchronizeWithProgress reports transfer phases while retaining the same sync locks.
 func (c *Client) SynchronizeWithProgress(ctx context.Context, peer SyncPeer, automatic bool, report func(ClientSyncProgress)) (ClientSyncResult, error) {
+	if ctx.Value(clientRequestContextKey{}) != nil || ctx.Value(clientViewContextKey{}) != nil {
+		return ClientSyncResult{}, ErrRequestScope
+	}
+	if report != nil {
+		defer report(ClientSyncProgress{})
+	}
+	caps, err := peer.Capabilities(ctx)
+	if err != nil {
+		return ClientSyncResult{}, err
+	}
+	if err := c.ValidateBoundUpstream(ctx, caps); err != nil {
+		return ClientSyncResult{}, err
+	}
+	if caps.Relay {
+		if err := c.AdoptSyncSettings(ctx, caps); err != nil {
+			return ClientSyncResult{}, err
+		}
+		relay, ok := peer.(RelayPeer)
+		if !ok {
+			return ClientSyncResult{}, ErrSyncVersion
+		}
+		return c.synchronizeRelayMode(ctx, relay, automatic, report)
+	}
 	result, err := c.synchronize(ctx, peer, automatic, report)
 	if automatic && errors.Is(err, ErrSyncConflict) {
 		result.ManualRequired = true

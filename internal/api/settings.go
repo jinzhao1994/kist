@@ -125,9 +125,10 @@ func (s *Server) settingsRoutes(opt Options) error {
 		out, err := s.settingsView(ctx)
 		return response(out, err)
 	})
-	if s.client == nil {
+	{
+		access := s.syncAccessBackend()
 		huma.Get(s.contract, Prefix+"/settings/credentials", func(ctx context.Context, _ *struct{}) (*output[[]library.SyncCredential], error) {
-			out, err := s.library.SyncCredentials(ctx)
+			out, err := access.SyncCredentials(ctx)
 			return response(out, err)
 		})
 		huma.Post(s.contract, Prefix+"/settings/credentials", func(ctx context.Context, in *struct {
@@ -135,7 +136,7 @@ func (s *Server) settingsRoutes(opt Options) error {
 				Note string `json:"note,omitempty" maxLength:"200"`
 			}
 		}) (*output[library.NewSyncCredential], error) {
-			out, err := s.library.AuthorizeSyncWithNote(ctx, in.Body.Note)
+			out, err := access.AuthorizeSyncWithNote(ctx, in.Body.Note)
 			return response(out, err)
 		})
 		huma.Put(s.contract, Prefix+"/settings/credentials/{id}", func(ctx context.Context, in *struct {
@@ -144,7 +145,7 @@ func (s *Server) settingsRoutes(opt Options) error {
 				Note string `json:"note" maxLength:"200"`
 			}
 		}) (*output[struct{}], error) {
-			found, err := s.library.SetSyncCredentialNote(ctx, in.ID, in.Body.Note)
+			found, err := access.SetSyncCredentialNote(ctx, in.ID, in.Body.Note)
 			if err != nil {
 				return response(struct{}{}, err)
 			}
@@ -157,7 +158,7 @@ func (s *Server) settingsRoutes(opt Options) error {
 		huma.Delete(s.contract, Prefix+"/settings/credentials/{id}", func(ctx context.Context, in *struct {
 			ID string `path:"id"`
 		}) (*output[struct{}], error) {
-			_, err := s.library.RevokeSync(ctx, in.ID)
+			_, err := access.RevokeSync(ctx, in.ID)
 			return response(struct{}{}, err)
 		})
 	}

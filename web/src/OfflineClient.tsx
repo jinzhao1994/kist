@@ -69,7 +69,7 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
     !connection.isError && connection.data?.state === "connected"
       ? (connection.data.pending_download ?? 0)
       : 0;
-  const uploads = data?.pending?.length ?? 0;
+  const uploads = data?.pending?.filter((op) => !op.awaiting_root).length ?? 0;
   return (
     <section
       aria-label={t("clientTitle")}
@@ -107,7 +107,9 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
                 setNotice(
                   t(
                     response.result.complete
-                      ? "clientSyncComplete"
+                      ? response.status.pending?.some((op) => op.awaiting_root)
+                        ? "clientAwaitingRoot"
+                        : "clientSyncComplete"
                       : "clientSyncConflict",
                   ),
                 );
@@ -220,6 +222,11 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
                           <Text size="xs" c="dimmed">
                             {op.id}
                           </Text>
+                          {op.awaiting_root && (
+                            <Text size="sm" c="dimmed">
+                              {t("clientAwaitingRoot")}
+                            </Text>
+                          )}
                           {op.awaiting_receipt && (
                             <Text size="sm">{t("clientAwaitingReceipt")}</Text>
                           )}
@@ -227,7 +234,8 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
                             <Alert color="yellow">{op.conflict}</Alert>
                           )}
                           {data.blocked_id === op.id &&
-                            !op.awaiting_receipt && (
+                            !op.awaiting_receipt &&
+                            !op.awaiting_root && (
                               <>
                                 <Group>
                                   <Button

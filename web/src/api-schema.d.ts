@@ -1623,12 +1623,15 @@ export interface components {
         };
         SyncCapabilities: {
             actions: string[] | null;
+            ancestors?: string[] | null;
             conditional_submit: boolean;
             deletion_snapshots: boolean;
             derived_previews: boolean;
             /** Format: int64 */
             journal_version: number;
             library_id: string;
+            node_id?: string;
+            relay?: boolean;
             timezone: string;
             undo_references: boolean;
             /** Format: int64 */

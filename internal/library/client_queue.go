@@ -67,6 +67,10 @@ func (e pendingEvent) validate(action string) error {
 		return ErrInvalidRequest
 	}
 	switch action {
+	case "pending_relay_reset":
+		if e.Target != "" || e.Proposal != nil || e.Receipt != nil || e.Custody != nil || e.Relay != nil || e.Request != nil || e.Reason != "" {
+			return ErrInvalidRequest
+		}
 	case "pending_relay_page":
 		if e.Relay == nil || e.Target != "" || e.Proposal != nil || e.Receipt != nil || e.Request != nil || e.Custody != nil || e.Reason != "" {
 			return ErrInvalidRequest
@@ -213,6 +217,18 @@ func (s *pendingState) add(p SyncProposal, sequence int64) error {
 func (s *pendingState) apply(action string, e pendingEvent, sequence int64) error {
 	if err := e.validate(action); err != nil {
 		return err
+	}
+	if action == "pending_relay_reset" {
+		for _, entry := range s.entries {
+			if entry.active() && (entry.Upstream != nil || entry.Forwarded != nil || entry.Sending) {
+				return ErrSyncConflict
+			}
+		}
+		s.relaySource = domain.ID{}
+		s.relayHead = nil
+		s.relayItems = nil
+		s.relayTransfer = nil
+		return nil
 	}
 	if action == "pending_relay_page" {
 		return s.receiveRelayPage(*e.Relay, sequence)

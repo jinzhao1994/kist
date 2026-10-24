@@ -62,6 +62,8 @@ it.each([
     { manual_required: true, pending_download: 3, pending_upload: 2 },
     "Manual merge required",
   ],
+  [{ awaiting_root: 2 }, "Remote connected"],
+  [{ relay_updates: true }, "Remote connected"],
   [{}, "Up to date"],
 ])(
   "shows synchronization progress and hides zero counts",

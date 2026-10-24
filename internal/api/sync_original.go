@@ -48,10 +48,10 @@ func (s *Server) syncOriginalAction(ctx context.Context, id string, fn func(*sta
 
 func (s *Server) syncOriginalRoutes() {
 	huma.Register(s.contract, syncOperation("sync-original-status", "GET", "originals/{key}"), func(ctx context.Context, in *syncOriginalInput) (*output[library.SyncOriginalStatus], error) {
-		return response(s.library.SyncOriginal(ctx, in.Key))
+		return response(s.syncOriginalBackend().SyncOriginal(ctx, in.Key))
 	})
 	huma.Register(s.contract, syncOperation("sync-original-content", "GET", "originals/{key}/content"), func(ctx context.Context, in *syncOriginalInput) (*huma.StreamResponse, error) {
-		reader, err := s.library.OpenSyncOriginal(ctx, in.Key)
+		reader, err := s.openSyncOriginal(ctx, in.Key)
 		if err != nil {
 			return nil, failure(err)
 		}
@@ -103,7 +103,7 @@ func (s *Server) syncOriginalRoutes() {
 			}
 			defer file.Close()
 			state := originalUploadState(session.State())
-			if err := s.library.StoreSyncOriginal(ctx, state.Key, state.Size, file); err != nil {
+			if err := s.syncOriginalBackend().StoreSyncOriginal(ctx, state.Key, state.Size, file); err != nil {
 				return err
 			}
 			return session.Cancel()

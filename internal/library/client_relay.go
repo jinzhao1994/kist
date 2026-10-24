@@ -8,6 +8,7 @@ import (
 
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/journal"
+	"github.com/jinzhao1994/kist/internal/oplog"
 )
 
 // RelayReceipt proves durable custody at one client, never a root commit.
@@ -51,12 +52,16 @@ func (c *Client) ReceiveRelay(ctx context.Context, libraryID domain.ID, p SyncPr
 		return RelayOutcome{}, err
 	}
 	defer release()
+	return c.receiveRelayLocked(ctx, libraryID, p)
+}
+
+func (c *Client) receiveRelayLocked(ctx context.Context, libraryID domain.ID, p SyncProposal) (RelayOutcome, error) {
 	settings, err := c.settings()
 	if err != nil {
 		return RelayOutcome{}, err
 	}
 	if libraryID != settings.LibraryID {
-		return RelayOutcome{}, ErrSyncConflict
+		return RelayOutcome{}, &SyncRejectedError{Cause: ErrSyncConflict}
 	}
 	digest, err := p.digest()
 	if err != nil {
@@ -169,4 +174,84 @@ func (c *Client) StoreRelayOriginal(ctx context.Context, name string, size int64
 	}
 	defer release()
 	return (&Library{blobs: c.blobs}).StoreSyncOriginal(ctx, name, size, source)
+}
+
+// SyncOriginal acknowledges protected bytes or ownership proven by root history.
+func (c *Client) SyncOriginal(ctx context.Context, key string) (SyncOriginalStatus, error) {
+	status, err := (&Library{blobs: c.blobs}).SyncOriginal(ctx, key)
+	if err != nil || status.Present {
+		return status, err
+	}
+	release, err := c.lock.Acquire(ctx)
+	if err != nil {
+		return status, err
+	}
+	head, _, err := c.boundary()
+	known := false
+	if err == nil {
+		err = c.catalog.Iter(func(line journal.Line) error {
+			if line.ID > head.OpID {
+				return nil
+			}
+			h, err := oplog.Lookup(oplog.Action(line.Action))
+			if err != nil {
+				return err
+			}
+			targets, err := h.Targets(line.Payload)
+			if err != nil {
+				return err
+			}
+			for _, name := range targets.Blobs {
+				if name == key {
+					known = true
+				}
+			}
+			return ctx.Err()
+		})
+	}
+	release()
+	if err != nil || !known {
+		return status, err
+	}
+	size, err := c.originalSize(ctx, key)
+	return SyncOriginalStatus{Present: err == nil, Size: size}, err
+}
+func (c *Client) StoreSyncOriginal(ctx context.Context, key string, size int64, r io.Reader) error {
+	return c.StoreRelayOriginal(ctx, key, size, r)
+}
+
+// ReceiveRelayAt atomically rejects an independently advanced upstream view.
+func (c *Client) ReceiveRelayAt(ctx context.Context, id domain.ID, p SyncProposal, expected RelayHead) (RelayOutcome, error) {
+	if ctx.Value(clientRequestContextKey{}) != nil || ctx.Value(clientViewContextKey{}) != nil {
+		return RelayOutcome{}, ErrRequestScope
+	}
+	release, err := c.lock.Acquire(ctx)
+	if err != nil {
+		return RelayOutcome{}, err
+	}
+	defer release()
+	state, err := c.queue.read(ctx)
+	if err != nil {
+		return RelayOutcome{}, err
+	}
+	digest, err := p.digest()
+	if err != nil {
+		return RelayOutcome{}, &SyncRejectedError{Cause: err}
+	}
+	if i, ok := state.byID[p.ID]; ok && state.entries[i].Digest == digest {
+		return c.receiveRelayLocked(ctx, id, p)
+	}
+	settings, err := c.settings()
+	if err != nil {
+		return RelayOutcome{}, err
+	}
+	root, complete, err := c.boundary()
+	if err != nil {
+		return RelayOutcome{}, err
+	}
+	actual := RelayHead{Root: root, Node: settings.ID, Sequence: state.last, Sum: state.sum, Count: len(state.entries)}
+	if !complete || actual != expected {
+		return RelayOutcome{}, &SyncRejectedError{Cause: ErrSyncConflict}
+	}
+	return c.receiveRelayLocked(ctx, id, p)
 }

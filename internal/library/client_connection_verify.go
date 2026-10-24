@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/jinzhao1994/kist/internal/config"
+	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/journal"
 	"github.com/jinzhao1994/kist/internal/lockfile"
 )
@@ -26,7 +27,7 @@ func (c *Client) VerifyAndSetConnection(ctx context.Context, peer SyncPeer, conn
 	if err != nil {
 		return err
 	}
-	if err := ValidateSyncCapabilities(caps); err != nil {
+	if err := c.ValidateUpstream(ctx, caps); err != nil {
 		return err
 	}
 
@@ -38,6 +39,11 @@ func (c *Client) VerifyAndSetConnection(ctx context.Context, peer SyncPeer, conn
 	receipts := map[int64]pendingEntry{}
 	var before ClientCatalogStatus
 	var configRevision string
+	var pendingSequence int64
+	node := caps.NodeID
+	if node.IsZero() {
+		node = caps.LibraryID
+	}
 	err = func() error {
 		settings, err := c.settings()
 		if err != nil {
@@ -71,6 +77,17 @@ func (c *Client) VerifyAndSetConnection(ctx context.Context, peer SyncPeer, conn
 		queue, err := c.queue.read(ctx)
 		if err != nil {
 			return err
+		}
+		pendingSequence = queue.last
+		if !queue.relaySource.IsZero() && queue.relaySource != node {
+			for _, entry := range queue.entries {
+				if entry.active() && (entry.Upstream != nil || entry.Forwarded != nil || entry.Sending) {
+					return fmt.Errorf("%w: synchronize with the previous upstream before switching nodes", ErrSyncConflict)
+				}
+			}
+			if queue.relayTransfer != nil {
+				return fmt.Errorf("%w: finish the current relay transfer before switching nodes", ErrSyncConflict)
+			}
 		}
 		for _, entry := range queue.entries {
 			if entry.Receipt != nil {
@@ -146,7 +163,21 @@ func (c *Client) VerifyAndSetConnection(ctx context.Context, peer SyncPeer, conn
 	if current.Confirmed != before.Confirmed || current.Downloaded != before.Downloaded || current.Complete != before.Complete || !sameTransfer(current.Transfer, before.Transfer) {
 		return ErrSyncConflict
 	}
+	queue, err := c.queue.read(ctx)
+	if err != nil {
+		return err
+	}
+	if queue.last != pendingSequence {
+		return ErrSyncConflict
+	}
+	if !queue.relaySource.IsZero() && queue.relaySource != node {
+		if err := c.queue.appendLocked(ctx, "pending_relay_reset", pendingEvent{}); err != nil {
+			return err
+		}
+	}
+	ancestors := append([]string{node.String()}, idsToStrings(caps.Ancestors)...)
 	return updateInstanceConfig(ctx, c.root, configRevision, map[string]any{
+		"client.parent_id": node.String(), "client.ancestors": ancestors,
 		"client.server": connection.Server, "client.allow_http": connection.AllowHTTP,
 		"client.token": token, "client.timezone": caps.Timezone,
 	})
@@ -157,4 +188,12 @@ func sameTransfer(a, b *SyncBoundary) bool {
 		return a == nil && b == nil
 	}
 	return *a == *b
+}
+
+func idsToStrings(ids []domain.ID) []string {
+	out := make([]string, len(ids))
+	for i, id := range ids {
+		out[i] = id.String()
+	}
+	return out
 }

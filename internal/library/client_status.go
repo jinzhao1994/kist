@@ -13,6 +13,7 @@ type ClientPendingStatus struct {
 	Sequence        int64     `json:"sequence"`
 	OccurredAt      time.Time `json:"occurred_at"`
 	Action          string    `json:"action"`
+	AwaitingRoot    bool      `json:"awaiting_root"`
 	AwaitingReceipt bool      `json:"awaiting_receipt"`
 	Conflict        string    `json:"conflict,omitempty"`
 }
@@ -64,7 +65,7 @@ func (c *Client) Status(ctx context.Context) (ClientStatus, error) {
 		if !entry.active() {
 			continue
 		}
-		item := ClientPendingStatus{ID: entry.Proposal.ID, Sequence: entry.Sequence, OccurredAt: entry.Proposal.OccurredAt, Action: entry.Proposal.Action, AwaitingReceipt: entry.Sending, Conflict: entry.Conflict}
+		item := ClientPendingStatus{ID: entry.Proposal.ID, Sequence: entry.Sequence, OccurredAt: entry.Proposal.OccurredAt, Action: entry.Proposal.Action, AwaitingRoot: entry.Upstream != nil || entry.Forwarded != nil, AwaitingReceipt: entry.Sending, Conflict: entry.Conflict}
 		if entry.Proposal.Undo != nil {
 			item.Action = "undo"
 		}
