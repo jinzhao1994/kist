@@ -13,11 +13,7 @@ type ClientSource struct{ client *library.Client }
 
 func NewClientSource(client *library.Client) *ClientSource { return &ClientSource{client: client} }
 func (s *ClientSource) peer(ctx context.Context) (*Peer, error) {
-	connection, token, err := s.client.Connection(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return New(connection.Server, token, Options{AllowHTTP: connection.AllowHTTP})
+	return NewForClient(ctx, s.client)
 }
 func (s *ClientSource) Capabilities(ctx context.Context) (library.SyncCapabilities, error) {
 	peer, err := s.peer(ctx)

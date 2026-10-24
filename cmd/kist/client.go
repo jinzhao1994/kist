@@ -33,11 +33,7 @@ func newClientCmd() *cobra.Command {
 			return err
 		}
 		defer client.Close()
-		connection, token, err := client.Connection(cmd.Context())
-		if err != nil {
-			return err
-		}
-		peer, err := syncclient.New(connection.Server, token, syncclient.Options{AllowHTTP: connection.AllowHTTP})
+		peer, err := syncclient.NewForClient(cmd.Context(), client)
 		if err != nil {
 			return err
 		}
@@ -100,10 +96,7 @@ func newClientConnectCmd(create bool) *cobra.Command {
 			return err
 		}
 		defer client.Close()
-		if err := client.SetConnection(cmd.Context(), caps.LibraryID, connection, token); err != nil {
-			return err
-		}
-		if err := client.AdoptSyncSettings(cmd.Context(), caps); err != nil {
+		if err := client.VerifyAndSetConnection(cmd.Context(), peer, connection, token, ""); err != nil {
 			return err
 		}
 		status, err := client.Status(cmd.Context())

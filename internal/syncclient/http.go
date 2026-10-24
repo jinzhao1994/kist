@@ -24,9 +24,10 @@ type Options struct {
 }
 
 type Peer struct {
-	base   string
-	token  string
-	client *http.Client
+	validateBinding func(context.Context) error
+	base            string
+	token           string
+	client          *http.Client
 }
 
 var _ library.SyncPeer = (*Peer)(nil)
@@ -47,6 +48,29 @@ func New(address, token string, options Options) (*Peer, error) {
 	return &Peer{base: strings.TrimRight(u.String(), "/") + "/api/v1/sync/", token: token, client: &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}, nil
 }
 
+// NewForClient binds a peer to the current connection and rejects stale queued work.
+func NewForClient(ctx context.Context, client *library.Client) (*Peer, error) {
+	connection, token, err := client.Connection(ctx)
+	if err != nil {
+		return nil, err
+	}
+	peer, err := New(connection.Server, token, Options{AllowHTTP: connection.AllowHTTP})
+	if err != nil {
+		return nil, err
+	}
+	peer.validateBinding = func(ctx context.Context) error {
+		current, credential, err := client.Connection(ctx)
+		if err != nil {
+			return err
+		}
+		if current != connection || credential != token {
+			return errors.New("remote connection changed; retry synchronization")
+		}
+		return nil
+	}
+	return peer, nil
+}
+
 // HTTPError is a transport failure, never proof that a submission was rejected.
 type HTTPError struct{ Status int }
 
@@ -57,6 +81,11 @@ type remoteError struct{ problem wire.Error }
 func (e *remoteError) Error() string { return e.problem.Code + ": " + e.problem.Message }
 
 func (p *Peer) request(ctx context.Context, method, path string, body io.Reader, headers http.Header) (*http.Response, error) {
+	if p.validateBinding != nil {
+		if err := p.validateBinding(ctx); err != nil {
+			return nil, err
+		}
+	}
 	r, err := http.NewRequestWithContext(ctx, method, p.base+path, body)
 	if err != nil {
 		return nil, err

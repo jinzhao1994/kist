@@ -25,11 +25,7 @@ type clientSyncResponse struct {
 }
 
 func (s *Server) clientPeer(ctx context.Context) (*syncclient.Peer, error) {
-	connection, token, err := s.client.Connection(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return syncclient.New(connection.Server, token, syncclient.Options{AllowHTTP: connection.AllowHTTP})
+	return syncclient.NewForClient(ctx, s.client)
 }
 
 func (s *Server) clientSyncRoutes() {
@@ -62,20 +58,10 @@ func (s *Server) clientSyncRoutes() {
 		if err != nil {
 			return nil, invalid(err.Error())
 		}
-		caps, err := peer.Capabilities(ctx)
-		if err != nil {
-			return nil, failure(err)
-		}
-		if err := library.ValidateSyncCapabilities(caps); err != nil {
-			return nil, failure(err)
-		}
-		if err := s.client.SetConnectionRevision(ctx, caps.LibraryID, library.ClientConnection{Server: in.Body.Server, AllowHTTP: in.Body.AllowHTTP}, in.Body.Token, in.Body.Revision); err != nil {
+		if err := s.client.VerifyAndSetConnection(ctx, peer, library.ClientConnection{Server: in.Body.Server, AllowHTTP: in.Body.AllowHTTP}, in.Body.Token, in.Body.Revision); err != nil {
 			if errors.Is(err, config.ErrChanged) {
 				return nil, huma.Error409Conflict("Settings changed; reload before saving.")
 			}
-			return nil, failure(err)
-		}
-		if err := s.client.AdoptSyncSettings(ctx, caps); err != nil {
 			return nil, failure(err)
 		}
 		status, err := s.client.Status(ctx)
