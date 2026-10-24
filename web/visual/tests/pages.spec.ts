@@ -2783,6 +2783,29 @@ async function prepareFileset(page: Page, mobile = false) {
   );
   return errors;
 }
+test("fileset-extraction-members", async ({ page }, info) => {
+  const errors = await prepareFileset(page, false);
+  await page.route(/\/api\/v1\/files\?/, (route) =>
+    route.fulfill({
+      json: {
+        files: files.slice(0, 2).map((file, index) => ({
+          ...file,
+          folder_id: "folder-set",
+          extraction_pending: index === 1 ? ["media"] : [],
+        })),
+      },
+    }),
+  );
+  await page.goto("/boxes/box-1");
+  await expect(
+    page.getByRole("button", { name: "读取元数据", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("尚未完整读取元数据。", { exact: true }),
+  ).toBeVisible();
+  await capture(page, errors, info.title);
+});
+
 for (const mobile of [false, true]) {
   test(`fileset-pages-${mobile ? "mobile" : "desktop"}`, async ({
     page,

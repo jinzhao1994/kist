@@ -26,7 +26,11 @@ import { FileDetail } from "./FileDetail";
 import { BoxEditor } from "./BoxEditor";
 import { TagManager, TagAssignment } from "./Tags";
 import { activeImages } from "./FileGrid";
-import { useExtraction } from "./Extraction";
+import {
+  useExtraction,
+  BrowseExtractionStatus,
+  combinationFileIDs,
+} from "./Extraction";
 import { Upload } from "./Upload";
 import { I18nProvider, storageKey } from "./i18n";
 import type { ArchiveFile, Tag } from "./api";
@@ -875,4 +879,89 @@ it("starts gallery details closed and remembers both panel states after remount"
   expect(
     screen.queryByRole("complementary", { name: "File details" }),
   ).not.toBeInTheDocument();
+});
+
+it("extracts a collapsed combination's non-primary and nested members", async () => {
+  const sets = [
+    {
+      folder_id: "pages",
+      kind: "document_pages",
+      primary: "second",
+      layout: "directory",
+      members: [
+        { file_id: "first" },
+        { file_id: "second" },
+        { folder_id: "live" },
+      ],
+    },
+    {
+      folder_id: "live",
+      kind: "live_photo",
+      layout: "directory",
+      members: [
+        { file_id: "still" },
+        { file_id: "movie" },
+        { folder_id: "pages" },
+      ],
+    },
+  ] as any;
+  const entry = {
+    ...file("second"),
+    box_id: "box",
+    fileset_id: "pages",
+    extraction_pending: [],
+  };
+  expect([...combinationFileIDs([entry], sets)].sort()).toEqual([
+    "first",
+    "movie",
+    "second",
+    "still",
+  ]);
+  const calls: string[] = [];
+  let completed = false;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        calls.push(path);
+        completed = true;
+        return Response.json({ op_id: 1 });
+      }
+      if (path.startsWith("/api/v1/files?"))
+        return Response.json({
+          files: ["first", "second", "still", "movie", "unlisted"].map(
+            (id) => ({
+              ...file(id),
+              extraction_pending:
+                !completed && id !== "second" ? ["media"] : [],
+            }),
+          ),
+        });
+      throw new Error("Unexpected request: " + path);
+    }),
+  );
+  function Test() {
+    return (
+      <BrowseExtractionStatus
+        files={[entry]}
+        sets={sets}
+        state={useExtraction()}
+      />
+    );
+  }
+  render(<Test />, { wrapper });
+  await userEvent
+    .setup()
+    .click(await screen.findByRole("button", { name: "Read metadata" }));
+  await waitFor(() => expect(calls).toHaveLength(3));
+  expect(calls.sort()).toEqual(
+    ["first", "movie", "still"].map(
+      (id) => `/api/v1/files/${id}/extractions/media`,
+    ),
+  );
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("button", { name: "Read metadata" }),
+    ).not.toBeInTheDocument(),
+  );
 });

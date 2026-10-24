@@ -341,3 +341,14 @@ export async function mediaAction(
     }),
   );
 }
+
+export async function boxFiles(box: string, signal?: AbortSignal) {
+  const out: ArchiveFile[] = [];
+  let cursor = "";
+  do {
+    const page = await api.files({ box: [box], limit: 1000, cursor }, signal);
+    out.push(...(page.files || []));
+    cursor = page.cursor || "";
+  } while (cursor);
+  return out;
+}

@@ -14,7 +14,11 @@ import { FolderEditor } from "./Folders";
 import { FileGrid } from "./FileGrid";
 import { BoxTags } from "./Tags";
 import { Upload, type UploadHandle } from "./Upload";
-import { ExtractionStatus, pendingFiles, useExtraction } from "./Extraction";
+import {
+  BrowseExtractionStatus,
+  pendingFiles,
+  useExtraction,
+} from "./Extraction";
 import { useI18n } from "./i18n";
 import { errorMessage } from "./mutations";
 export function FileBrowser({
@@ -147,7 +151,11 @@ export function FileBrowser({
           <span className="file-count sr-only" role="status">
             {t("loadedFiles", { count: files.length })}
           </span>
-          <ExtractionStatus files={files} state={extraction} />
+          <BrowseExtractionStatus
+            files={files}
+            sets={sets}
+            state={extraction}
+          />
           {files.length || ordinaryFolders.length ? (
             <FileGrid
               files={files}

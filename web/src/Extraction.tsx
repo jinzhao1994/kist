@@ -1,8 +1,9 @@
 import { Button } from "@mantine/core";
 import { useEffect, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { api, createWrite, type ArchiveFile } from "./api";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
+import { api, boxFiles, createWrite, type ArchiveFile } from "./api";
 import { useI18n } from "./i18n";
+import type { Fileset } from "./Filesets";
 import { errorMessage } from "./mutations";
 // Metadata is separate from upload success. Each file/extractor pair owns an
 // immutable request key, retained after failures and retried without upload.
@@ -133,4 +134,72 @@ export async function pendingFiles(box: string) {
     cursor = page.cursor || "";
   } while (cursor);
   return files;
+}
+
+// A collapsed entry represents every configured member, not just its primary.
+export function combinationFileIDs(files: ArchiveFile[], sets: Fileset[]) {
+  const ids = new Set<string>();
+  const seen = new Set<string>();
+  const byID = new Map(sets.map((set) => [set.folder_id, set]));
+  const add = (id?: string) => {
+    if (id && id !== "00000000-0000-0000-0000-000000000000") ids.add(id);
+  };
+  function visit(id: string) {
+    if (seen.has(id)) return;
+    seen.add(id);
+    const set = byID.get(id);
+    if (!set) return;
+    add(set.primary);
+    for (const member of set.members || []) {
+      add(member.file_id);
+      if (member.folder_id) visit(member.folder_id);
+    }
+  }
+  for (const file of files) {
+    add(file.id);
+    if (file.fileset_id) visit(file.fileset_id);
+  }
+  return ids;
+}
+
+export function BrowseExtractionStatus({
+  files,
+  sets,
+  state,
+}: {
+  files: ArchiveFile[];
+  sets: Fileset[];
+  state: ReturnType<typeof useExtraction>;
+}) {
+  const { t } = useI18n();
+  const boxes = Array.from(
+    new Set(
+      files
+        .filter((file) => file.fileset_id)
+        .map((file) => file.box_id)
+        .filter((box): box is string => !!box),
+    ),
+  );
+  // Share the complete file catalog already used by the combination reader.
+  const queries = useQueries({
+    queries: boxes.map((box) => ({
+      queryKey: ["fileset-content", box],
+      queryFn: ({ signal }: { signal: AbortSignal }) => boxFiles(box, signal),
+    })),
+  });
+  const failed = queries.find((query) => query.isError);
+  if (failed)
+    return (
+      <div className="extraction-status">
+        <p role="alert">{errorMessage(failed.error, t)}</p>
+        <Button onClick={() => void failed.refetch()}>{t("retry")}</Button>
+      </div>
+    );
+  if (queries.some((query) => query.isPending)) return null;
+  const ids = combinationFileIDs(files, sets);
+  const all = new Map(files.map((file) => [file.id, file]));
+  for (const query of queries)
+    for (const file of query.data || [])
+      if (ids.has(file.id)) all.set(file.id, file);
+  return <ExtractionStatus files={Array.from(all.values())} state={state} />;
 }
