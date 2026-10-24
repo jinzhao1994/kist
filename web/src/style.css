@@ -3355,6 +3355,7 @@ main.upload-drag-active {
   grid-column: 1;
   grid-row: 1;
   min-inline-size: 0;
+  max-inline-size: 52rem;
 }
 .section-index {
   grid-column: 2;
@@ -3420,7 +3421,6 @@ main.upload-drag-active {
 }
 
 .settings-page-header {
-  padding-inline-end: 12rem;
   position: sticky;
   inset-block-start: 0;
   z-index: 3;
@@ -3545,11 +3545,6 @@ main.upload-drag-active {
   white-space: nowrap;
 }
 
-@media (max-width: 900px) {
-  .settings-page-header {
-    padding-inline-end: 0;
-  }
-}
 .retention-table td:nth-child(3) {
   min-inline-size: 7rem;
 }
