@@ -6,6 +6,42 @@ import { I18nProvider } from "./i18n";
 import { ClientConnectionStatus } from "./ClientConnectionStatus";
 
 afterEach(() => vi.unstubAllGlobals());
+it("does not show pending counts before the initial status arrives", async () => {
+  let resolve!: (response: Response) => void;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      () =>
+        new Promise<Response>((done) => {
+          resolve = done;
+        }),
+    ),
+  );
+  const client = new QueryClient();
+  const view = render(
+    <QueryClientProvider client={client}>
+      <I18nProvider>
+        <ThemeProvider>
+          <ClientConnectionStatus openSync={() => {}} />
+        </ThemeProvider>
+      </I18nProvider>
+    </QueryClientProvider>,
+  );
+  expect(screen.getByRole("status")).not.toHaveTextContent(/operations to/);
+  resolve(
+    Response.json({
+      state: "connected",
+      catalog_complete: true,
+      pending_download: 0,
+      pending_upload: 0,
+    }),
+  );
+  expect(await screen.findByText("Up to date")).toBeVisible();
+  expect(screen.getByRole("status")).not.toHaveTextContent(/operations to/);
+  view.unmount();
+  client.clear();
+});
+
 it.each([
   ["connected", "Remote connected"],
   ["unreachable", "Remote unavailable"],

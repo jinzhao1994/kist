@@ -131,7 +131,7 @@ export function ClientConnectionStatus({ openSync }: { openSync: () => void }) {
         />
         <span role="status">
           <span className="connection-label">{label}</span>
-          {!query.data?.syncing && (
+          {query.data && !query.data.syncing && (
             <span className="connection-counts">
               {query.data?.pending_download !== 0 && (
                 <span>
