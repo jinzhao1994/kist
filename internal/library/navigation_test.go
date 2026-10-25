@@ -24,7 +24,15 @@ func TestNavigationLogicalPathsAndStableIdentity(t *testing.T) {
 	if _, err := l.UpdateBox(ctx, box, BoxFields{Name: "旅途 #?%", StartAt: date}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := l.Import(ctx, writeTree(t, map[string]string{"第一天/西湖 #?%2F.jpg": "image", "第二天/other.txt": "other"}), ImportOptions{Box: box}); err != nil {
+	// Archive names are logical paths; staging names must be valid on every host.
+	prepared, err := l.PrepareFiles(ctx, []ImportSource{
+		clientImportSource(t, "第一天/西湖 #?%2F.jpg", "image"),
+		clientImportSource(t, "第二天/other.txt", "other"),
+	}, ImportOptions{Box: box})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := prepared.Commit(ctx); err != nil {
 		t.Fatal(err)
 	}
 	files, _, _ := l.Files(ctx, query.Query{})
@@ -66,7 +74,13 @@ func TestNavigationLogicalPathsAndStableIdentity(t *testing.T) {
 	if _, err := l.Navigation(ctx, NavigationTarget{Path: original.Path}); !errors.Is(err, ErrNoSuchFile) {
 		t.Fatalf("old alias retained: %v", err)
 	}
-	if _, err := l.Import(ctx, writeTree(t, map[string]string{"第一天/西湖 #?%2F.jpg": "replacement"}), ImportOptions{Box: box}); err != nil {
+	prepared, err = l.PrepareFiles(ctx, []ImportSource{
+		clientImportSource(t, "第一天/西湖 #?%2F.jpg", "replacement"),
+	}, ImportOptions{Box: box})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := prepared.Commit(ctx); err != nil {
 		t.Fatal(err)
 	}
 	replacement, err := l.Navigation(ctx, NavigationTarget{Path: original.Path})
