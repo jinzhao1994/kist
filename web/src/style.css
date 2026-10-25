@@ -3466,7 +3466,7 @@ main.upload-drag-active {
   inline-size: 100%;
 }
 .settings-table :is(th, td):first-child {
-  padding-inline-start: var(--mantine-spacing-xs);
+  padding-inline-start: 0;
 }
 .settings-table :is(th, td):last-child {
   padding-inline-end: var(--mantine-spacing-xs);
