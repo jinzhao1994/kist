@@ -51,7 +51,7 @@ func (s *Server) aiRoutes() {
 		if s.aiAttempt != nil {
 			return nil, huma.Error409Conflict("ChatGPT sign-in is already pending")
 		}
-		c, err := s.library.AIConnection(ctx)
+		c, err := s.library.PrepareAIConnection(ctx)
 		if err != nil {
 			return nil, failure(err)
 		}

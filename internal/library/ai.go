@@ -23,8 +23,15 @@ import (
 	"github.com/jinzhao1994/kist/internal/store"
 )
 
-// AIConnection reloads private configuration; no token cache can outlive a writer.
+// AIConnection reloads private configuration without changing the settings revision.
 func (l *Library) AIConnection(ctx context.Context) (ai.Credentials, error) {
+	var out ai.Credentials
+	err := l.updateAI(ctx, func(c *ai.Credentials) error { out = *c; return nil })
+	return out, err
+}
+
+// PrepareAIConnection persists a stable host before an explicit sign-in.
+func (l *Library) PrepareAIConnection(ctx context.Context) (ai.Credentials, error) {
 	var out ai.Credentials
 	err := l.updateAI(ctx, func(c *ai.Credentials) error {
 		if c.HostID == "" {

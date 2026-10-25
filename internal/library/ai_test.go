@@ -128,7 +128,15 @@ func TestOCRRejectsConcurrentExtractionAndOversize(t *testing.T) {
 }
 func TestAIConnectionPrivateAndCompareAndSwap(t *testing.T) {
 	l := openTestLibrary(t)
-	before, err := l.AIConnection(t.Context())
+	rawBefore, _ := os.ReadFile(l.layout.ConfigPath())
+	if _, err := l.AIConnection(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	rawAfter, _ := os.ReadFile(l.layout.ConfigPath())
+	if !bytes.Equal(rawBefore, rawAfter) {
+		t.Fatal("reading connection changed settings")
+	}
+	before, err := l.PrepareAIConnection(t.Context())
 	if err != nil || before.HostID == "" {
 		t.Fatal(err)
 	}

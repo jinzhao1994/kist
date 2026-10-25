@@ -7,7 +7,7 @@ import {
   Text,
   Textarea,
 } from "@mantine/core";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, result, createWrite } from "./api";
 import { Dialog } from "./Dialog";
@@ -40,7 +40,10 @@ function useStatus() {
     refetchInterval: (query) => (query.state.data?.pending ? 1000 : false),
   });
 }
-export function AIConnection() {
+export function AIConnection({
+  disabled = false,
+  onChanged,
+}: { disabled?: boolean; onChanged?: () => Promise<void> } = {}) {
   const { t } = useI18n();
   const query = useStatus();
   const queries = useQueryClient();
@@ -48,6 +51,12 @@ export function AIConnection() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [url, setURL] = useState("");
+  const wasPending = useRef(false);
+  useEffect(() => {
+    const pending = query.data?.pending;
+    if (wasPending.current && pending === false) void onChanged?.();
+    wasPending.current = !!pending;
+  }, [query.data?.pending, onChanged]);
   async function connect() {
     // Open synchronously within the click gesture so popup blockers allow it.
     const login = window.open("about:blank", "_blank");
@@ -65,6 +74,7 @@ export function AIConnection() {
     } finally {
       setBusy(false);
       await queries.invalidateQueries({ queryKey: ["ai-connection"] });
+      await onChanged?.();
     }
   }
   async function disconnect() {
@@ -79,6 +89,7 @@ export function AIConnection() {
     } finally {
       setBusy(false);
       await queries.invalidateQueries({ queryKey: ["ai-connection"] });
+      await onChanged?.();
       await queries.invalidateQueries({ queryKey: ["ai-models"] });
     }
   }
@@ -101,6 +112,11 @@ export function AIConnection() {
           </Alert>
         )}
         {notice && <Text role="status">{notice}</Text>}
+        {disabled && (
+          <Text size="sm" c="dimmed">
+            {t("settingsPending")}
+          </Text>
+        )}
         {status?.connected && (
           <Text>
             {t("aiConnected")}: {status.email}
@@ -108,13 +124,13 @@ export function AIConnection() {
         )}
         <Group>
           <Button
-            disabled={busy || !status?.supported || status.pending}
+            disabled={disabled || busy || !status?.supported || status.pending}
             onClick={connect}
           >
             {t("aiContinue")}
           </Button>
           {(status?.connected || status?.pending) && (
-            <Button disabled={busy} onClick={disconnect}>
+            <Button disabled={disabled || busy} onClick={disconnect}>
               {t(status.pending ? "cancel" : "aiDisconnect")}
             </Button>
           )}

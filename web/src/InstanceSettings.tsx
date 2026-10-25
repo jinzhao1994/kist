@@ -364,7 +364,15 @@ export function InstanceSettings() {
                   saved={reload}
                 />
               </section>
-              {snapshot.mode === "library" && <AIConnection />}
+              {snapshot.mode === "library" && (
+                <AIConnection
+                  disabled={busy || Object.keys(changes).length > 0}
+                  onChanged={async () => {
+                    if (Object.keys(changes).length === 0)
+                      await run(async (signal) => reload(signal));
+                  }}
+                />
+              )}
             </SectionIndex>
           </>
         )}
