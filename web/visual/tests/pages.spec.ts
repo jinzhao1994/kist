@@ -4344,7 +4344,13 @@ for (const scope of ["history", "trash"] as const) {
   });
 }
 
-for (const scenario of ["ready", "disconnected", "error", "text"] as const) {
+for (const scenario of [
+  "ready",
+  "disconnected",
+  "error",
+  "text",
+  "empty",
+] as const) {
   test(`ocr-${scenario}`, async ({ page }, info) => {
     const errors = await prepare(page);
     await page.route("**/api/v1/ai", (route) =>
@@ -4372,7 +4378,7 @@ for (const scenario of ["ready", "disconnected", "error", "text"] as const) {
           },
         }),
       );
-    if (scenario === "text")
+    if (scenario === "text" || scenario === "empty")
       await page.route("**/api/v1/files/file-1", (route) =>
         route.fulfill({
           json: {
@@ -4385,10 +4391,31 @@ for (const scenario of ["ready", "disconnected", "error", "text"] as const) {
                 type: "text",
                 source: "ocr",
                 value:
-                  "档案收据\n姓名：张三\n编号：2026-001\n保存日期：2026 年 10 月 25 日\n\n" +
-                  "这是完整保存的识别文字，用于核对长文本的换行与滚动。\n".repeat(
-                    25,
-                  ),
+                  scenario === "empty"
+                    ? ""
+                    : "档案收据\n姓名：张三\n编号：2026-001\n保存日期：2026 年 10 月 25 日\n\n" +
+                      "这是完整保存的识别文字，用于核对长文本的换行与滚动。\n".repeat(
+                        25,
+                      ),
+              },
+              {
+                key: "ocr:provider",
+                type: "text",
+                source: "ocr",
+                value: "openai",
+              },
+              {
+                key: "ocr:model",
+                type: "text",
+                source: "ocr",
+                value: "gpt-6-luna",
+              },
+              { key: "ocr:recipe", type: "text", source: "ocr", value: "1" },
+              {
+                key: "ocr:input_sha256",
+                type: "text",
+                source: "ocr",
+                value: "sha256:" + "a".repeat(64),
               },
             ],
           },
@@ -4396,7 +4423,20 @@ for (const scenario of ["ready", "disconnected", "error", "text"] as const) {
       );
     await page.goto("/files?file=file-1");
     await page.getByRole("button", { name: "文件详情", exact: true }).click();
-    if (scenario === "text") {
+    if (scenario === "empty") {
+      await expect(
+        page.getByText("未识别到文字。", { exact: true }),
+      ).toBeVisible();
+      await expect(page.getByRole("textbox", { name: "识别文字" })).toHaveCount(
+        0,
+      );
+    } else if (scenario === "text") {
+      await expect(
+        page.getByRole("heading", { name: "OCR", exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByText("源文件校验值", { exact: true }),
+      ).toBeVisible();
       await expect(page.getByRole("textbox", { name: "识别文字" })).toHaveValue(
         /档案收据/,
       );

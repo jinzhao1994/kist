@@ -196,7 +196,11 @@ func (l *Library) PrepareOCR(ctx context.Context, id domain.FileID, provider ai.
 			pos = int(next)
 		}
 	}
-	result, err := provider.OCR(ctx, model, ai.Image{MIME: mime, Data: data})
+	input, err := ai.NormalizeImage(ai.Image{MIME: mime, Data: data})
+	if err != nil {
+		return nil, err
+	}
+	result, err := provider.OCR(ctx, model, input)
 	if err != nil {
 		return nil, err
 	}

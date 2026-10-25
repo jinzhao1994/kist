@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -102,7 +103,8 @@ func (c Client) OCR(ctx context.Context, model string, img ai.Image) (ai.OCRResu
 func readText(r io.Reader) (string, error) {
 	scanner := bufio.NewScanner(io.LimitReader(r, 8<<20))
 	scanner.Buffer(make([]byte, 4096), 2<<20)
-	var text strings.Builder
+	parts := map[[2]int]string{}
+	total := 0
 	for scanner.Scan() {
 		line := scanner.Text()
 		if !strings.HasPrefix(line, "data:") {
@@ -113,25 +115,55 @@ func readText(r io.Reader) (string, error) {
 			break
 		}
 		var event struct {
-			Type     string `json:"type"`
-			Delta    string `json:"delta"`
-			Response struct {
+			Type         string  `json:"type"`
+			Delta        string  `json:"delta"`
+			Text         *string `json:"text"`
+			OutputIndex  int     `json:"output_index"`
+			ContentIndex int     `json:"content_index"`
+			Response     struct {
 				Status string `json:"status"`
 			} `json:"response"`
 		}
 		if json.Unmarshal([]byte(data), &event) != nil {
 			return "", errors.New("invalid OpenAI response stream")
 		}
+		key := [2]int{event.OutputIndex, event.ContentIndex}
 		switch event.Type {
-		case "response.output_text.delta":
-			if text.Len()+len(event.Delta) > ai.MaxTextBytes {
+		case "response.output_text.delta", "response.output_text.done":
+			previous := parts[key]
+			next := previous + event.Delta
+			if event.Type == "response.output_text.done" {
+				if event.Text == nil {
+					return "", errors.New("invalid completed OCR text")
+				}
+				next = *event.Text
+			}
+			total += len(next) - len(previous)
+			if total > ai.MaxTextBytes || len(parts) > 1024 {
 				return "", errors.New("OCR text exceeds 256 KiB; no result was saved")
 			}
-			text.WriteString(event.Delta)
-		case "response.refusal.delta", "response.failed", "response.incomplete", "error":
+			parts[key] = next
+		case "response.refusal.delta", "response.refusal.done", "response.failed", "response.incomplete", "error":
 			return "", errors.New("OpenAI did not complete OCR; no result was saved")
 		case "response.completed":
-			if event.Response.Status != "completed" || !utf8.ValidString(text.String()) {
+			if event.Response.Status != "completed" || len(parts) == 0 {
+				return "", errors.New("OpenAI completed without OCR text; no result was saved")
+			}
+			keys := make([][2]int, 0, len(parts))
+			for k := range parts {
+				keys = append(keys, k)
+			}
+			sort.Slice(keys, func(i, j int) bool {
+				if keys[i][0] != keys[j][0] {
+					return keys[i][0] < keys[j][0]
+				}
+				return keys[i][1] < keys[j][1]
+			})
+			var text strings.Builder
+			for _, k := range keys {
+				text.WriteString(parts[k])
+			}
+			if !utf8.ValidString(text.String()) {
 				return "", errors.New("invalid completed OCR response")
 			}
 			return text.String(), nil

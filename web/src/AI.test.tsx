@@ -169,3 +169,12 @@ it("opens ChatGPT from the initial click and detaches the new tab", async () => 
   );
   expect(popup.opener).toBeNull();
 });
+
+it("shows an explicit empty OCR result without a blank editor or copy action", () => {
+  mount(<OCRText text="" />);
+  expect(screen.getByText("No text was recognized.")).toBeVisible();
+  expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Copy" }),
+  ).not.toBeInTheDocument();
+});

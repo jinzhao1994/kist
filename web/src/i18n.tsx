@@ -22,6 +22,11 @@ export const en = {
   aiModel: "Model",
   ocrExtract: "Extract text (OCR)",
   ocrText: "Recognized text",
+  ocrEmpty: "No text was recognized.",
+  ocrProvider: "Provider",
+  ocrRecipe: "Processing version",
+  ocrInputHash: "Source file checksum",
+  ocrCopyHash: "Copy source file checksum",
   ocrSendHint:
     "Send this image to OpenAI and save the recognized text in its metadata. Unreadable text may be marked [illegible].",
 
@@ -798,6 +803,11 @@ export const zh: Record<MessageKey, string> = {
   aiModel: "模型",
   ocrExtract: "提取文字（OCR）",
   ocrText: "识别文字",
+  ocrEmpty: "未识别到文字。",
+  ocrProvider: "服务商",
+  ocrRecipe: "处理版本",
+  ocrInputHash: "源文件校验值",
+  ocrCopyHash: "复制源文件校验值",
   ocrSendHint:
     "将此图片发送到 OpenAI，识别结果保存到文件元数据。无法辨认的文字可能标记为 [illegible]。",
 

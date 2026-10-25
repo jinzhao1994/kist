@@ -15,6 +15,8 @@ func TestOCRRequiresCompletedStream(t *testing.T) {
 		ok           bool
 	}{
 		{"complete", "data: {\"type\":\"response.output_text.delta\",\"delta\":\"姓名：张三\\n号码：001\"}\n\ndata: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\"}}\n", true},
+		{"done text without deltas", "data: {\"type\":\"response.output_text.done\",\"text\":\"full text\"}\n\ndata: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\"}}\n", true},
+		{"missing text", "data: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\"}}\n", false},
 		{"cut off", "data: {\"type\":\"response.output_text.delta\",\"delta\":\"partial\"}\n", false},
 		{"incomplete", "data: {\"type\":\"response.incomplete\"}\n", false},
 		{"refused", "data: {\"type\":\"response.refusal.delta\"}\n", false},

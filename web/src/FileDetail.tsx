@@ -2,7 +2,7 @@ import { DialogPresence } from "./Dialog";
 import { useState } from "react";
 import { useClientMode } from "./OfflineEntry";
 import { OCRDialog, OCRText } from "./AI";
-import { Button, CopyButton, Tooltip } from "@mantine/core";
+import { Button, CopyButton, Stack, Tooltip } from "@mantine/core";
 import type { components } from "./api-schema";
 import type { FileDetail as FileData, Tag } from "./api";
 import { TagAssignment } from "./Tags";
@@ -27,6 +27,11 @@ export function FileDetail({
   const [ocrOpen, setOCROpen] = useState(false);
   const ocr = data.metadata?.find((row) => row.key === "ocr:text");
   const file = data.file;
+  const canOCR =
+    !clientMode &&
+    !data.extracted?.includes("ocr") &&
+    !ocr &&
+    ["image/jpeg", "image/png", "image/webp"].includes(file.media_type || "");
   const displayID = combination?.folder.id || file.id;
   const labels: Record<string, string> = {
     "exif:ExifImageHeight": t("imageHeight"),
@@ -44,6 +49,10 @@ export function FileDetail({
     "media:mime": t("mimeType"),
     "media:kind": t("mediaKind"),
     "file:mtime": t("modified"),
+    "ocr:model": t("aiModel"),
+    "ocr:provider": t("ocrProvider"),
+    "ocr:recipe": t("ocrRecipe"),
+    "ocr:input_sha256": t("ocrInputHash"),
   };
   const metadataValue = (key: string, value: string) => {
     if (key === "file:mtime" && /^-?\d+$/.test(value)) {
@@ -56,16 +65,17 @@ export function FileDetail({
     if (key === "file:size" && Number.isSafeInteger(Number(value))) {
       return formatBytes(Number(value), prefs);
     }
+    if (key === "ocr:provider" && value === "openai") return "OpenAI";
     return value || "—";
   };
   const groups = new Map<string, NonNullable<FileData["metadata"]>>();
   for (const row of data.metadata || []) {
-    if (row.key === "ocr:text") continue;
     const source = row.source || "";
     const rows = groups.get(source) || [];
     rows.push(row);
     groups.set(source, rows);
   }
+  if (canOCR && !groups.has("ocr")) groups.set("ocr", []);
   return (
     <div className="file-info-panel">
       <div className="file-info-heading">
@@ -138,15 +148,6 @@ export function FileDetail({
           </CopyButton>
         </dd>
       </dl>
-      {ocr && <OCRText text={ocr.value} />}
-      {!clientMode &&
-        !data.extracted?.includes("ocr") &&
-        !ocr &&
-        ["image/jpeg", "image/png", "image/webp"].includes(
-          file.media_type || "",
-        ) && (
-          <Button onClick={() => setOCROpen(true)}>{t("ocrExtract")}</Button>
-        )}
       <DialogPresence>
         {ocrOpen && (
           <OCRDialog
@@ -164,7 +165,7 @@ export function FileDetail({
         tags={tags}
         assigned={data.tags || []}
       />
-      {(!!data.metadata?.length ||
+      {(groups.size > 0 ||
         !!file.extraction_pending?.length ||
         extraction.busy ||
         extraction.failed) && (
@@ -182,64 +183,99 @@ export function FileDetail({
                         ? "File"
                         : source === "media"
                           ? "Media"
-                          : source}
+                          : source === "ocr"
+                            ? "OCR"
+                            : source}
                   </bdi>
                 </h4>
               )}
-              <dl className="metadata-list">
-                {rows.map((row) => (
-                  <div key={row.key}>
-                    <Tooltip
-                      label={row.key}
-                      position="bottom-start"
-                      offset={8}
-                      classNames={{ tooltip: "metadata-tooltip" }}
-                      openDelay={0}
-                      transitionProps={{ duration: 0 }}
-                      events={{ hover: false, focus: true, touch: false }}
-                    >
-                      <dt tabIndex={0}>
-                        <Tooltip.Floating
+              <Stack>
+                {source === "ocr" && ocr && <OCRText text={ocr.value} />}
+                {source === "ocr" && canOCR && (
+                  <Button onClick={() => setOCROpen(true)}>
+                    {t("ocrExtract")}
+                  </Button>
+                )}
+                <dl className="metadata-list">
+                  {rows
+                    .filter((row) => row.key !== "ocr:text")
+                    .map((row) => (
+                      <div key={row.key}>
+                        <Tooltip
                           label={row.key}
                           position="bottom-start"
-                          offset={16}
-                          role="tooltip"
-                          classNames={{ tooltip: "metadata-tooltip" }}
-                        >
-                          <bdi>{labels[row.key] || row.key}</bdi>
-                        </Tooltip.Floating>
-                      </dt>
-                    </Tooltip>
-                    <dd>
-                      {row.key === "file:mtime" ? (
-                        <Tooltip
-                          label={row.value}
-                          position="bottom-end"
-                          offset={6}
+                          offset={8}
                           classNames={{ tooltip: "metadata-tooltip" }}
                           openDelay={0}
                           transitionProps={{ duration: 0 }}
                           events={{ hover: false, focus: true, touch: false }}
                         >
-                          <bdi tabIndex={0}>
+                          <dt tabIndex={0}>
                             <Tooltip.Floating
-                              label={row.value}
+                              label={row.key}
                               position="bottom-start"
                               offset={16}
                               role="tooltip"
                               classNames={{ tooltip: "metadata-tooltip" }}
                             >
-                              <span>{metadataValue(row.key, row.value)}</span>
+                              <bdi>{labels[row.key] || row.key}</bdi>
                             </Tooltip.Floating>
-                          </bdi>
+                          </dt>
                         </Tooltip>
-                      ) : (
-                        <bdi>{metadataValue(row.key, row.value)}</bdi>
-                      )}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
+                        <dd>
+                          {row.key === "ocr:input_sha256" ? (
+                            <CopyButton value={row.value}>
+                              {({ copied, copy }) => (
+                                <button
+                                  type="button"
+                                  className="file-id-copy"
+                                  onClick={copy}
+                                  title={row.value}
+                                  aria-label={t(
+                                    copied ? "copied" : "ocrCopyHash",
+                                  )}
+                                >
+                                  <bdi>{row.value}</bdi>
+                                  <span>{t(copied ? "copied" : "copy")}</span>
+                                </button>
+                              )}
+                            </CopyButton>
+                          ) : row.key === "file:mtime" ? (
+                            <Tooltip
+                              label={row.value}
+                              position="bottom-end"
+                              offset={6}
+                              classNames={{ tooltip: "metadata-tooltip" }}
+                              openDelay={0}
+                              transitionProps={{ duration: 0 }}
+                              events={{
+                                hover: false,
+                                focus: true,
+                                touch: false,
+                              }}
+                            >
+                              <bdi tabIndex={0}>
+                                <Tooltip.Floating
+                                  label={row.value}
+                                  position="bottom-start"
+                                  offset={16}
+                                  role="tooltip"
+                                  classNames={{ tooltip: "metadata-tooltip" }}
+                                >
+                                  <span>
+                                    {metadataValue(row.key, row.value)}
+                                  </span>
+                                </Tooltip.Floating>
+                              </bdi>
+                            </Tooltip>
+                          ) : (
+                            <bdi>{metadataValue(row.key, row.value)}</bdi>
+                          )}
+                        </dd>
+                      </div>
+                    ))}
+                </dl>
+              </Stack>
             </section>
           ))}
         </section>

@@ -243,6 +243,12 @@ export function OCRDialog({
 }
 export function OCRText({ text }: { text: string }) {
   const { t } = useI18n();
+  if (!text.trim())
+    return (
+      <Text size="sm" c="dimmed">
+        {t("ocrEmpty")}
+      </Text>
+    );
   return (
     <Stack>
       <Textarea
