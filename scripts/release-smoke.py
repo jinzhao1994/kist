@@ -38,7 +38,7 @@ def main():
         work = Path(temporary)
         if binary.name.endswith((".tar.gz", ".zip")):
             executable = "kist.exe" if args.platform.startswith("windows/") else "kist"
-            expected = {executable, "LICENSE", "THIRD_PARTY_NOTICES.md", "SECURITY.md", "README.md", "README.zh-CN.md", "docs/operations.md"}
+            expected = {executable, "LICENSE", "THIRD_PARTY_NOTICES.md", "SECURITY.md", "README.md", "README.zh-CN.md", "docs/operations.md", "docs/offline-client.md", "docs/offline-client.zh-CN.md", "docs/settings.md", "docs/settings.zh-CN.md"}
             if binary.suffix == ".zip":
                 with zipfile.ZipFile(binary) as archive:
                     assert set(archive.namelist()) == expected
