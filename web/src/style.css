@@ -3453,6 +3453,9 @@ main.upload-drag-active {
   flex-wrap: wrap;
   gap: var(--mantine-spacing-md) var(--mantine-spacing-xl);
 }
+.sync-page-content .storage-usage-values {
+  column-gap: calc(2 * var(--mantine-spacing-xl));
+}
 
 .settings-table th {
   color: var(--muted);
