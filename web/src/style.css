@@ -3465,6 +3465,12 @@ main.upload-drag-active {
 .settings-table:not(.retention-table) td:first-child {
   inline-size: 100%;
 }
+.settings-table :is(th, td):first-child {
+  padding-inline-start: var(--mantine-spacing-xs);
+}
+.settings-table :is(th, td):last-child {
+  padding-inline-end: var(--mantine-spacing-xs);
+}
 /* Align text at the trailing edge while preserving the button's hover area. */
 .section-heading-action,
 .settings-table
