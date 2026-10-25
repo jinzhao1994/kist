@@ -24,7 +24,7 @@ Go 单二进制 + SQLite，Apache-2.0。SQLite 是唯一数据库后端。
 
 ## 当前状态
 
-M0–M7 已完成，当前已发布 v0.1.6。包含可校验续传、同名上传处理、目录与归档盒总大小、多格式只读预览、文件组合（实况照片、多字幕视频、嵌套多页）、归档盒封面、标签与右键管理、收藏与分段搜索、操作历史与恢复，以及四平台安装包和 GHCR / Docker Hub 双架构正式镜像。op log 位于 `ops/YYYY/MM/YYYY-MM-DD_ops.jsonl`。M7 基础验收见 `docs/plans/2026-10-10-m7-release.md`，版本差异与升级边界见 `docs/releases/`。v0.1 永久保留历史内容，不实现 GC。NAS 权威主库与笔记本离线客户端（含客户端作为中继的多级同步）已按 `docs/plans/2026-10-21-offline-client-goal.md` 立项实施，最终验收见 `docs/plans/2026-10-22-offline-client-acceptance.md`，尚未发布版本。其他新增功能先对照设计文档及待决问题，不把远期方向视为已批准的实现任务。
+M0–M7 已完成，当前已发布 v0.1.7。包含可校验续传、同名上传处理、目录与归档盒总大小、多格式只读预览、文件组合（实况照片、多字幕视频、嵌套多页）、归档盒封面、标签与右键管理、收藏与分段搜索、操作历史与恢复，以及四平台安装包和 GHCR / Docker Hub 双架构正式镜像。op log 位于 `ops/YYYY/MM/YYYY-MM-DD_ops.jsonl`。M7 基础验收见 `docs/plans/2026-10-10-m7-release.md`，版本差异与升级边界见 `docs/releases/`。v0.1 永久保留历史内容，不实现 GC。已发布按需缓存的离线客户端、多级中继同步、统一配置与热重载、可读/永久链接；离线验收见 `docs/plans/2026-10-22-offline-client-acceptance.md`，本版发布证据见 `docs/plans/2026-10-25-v0.1.7-release.md`。其他新增功能先对照设计文档及待决问题，不把远期方向视为已批准的实现任务。
 
 更新这个状态时替换旧文字，不要在下面继续追加历史。
 
