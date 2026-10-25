@@ -2884,6 +2884,8 @@ export interface operations {
     "get-api-v1-files-by-id-sheet-preview": {
         parameters: {
             query?: {
+                /** @description Content version: sheet-v1:blob-key:filename */
+                v?: string;
                 detail?: boolean;
                 sheet?: number;
                 row?: number;
@@ -2901,6 +2903,7 @@ export interface operations {
             /** @description OK */
             200: {
                 headers: {
+                    "Cache-Control"?: string;
                     [name: string]: unknown;
                 };
                 content: {

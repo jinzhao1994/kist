@@ -51,11 +51,12 @@ export default function SheetPreview({
     [search, setSearch] = useState(""),
     [copyState, setCopyState] = useState("");
   const grid = useRef<SheetHandle>(null);
-  const query = useQuery({
+  const query = useQuery<SheetData>({
     queryKey: [
       "sheet-preview",
       file.id,
       file.blob_key,
+      file.name,
       detail,
       sheet,
       row,
@@ -63,9 +64,10 @@ export default function SheetPreview({
       encoding,
     ],
     enabled: active && !paused && !source,
+    staleTime: (query) => (query.state.data?.supported ? Infinity : 0),
     queryFn: ({ signal }) =>
       get<SheetData>(
-        `/files/${encodeURIComponent(file.id)}/sheet-preview?detail=${detail}&sheet=${sheet}&row=${row}&column=${column}&encoding=${encoding}`,
+        `/files/${encodeURIComponent(file.id)}/sheet-preview?detail=${detail}&sheet=${sheet}&row=${row}&column=${column}&encoding=${encoding}&v=${encodeURIComponent(`sheet-v1:${file.blob_key}:${file.name}`)}`,
         signal,
       ),
   });

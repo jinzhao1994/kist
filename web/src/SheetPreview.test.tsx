@@ -136,3 +136,42 @@ it("does not fetch inactive thumbnails", () => {
   mount(false, false);
   expect(fetch).not.toHaveBeenCalled();
 });
+
+it("reuses a thumbnail until its content or filename changes", async () => {
+  const fetcher = vi.fn(async (_url: string) => Response.json(data));
+  vi.stubGlobal("fetch", fetcher);
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const file = {
+    id: "csv",
+    name: "prices.csv",
+    blob_key: "sha256:first",
+  } as ArchiveFile;
+  const view = (current: ArchiveFile, visible = true) => (
+    <QueryClientProvider client={client}>
+      <ThemeProvider env="test">
+        <I18nProvider>
+          {visible && (
+            <SheetPreview file={current} detail={false} active paused={false} />
+          )}
+        </I18nProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
+  const { rerender, unmount } = render(view(file));
+  await screen.findByText("交通");
+  expect(decodeURIComponent(String(fetcher.mock.calls[0]?.[0]))).toContain(
+    "v=sheet-v1:sha256:first:prices.csv",
+  );
+  rerender(view(file, false));
+  rerender(view(file));
+  await screen.findByText("交通");
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  rerender(view({ ...file, name: "prices.tsv" }));
+  await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+  rerender(view({ ...file, blob_key: "sha256:second" }));
+  await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(3));
+  unmount();
+  client.clear();
+});

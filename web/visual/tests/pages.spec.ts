@@ -251,8 +251,12 @@ async function prepare(page: Page, options: Options = {}) {
     }
     if (options.sheet && path === "/files/file-3/sheet-preview") {
       const params = new URL(route.request().url()).searchParams;
+      expect(params.get("v")).toBe(
+        `sheet-v1:${mediaFiles[2].blob_key}:${mediaFiles[2].name}`,
+      );
       const sheet = Number(params.get("sheet") || 0);
       return route.fulfill({
+        headers: { "Cache-Control": "private, max-age=31536000, immutable" },
         json: {
           supported: true,
           sheets: ["旅行费用", "行程"],

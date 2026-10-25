@@ -28,7 +28,7 @@ import { TextPreview } from "./TextPreview";
 function isSpreadsheet(file: ArchiveFile) {
   return /\.(xlsx?|csv|tsv)$/i.test(file.name);
 }
-const SheetPreview = lazy(() => import("./SheetPreview"));
+import SheetPreview from "./SheetPreview";
 
 const PDFReader = lazy(() => import("./PDFReader"));
 const GPXPreview = lazy(() => import("./GPXPreview"));
@@ -386,17 +386,13 @@ export function Media({
   const failed = failedGeneration === (job?.generation || file.id);
   if (isSpreadsheet(file))
     return (
-      <Suspense
-        fallback={<div className="media-placeholder">{t("loading")}</div>}
-      >
-        <SheetPreview
-          key={`${file.id}:${file.blob_key}`}
-          file={file}
-          detail={detail}
-          active={active}
-          paused={paused}
-        />
-      </Suspense>
+      <SheetPreview
+        key={`${file.id}:${file.blob_key}`}
+        file={file}
+        detail={detail}
+        active={active}
+        paused={paused}
+      />
     );
   if (usesTextPreview(file))
     return (
