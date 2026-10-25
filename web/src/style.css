@@ -3462,11 +3462,15 @@ main.upload-drag-active {
 .settings-table td:first-child {
   inline-size: 100%;
 }
-.settings-table :is(th, td):first-child {
-  padding-inline-start: 0;
-}
-.settings-table :is(th, td):last-child {
-  padding-inline-end: 0;
+/* Align text at the trailing edge while preserving the button's hover area. */
+.section-heading-action,
+.settings-table
+  td:last-child
+  .mantine-Group-root
+  > .mantine-Button-root:last-child {
+  margin-inline-end: calc(
+    -1 * (var(--button-padding-x) + 0.0625rem * var(--mantine-scale))
+  );
 }
 .credential-note {
   overflow-wrap: anywhere;
