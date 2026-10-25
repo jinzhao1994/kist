@@ -527,6 +527,8 @@ async function prepare(page: Page, options: Options = {}) {
         pending_download: 3,
         pending_upload: 2,
       };
+    else if (path === "/catalog-revision")
+      return route.fulfill({ json: { revision: "fixture-catalog" } });
     else if (path === "/info")
       body = {
         version: "visual",
@@ -4184,3 +4186,46 @@ for (const variant of ["light", "dark", "mobile"] as const) {
     expect(errors).toEqual([]);
   });
 }
+
+test("catalog-external-changes", async ({ page }, info) => {
+  const errors = await prepare(page);
+  let revision = "before";
+  let name = "外部新增文件.txt";
+  let added = false;
+  await page.route("**/api/v1/catalog-revision", (route) =>
+    route.fulfill({ json: { revision } }),
+  );
+  await page.route(/\/api\/v1\/(files|entries)\?/, (route) =>
+    route.fulfill({
+      json: {
+        files: added
+          ? [...files, { ...files[0], id: "visible-99", name }]
+          : files,
+        cursor: "",
+      },
+    }),
+  );
+  await page.goto("/files");
+  await grid(page);
+  await page.getByRole("button", { name: "归档盒", exact: true }).click();
+  await page
+    .getByRole("button", { name: /山海拾光/ })
+    .first()
+    .click();
+  await grid(page);
+  added = true;
+  revision = "after-navigation";
+  await page.getByRole("button", { name: "全部文件", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: /外部新增文件.txt/ }),
+  ).toBeVisible();
+  name = "后台更新文件.txt";
+  revision = "after-poll";
+  await expect(
+    page.getByRole("button", { name: /后台更新文件.txt/ }),
+  ).toBeVisible({ timeout: 15000 });
+  await expect(
+    page.getByRole("button", { name: /外部新增文件.txt/ }),
+  ).toHaveCount(0);
+  await capture(page, errors, info.title);
+});

@@ -1,3 +1,4 @@
+import { useCatalogRefresh } from "./catalogRefresh";
 import { MoreActionsMenu } from "./MoreActionsMenu";
 import { ObjectLinkMenuItems } from "./ObjectLinkMenuItems";
 import { ClientConnectionStatus } from "./ClientConnectionStatus";
@@ -52,6 +53,7 @@ export function App() {
   const { appearance, setAppearance } = useTheme();
   const navigation = useResolvedNavigation();
   const { route, go } = navigation;
+  useCatalogRefresh(JSON.stringify(route));
   const [actionsHost, setActionsHost] = useState<HTMLSpanElement | null>(null);
   const [infoHost, setInfoHost] = useState<HTMLDivElement | null>(null);
   const [fileToolbarHost, setFileToolbarHost] =

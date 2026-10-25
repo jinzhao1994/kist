@@ -175,6 +175,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/catalog-revision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 catalog revision */
+        get: operations["get-api-v1-catalog-revision"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/client/cache": {
         parameters: {
             query?: never;
@@ -1431,6 +1448,9 @@ export interface components {
         BoxSearchResult: {
             boxes: components["schemas"]["BoxSearchItem"][] | null;
             cursor?: string;
+        };
+        CatalogRevision: {
+            revision: string;
         };
         Cell: {
             missing_result?: boolean;
@@ -2882,6 +2902,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TagList"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-catalog-revision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogRevision"];
                 };
             };
             /** @description Error */
