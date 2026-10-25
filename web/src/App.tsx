@@ -8,6 +8,7 @@ import { DialogPresence } from "./Dialog";
 import {
   UnstyledButton,
   Button,
+  Group,
   ActionIcon,
   Menu,
   Tooltip,
@@ -177,10 +178,12 @@ export function App() {
     return (
       <main>
         <p role="alert">{errorMessage(navigation.error, t)}</p>
-        <Button onClick={() => navigation.retry()}>{t("retry")}</Button>
-        <Button component="a" href="/">
-          {t("backHome")}
-        </Button>
+        <Group>
+          <Button onClick={() => navigation.retry()}>{t("retry")}</Button>
+          <Button component="a" href="/">
+            {t("backHome")}
+          </Button>
+        </Group>
       </main>
     );
   return (
