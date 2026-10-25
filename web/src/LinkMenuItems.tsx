@@ -1,3 +1,5 @@
+import { ObjectLinkMenuItems } from "./ObjectLinkMenuItems";
+import { parseRoute } from "./navigation";
 import { Menu } from "@mantine/core";
 import { useState } from "react";
 import { useI18n } from "./i18n";
@@ -13,6 +15,9 @@ export function LinkMenuItems({
   const [status, setStatus] = useState<"copied" | "copyLinkFailed" | null>(
     null,
   );
+  const target = parseRoute(href);
+  if (!target.section && (target.box || target.file || target.folder))
+    return <ObjectLinkMenuItems target={target} openNewTab copy={copy} />;
   return (
     <>
       <Menu.Item

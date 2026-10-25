@@ -149,6 +149,7 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 		s.writeRoutes()
 		s.syncRoutes()
 	}
+	s.navigationRoutes()
 	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if opt.UI != nil && r.URL.Path != "/api" && !strings.HasPrefix(r.URL.Path, "/api/") {
 			opt.UI.ServeHTTP(w, r)

@@ -1,7 +1,7 @@
 import { EmptyHint } from "./EmptyHint";
 import { Anchor, Button, Group, Stack, Table, Text } from "@mantine/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { routeURL } from "./navigation";
+import { useObjectLink } from "./ObjectLinkMenuItems";
 import { api, get } from "./api";
 import type { components } from "./client-api-schema";
 import type { components as Archive } from "./api-schema";
@@ -123,16 +123,10 @@ function RetentionItem({
     <Table.Tr>
       <Table.Td>
         {singleFile || singleSet ? (
-          <Anchor
-            size="sm"
-            className="credential-note"
-            href={routeURL({
-              files: true,
-              file: singleFile ? files[0] : filesets[0],
-            })}
-          >
-            <bdi>{name.data || owner}</bdi>
-          </Anchor>
+          <RetentionLink
+            id={singleFile ? files[0] : filesets[0]}
+            name={name.data || owner}
+          />
         ) : (
           <Text size="sm" className="credential-note">
             <bdi>{owner}</bdi>
@@ -210,5 +204,19 @@ function RetentionItem({
         </Group>
       </Table.Td>
     </Table.Tr>
+  );
+}
+
+function RetentionLink({ id, name }: { id: string; name: string }) {
+  const link = useObjectLink({ files: true, file: id });
+  return (
+    <Anchor
+      size="sm"
+      className="credential-note"
+      href={link.href}
+      aria-disabled={!link.href}
+    >
+      <bdi>{name}</bdi>
+    </Anchor>
   );
 }

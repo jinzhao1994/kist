@@ -612,6 +612,20 @@ it.each([
 
 it("exposes canonical file links and history from the keyboard menu", async () => {
   const user = userEvent.setup();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input) =>
+      String(input).includes("/navigation?")
+        ? Response.json({
+            box: "box",
+            folder: "folder",
+            file: "0",
+            kind: "file",
+            path: "/boxes/2026_trip/photo-0.jpg",
+          })
+        : ready(),
+    ),
+  );
   render(
     <ThemeProvider env="test">
       <I18nProvider>
@@ -624,16 +638,18 @@ it("exposes canonical file links and history from the keyboard menu", async () =
     key: "F10",
     shiftKey: true,
   });
-  expect(
-    await screen.findByRole("menuitem", { name: "Open in new tab" }),
-  ).toHaveAttribute("href", "/files?file=0");
+  await waitFor(() =>
+    expect(
+      screen.getByRole("menuitem", { name: "Open in new tab" }),
+    ).toHaveAttribute("href", "/boxes/2026_trip/photo-0.jpg"),
+  );
   expect(screen.getByRole("menuitem", { name: "History" })).toHaveAttribute(
     "href",
     "/history?file=0",
   );
   await user.click(screen.getByRole("menuitem", { name: "Copy link" }));
   expect(await navigator.clipboard.readText()).toBe(
-    `${window.location.origin}/files?file=0`,
+    `${window.location.origin}/boxes/2026_trip/photo-0.jpg`,
   );
 });
 
@@ -714,6 +730,17 @@ it("opens an upload window for the selected child folder", async () => {
   ).toBeVisible();
 });
 it("links breadcrumb menus to their own folder with keyboard access", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      Response.json({
+        box: "box",
+        folder: "child",
+        kind: "folder",
+        path: "/boxes/2026_trip/Child",
+      }),
+    ),
+  );
   render(
     <ThemeProvider env="test">
       <I18nProvider>
@@ -730,14 +757,17 @@ it("links breadcrumb menus to their own folder with keyboard access", async () =
         />
       </I18nProvider>
     </ThemeProvider>,
+    { wrapper: mediaWrapper },
   );
   fireEvent.keyDown(screen.getByRole("button", { name: "Child" }), {
     key: "F10",
     shiftKey: true,
   });
-  expect(
-    await screen.findByRole("menuitem", { name: "Open in new tab" }),
-  ).toHaveAttribute("href", "/boxes/box?folder=child");
+  await waitFor(() =>
+    expect(
+      screen.getByRole("menuitem", { name: "Open in new tab" }),
+    ).toHaveAttribute("href", "/boxes/2026_trip/Child"),
+  );
 });
 
 it("distinguishes the archive root from the current box root", async () => {

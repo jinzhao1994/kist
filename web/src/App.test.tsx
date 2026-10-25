@@ -5,6 +5,34 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App } from "./App";
 import { I18nProvider, storageKey } from "./i18n";
 import { ThemeProvider, useTheme } from "./theme";
+function navigationFixture(url: URL) {
+  const params = url.searchParams;
+  const readable = params.get("path") || "";
+  const box =
+    params.get("box") ||
+    (readable.includes("_matching")
+      ? "matching"
+      : readable.includes("_box")
+        ? "box"
+        : "current");
+  const file =
+    params.get("file") ||
+    (readable.endsWith("/Documents") && params.get("view") !== "folder"
+      ? "set"
+      : undefined);
+  const folder = file
+    ? "root"
+    : params.get("folder") ||
+      (readable.endsWith("/Documents") ? "set" : undefined);
+  return {
+    box,
+    folder,
+    file,
+    kind: file ? "fileset" : folder ? "folder" : "box",
+    path: `/boxes/2026_${box}${file === "set" || folder === "set" ? "/Documents" : ""}`,
+    view: !file && folder === "set" ? "folder" : undefined,
+  };
+}
 function ThemeProbe() {
   const { appearance } = useTheme();
   return (
@@ -143,6 +171,10 @@ it("opens global tag results from a box and preserves the tag URL on back and re
     "fetch",
     vi.fn(async (path: string) => {
       requests.push(path);
+      if (new URL(path, "http://localhost").pathname === "/api/v1/navigation")
+        return Response.json(
+          navigationFixture(new URL(path, "http://localhost")),
+        );
       const url = new URL(path, "http://localhost");
       let data: unknown;
       if (url.pathname.endsWith("/boxes/search"))
@@ -197,7 +229,7 @@ it("opens global tag results from a box and preserves the tag URL on back and re
       return new Response(JSON.stringify(data));
     }),
   );
-  history.replaceState(null, "", "/boxes/current");
+  history.replaceState(null, "", "/boxes/id/current");
   let view = mount();
   const user = userEvent.setup();
   const tree = await screen.findByRole("tree", { name: "Tags" });
@@ -223,7 +255,7 @@ it("opens global tag results from a box and preserves the tag URL on back and re
     ).toBe(true),
   );
   await user.click(within(boxes).getByRole("button", { name: /Tagged box/ }));
-  expect(location.pathname).toBe("/boxes/matching");
+  await waitFor(() => expect(location.pathname).toBe("/boxes/2026_matching"));
   history.back();
   await waitFor(() =>
     expect(
@@ -258,6 +290,10 @@ it("replaces the box search bar when switching to all files and applies a box co
     "fetch",
     vi.fn(async (path: string) => {
       requests.push(path);
+      if (new URL(path, "http://localhost").pathname === "/api/v1/navigation")
+        return Response.json(
+          navigationFixture(new URL(path, "http://localhost")),
+        );
       const pathname = new URL(path, "http://localhost").pathname;
       const data = pathname.endsWith("/folders")
         ? {
@@ -289,7 +325,7 @@ it("replaces the box search bar when switching to all files and applies a box co
       return new Response(JSON.stringify(data));
     }),
   );
-  history.replaceState(null, "", "/boxes/current");
+  history.replaceState(null, "", "/boxes/id/current");
   const view = mount();
   const user = userEvent.setup();
   await screen.findByRole("heading", { name: "Current box", level: 1 });
@@ -329,6 +365,10 @@ it("sorts boxes from list headings and keeps the search when switching views", a
     "fetch",
     vi.fn(async (path: string) => {
       requests.push(path);
+      if (new URL(path, "http://localhost").pathname === "/api/v1/navigation")
+        return Response.json(
+          navigationFixture(new URL(path, "http://localhost")),
+        );
       return new Response(
         JSON.stringify(
           path.includes("/boxes/search?")
@@ -438,6 +478,10 @@ it("opens a folder's combination in its parent list and returns there after relo
     "fetch",
     vi.fn(async (input: string) => {
       requests.push(input);
+      if (new URL(input, "http://localhost").pathname === "/api/v1/navigation")
+        return Response.json(
+          navigationFixture(new URL(input, "http://localhost")),
+        );
       const url = new URL(input, "http://localhost");
       const path = url.pathname;
       let data: unknown;
@@ -476,15 +520,21 @@ it("opens a folder's combination in its parent list and returns there after relo
       return Response.json(data);
     }),
   );
-  history.replaceState(null, "", "/boxes/box?folder=set&q=member-only");
+  history.replaceState(
+    null,
+    "",
+    "/boxes/2026_box/Documents?view=folder&q=member-only",
+  );
   let view = mount();
   const user = userEvent.setup();
   await user.click(
     await screen.findByRole("button", { name: "View file set" }),
   );
   await screen.findByRole("region", { name: "Gallery" });
-  expect(new URL(location.href).searchParams.get("folder")).toBe("root");
-  expect(new URL(location.href).searchParams.get("file")).toBe("set");
+  await waitFor(() =>
+    expect(location.pathname).toBe("/boxes/2026_box/Documents"),
+  );
+  expect(new URL(location.href).searchParams.has("file")).toBe(false);
   expect(new URL(location.href).searchParams.has("q")).toBe(false);
   const navigation = screen.getByRole("navigation", { name: "Browse files" });
   await waitFor(() => expect(navigation).toHaveTextContent("1 / 2"));
@@ -500,7 +550,7 @@ it("opens a folder's combination in its parent list and returns there after relo
       screen.queryByRole("region", { name: "Gallery" }),
     ).not.toBeInTheDocument(),
   );
-  expect(new URL(location.href).searchParams.get("folder")).toBe("root");
+  await waitFor(() => expect(location.pathname).toBe("/boxes/2026_box"));
   expect(new URL(location.href).searchParams.has("file")).toBe(false);
   expect(
     requests.some(

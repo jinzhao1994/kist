@@ -4,7 +4,7 @@ import {
 } from "./ClientConnectionStatus";
 import { mediaProfile } from "./media-profile";
 import livePhotoIcon from "./assets/live-photo.svg?no-inline";
-import { Button } from "@mantine/core";
+import { Button, Menu } from "@mantine/core";
 import {
   lazy,
   Suspense,
@@ -79,7 +79,13 @@ function OriginalImage({ file }: { file: ArchiveFile }) {
   );
 }
 
-export function OpenMediaButton({ file }: { file: ArchiveFile }) {
+export function OpenMediaButton({
+  file,
+  menu = false,
+}: {
+  file: ArchiveFile;
+  menu?: boolean;
+}) {
   const { t } = useI18n();
   const officePDF = officePDFRecipe(file);
   // Media owns requests and polling. This observer follows the same cache entry.
@@ -95,6 +101,17 @@ export function OpenMediaButton({ file }: { file: ArchiveFile }) {
     original || image
       ? contentURL(file)
       : `/api/v1${mediaPath(file, officePDF)}/content?v=${encodeURIComponent(job!.generation)}`;
+  if (menu)
+    return (
+      <Menu.Item
+        component="a"
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {t(image ? "openImage" : "openPDF")}
+      </Menu.Item>
+    );
   return (
     <Button component="a" href={href} target="_blank" rel="noopener noreferrer">
       {t(image ? "openImage" : "openPDF")}

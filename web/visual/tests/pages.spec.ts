@@ -180,6 +180,75 @@ async function prepare(page: Page, options: Options = {}) {
       return route.abort();
     }
     let body: unknown;
+    if (path === "/navigation") {
+      const params = new URL(route.request().url()).searchParams;
+      const root = "/boxes/2026-01-01_" + encodeURIComponent(box.name);
+      const folders = [
+        { id: "folder-child", name: "旅途" },
+        { id: "photos", name: "照片" },
+        { id: "day1", name: "照片/第一天" },
+        { id: "folder-set", name: "旅行证件", fileset: true },
+        { id: "conflict-pages", name: "证件", fileset: true },
+      ];
+      const locations = [
+        { box: box.id, kind: "box", path: root },
+        ...(options.manyFiles
+          ? Array.from({ length: 100 }, (_, index) => ({
+              ...mediaFiles[2],
+              id: `scroll-${index}`,
+              name: `document-${index}.txt`,
+            }))
+          : mediaFiles
+        ).map((file) => ({
+          box: box.id,
+          folder: file.folder_id === "folder-1" ? undefined : file.folder_id,
+          file: file.id,
+          kind: "file",
+          path: root + "/" + encodeURIComponent(file.name),
+        })),
+        ...folders.map((folder) => ({
+          box: box.id,
+          folder: folder.id,
+          kind: "folder",
+          view: folder.fileset ? "folder" : undefined,
+          path:
+            root +
+            "/" +
+            folder.name.split("/").map(encodeURIComponent).join("/"),
+        })),
+        ...folders
+          .filter((folder) => folder.fileset)
+          .map((folder) => ({
+            box: box.id,
+            folder: "folder-1",
+            file: folder.id,
+            kind: "fileset",
+            path: root + "/" + encodeURIComponent(folder.name),
+          })),
+      ];
+      const requestedPath = params.get("path");
+      const file = params.get("file");
+      const folder = params.get("folder");
+      const location = locations.find((item) =>
+        requestedPath
+          ? item.path === requestedPath &&
+            (params.get("view") === "folder"
+              ? item.kind === "folder"
+              : item.kind !== "folder" || !("view" in item && item.view))
+          : file
+            ? "file" in item && item.file === file
+            : folder && folder !== "folder-1"
+              ? item.kind === "folder" &&
+                "folder" in item &&
+                item.folder === folder
+              : params.get("box") === box.id && item.kind === "box",
+      );
+      if (!location) {
+        errors.push(`Unexpected navigation: ${params}`);
+        return route.abort();
+      }
+      return route.fulfill({ json: location });
+    }
     if (options.sheet && path === "/files/file-3/sheet-preview") {
       const params = new URL(route.request().url()).searchParams;
       const sheet = Number(params.get("sheet") || 0);
@@ -571,7 +640,7 @@ async function prepare(page: Page, options: Options = {}) {
   return errors;
 }
 async function capture(page: Page, errors: string[], name: string) {
-  if (await page.getByRole("link", { name: "在新标签页打开 PDF" }).count()) {
+  if (await page.locator(".pdf-reader").count()) {
     await expect(page.locator(".pdf-reader")).toBeVisible();
     await expect(
       page.locator(".pdf-reader").getByText("正在加载…", { exact: true }),
@@ -584,9 +653,6 @@ async function capture(page: Page, errors: string[], name: string) {
     await expect(
       page.locator('.pdfViewer .page[data-page-number="1"] .textLayer'),
     ).toContainText("Kist PDF first page");
-    await expect(
-      page.getByRole("link", { name: "在新标签页打开 PDF" }),
-    ).toHaveAttribute("target", "_blank");
   }
   await page.evaluate(() => document.fonts.ready);
   // Allow opening menus to finish fading and closing menus to unmount.
@@ -674,9 +740,10 @@ async function grid(page: Page, expectedImages = 4) {
 test("theme-initial-html", async ({ page }, info) => {
   const errors = await prepare(page, { primaryColor: "pink" });
   await page.route("**/files", async (route) => {
+    if (!route.request().isNavigationRequest()) return route.fallback();
     const response = await route.fetch();
     const body = (await response.text()).replace(
-      'name="kist-primary-color" content=""',
+      /name="kist-primary-color" content="[^"]*"/,
       'name="kist-primary-color" content="pink"',
     );
     await route.fulfill({ response, body });
@@ -708,6 +775,16 @@ test("theme-initial-html", async ({ page }, info) => {
 
 test("theme-initial-loading", async ({ page }, info) => {
   const errors = await prepare(page, { primaryColor: "pink" });
+  // Exercise fallback for hosts without an HTML-injected theme.
+  await page.route("**/files", async (route) => {
+    if (!route.request().isNavigationRequest()) return route.fallback();
+    const response = await route.fetch();
+    const body = (await response.text()).replace(
+      /name="kist-primary-color" content="[^"]*"/,
+      'name="kist-primary-color" content=""',
+    );
+    await route.fulfill({ response, body });
+  });
   let release!: () => void;
   const pending = new Promise<void>((resolve) => {
     release = resolve;
@@ -762,7 +839,7 @@ for (const scenario of [
     });
     await page.goto(
       scenario === "box-files"
-        ? "/boxes/box-1"
+        ? "/boxes/id/box-1"
         : scenario === "mobile"
           ? "/files"
           : "/",
@@ -1032,7 +1109,7 @@ for (const mobile of [false, true]) {
     page,
   }, info) => {
     const errors = await prepare(page, { mobile });
-    await page.goto("/boxes/box-1");
+    await page.goto("/boxes/id/box-1");
     await expect(page.locator(".file-count")).toContainText("4");
     await page.getByRole("button", { name: "更多操作", exact: true }).click();
     await page
@@ -1410,15 +1487,17 @@ test("gallery-navigation-and-return", async ({ page }, info) => {
     "src",
     "/api/v1/files/file-1/content",
   );
-  const openImage = gallery.getByRole("link", { name: "在新标签页打开图片" });
+  await gallery.getByRole("button", { name: "更多操作", exact: true }).click();
+  const openImage = page.getByRole("menuitem", { name: "在新标签页打开图片" });
   await expect(openImage).toHaveAttribute(
     "href",
     "/api/v1/files/file-1/content",
   );
   await expect(openImage).toHaveAttribute("target", "_blank");
   await expect(
-    gallery.getByRole("link", { name: "下载原文件" }),
+    page.getByRole("menuitem", { name: "下载原文件" }),
   ).toHaveAttribute("href", "/api/v1/files/file-1/content?download=true");
+  await page.keyboard.press("Escape");
   await page.keyboard.press("ArrowRight");
   await expect(
     gallery.getByRole("heading", { name: "竖版证书.png", exact: true }),
@@ -1437,7 +1516,11 @@ test("gallery-navigation-and-return", async ({ page }, info) => {
   await expect(
     gallery.getByRole("heading", { name: "旅行记录.pdf", exact: true }),
   ).toBeVisible();
-  await expect(gallery.getByRole("link", { name: "下载原文件" })).toBeVisible();
+  await gallery.getByRole("button", { name: "更多操作", exact: true }).click();
+  await expect(
+    page.getByRole("menuitem", { name: "下载原文件" }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
   await capture(page, errors, info.title);
   await page.goBack();
   await expect(gallery).toHaveCount(0);
@@ -1692,9 +1775,17 @@ for (const mobile of [false, true]) {
     await page.route("**/api/v1/files?**", (route) =>
       route.fulfill({ json: { files: [] } }),
     );
-    await page.goto("/boxes/box-1");
+    await page.goto("/boxes/id/box-1");
     await page.getByRole("button", { name: "照片", exact: true }).click();
-    await expect(page).toHaveURL(/folder=photos/);
+    await expect(page).toHaveURL(
+      new RegExp(
+        "/boxes/2026-01-01_" +
+          encodeURIComponent(box.name) +
+          "/" +
+          encodeURIComponent("照片") +
+          "$",
+      ),
+    );
     await expect(
       page.getByRole("button", { name: "第一天", exact: true }),
     ).toBeVisible();
@@ -1809,7 +1900,7 @@ for (const mobile of [false, true]) {
         },
       }),
     );
-    await page.goto("/boxes/box-1");
+    await page.goto("/boxes/id/box-1");
     await expect(page.getByText("已暂停，服务端已确认 40%。")).toBeVisible();
     await expect(
       page.locator("button").filter({ hasText: "重新选择原文件" }),
@@ -1832,7 +1923,7 @@ for (const mobile of [false, true]) {
 
 test("box-file-actions-compact", async ({ page }, info) => {
   const errors = await prepare(page);
-  await page.goto("/boxes/box-1");
+  await page.goto("/boxes/id/box-1");
   await grid(page);
   await expect(page.locator(".upload-panel")).toBeHidden();
   await expect(page.getByText(box.description!, { exact: true })).toBeVisible();
@@ -1886,7 +1977,7 @@ for (const [mode, mobile] of [
         },
       }),
     );
-    await page.goto("/boxes/box-1");
+    await page.goto("/boxes/id/box-1");
     await grid(page, mode === "list" ? 0 : 4);
     const entries = page.locator(".file-card");
     await expect(entries.first()).toHaveAccessibleName("旅行文档");
@@ -2036,9 +2127,14 @@ test("pdf-reader-unavailable", async ({ page }, info) => {
     ),
   ).toBeVisible();
   await expect(page.locator(".pdf-viewport")).toBeHidden();
+  await page
+    .getByRole("region", { name: "画廊", exact: true })
+    .getByRole("button", { name: "更多操作", exact: true })
+    .click();
   await expect(
-    page.getByRole("link", { name: "在新标签页打开 PDF" }),
+    page.getByRole("menuitem", { name: "在新标签页打开 PDF" }),
   ).toBeVisible();
+  await page.keyboard.press("Escape");
   await capture(page, errors, info.title);
 });
 
@@ -2066,7 +2162,10 @@ for (const mode of ["light", "dark"] as const) {
     await expect(page.locator(".gallery-details")).toHaveCount(0);
     await page.mouse.move(200, 100);
     await expect(toggle).toHaveCSS("opacity", "0");
-    await page.getByRole("link", { name: "下载原文件", exact: true }).focus();
+    await page
+      .getByRole("region", { name: "画廊", exact: true })
+      .getByRole("button", { name: "更多操作", exact: true })
+      .focus();
     await page.keyboard.press("Tab");
     await expect(toggle).toBeFocused();
     await expect(toggle).toHaveCSS("opacity", "1");
@@ -2142,8 +2241,12 @@ for (const word of ["doc", "docx", "ppt", "pptx"] as const) {
     );
     const reader = page.locator(".pdf-reader");
     await expect(reader).toBeVisible();
+    await page
+      .getByRole("region", { name: "画廊", exact: true })
+      .getByRole("button", { name: "更多操作", exact: true })
+      .click();
     await expect(
-      page.getByRole("link", { name: "在新标签页打开 PDF" }),
+      page.getByRole("menuitem", { name: "在新标签页打开 PDF" }),
     ).toHaveAttribute(
       "href",
       new RegExp(
@@ -2151,8 +2254,9 @@ for (const word of ["doc", "docx", "ppt", "pptx"] as const) {
       ),
     );
     await expect(
-      page.getByRole("link", { name: "下载原文件" }),
+      page.getByRole("menuitem", { name: "下载原文件" }),
     ).toHaveAttribute("href", /file-3\/content.*download/);
+    await page.keyboard.press("Escape");
     await expect(
       page.locator('.pdfViewer .page[data-page-number="1"] .textLayer'),
     ).toContainText("Kist PDF first page");
@@ -2190,7 +2294,7 @@ async function openReaderFromThumbnail(
     await pending;
     await route.fallback();
   });
-  await page.goto("/boxes/box-1");
+  await page.goto("/boxes/id/box-1");
   await expect(page.locator(".file-count")).toContainText("4");
   // Bring the virtualized grid into view before waiting for an offscreen row.
   await page.locator(".file-scroll").scrollIntoViewIfNeeded();
@@ -2515,7 +2619,7 @@ for (const kind of ["boxes", "files"] as const) {
     const errors = await prepare(page, {
       mode: kind === "files" ? "dark" : "light",
     });
-    await page.goto(kind === "boxes" ? "/" : "/boxes/box-1");
+    await page.goto(kind === "boxes" ? "/" : "/boxes/id/box-1");
     if (kind === "boxes")
       await expect(page.locator(".box-card")).toHaveCount(2);
     else await grid(page);
@@ -2613,8 +2717,8 @@ for (const kind of ["box", "file", "folder", "breadcrumb"] as const) {
       kind === "box"
         ? "/"
         : kind === "breadcrumb"
-          ? "/boxes/box-1?folder=folder-child"
-          : "/boxes/box-1",
+          ? "/boxes/id/box-1?folder=folder-child"
+          : "/boxes/id/box-1",
     );
     if (kind === "box") {
       const card = page.locator('.box-card[data-item-id="box-1"]');
@@ -2666,7 +2770,13 @@ for (const kind of ["box", "file", "folder", "breadcrumb"] as const) {
       } else
         await expect(
           page.getByRole("menuitem", { name: "在新标签页打开", exact: true }),
-        ).toHaveAttribute("href", "/files?file=file-1");
+        ).toHaveAttribute(
+          "href",
+          "/boxes/2026-01-01_" +
+            encodeURIComponent(box.name) +
+            "/" +
+            encodeURIComponent(files[0].name),
+        );
     }
     await capture(page, errors, info.title);
   });
@@ -2677,7 +2787,7 @@ for (const mobile of [false, true]) {
     page,
   }, info) => {
     const errors = await prepare(page, { mobile, empty: true });
-    await page.goto("/boxes/box-1");
+    await page.goto("/boxes/id/box-1");
     await expect(page.locator(".file-empty-state")).toBeVisible();
     const header = (await page.locator(".page-header").boundingBox())!;
     const actions = (await page.locator(".header-actions").boundingBox())!;
@@ -2711,7 +2821,7 @@ test("file-tags-dialog", async ({ page }, info) => {
 
 test("box-tags-dialog", async ({ page }, info) => {
   const errors = await prepare(page, { mode: "dark" });
-  await page.goto("/boxes/box-1");
+  await page.goto("/boxes/id/box-1");
   await grid(page);
   const main = page.locator("main");
   const bounds = await main.boundingBox();
@@ -2866,7 +2976,7 @@ test("fileset-extraction-members", async ({ page }, info) => {
       },
     }),
   );
-  await page.goto("/boxes/box-1");
+  await page.goto("/boxes/id/box-1");
   await expect(
     page.getByRole("button", { name: "读取元数据", exact: true }),
   ).toBeVisible();
@@ -2881,7 +2991,7 @@ for (const mobile of [false, true]) {
     page,
   }, info) => {
     const errors = await prepareFileset(page, mobile);
-    await page.goto("/boxes/box-1?file=folder-set");
+    await page.goto("/boxes/id/box-1?file=folder-set");
     const preview = page.getByRole("region", { name: "文件组合预览" });
     await expect(preview).toBeVisible();
     await expect(preview.getByRole("status", { name: "页码" })).toHaveText(
@@ -2897,7 +3007,7 @@ for (const mobile of [false, true]) {
 }
 test("fileset-editor", async ({ page }, info) => {
   const errors = await prepareFileset(page);
-  await page.goto("/boxes/box-1?file=folder-set");
+  await page.goto("/boxes/id/box-1?file=folder-set");
   await page.getByRole("button", { name: "更多操作", exact: true }).click();
   await page
     .getByRole("menuitem", { name: "配置文件组合", exact: true })
@@ -2912,7 +3022,7 @@ test("fileset-editor", async ({ page }, info) => {
 
 test("fileset-grid", async ({ page }, info) => {
   const errors = await prepareFileset(page);
-  await page.goto("/boxes/box-1");
+  await page.goto("/boxes/id/box-1");
   await expect(page.locator(".file-count")).toContainText("1");
   await expect(page.locator(".fileset-indicator")).toBeVisible();
   await capture(page, errors, info.title);
@@ -2979,7 +3089,7 @@ test("fileset-gallery-navigation", async ({ page }, info) => {
       },
     }),
   );
-  await page.goto("/boxes/box-1?file=file-1");
+  await page.goto("/boxes/id/box-1?file=file-1");
   await expect(page.locator(".gallery")).toBeVisible();
   await page.getByRole("button", { name: "下一个文件", exact: true }).click();
   await expect(page).toHaveURL(/file=folder-set/);
@@ -3553,7 +3663,14 @@ for (const panel of [
           .click();
       if (!historyUndo) await expect(dialog).toContainText("旅行记录");
       await expect(dialog).toContainText("远端操作 #42");
-    } else await expect(dialog).toContainText("本机待提交修改 · 1");
+    } else {
+      await expect(
+        dialog.locator("#sync-status .client-pending-item"),
+      ).toHaveCount(1);
+      await expect(
+        dialog.locator("#sync-status .client-pending-item"),
+      ).toContainText("01a15921-bef1-76e5-bddc-7c6b1024ff5b");
+    }
     await capture(page, errors, info.title);
   });
 }
@@ -4004,5 +4121,66 @@ for (const scenario of [
     if (client)
       await settings.getByRole("link", { name: "存储", exact: true }).click();
     await capture(page, errors, info.title);
+  });
+}
+
+for (const variant of ["light", "dark", "mobile"] as const) {
+  test(`file-more-actions-${variant}`, async ({ page }, info) => {
+    const errors = await prepare(page, {
+      mode: variant === "dark" ? "dark" : "light",
+      mobile: variant === "mobile",
+    });
+    await page
+      .context()
+      .grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.goto("/files");
+    await grid(page, variant === "mobile" ? 2 : 4);
+    await page.getByRole("button", { name: /山间清晨.jpg/ }).click();
+    const gallery = page.getByRole("region", { name: "画廊", exact: true });
+    await expect(gallery).toBeVisible();
+    const readable =
+      "/boxes/2026-01-01_" +
+      encodeURIComponent(box.name) +
+      "/" +
+      encodeURIComponent(files[0].name);
+    await expect(page).toHaveURL(new RegExp(readable + "$"));
+    const trigger = gallery.getByRole("button", {
+      name: "更多操作",
+      exact: true,
+    });
+    await trigger.focus();
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("menuitem", { name: "在新标签页打开图片" }),
+    ).toHaveAttribute("target", "_blank");
+    await expect(
+      page.getByRole("menuitem", { name: "下载原文件", exact: true }),
+    ).toHaveAttribute("href", "/api/v1/files/file-1/content?download=true");
+    await page.getByRole("menuitem", { name: "复制链接", exact: true }).click();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+      new URL(readable, page.url()).href,
+    );
+    await page
+      .getByRole("menuitem", { name: "复制永久链接", exact: true })
+      .click();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+      new URL("/files?file=file-1", page.url()).href,
+    );
+    await capture(page, errors, info.title);
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    await expect(gallery).toBeVisible();
+    await expect(trigger).toBeFocused();
+    await trigger.click();
+    await page
+      .getByRole("menuitem", { name: "切换到永久链接", exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/files\?file=file-1$/);
+    await page.reload();
+    await expect(
+      gallery.getByRole("heading", { name: "山间清晨.jpg", exact: true }),
+    ).toBeVisible();
+    await expect(page).toHaveURL(/\/files\?file=file-1$/);
+    expect(errors).toEqual([]);
   });
 }

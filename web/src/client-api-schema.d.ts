@@ -727,6 +727,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/navigation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 navigation */
+        get: operations["get-api-v1-navigation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ops": {
         parameters: {
             query?: never;
@@ -1928,6 +1945,14 @@ export interface components {
         };
         MoveTagInputBody: {
             parent_id: string | null;
+        };
+        NavigationLocation: {
+            box: string;
+            file?: string;
+            folder?: string;
+            kind: string;
+            path: string;
+            view?: string;
         };
         NewSyncCredential: {
             /** Format: date-time */
@@ -4240,6 +4265,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MapProvider"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-navigation": {
+        parameters: {
+            query?: {
+                /** @description Escaped readable pathname, decoded once per component */
+                path?: string;
+                box?: string;
+                folder?: string;
+                /** @description File or fileset identity */
+                file?: string;
+                view?: "folder";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NavigationLocation"];
                 };
             };
             /** @description Error */

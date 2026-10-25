@@ -1,3 +1,5 @@
+import { MoreActionsMenu } from "./MoreActionsMenu";
+import { ObjectLinkMenuItems } from "./ObjectLinkMenuItems";
 import { ClientConnectionStatus } from "./ClientConnectionStatus";
 import { useBoxCover } from "./BoxCover";
 import { WriteFeedback } from "./mutations";
@@ -36,7 +38,7 @@ import {
 import { FileBrowser } from "./FileBrowser";
 import { Gallery } from "./Gallery";
 import { FilesetFolderLink } from "./Filesets";
-import { useNavigation } from "./navigation";
+import { useResolvedNavigation } from "./navigation";
 import { errorMessage } from "./mutations";
 import { HistoryPage } from "./History";
 import { NavigationIcon } from "./NavigationIcon";
@@ -48,7 +50,8 @@ import {
 export function App() {
   const { t, prefs } = useI18n();
   const { appearance, setAppearance } = useTheme();
-  const { route, go } = useNavigation();
+  const navigation = useResolvedNavigation();
+  const { route, go } = navigation;
   const [actionsHost, setActionsHost] = useState<HTMLSpanElement | null>(null);
   const [infoHost, setInfoHost] = useState<HTMLDivElement | null>(null);
   const [fileToolbarHost, setFileToolbarHost] =
@@ -167,6 +170,17 @@ export function App() {
   );
   if (info.isPending && !initialPrimaryColor())
     return <p role="status">{t("loading")}</p>;
+  if (navigation.pending) return <p role="status">{t("loading")}</p>;
+  if (navigation.error)
+    return (
+      <main>
+        <p role="alert">{errorMessage(navigation.error, t)}</p>
+        <Button onClick={() => navigation.retry()}>{t("retry")}</Button>
+        <Button component="a" href="/">
+          {t("archiveRoot")}
+        </Button>
+      </main>
+    );
   return (
     <>
       <WriteFeedback state={cover} />
@@ -423,34 +437,18 @@ export function App() {
                   </ActionIcon>
                 </Tooltip>
                 {!route.section && selected && (
-                  <Menu position="bottom-end" withinPortal>
-                    <Menu.Target>
-                      <Tooltip
-                        label={t("moreActions")}
-                        events={{ hover: true, focus: true, touch: false }}
-                      >
-                        <ActionIcon
-                          size="lg"
-                          variant="subtle"
-                          color="gray"
-                          aria-label={t("moreActions")}
-                        >
-                          <svg
-                            width="20"
-                            height="20"
-                            viewBox="0 0 24 24"
-                            fill="currentColor"
-                            aria-hidden="true"
-                          >
-                            <circle cx="5" cy="12" r="1.7" />
-                            <circle cx="12" cy="12" r="1.7" />
-                            <circle cx="19" cy="12" r="1.7" />
-                          </svg>
-                        </ActionIcon>
-                      </Tooltip>
-                    </Menu.Target>
-                    <Menu.Dropdown>{boxManagementActions}</Menu.Dropdown>
-                  </Menu>
+                  <MoreActionsMenu>
+                    {boxManagementActions}
+                    <Menu.Divider />
+                    <ObjectLinkMenuItems
+                      target={{
+                        files: true,
+                        box: route.box,
+                        folder: route.folder,
+                      }}
+                      switchAddress
+                    />
+                  </MoreActionsMenu>
                 )}
               </div>
             </header>
@@ -725,6 +723,7 @@ export function App() {
       </div>
       {route.file && !route.section && (
         <Gallery
+          navigation={route}
           box={route.box}
           folder={queryFolder}
           filters={

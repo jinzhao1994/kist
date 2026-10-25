@@ -1,3 +1,7 @@
+import { MoreActionsMenu } from "./MoreActionsMenu";
+import { ObjectLinkMenuItems, useObjectLink } from "./ObjectLinkMenuItems";
+import { OfflineMenuItem } from "./OfflineMenuItem";
+import type { Route } from "./navigation";
 import { OfflineEntry, useClientMode } from "./OfflineEntry";
 import {
   useFilesets,
@@ -11,9 +15,8 @@ import {
 import { DialogPresence } from "./Dialog";
 import type { components } from "./api-schema";
 import { folderChain } from "./Folders";
-import { routeURL } from "./navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, UnstyledButton, Menu, ActionIcon } from "@mantine/core";
+import { Button, UnstyledButton, Menu } from "@mantine/core";
 import { useFocusTrap } from "@mantine/hooks";
 import { useQuery } from "@tanstack/react-query";
 import { api, get, contentURL, type Tag, type ArchiveFile } from "./api";
@@ -31,6 +34,7 @@ import { useGalleryMotion } from "./galleryMotion";
 import { errorMessage } from "./mutations";
 
 export function Gallery({
+  navigation,
   id,
   box,
   folder,
@@ -42,6 +46,7 @@ export function Gallery({
   page,
   changePage,
 }: {
+  navigation?: Route;
   id: string;
   page?: string;
   changePage?: (page: string) => void;
@@ -228,6 +233,7 @@ export function Gallery({
         onKeyDown={(event) => {
           if (
             editing ||
+            (event.target as HTMLElement).closest("[role=menu]") ||
             event.defaultPrevented ||
             event.altKey ||
             event.ctrlKey ||
@@ -287,56 +293,61 @@ export function Gallery({
                 {owner.name}
               </Button>
             ))}
-            {clientMode && data && (
-              <Button onClick={() => setOffline(true)}>
-                {t("clientKeepOffline")}
-              </Button>
-            )}
-            {!set && data && <OpenMediaButton file={data.file} />}
-            {!set && data && (
-              <Button component="a" href={contentURL(data.file, true)} download>
-                {t("download")}
-              </Button>
-            )}
-            {set && (
-              <Menu position="bottom-end">
-                <Menu.Target>
-                  <ActionIcon
-                    variant="default"
-                    size="lg"
-                    aria-label={t("moreActions")}
-                  >
-                    <span aria-hidden="true">⋯</span>
-                  </ActionIcon>
-                </Menu.Target>
-                <Menu.Dropdown>
+            <MoreActionsMenu>
+              {clientMode && (data || set) && (
+                <OfflineMenuItem
+                  target={{
+                    id,
+                    name:
+                      combination.data?.folder.name || data?.file.name || "",
+                    fileset: !!set,
+                  }}
+                  prepare={() => setOffline(true)}
+                />
+              )}
+              {set && (
+                <>
                   <Menu.Item
                     disabled={!combination.data}
                     onClick={() => setEditing(true)}
                   >
                     {t("filesetConfigure")}
                   </Menu.Item>
-                  <Menu.Item
-                    disabled={!combination.data}
-                    component="a"
-                    href={
-                      combination.data
-                        ? routeURL({
-                            files: true,
-                            box: combination.data.box_id,
-                            folder: id,
-                          })
-                        : undefined
-                    }
-                  >
-                    {t("filesetShowMembers")}
-                  </Menu.Item>
+                  <FilesetMembersMenuItem id={id} />
                   <Menu.Item onClick={() => history(id)}>
                     {t("filesetConfigHistory")}
                   </Menu.Item>
-                </Menu.Dropdown>
-              </Menu>
-            )}
+                  <Menu.Divider />
+                  <Menu.Label>
+                    {t(isPages ? "currentPage" : "filesetPrimary")}
+                  </Menu.Label>
+                </>
+              )}
+              {data && (
+                <>
+                  <OpenMediaButton file={data.file} menu />
+                  <Menu.Item
+                    component="a"
+                    href={contentURL(data.file, true)}
+                    download
+                  >
+                    {t(
+                      set
+                        ? isPages
+                          ? "downloadCurrentPage"
+                          : "downloadPrimaryFile"
+                        : "download",
+                    )}
+                  </Menu.Item>
+                </>
+              )}
+              <Menu.Divider />
+              {set && <Menu.Label>{t("combinationLinks")}</Menu.Label>}
+              <ObjectLinkMenuItems
+                target={{ ...navigation, files: true, file: id, page }}
+                switchAddress
+              />
+            </MoreActionsMenu>
           </div>
         </header>
         <div className="gallery-body">
@@ -552,5 +563,15 @@ export function Gallery({
         )}
       </DialogPresence>
     </>
+  );
+}
+
+function FilesetMembersMenuItem({ id }: { id: string }) {
+  const { t } = useI18n();
+  const link = useObjectLink({ files: true, folder: id });
+  return (
+    <Menu.Item component="a" href={link.href} disabled={!link.href}>
+      {t("filesetShowMembers")}
+    </Menu.Item>
   );
 }
