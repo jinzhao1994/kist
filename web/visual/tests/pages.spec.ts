@@ -1544,6 +1544,14 @@ test("gallery-navigation-and-return", async ({ page }, info) => {
 
 test("gallery-pagination", async ({ page }, info) => {
   const errors = await prepare(page);
+  let releaseRevision: () => void = () => {};
+  const revisionReady = new Promise<void>((resolve) => {
+    releaseRevision = resolve;
+  });
+  await page.route("**/api/v1/catalog-revision", async (route) => {
+    await revisionReady;
+    return route.fulfill({ json: { revision: "fixture-catalog" } });
+  });
   let release: () => void = () => {};
   const ready = new Promise<void>((resolve) => {
     release = resolve;
@@ -1561,6 +1569,11 @@ test("gallery-pagination", async ({ page }, info) => {
   await page.goto("/files?file=file-2");
   const gallery = page.getByRole("region", { name: "画廊", exact: true });
   await expect(gallery.locator(".gallery-loading")).toHaveText("正在加载…");
+  await expect.poll(() => next).toBe(1);
+  // A late initial catalog check invalidates the first prefetch. Wait for its
+  // replacement before checking that navigation shares the in-flight request.
+  releaseRevision();
+  await expect.poll(() => next).toBe(2);
   await gallery.getByRole("button", { name: "下一个文件" }).click();
   release();
   await expect(
@@ -1570,7 +1583,7 @@ test("gallery-pagination", async ({ page }, info) => {
     gallery.getByRole("button", { name: "下一个文件" }),
   ).toBeDisabled();
   await expect(gallery.locator("nav [role=status]")).toHaveText("3 / 3");
-  expect(next).toBe(1);
+  expect(next).toBe(2);
   await expect(gallery.locator(".pdf-reader")).toBeVisible();
   await capture(page, errors, info.title);
 });
