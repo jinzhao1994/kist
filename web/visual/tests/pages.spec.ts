@@ -665,6 +665,35 @@ async function grid(page: Page, expectedImages = 4) {
     )
     .toBe(true);
 }
+test("theme-initial-loading", async ({ page }, info) => {
+  const errors = await prepare(page, { primaryColor: "pink" });
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/api/v1/info", async (route) => {
+    await pending;
+    await route.fallback();
+  });
+  await page.goto("/files");
+  await expect(page.getByRole("status")).toHaveText("正在加载…");
+  await expect(page.locator(".app-shell")).toHaveCount(0);
+  await capture(page, errors, info.title);
+  release();
+  await grid(page);
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const style = getComputedStyle(document.documentElement);
+        return (
+          style.getPropertyValue("--mantine-primary-color-filled") ===
+          style.getPropertyValue("--mantine-color-pink-filled")
+        );
+      }),
+    )
+    .toBe(true);
+});
+
 for (const primaryColor of colors) {
   for (const mode of ["light", "dark"] as const) {
     test(`grid-${primaryColor}-${mode}`, async ({ page }, info) => {

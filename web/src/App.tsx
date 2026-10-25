@@ -9,7 +9,7 @@ import {
   Menu,
   Tooltip,
 } from "@mantine/core";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Box } from "./api";
 import { FolderBreadcrumbs, folderChain } from "./Folders";
@@ -110,7 +110,7 @@ export function App() {
     queryKey: ["info"],
     queryFn: ({ signal }) => api.info(signal),
   });
-  useEffect(() => {
+  useLayoutEffect(() => {
     const color = info.data?.primary_color;
     if (
       color &&
@@ -165,6 +165,7 @@ export function App() {
       </Menu.Item>
     </>
   );
+  if (info.isPending) return <p role="status">{t("loading")}</p>;
   return (
     <>
       <WriteFeedback state={cover} />

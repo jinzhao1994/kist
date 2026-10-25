@@ -4,7 +4,15 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App } from "./App";
 import { I18nProvider, storageKey } from "./i18n";
-import { ThemeProvider } from "./theme";
+import { ThemeProvider, useTheme } from "./theme";
+function ThemeProbe() {
+  const { appearance } = useTheme();
+  return (
+    <span data-testid="active-color" hidden>
+      {appearance.primaryColor}
+    </span>
+  );
+}
 function mount() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -14,6 +22,7 @@ function mount() {
       <ThemeProvider env="test">
         <I18nProvider>
           <App />
+          <ThemeProbe />
         </I18nProvider>
       </ThemeProvider>
     </QueryClientProvider>,
@@ -53,7 +62,7 @@ it("keeps committed searches in the list URL and restores empty history entries"
   const view = mount();
   const user = userEvent.setup();
   await user.type(
-    screen.getByRole("combobox", { name: "Search or add a condition…" }),
+    await screen.findByRole("combobox", { name: "Search or add a condition…" }),
     "travel{Enter}{Escape}",
   );
   const filteredURL = location.href;
@@ -81,7 +90,9 @@ it("renders an empty archive and persists independent language, locale and RTL c
   expect(
     await screen.findByText("A place for the things you want to keep."),
   ).toBeVisible();
-  const settings = screen.getByRole("button", { name: "Display settings" });
+  const settings = await screen.findByRole("button", {
+    name: "Display settings",
+  });
   await user.click(settings);
   expect(screen.getByRole("dialog")).toBeVisible();
   await user.click(screen.getByRole("combobox", { name: "Language" }));
@@ -105,7 +116,9 @@ it("renders an empty archive and persists independent language, locale and RTL c
 it("closes the dialog with Escape and restores keyboard focus", async () => {
   mount();
   const user = userEvent.setup();
-  const settings = screen.getByRole("button", { name: "Display settings" });
+  const settings = await screen.findByRole("button", {
+    name: "Display settings",
+  });
   await user.click(settings);
   await user.keyboard("{Escape}");
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -496,5 +509,31 @@ it("opens a folder's combination in its parent list and returns there after relo
         new URL(path, "http://localhost").searchParams.get("folder") === "root",
     ),
   ).toBe(true);
+  view.unmount();
+});
+
+it("waits for the instance color before showing the application shell", async () => {
+  const originalFetch = globalThis.fetch;
+  let resolve!: (response: Response) => void;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string, options?: RequestInit) =>
+      path.endsWith("/info")
+        ? new Promise<Response>((done) => {
+            resolve = done;
+          })
+        : originalFetch(path, options),
+    ),
+  );
+  const view = mount();
+  expect(screen.getByRole("status")).toHaveTextContent("Loading");
+  expect(view.container.querySelector(".app-shell")).toBeNull();
+  resolve(
+    Response.json({ version: "test", timezone: "UTC", primary_color: "pink" }),
+  );
+  expect(
+    await screen.findByRole("button", { name: "Display settings" }),
+  ).toBeVisible();
+  expect(screen.getByTestId("active-color")).toHaveTextContent("pink");
   view.unmount();
 });
