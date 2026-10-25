@@ -22,7 +22,10 @@ beforeEach(() => {
     }),
   );
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 function mount(content: React.ReactNode) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -120,4 +123,49 @@ it("clears connection state and reports unconfirmed revocation", async () => {
     expect(screen.queryByText(/reader@example.test/)).not.toBeInTheDocument(),
   );
   expect(screen.getByRole("status")).toBeVisible();
+});
+
+it("opens ChatGPT from the initial click and detaches the new tab", async () => {
+  const replace = vi.fn();
+  const popup = {
+    opener: window,
+    closed: false,
+    location: { replace },
+    close: vi.fn(),
+  };
+  const open = vi
+    .spyOn(window, "open")
+    .mockReturnValue(popup as unknown as Window);
+  let pending = false;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string) => {
+      if (path.endsWith("/connect")) {
+        pending = true;
+        return Response.json({
+          url: "https://auth.openai.com/authorize?state=test",
+        });
+      }
+      return Response.json({
+        supported: true,
+        connected: false,
+        pending,
+        email: "",
+        error: "",
+      });
+    }),
+  );
+  mount(<AIConnection />);
+  const button = await screen.findByRole("button", {
+    name: "Continue with ChatGPT",
+  });
+  await waitFor(() => expect(button).toBeEnabled());
+  await userEvent.click(button);
+  expect(open).toHaveBeenCalledWith("about:blank", "_blank");
+  await waitFor(() =>
+    expect(replace).toHaveBeenCalledWith(
+      "https://auth.openai.com/authorize?state=test",
+    ),
+  );
+  expect(popup.opener).toBeNull();
 });

@@ -140,6 +140,7 @@ export function FileDetail({
       </dl>
       {ocr && <OCRText text={ocr.value} />}
       {!clientMode &&
+        !data.extracted?.includes("ocr") &&
         !ocr &&
         ["image/jpeg", "image/png", "image/webp"].includes(
           file.media_type || "",

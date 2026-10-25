@@ -49,13 +49,18 @@ export function AIConnection() {
   const [notice, setNotice] = useState("");
   const [url, setURL] = useState("");
   async function connect() {
+    // Open synchronously within the click gesture so popup blockers allow it.
+    const login = window.open("about:blank", "_blank");
+    if (login) login.opener = null;
     setBusy(true);
     setError("");
     setNotice("");
     try {
       const out = await post<{ url: string }>("/ai/connect");
       setURL(out.url);
+      if (login && !login.closed) login.location.replace(out.url);
     } catch (e) {
+      login?.close();
       setError(errorMessage(e, t));
     } finally {
       setBusy(false);
