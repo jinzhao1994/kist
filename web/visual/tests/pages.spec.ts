@@ -531,6 +531,7 @@ async function prepare(page: Page, options: Options = {}) {
         pending_download: 3,
         pending_upload: 2,
       };
+    else if (path === "/client/pending-history") body = { entries: [] };
     else if (path === "/catalog-revision")
       return route.fulfill({ json: { revision: "fixture-catalog" } });
     else if (path === "/info")
@@ -1570,6 +1571,7 @@ test("gallery-pagination", async ({ page }, info) => {
   ).toBeDisabled();
   await expect(gallery.locator("nav [role=status]")).toHaveText("3 / 3");
   expect(next).toBe(1);
+  await expect(gallery.locator(".pdf-reader")).toBeVisible();
   await capture(page, errors, info.title);
 });
 
@@ -4233,3 +4235,69 @@ test("catalog-external-changes", async ({ page }, info) => {
   ).toHaveCount(0);
   await capture(page, errors, info.title);
 });
+
+for (const scope of ["history", "trash"] as const) {
+  test(`offline-pending-${scope}`, async ({ page }, info) => {
+    const errors = await prepare(page);
+    await page.route("**/api/v1/info", (route) =>
+      route.fulfill({
+        json: {
+          client: true,
+          version: "visual",
+          timezone: "UTC",
+          projection_dirty: false,
+        },
+      }),
+    );
+    await page.route("**/api/v1/client/connection-status", (route) =>
+      route.fulfill({ json: { state: "unreachable", pending_upload: 4 } }),
+    );
+    await page.route("**/api/v1/client/status", (route) =>
+      route.fulfill({ json: { catalog: { complete: true }, pending: [] } }),
+    );
+    await page.route("**/api/v1/ops?**", (route) =>
+      route.fulfill({ json: { ops: [] } }),
+    );
+    await page.route("**/api/v1/client/pending-history?**", (route) =>
+      route.fulfill({
+        json: {
+          entries: [
+            {
+              id: "local-delete",
+              action: "delete_entry_contents",
+              occurred_at: time,
+              state: "pending",
+              origin: "user",
+              summary: { name: "旅行记录.pdf", count: 1 },
+            },
+            ...(scope === "history"
+              ? [
+                  {
+                    id: "local-upload",
+                    action: "import_files",
+                    occurred_at: time,
+                    state: "pending",
+                    origin: "user",
+                    summary: { name: "新照片.jpg", count: 1 },
+                  },
+                ]
+              : []),
+          ],
+        },
+      }),
+    );
+    await page.goto(`/${scope}`);
+    await expect(page.locator(".history-entry")).toHaveCount(
+      scope === "trash" ? 1 : 2,
+    );
+    await expect(
+      page.getByText("待上传 4 个操作", { exact: true }),
+    ).toBeVisible();
+    await expect(page.getByText(/待下载.*个操作/)).toHaveCount(0);
+    if (scope === "trash")
+      await expect(
+        page.getByRole("button", { name: "恢复", exact: true }),
+      ).toBeVisible();
+    await capture(page, errors, info.title);
+  });
+}

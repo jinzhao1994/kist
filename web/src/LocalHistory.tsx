@@ -11,7 +11,7 @@ import { errorMessage, useWrites, WriteFeedback } from "./mutations";
 type Entry = components["schemas"]["ClientLocalHistoryEntry"];
 type Detail = components["schemas"]["ClientLocalHistoryDetail"];
 type Page = { entries: Entry[]; before?: string };
-function stateLabel(state: Entry["state"], t: Translate) {
+export function stateLabel(state: Entry["state"], t: Translate) {
   const labels = {
     pending: "clientHistoryPending",
     awaiting_receipt: "clientHistoryAwaiting",
@@ -27,12 +27,16 @@ function stateLabel(state: Entry["state"], t: Translate) {
 export function LocalHistory({
   active,
   onLocked,
+  initialSelected,
+  restore = false,
 }: {
+  initialSelected?: string;
+  restore?: boolean;
   active: boolean;
   onLocked: (locked: boolean) => void;
 }) {
   const { t, prefs } = useI18n();
-  const [selected, setSelected] = useState<string>();
+  const [selected, setSelected] = useState<string | undefined>(initialSelected);
   const [confirm, setConfirm] = useState(false);
   const writes = useWrites(() => setConfirm(false));
   useEffect(() => {
@@ -47,7 +51,7 @@ export function LocalHistory({
         signal,
       ),
     getNextPageParam: (page) => page.before || undefined,
-    enabled: active,
+    enabled: active && !initialSelected,
   });
   const detail = useQuery({
     queryKey: ["client", "history", selected],
@@ -64,7 +68,7 @@ export function LocalHistory({
   const error = selected ? detail.error : list.error;
   return (
     <Stack gap="md">
-      {selected && (
+      {selected && !initialSelected && (
         <Group>
           <Button
             variant="subtle"
@@ -206,37 +210,40 @@ export function LocalHistory({
               </Button>
             </Group>
           )}
-          {(op.state === "pending" || op.state === "accepted") && (
-            <>
-              {confirm && <Text>{t("undoConfirm")}</Text>}
-              <Group>
-                <Button
-                  disabled={writes.busy || writes.locked}
-                  onClick={() =>
-                    confirm
-                      ? writes.run([
-                          createWrite(
-                            "POST",
-                            `/client/history/${encodeURIComponent(op.id)}/undo`,
-                            {},
-                          ),
-                        ])
-                      : setConfirm(true)
-                  }
-                >
-                  {t(writes.busy ? "saving" : "undo")}
-                </Button>
+          {(op.state === "pending" || op.state === "accepted") &&
+            !op.undone_by && (
+              <>
                 {confirm && (
+                  <Text>{t(restore ? "restoreConfirm" : "undoConfirm")}</Text>
+                )}
+                <Group>
                   <Button
                     disabled={writes.busy || writes.locked}
-                    onClick={() => setConfirm(false)}
+                    onClick={() =>
+                      confirm
+                        ? writes.run([
+                            createWrite(
+                              "POST",
+                              `/client/history/${encodeURIComponent(op.id)}/undo`,
+                              {},
+                            ),
+                          ])
+                        : setConfirm(true)
+                    }
                   >
-                    {t("cancel")}
+                    {t(writes.busy ? "saving" : restore ? "restore" : "undo")}
                   </Button>
-                )}
-              </Group>
-            </>
-          )}
+                  {confirm && (
+                    <Button
+                      disabled={writes.busy || writes.locked}
+                      onClick={() => setConfirm(false)}
+                    >
+                      {t("cancel")}
+                    </Button>
+                  )}
+                </Group>
+              </>
+            )}
           <WriteFeedback state={writes} />
         </>
       )}

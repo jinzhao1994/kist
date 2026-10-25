@@ -133,18 +133,15 @@ export function ClientConnectionStatus({ openSync }: { openSync: () => void }) {
           <span className="connection-label">{label}</span>
           {query.data && !query.data.syncing && (
             <span className="connection-counts">
-              {query.data?.pending_download !== 0 && (
-                <span>
-                  {t("clientDownloadCount", {
-                    count:
-                      !query.isError &&
-                      state === "connected" &&
-                      query.data?.pending_download != null
-                        ? query.data.pending_download
-                        : "—",
-                  })}
-                </span>
-              )}
+              {!query.isError &&
+                state === "connected" &&
+                (query.data.pending_download ?? 0) > 0 && (
+                  <span>
+                    {t("clientDownloadCount", {
+                      count: query.data.pending_download!,
+                    })}
+                  </span>
+                )}
               {query.data?.relay_updates && (
                 <span>{t("clientRelayUpdates")}</span>
               )}

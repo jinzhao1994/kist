@@ -2220,6 +2220,9 @@ main.upload-drag-active {
   margin: 0;
   border-top: 1px solid var(--border);
 }
+.history-page .history-list + .history-list {
+  border-top: 0;
+}
 .history-page .history-list > li {
   display: flex;
   align-items: center;

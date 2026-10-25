@@ -13,6 +13,7 @@ import (
 // Resolved intents remain addressable; only an actual receipt supplies an OpID.
 type ClientLocalHistoryEntry struct {
 	ID         string          `json:"id"`
+	UndoneBy   *SyncReference  `json:"undone_by,omitempty"`
 	OccurredAt time.Time       `json:"occurred_at"`
 	Action     string          `json:"action"`
 	Origin     string          `json:"origin"`
@@ -174,6 +175,19 @@ func (c *Client) localHistoryEntry(entry pendingEntry, view clientOverlay) (Clie
 		}
 	case entry.Upstream != nil || entry.Forwarded != nil:
 		item.State = "awaiting_root"
+	}
+	for id, ref := range view.References {
+		if ref.LocalID == p.ID || (item.Receipt != nil && ref.OpID == item.Receipt.OpID) {
+			by, found, err := store.RevertedBy(c.db, id)
+			if err != nil {
+				return item, err
+			}
+			if found {
+				reference := view.References[by]
+				item.UndoneBy = &reference
+			}
+			break
+		}
 	}
 	return item, nil
 }

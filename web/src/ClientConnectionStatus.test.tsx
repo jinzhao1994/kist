@@ -74,9 +74,14 @@ it.each([
     </QueryClientProvider>,
   );
   expect(await screen.findByText(label)).toBeInTheDocument();
-  expect(screen.getByRole("status")).toHaveTextContent(
-    `${state === "connected" ? 3 : "—"} operations to download`,
-  );
+  if (state === "connected")
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "3 operations to download",
+    );
+  else
+    expect(screen.getByRole("status")).not.toHaveTextContent(
+      "operations to download",
+    );
   expect(screen.getByRole("status")).toHaveTextContent(
     "2 operations to upload",
   );

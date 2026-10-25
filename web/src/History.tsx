@@ -1,3 +1,4 @@
+import { PendingHistory } from "./PendingHistory";
 import { Button, UnstyledButton, TextInput } from "@mantine/core";
 import { useEffect, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
@@ -47,6 +48,7 @@ export function HistoryPage({
   file,
   fileset,
   trash,
+  client = false,
   boxes,
   scope,
 }: {
@@ -54,10 +56,12 @@ export function HistoryPage({
   file?: string;
   fileset?: string;
   trash?: boolean;
+  client?: boolean;
   boxes: Box[];
   scope: (box?: string, file?: string) => void;
 }) {
   const { t, prefs } = useI18n();
+  const [localEmpty, setLocalEmpty] = useState(false);
   const [selected, setSelected] = useState<number>();
   const [restoreRequested, setRestoreRequested] = useState(false);
   const [snapshot, setSnapshot] = useState<{ box: string; op: number }>();
@@ -127,72 +131,87 @@ export function HistoryPage({
       {query.isError && (
         <QueryError error={query.error} retry={query.refetch} />
       )}
-      {query.isSuccess && !ops.length && (
+      {client && (
+        <PendingHistory
+          box={box}
+          file={file}
+          fileset={fileset}
+          trash={trash}
+          onEmpty={setLocalEmpty}
+        />
+      )}
+      {query.isSuccess && !ops.length && (!client || localEmpty) && (
         <div className="history-empty">
           <NavigationIcon kind={trash ? "trash" : "history"} />
           <p>{t(trash ? "trashEmpty" : "historyEmpty")}</p>
         </div>
       )}
-      <ol className="history-list">
-        {ops.map((op) => (
-          <li key={op.id}>
-            <UnstyledButton
-              className="history-entry"
-              onClick={() => {
-                setRestoreRequested(false);
-                setSelected(op.id);
-              }}
-            >
-              {trash ? (
-                <NavigationIcon kind="trash" />
-              ) : (
-                <span className="history-number">#{op.id}</span>
-              )}
-              <span>
-                <HistoryDescription id={op.id} action={op.action} />
-                <small>
-                  {formatInstant(op.ts, prefs)}
-                  {trash && (
-                    <>
-                      {" "}
-                      · <span>#{op.id}</span>
-                    </>
-                  )}
-                </small>
-              </span>
-              <span className="history-status">
-                {op.undone_by
-                  ? t("undoneBy", { id: op.undone_by })
-                  : op.reverts_id
-                    ? t("reverts", { id: op.reverts_id })
-                    : ""}
-              </span>
-            </UnstyledButton>
-            {trash && (
-              <Button
-                variant="subtle"
-                disabled={!op.undoable || !!op.undone_by}
+      {ops.length > 0 && (
+        <ol className="history-list">
+          {ops.map((op) => (
+            <li key={op.id}>
+              <UnstyledButton
+                className="history-entry"
                 onClick={() => {
-                  setRestoreRequested(true);
+                  setRestoreRequested(false);
                   setSelected(op.id);
                 }}
               >
-                {t("restore")}
-              </Button>
-            )}
-            {file && (
-              <UnstyledButton
-                className="text-button history-compare"
-                onClick={() =>
-                  setVersions({ file, from: Math.max(0, op.id - 1), to: op.id })
-                }
-              >
-                {t("compareVersions")}
+                {trash ? (
+                  <NavigationIcon kind="trash" />
+                ) : (
+                  <span className="history-number">#{op.id}</span>
+                )}
+                <span>
+                  <HistoryDescription id={op.id} action={op.action} />
+                  <small>
+                    {formatInstant(op.ts, prefs)}
+                    {trash && (
+                      <>
+                        {" "}
+                        · <span>#{op.id}</span>
+                      </>
+                    )}
+                  </small>
+                </span>
+                <span className="history-status">
+                  {op.undone_by
+                    ? t("undoneBy", { id: op.undone_by })
+                    : op.reverts_id
+                      ? t("reverts", { id: op.reverts_id })
+                      : ""}
+                </span>
               </UnstyledButton>
-            )}
-          </li>
-        ))}
-      </ol>
+              {trash && (
+                <Button
+                  variant="subtle"
+                  disabled={!op.undoable || !!op.undone_by}
+                  onClick={() => {
+                    setRestoreRequested(true);
+                    setSelected(op.id);
+                  }}
+                >
+                  {t("restore")}
+                </Button>
+              )}
+              {file && (
+                <UnstyledButton
+                  className="text-button history-compare"
+                  onClick={() =>
+                    setVersions({
+                      file,
+                      from: Math.max(0, op.id - 1),
+                      to: op.id,
+                    })
+                  }
+                >
+                  {t("compareVersions")}
+                </UnstyledButton>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
       {query.hasNextPage && (
         <Button
           disabled={query.isFetchingNextPage}

@@ -31,6 +31,23 @@ func (c *Client) History(ctx context.Context, opt ListOpsOptions) ([]HistoryEntr
 		entries, before, err = readHistory(ctx, v.Queryer(), opt)
 		return err
 	})
+	if err == nil && opt.Unreverted {
+		// A local restore already removes a confirmed deletion from this client's trash.
+		err = c.readView(ctx, func(tx *store.ViewTx) error {
+			kept := entries[:0]
+			for _, entry := range entries {
+				_, reverted, err := store.RevertedBy(tx.Queryer(), entry.ID)
+				if err != nil {
+					return err
+				}
+				if !reverted {
+					kept = append(kept, entry)
+				}
+			}
+			entries = kept
+			return nil
+		})
+	}
 	return entries, before, err
 }
 

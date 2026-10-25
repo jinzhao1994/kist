@@ -13,6 +13,7 @@ type clientLocalHistoryList struct {
 }
 
 func (s *Server) clientLocalHistoryRoutes() {
+	s.clientPendingHistoryRoute()
 	huma.Get(s.contract, Prefix+"/client/history", func(ctx context.Context, in *struct {
 		Before string `query:"before" maxLength:"256"`
 		Limit  int    `query:"limit" minimum:"0" maximum:"1000"`

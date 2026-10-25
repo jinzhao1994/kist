@@ -31,6 +31,19 @@ func TestClientLocalHistoryAndUndoKeepIndependentIdentities(t *testing.T) {
 		t.Fatal(history)
 	}
 	localID := history.Entries[0].ID
+	pending := decodeBody[clientLocalHistoryList](t, s, "/client/pending-history")
+	if len(pending.Entries) != 1 || pending.Entries[0].ID != localID {
+		t.Fatal(pending)
+	}
+	emptyTrash := decodeBody[clientLocalHistoryList](t, s, "/client/pending-history?trash=true")
+	if len(emptyTrash.Entries) != 0 {
+		t.Fatal(emptyTrash)
+	}
+	for _, scope := range []string{"box", "file", "fileset"} {
+		if got := call(s, "GET", Prefix+"/client/pending-history?"+scope+"=invalid", "", ""); got.Code != 400 {
+			t.Fatal(got.Code, got.Body)
+		}
+	}
 	if summary := history.Entries[0].Summary; summary == nil || summary.Name != "Offline box" || summary.CurrentNames {
 		t.Fatalf("missing immutable list summary: %+v", summary)
 	}

@@ -526,6 +526,7 @@ export function App() {
             )
           ) : route.section ? (
             <HistoryPage
+              client={info.data?.client}
               key={`${route.section}:${route.box || ""}:${route.file || route.fileset || ""}`}
               box={route.box}
               file={route.file}

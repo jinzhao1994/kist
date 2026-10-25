@@ -382,6 +382,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/client/pending-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 client pending history */
+        get: operations["get-api-v1-client-pending-history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/client/pending/{id}/edit": {
         parameters: {
             query?: never;
@@ -1581,6 +1598,7 @@ export interface components {
             state: "pending" | "awaiting_receipt" | "awaiting_root" | "conflict" | "accepted" | "discarded" | "replaced";
             summary?: components["schemas"]["HistorySummary"];
             undo?: components["schemas"]["SyncReference"];
+            undone_by?: components["schemas"]["SyncReference"];
         };
         ClientLocalHistoryEntry: {
             action: string;
@@ -1596,6 +1614,7 @@ export interface components {
             state: "pending" | "awaiting_receipt" | "awaiting_root" | "conflict" | "accepted" | "discarded" | "replaced";
             summary?: components["schemas"]["HistorySummary"];
             undo?: components["schemas"]["SyncReference"];
+            undone_by?: components["schemas"]["SyncReference"];
         };
         ClientLocalHistoryList: {
             before?: string;
@@ -3380,6 +3399,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClientOfflineStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-client-pending-history": {
+        parameters: {
+            query?: {
+                box?: string;
+                file?: string;
+                fileset?: string;
+                trash?: boolean;
+                before?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientLocalHistoryList"];
                 };
             };
             /** @description Error */
