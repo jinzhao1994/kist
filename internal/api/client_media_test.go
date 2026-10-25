@@ -95,6 +95,7 @@ func TestClientMediaHTTPQueueRangesAndOfflineCache(t *testing.T) {
 	if job := decodeBody[library.MediaJob](t, offline, endpoint); job.State != "ready" {
 		t.Fatal(job)
 	}
+	assertMediaBrowserCaching(t, offline, Prefix+endpoint+"/content")
 	request := httptest.NewRequest("GET", "http://localhost:8473"+Prefix+endpoint+"/content", nil)
 	request.Header.Set("Range", "bytes=0-9")
 	result := httptest.NewRecorder()

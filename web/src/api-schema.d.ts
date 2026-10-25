@@ -2671,7 +2671,10 @@ export interface operations {
     };
     "GET-derived-content": {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Expected media generation; matching versions can be cached privately for one year */
+                v?: string;
+            };
             header?: never;
             path: {
                 id: string;
@@ -2695,6 +2698,13 @@ export interface operations {
             };
             /** @description Requested byte range */
             206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Requested generation is no longer current */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2711,7 +2721,10 @@ export interface operations {
     };
     "HEAD-derived-content": {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Expected media generation; matching versions can be cached privately for one year */
+                v?: string;
+            };
             header?: never;
             path: {
                 id: string;
@@ -2735,6 +2748,13 @@ export interface operations {
             };
             /** @description Requested byte range */
             206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Requested generation is no longer current */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

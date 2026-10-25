@@ -501,9 +501,15 @@ async function prepare(page: Page, options: Options = {}) {
       /^\/files\/(?:file-[1-4]|visible-[0-9]+)\/derived\/[a-z0-9_]+\/content$/.test(
         path,
       )
-    )
+    ) {
+      if (
+        new URL(route.request().url()).searchParams.get("v") !==
+        "fixture-generation"
+      )
+        errors.push(`Unexpected preview generation: ${route.request().url()}`);
       return route.fulfill({
         contentType: "image/svg+xml",
+        headers: { "Cache-Control": "private, max-age=31536000, immutable" },
         body: path.includes("/file-2/")
           ? portrait
           : path.includes("/file-3/")
@@ -514,7 +520,7 @@ async function prepare(page: Page, options: Options = {}) {
               ? panorama
               : landscape,
       });
-    else if (
+    } else if (
       /^\/files\/(?:file-[1-4]|visible-[0-9]+)\/derived\/[a-z0-9_]+$/.test(path)
     ) {
       const recipe = path.split("/").at(-1);

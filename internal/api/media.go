@@ -30,6 +30,11 @@ type mediaInput struct {
 	ID     string `path:"id"`
 	Recipe string `path:"recipe"`
 }
+type mediaContentInput struct {
+	ID      string `path:"id"`
+	Recipe  string `path:"recipe"`
+	Version string `query:"v" doc:"Expected media generation; matching versions can be cached privately for one year"`
+}
 type mediaRequest struct {
 	ID     string `path:"id"`
 	Recipe string `path:"recipe"`
@@ -83,9 +88,9 @@ func (s *Server) mediaRoutes() {
 	for _, method := range []string{http.MethodGet, http.MethodHead} {
 		huma.Register(s.contract, huma.Operation{OperationID: method + "-derived-content", Method: method, Path: path + "/content", Summary: "Read completed derived media; supports HTTP ranges", Responses: map[string]*huma.Response{
 			"200": {Description: "Derived image, PDF, video or geographic data", Content: map[string]*huma.MediaType{"application/pdf": {Schema: &huma.Schema{Type: "string", Format: "binary"}}, "application/geo+json": {Schema: &huma.Schema{Type: "object"}}, "image/jpeg": {Schema: &huma.Schema{Type: "string", Format: "binary"}}, "video/mp4": {Schema: &huma.Schema{Type: "string", Format: "binary"}}}},
-			"206": {Description: "Requested byte range"}, "416": {Description: "Unsatisfiable byte range"},
-		}}, func(ctx context.Context, in *mediaInput) (*huma.StreamResponse, error) {
-			id, err := mediaID(*in)
+			"206": {Description: "Requested byte range"}, "409": {Description: "Requested generation is no longer current"}, "416": {Description: "Unsatisfiable byte range"},
+		}}, func(ctx context.Context, in *mediaContentInput) (*huma.StreamResponse, error) {
+			id, err := mediaID(mediaInput{ID: in.ID, Recipe: in.Recipe})
 			if err != nil {
 				return nil, err
 			}
@@ -97,10 +102,19 @@ func (s *Server) mediaRoutes() {
 					return
 				}
 				defer f.Close()
+				// Validate against the generation of the opened bytes, not a separate
+				// status lookup that could race with regeneration.
+				if in.Version != "" && in.Version != j.Generation {
+					writeFailure(w, huma.Error409Conflict("Preview version changed; reload its status"))
+					return
+				}
 				recipe, _ := derive.Lookup(in.Recipe)
 				w.Header().Set("Content-Type", recipe.MediaType)
 				w.Header().Set("Content-Security-Policy", "sandbox; default-src 'none'")
 				w.Header().Set("Cache-Control", "private, no-cache")
+				if in.Version != "" {
+					w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
+				}
 				w.Header().Set("ETag", `"`+j.Generation+`"`)
 				http.ServeContent(w, req, recipe.Filename(), j.UpdatedAt, f)
 			}}, nil

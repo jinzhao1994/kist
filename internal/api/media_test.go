@@ -7,8 +7,10 @@ import (
 	"image"
 	"image/png"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -116,8 +118,58 @@ func TestMediaLifecycleAndRanges(t *testing.T) {
 	if got := call(s, "POST", Prefix+"/files/"+files.Files[0].ID+"/derived/unknown", "", `{}`); got.Code != 400 {
 		t.Fatalf("recipe: %d", got.Code)
 	}
+	assertMediaBrowserCaching(t, s, path+"/content")
 	count, err := l.OpCount(ctx)
 	if err != nil || count != 2 {
 		t.Fatalf("media added ops: %d %v", count, err)
+	}
+}
+
+func assertMediaBrowserCaching(t *testing.T, s *Server, path string) {
+	t.Helper()
+	full := call(s, "GET", path, "", "")
+	if full.Code != 200 || full.Header().Get("Cache-Control") != "private, no-cache" {
+		t.Fatalf("unversioned: %d %v", full.Code, full.Header())
+	}
+	etag := full.Header().Get("ETag")
+	version := strings.Trim(etag, `"`)
+	if version == "" {
+		t.Fatal("missing generation")
+	}
+	versioned := path + "?v=" + url.QueryEscape(version)
+	for _, method := range []string{"GET", "HEAD"} {
+		got := call(s, method, versioned, "", "")
+		if got.Code != 200 || got.Header().Get("Cache-Control") != "private, max-age=31536000, immutable" || got.Header().Get("ETag") != etag {
+			t.Fatalf("versioned %s: %d %v", method, got.Code, got.Header())
+		}
+		if method == "GET" && !bytes.Equal(got.Body.Bytes(), full.Body.Bytes()) {
+			t.Fatal("versioned bytes changed")
+		}
+		if method == "HEAD" && got.Body.Len() != 0 {
+			t.Fatal("HEAD returned bytes")
+		}
+		req := httptest.NewRequest(method, "http://localhost:8473"+path+"?v=old-generation", nil)
+		// A matching ETag must not turn a mismatched URL version into a 304.
+		req.Header.Set("If-None-Match", etag)
+		mismatch := httptest.NewRecorder()
+		s.ServeHTTP(mismatch, req)
+		if mismatch.Code != 409 || mismatch.Header().Get("Cache-Control") != "no-store" || mismatch.Header().Get("ETag") != "" {
+			t.Fatalf("mismatch: %d %v", mismatch.Code, mismatch.Header())
+		}
+	}
+	for _, conditional := range []bool{false, true} {
+		req := httptest.NewRequest("GET", "http://localhost:8473"+versioned, nil)
+		expected := 206
+		if conditional {
+			req.Header.Set("If-None-Match", etag)
+			expected = 304
+		} else {
+			req.Header.Set("Range", "bytes=0-9")
+		}
+		got := httptest.NewRecorder()
+		s.ServeHTTP(got, req)
+		if got.Code != expected || got.Header().Get("Cache-Control") != "private, max-age=31536000, immutable" {
+			t.Fatalf("conditional response: %d %v", got.Code, got.Header())
+		}
 	}
 }
