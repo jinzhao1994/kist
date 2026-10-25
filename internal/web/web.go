@@ -42,7 +42,9 @@ func serve(root fs.FS, primaryColor func() (string, error)) http.Handler {
 			requested = "index.html"
 		}
 		if info, err := fs.Stat(root, requested); err != nil || info.IsDir() {
-			if path.Ext(requested) != "" || strings.HasPrefix(requested, "assets/") {
+			// Readable archive routes can end in file extensions or dotted folder names.
+			archiveRoute := strings.HasPrefix(requested, "boxes/")
+			if (!archiveRoute && path.Ext(requested) != "") || strings.HasPrefix(requested, "assets/") {
 				http.NotFound(w, r)
 				return
 			}

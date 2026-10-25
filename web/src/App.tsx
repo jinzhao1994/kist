@@ -179,7 +179,7 @@ export function App() {
         <p role="alert">{errorMessage(navigation.error, t)}</p>
         <Button onClick={() => navigation.retry()}>{t("retry")}</Button>
         <Button component="a" href="/">
-          {t("archiveRoot")}
+          {t("backHome")}
         </Button>
       </main>
     );

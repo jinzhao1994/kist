@@ -15,6 +15,9 @@ func TestStaticRoutesAndAssetMisses(t *testing.T) {
 		contains     string
 	}{
 		{"GET", "/", 200, "kist"}, {"GET", "/boxes/id", 200, "kist"}, {"GET", "/assets/app.js", 200, "offline"},
+		{"GET", "/boxes/2026-10-25_OCR%20%E6%B5%8B%E8%AF%95/kist-ocr-sample.png", 200, "kist"},
+		{"GET", "/boxes/trip/folder.v2", 200, "kist"},
+		{"HEAD", "/boxes/trip/photo.png", 200, ""},
 		{"GET", "/assets/missing.js", 404, "404"}, {"GET", "/missing.css", 404, "404"}, {"POST", "/", 405, "Method"}, {"HEAD", "/", 200, ""},
 	} {
 		w := httptest.NewRecorder()

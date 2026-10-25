@@ -656,7 +656,12 @@ async function prepare(page: Page, options: Options = {}) {
   });
   return errors;
 }
-async function capture(page: Page, errors: string[], name: string) {
+async function capture(
+  page: Page,
+  errors: string[],
+  name: string,
+  expectedAlerts: string[] = [],
+) {
   if (await page.locator(".pdf-reader").count()) {
     await expect(page.locator(".pdf-reader")).toBeVisible();
     await expect(
@@ -689,7 +694,9 @@ async function capture(page: Page, errors: string[], name: string) {
         ),
     )
     .toBe(true);
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByRole("alert")).toHaveCount(expectedAlerts.length);
+  for (const [index, message] of expectedAlerts.entries())
+    await expect(page.getByRole("alert").nth(index)).toContainText(message);
   await expect(page).toHaveScreenshot(`${name}.png`, {
     fullPage: (await page.locator(".gallery").count()) === 0,
   });
@@ -4416,6 +4423,31 @@ for (const scenario of ["ready", "disconnected", "error", "text"] as const) {
         }
       }
     }
-    await capture(page, errors, info.title);
+    await capture(
+      page,
+      errors,
+      info.title,
+      scenario === "error" ? ["no result was saved"] : [],
+    );
+  });
+}
+
+for (const mode of ["light", "dark"] as const) {
+  test(`navigation-missing-file-${mode}`, async ({ page }, info) => {
+    const errors = await prepare(page, { mode });
+    await page.route("**/api/v1/navigation?*", (route) =>
+      route.fulfill({
+        status: 404,
+        json: { code: "not_found", class: "not_found", message: "Not found" },
+      }),
+    );
+    await page.goto("/boxes/missing/photo.png");
+    await expect(page.getByRole("alert")).toContainText("此项已不存在");
+    const home = page.getByRole("link", { name: "回到首页" });
+    await expect(home).toHaveAttribute("href", "/");
+    await capture(page, errors, info.title, ["此项已不存在"]);
+    await home.click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole("alert")).toHaveCount(0);
   });
 }
