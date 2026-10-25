@@ -43,7 +43,7 @@ func newServeCmd() *cobra.Command {
 		}
 		applyServiceSettings(&opt, effective, overrides)
 		opt.ResolveSettings = reloadResolver(cmd, effective.Listen)
-		opt.UI = web.Handler()
+		opt.UI = web.Handler(l.PrimaryColor)
 		handler, err := api.New(l, opt)
 		if err != nil {
 			return err

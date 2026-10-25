@@ -8,7 +8,7 @@ import (
 )
 
 func TestStaticRoutesAndAssetMisses(t *testing.T) {
-	handler := serve(fstest.MapFS{"index.html": {Data: []byte("<!doctype html><title>kist</title>")}, "assets/app.js": {Data: []byte("console.log('offline')")}})
+	handler := serve(fstest.MapFS{"index.html": {Data: []byte("<!doctype html><title>kist</title>")}, "assets/app.js": {Data: []byte("console.log('offline')")}}, func() (string, error) { return "pink", nil })
 	for _, tc := range []struct {
 		method, path string
 		status       int
@@ -22,5 +22,30 @@ func TestStaticRoutesAndAssetMisses(t *testing.T) {
 		if w.Code != tc.status || !strings.Contains(w.Body.String(), tc.contains) {
 			t.Fatalf("%s %s: %d %s", tc.method, tc.path, w.Code, w.Body)
 		}
+	}
+}
+
+func TestHTMLIncludesCurrentAppearance(t *testing.T) {
+	color := "pink"
+	handler := serve(fstest.MapFS{
+		"index.html": {Data: []byte(`<html><head><meta name="kist-primary-color" content=""></head></html>`)},
+	}, func() (string, error) { return color, nil })
+	for _, route := range []string{"/", "/files", "/settings", "/index.html"} {
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, httptest.NewRequest("GET", route, nil))
+		if w.Code != 200 || !strings.Contains(w.Body.String(), `content="pink"`) || w.Header().Get("Cache-Control") != "no-store" {
+			t.Fatalf("%s: %d %s", route, w.Code, w.Body)
+		}
+	}
+	color = `"><script>alert(1)</script>`
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, httptest.NewRequest("GET", "/", nil))
+	if strings.Contains(w.Body.String(), "<script>") || !strings.Contains(w.Body.String(), "&lt;script&gt;") {
+		t.Fatalf("appearance was stale or unescaped: %s", w.Body)
+	}
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, httptest.NewRequest("HEAD", "/files", nil))
+	if w.Code != 200 || w.Body.Len() != 0 || w.Header().Get("Content-Length") == "" {
+		t.Fatalf("HEAD: %d %s", w.Code, w.Body)
 	}
 }

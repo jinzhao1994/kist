@@ -28,20 +28,29 @@ export type Appearance = {
   mode: "system" | "light" | "dark";
 };
 export const appearanceKey = "kist.appearance.v2";
+export function initialPrimaryColor(): Appearance["primaryColor"] | undefined {
+  const color = document.querySelector<HTMLMetaElement>(
+    'meta[name="kist-primary-color"]',
+  )?.content;
+  return colors.includes(color as Appearance["primaryColor"])
+    ? (color as Appearance["primaryColor"])
+    : undefined;
+}
 export function readAppearance(): Appearance {
+  const primaryColor = initialPrimaryColor() ?? "blue";
   try {
     const raw = localStorage.getItem(appearanceKey);
     const value = JSON.parse(
       raw ?? localStorage.getItem("kist.appearance.v1") ?? "null",
     );
     return {
-      primaryColor: "blue",
+      primaryColor,
       mode: ["system", "light", "dark"].includes(value?.mode)
         ? value.mode
         : "system",
     };
   } catch {
-    return { primaryColor: "blue", mode: "system" };
+    return { primaryColor, mode: "system" };
   }
 }
 export function applyAppearance(value: Appearance, systemDark: boolean) {

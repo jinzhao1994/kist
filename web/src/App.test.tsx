@@ -537,3 +537,42 @@ it("waits for the instance color before showing the application shell", async ()
   expect(screen.getByTestId("active-color")).toHaveTextContent("pink");
   view.unmount();
 });
+
+it("renders the HTML theme without waiting for info and refreshes it from the API", async () => {
+  const meta = document.createElement("meta");
+  meta.name = "kist-primary-color";
+  meta.content = "pink";
+  document.head.append(meta);
+  const originalFetch = globalThis.fetch;
+  let resolve!: (response: Response) => void;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string, options?: RequestInit) =>
+      path.endsWith("/info")
+        ? new Promise<Response>((done) => {
+            resolve = done;
+          })
+        : originalFetch(path, options),
+    ),
+  );
+  const view = mount();
+  try {
+    expect(
+      screen.getByRole("button", { name: "Display settings" }),
+    ).toBeVisible();
+    expect(screen.getByTestId("active-color")).toHaveTextContent("pink");
+    resolve(
+      Response.json({
+        version: "test",
+        timezone: "UTC",
+        primary_color: "orange",
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("active-color")).toHaveTextContent("orange"),
+    );
+  } finally {
+    view.unmount();
+    meta.remove();
+  }
+});

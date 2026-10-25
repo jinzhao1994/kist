@@ -665,6 +665,41 @@ async function grid(page: Page, expectedImages = 4) {
     )
     .toBe(true);
 }
+test("theme-initial-html", async ({ page }, info) => {
+  const errors = await prepare(page, { primaryColor: "pink" });
+  await page.route("**/files", async (route) => {
+    const response = await route.fetch();
+    const body = (await response.text()).replace(
+      'name="kist-primary-color" content=""',
+      'name="kist-primary-color" content="pink"',
+    );
+    await route.fulfill({ response, body });
+  });
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/api/v1/info", async (route) => {
+    await pending;
+    await route.fallback();
+  });
+  await page.goto("/files");
+  await grid(page);
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const style = getComputedStyle(document.documentElement);
+        return (
+          style.getPropertyValue("--mantine-primary-color-filled") ===
+          style.getPropertyValue("--mantine-color-pink-filled")
+        );
+      }),
+    )
+    .toBe(true);
+  await capture(page, errors, info.title);
+  release();
+});
+
 test("theme-initial-loading", async ({ page }, info) => {
   const errors = await prepare(page, { primaryColor: "pink" });
   let release!: () => void;

@@ -16,7 +16,7 @@ import { FolderBreadcrumbs, folderChain } from "./Folders";
 import { formatLocalDate, useI18n } from "./i18n";
 import { OfflineClient, ClientCatalogNotice } from "./OfflineClient";
 import { InstanceSettings } from "./InstanceSettings";
-import { useTheme, colors } from "./theme";
+import { useTheme, colors, initialPrimaryColor } from "./theme";
 import { Settings } from "./Settings";
 import { BoxTrashDialog } from "./BoxTrashDialog";
 import { DisplayModeControl, useDisplayMode } from "./DisplayMode";
@@ -165,7 +165,8 @@ export function App() {
       </Menu.Item>
     </>
   );
-  if (info.isPending) return <p role="status">{t("loading")}</p>;
+  if (info.isPending && !initialPrimaryColor())
+    return <p role="status">{t("loading")}</p>;
   return (
     <>
       <WriteFeedback state={cover} />
