@@ -14,7 +14,7 @@ def main():
     binaries = sorted(p for p in dist.iterdir() if re.fullmatch(r"kist_(darwin|linux|windows)_[a-z0-9]+(?:\.exe)?", p.name))
     if not binaries:
         raise SystemExit("No release binaries in dist; run make dist first")
-    documents = [root / name for name in ("LICENSE", "THIRD_PARTY_NOTICES.md", "SECURITY.md", "README.md", "README.zh-CN.md", "docs/operations.md")]
+    documents = [root / name for name in ("LICENSE", "THIRD_PARTY_NOTICES.md", "SECURITY.md", "README.md", "README.zh-CN.md", "docs/operations.md", "docs/offline-client.md", "docs/offline-client.zh-CN.md", "docs/settings.md", "docs/settings.zh-CN.md")]
     artifacts = []
     for binary in binaries:
         windows = binary.suffix == ".exe"

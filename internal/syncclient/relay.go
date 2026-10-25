@@ -2,6 +2,8 @@ package syncclient
 
 import (
 	"context"
+	"errors"
+
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/library"
 	"github.com/jinzhao1994/kist/internal/wire"
@@ -45,15 +47,15 @@ func (p *Peer) receiveRelay(ctx context.Context, id domain.ID, proposal library.
 	if err != nil {
 		return library.RelayOutcome{}, err
 	}
-	if out.Error != nil {
+	if out.Result != nil && out.Error == nil && !out.Rejected {
+		return *out.Result, nil
+	}
+	if out.Error != nil && out.Result == nil && out.Error.Code != "" && out.Error.Class != "" {
 		err = &remoteError{problem: *out.Error}
 		if out.Rejected {
 			err = &library.SyncRejectedError{Cause: err}
 		}
 		return library.RelayOutcome{}, err
 	}
-	if out.Result == nil {
-		return library.RelayOutcome{}, library.ErrSyncVersion
-	}
-	return *out.Result, nil
+	return library.RelayOutcome{}, errors.New("invalid relay submission response; outcome is uncertain")
 }

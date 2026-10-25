@@ -1,10 +1,10 @@
-# Laptop offline client (development build)
+# Offline client and synchronization
 
 [中文](offline-client.zh-CN.md)
 
-The development build provides NAS pairing, a local web interface, selected-content
-caching, offline edits, automatic one-way synchronization and manual merging. Functional, fault-recovery and visual
-acceptance are complete; this feature has not been released. See the
+Available from v0.1.7: pairing with an authoritative library, a local web
+interface, selected-content caching, offline edits, automatic one-way
+synchronization, manual merging and client relays. See the
 [acceptance evidence (Chinese)](plans/2026-10-22-offline-client-acceptance.md).
 
 ## Authorize a client
@@ -66,8 +66,8 @@ does not need to be reachable to open the interface. Synchronize the catalog
 before leaving, then prepare selected content as described below. An uncached
 original is shown as not cached, rather than as a missing NAS file.
 
-Use **Offline client** to inspect pending work, synchronize manually, manage
-retained content or update the connection. The NAS remains the only authoritative
+Use **Data sync** to inspect pending work, synchronize manually and manage
+retained content. Connection and cache policies are under **Settings**. The NAS remains the only authoritative
 archive and may change independently during the trip. Offline searches use the
 last complete synchronized catalog, including objects whose originals were not
 downloaded; they cannot show NAS edits made after that boundary.
@@ -130,8 +130,8 @@ bytes. Unknown metadata versions are rejected rather than overwritten.
 
 These byte totals describe the disposable content cache, not total laptop disk
 usage. Preview outputs and conversion workspaces share the cache budget. Protected
-local originals are counted separately in client status. The complete offline
-workflow and fault-recovery acceptance are still under development.
+local originals are counted separately in client status. New local originals and pending history are protected until the authoritative
+library has confirmed them; they are not removed to meet a cache limit.
 
 ## Prepare selected content for offline use
 
@@ -174,15 +174,13 @@ Removing a selection leaves its cached bytes eligible for normal pruning; it doe
 not delete archive files or unsynchronized originals.
 
 
-The web client's **Offline client → Cache** tab lists retained selections,
-including named selections created with the CLI. Selections created from a file
-menu display the current filename. If a target can no longer be resolved, the
-selection remains visible and can still be removed. **Check availability**
-verifies originals and previews on demand, rather than scanning all content when
-the tab opens. **Check and download** resumes the existing selection without
-changing its members. **Stop retaining offline** removes only that selection's
-protection; other selections may still retain shared content, and archive files
-are not deleted.
+The **Data sync → Offline retention** section lists retained selections,
+including selections created with the CLI. Names link to the corresponding file
+or file set, and local availability is checked automatically on entry.
+**Prepare offline** fetches missing content without changing the selection;
+ready items need no preparation action. **Stop retaining** removes only that
+selection's protection; shared retained content and archive files are preserved.
+If a target can no longer be resolved, its selection remains visible and removable.
 
 
 To prepare several items from the web UI, open a file list and choose **Select
@@ -192,9 +190,9 @@ only the currently loaded results, not unrequested search pages. Choose **Keep
 offline**, review the selection, and start **Retain and download**. Every selected
 item receives its own retention entry before downloads begin. The dialog shows
 how many entries have been retained and prepared. Canceling or losing the
-connection keeps completed work; **Check and download** resumes by verifying
+connection keeps completed work; **Prepare offline** resumes by verifying
 current dependencies and skips content already ready. These entries can then be
-managed independently in the Cache tab.
+managed independently under **Data sync → Offline retention**.
 
 
 Manual cache cleanup also retries migration of NAS-confirmed originals that were
@@ -220,7 +218,7 @@ the target is already gone, return and keep the NAS result. The original intent
 remains in history; undoing an accepted replacement restores the scope actually
 reviewed, including the newer files and annotations.
 
-The **Local operations** tab shows object names and change summaries directly in
+The **Data sync → Local operations** section shows object names and change summaries directly in
 the paginated list. Names recorded in the original intent remain unchanged after
 later edits or undo. Summaries that resolve current object names are labeled as
 such. Open an entry for its original identity, sync receipt, related operations,
@@ -263,3 +261,13 @@ branch. Before switching to another relay or directly to the library, retrieve
 all final outcomes from the previous relay. Pending custody, uncertain submissions
 and incomplete relay snapshots block node changes. Different libraries, divergent
 known history, self-connections and cycles are rejected.
+
+## Offline history and recovery
+
+Locally applied changes appear immediately in **Operation history**, and local
+deletions appear in **Recycle bin** before synchronization. Restore uses the
+same strict undo rules and records another local operation. Pending entries keep
+their independent local identities; confirmed entries replace them after the
+library's history is downloaded. **Data sync → Local operations** retains the
+full intent and conflict-decision audit. Offline status hides an unknown remote
+operation count while preserving known local pending work.

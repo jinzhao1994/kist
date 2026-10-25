@@ -9,13 +9,14 @@ passports, contracts and lab reports.
 
 One Go binary plus SQLite. Apache-2.0.
 
-> **v0.1.0 is available.** Download the [release archives](https://github.com/jinzhao1994/kist/releases/tag/v0.1.0)
+> Download the [latest release archives](https://github.com/jinzhao1994/kist/releases/latest)
 > or deploy with Docker. M0–M7 are complete; see [Milestones](#milestones).
 > kist has no built-in login and retains historical originals permanently.
 
-The laptop offline client is under development. See the [pairing, offline preparation
-and manual synchronization guide](docs/offline-client.md); final acceptance is still
-in progress and the feature has not been released.
+Use a local client for selected-content caching, offline edits and synchronization
+with an authoritative library. Clients can also relay changes for other clients.
+See the [offline and synchronization guide](docs/offline-client.md) and
+[instance settings](docs/settings.md). These features are available from v0.1.7.
 
 ## The idea
 

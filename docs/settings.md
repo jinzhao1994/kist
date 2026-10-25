@@ -14,8 +14,7 @@ identity; do not copy a client identity to another independent client.
 Settings are grouped into Appearance, Storage, Service, Maps, Connection
 (clients), and Access credentials (both libraries and clients). Storage includes client cache age and size
 limits, or the library's capture-time fallback zone and projection mode. Service
-includes listen address, allowed web origins, upload limits and
-map resources. The UI displays current defaults and marks options requiring a
+includes listen address, allowed web origins and upload limits. The UI displays current defaults and marks options requiring a
 restart. Explicit command-line flags override stored service settings without
 rewriting the file; the UI shows their effective values. Projection changes do
 not rebuild existing paths: use `kist relink` when necessary.
@@ -32,10 +31,12 @@ listen = "127.0.0.1:8473"
 
 Supported colors are gray, green, yellow, pink, blue and orange. Service defaults
 are loopback port 8473 for libraries and 8474 for clients, 32 GiB per upload batch
-and 1000 files. Client cache defaults are `cache_max_age = "720h"` and
+and 1000 files. Client cache defaults are `cache_max_age = "180d"` and
 `cache_max_bytes = 10737418240` under `[client]`. Cache limits do not evict pinned
 content, pending changes or newly imported originals. Reducing limits applies to
-subsequent cache maintenance; **Data sync → Offline content** can prune now.
+subsequent cache maintenance. The client service prunes eligible content at
+startup and every hour, including while offline; the prune CLI and API remain
+available for immediate maintenance.
 
 New-format files use UTC if `library.timezone` is omitted. Initialization writes
 the detected IANA zone when available. Changing it affects future interpretation

@@ -235,3 +235,43 @@ func TestHTTPRelayCustodyAuthTopologyAndHandover(t *testing.T) {
 		t.Fatal("revoked credential accepted")
 	}
 }
+
+func TestHTTPRelaySubmissionRequiresConsistentRejection(t *testing.T) {
+	const result = `{"custody":{"library_id":"11111111-1111-4111-8111-111111111111","relay_id":"22222222-2222-4222-8222-222222222222","proposal_id":"proposal","digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","received_at":"2026-10-25T00:00:00Z"}}`
+	for _, test := range []struct {
+		name, body string
+		status     int
+		rejected   bool
+		success    bool
+	}{
+		{"accepted", `{"result":` + result + `}`, 200, false, true},
+		{"explicit", `{"rejected":true,"error":{"code":"sync_conflict","class":"conflict","message":"stale"}}`, 200, true, false},
+		{"uncertain", `{"rejected":false,"error":{"code":"internal","class":"internal","message":"unknown"}}`, 200, false, false},
+		{"proxy", `{"rejected":true}`, 503, false, false},
+		{"truncated", `{"rejected":true,"error":`, 200, false, false},
+		{"receipt-and-rejection", `{"rejected":true,"result":` + result + `,"error":{"code":"sync_conflict","class":"conflict","message":"stale"}}`, 200, false, false},
+		{"receipt-and-error", `{"result":` + result + `,"error":{"code":"internal","class":"internal","message":"unknown"}}`, 200, false, false},
+		{"receipt-and-rejected-flag", `{"rejected":true,"result":` + result + `}`, 200, false, false},
+		{"empty-error", `{"rejected":true,"error":{}}`, 200, false, false},
+		{"missing-code", `{"rejected":true,"error":{"class":"conflict"}}`, 200, false, false},
+		{"missing-class", `{"rejected":true,"error":{"code":"sync_conflict"}}`, 200, false, false},
+		{"missing-result", `{}`, 200, false, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(test.status)
+				_, _ = io.WriteString(w, test.body)
+			}))
+			defer server.Close()
+			peer, err := syncclient.New(server.URL, "credential", syncclient.Options{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = peer.ReceiveRelay(t.Context(), domain.ID{}, library.SyncProposal{})
+			var rejected *library.SyncRejectedError
+			if (err == nil) != test.success || errors.As(err, &rejected) != test.rejected {
+				t.Fatalf("incorrect custody certainty: %v", err)
+			}
+		})
+	}
+}

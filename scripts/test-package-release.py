@@ -20,7 +20,7 @@ class PackageReleaseTest(unittest.TestCase):
             shutil.copy(Path(__file__).with_name("package-release.py"), root / "scripts/package-release.py")
             (root / "dist").mkdir()
             (root / "docs").mkdir()
-            documents = ["LICENSE", "THIRD_PARTY_NOTICES.md", "SECURITY.md", "README.md", "README.zh-CN.md", "docs/operations.md"]
+            documents = ["LICENSE", "THIRD_PARTY_NOTICES.md", "SECURITY.md", "README.md", "README.zh-CN.md", "docs/operations.md", "docs/offline-client.md", "docs/offline-client.zh-CN.md", "docs/settings.md", "docs/settings.zh-CN.md"]
             for document in documents:
                 (root / document).write_text(f"notice: {document}\n", encoding="utf-8")
             for name in ["kist_linux_amd64", "kist_windows_amd64.exe"]:
