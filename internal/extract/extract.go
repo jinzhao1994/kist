@@ -81,9 +81,8 @@ const (
 	// stored copy's mtime is when it was written. "Capture it at import or
 	// never" is a property of the fact, not a design choice.
 	ImportSource = "file"
-	// MaxValueLen bounds one value. A scalar tag is never this long; anything
-	// that is has been mistaken for a string, and spec 1.7.2 does not expand
-	// binary blobs.
+	// MaxValueLen bounds scalar metadata. OCR text has a separate long-text
+	// allowance in checkValue; EXIF binary blocks remain excluded.
 	MaxValueLen = 1024
 )
 
@@ -174,8 +173,12 @@ func checkValue(kv KV) error {
 	default:
 		return fmt.Errorf("unknown type %q", kv.Type)
 	}
-	if len(kv.Value) > MaxValueLen {
-		return fmt.Errorf("value is %d bytes, over the %d-byte limit", len(kv.Value), MaxValueLen)
+	limit := MaxValueLen
+	if kv.Key == "ocr:text" && kv.Type == TypeText {
+		limit = 256 << 10
+	}
+	if len(kv.Value) > limit {
+		return fmt.Errorf("value is %d bytes, over the %d-byte limit", len(kv.Value), limit)
 	}
 	if !utf8.ValidString(kv.Value) {
 		return fmt.Errorf("value is not valid UTF-8")

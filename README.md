@@ -202,6 +202,8 @@ lists expose tag actions and display assigned tags.
 
 Instance-wide appearance, storage, connection and service options are managed in **Settings** and stored in `kist.toml`. See [Instance settings](docs/settings.md).
 
+**Development version: image OCR.** Run kist and your browser on the same computer, open Settings → AI connection, and continue with ChatGPT. Open a JPEG, PNG or static WebP image, expand file details, then choose **Extract text (OCR)**. The selected original is sent to OpenAI only after you start recognition. Available models come from your account; GPT-6 Luna is preselected only when available. Successful text is saved as file metadata (up to 256 KiB, without truncation) and can be copied or undone from operation history. Images are limited to 20 MiB. OCR is manual, runs once per extraction version, and is not yet searchable. Connection credentials stay in the instance's private kist.toml and are not synced. This first version requires loopback access; NAS login and client-side inference are not included.
+
 **Display settings** separates English/Chinese language, regional number/date
 formatting, display timezone and reading direction. These preferences stay in
 the browser. Mantine controls support gray, green, yellow, pink, blue, and orange

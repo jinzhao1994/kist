@@ -1,3 +1,7 @@
+import { DialogPresence } from "./Dialog";
+import { useState } from "react";
+import { useClientMode } from "./OfflineEntry";
+import { OCRDialog, OCRText } from "./AI";
 import { Button, CopyButton, Tooltip } from "@mantine/core";
 import type { components } from "./api-schema";
 import type { FileDetail as FileData, Tag } from "./api";
@@ -19,6 +23,9 @@ export function FileDetail({
 }) {
   const { t, prefs } = useI18n();
   const extraction = useExtraction();
+  const clientMode = useClientMode();
+  const [ocrOpen, setOCROpen] = useState(false);
+  const ocr = data.metadata?.find((row) => row.key === "ocr:text");
   const file = data.file;
   const displayID = combination?.folder.id || file.id;
   const labels: Record<string, string> = {
@@ -53,6 +60,7 @@ export function FileDetail({
   };
   const groups = new Map<string, NonNullable<FileData["metadata"]>>();
   for (const row of data.metadata || []) {
+    if (row.key === "ocr:text") continue;
     const source = row.source || "";
     const rows = groups.get(source) || [];
     rows.push(row);
@@ -130,6 +138,23 @@ export function FileDetail({
           </CopyButton>
         </dd>
       </dl>
+      {ocr && <OCRText text={ocr.value} />}
+      {!clientMode &&
+        !ocr &&
+        ["image/jpeg", "image/png", "image/webp"].includes(
+          file.media_type || "",
+        ) && (
+          <Button onClick={() => setOCROpen(true)}>{t("ocrExtract")}</Button>
+        )}
+      <DialogPresence>
+        {ocrOpen && (
+          <OCRDialog
+            key={file.id}
+            fileID={file.id}
+            onClose={() => setOCROpen(false)}
+          />
+        )}
+      </DialogPresence>
       <TagAssignment
         showEmpty
         collapsible

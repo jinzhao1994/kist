@@ -9,6 +9,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
+	"github.com/jinzhao1994/kist/internal/ai"
 	"github.com/jinzhao1994/kist/internal/blob"
 	"github.com/jinzhao1994/kist/internal/domain"
 )
@@ -17,15 +18,16 @@ import (
 const CurrentVersion = 2
 
 type Config struct {
-	Version    int        `toml:"version"`
-	Mode       string     `toml:"mode,omitempty"`
-	Appearance Appearance `toml:"appearance"`
-	Client     Client     `toml:"client"`
-	Server     Server     `toml:"server"`
-	Sync       Sync       `toml:"sync"`
-	Library    Library    `toml:"library"`
-	Storage    Storage    `toml:"storage"`
-	Remotes    []Remote   `toml:"remote"`
+	AI         ai.Credentials `toml:"ai" json:"-"`
+	Version    int            `toml:"version"`
+	Mode       string         `toml:"mode,omitempty"`
+	Appearance Appearance     `toml:"appearance"`
+	Client     Client         `toml:"client"`
+	Server     Server         `toml:"server"`
+	Sync       Sync           `toml:"sync"`
+	Library    Library        `toml:"library"`
+	Storage    Storage        `toml:"storage"`
+	Remotes    []Remote       `toml:"remote"`
 }
 
 // Remote is somewhere else the same blobs live: another directory, a mounted

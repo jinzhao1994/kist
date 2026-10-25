@@ -1,3 +1,4 @@
+import { AIConnection } from "./AI";
 import { EmptyHint } from "./EmptyHint";
 import { HelpTooltip } from "./HelpTooltip";
 import { SectionIndex } from "./SectionIndex";
@@ -207,6 +208,9 @@ export function InstanceSettings() {
                     ]
                   : []),
                 { id: "settings-access", label: t("settingCredentials") },
+                ...(snapshot.mode === "library"
+                  ? [{ id: "settings-ai", label: t("aiConnection") }]
+                  : []),
               ]}
             >
               {["appearance", "storage", "service", "maps"].map((group) => (
@@ -360,6 +364,7 @@ export function InstanceSettings() {
                   saved={reload}
                 />
               </section>
+              {snapshot.mode === "library" && <AIConnection />}
             </SectionIndex>
           </>
         )}

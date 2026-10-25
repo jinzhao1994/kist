@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"mime"
+	"net"
 	"net/http"
 	"path"
 	"reflect"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/jinzhao1994/kist/internal/ai/openai"
 	"github.com/jinzhao1994/kist/internal/config"
 	"github.com/jinzhao1994/kist/internal/library"
 	staging "github.com/jinzhao1994/kist/internal/upload"
@@ -41,6 +43,10 @@ type Options struct {
 }
 
 type Server struct {
+	aiMu             sync.Mutex
+	aiAttempt        *openai.Attempt
+	aiError          string
+	aiSlots          chan struct{}
 	autoSyncRunning  atomic.Int64
 	syncProgress     atomic.Pointer[library.ClientSyncProgress]
 	autoSyncWake     chan struct{}
@@ -108,6 +114,8 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 	cfg.CreateHooks = nil
 	cfg.Transformers = nil // Keep wire JSON identical to the CLI: no injected $schema.
 	s.contract = humago.New(s.mux, cfg)
+	s.aiSlots = make(chan struct{}, 1)
+	s.aiRoutes()
 	s.mapRoutes()
 	if err := s.settingsRoutes(opt); err != nil {
 		return nil, err
@@ -162,6 +170,20 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == Prefix+"/ai" || strings.HasPrefix(r.URL.Path, Prefix+"/ai/") || (strings.HasPrefix(r.URL.Path, Prefix+"/files/") && strings.HasSuffix(r.URL.Path, "/ocr")) {
+		host, _, err := net.SplitHostPort(r.RemoteAddr)
+		ip := net.ParseIP(host)
+		hostName, _, hostErr := net.SplitHostPort(r.Host)
+		if hostErr != nil {
+			hostName = r.Host
+		}
+		hostIP := net.ParseIP(hostName)
+		localHost := hostName == "localhost" || (hostIP != nil && hostIP.IsLoopback())
+		if err != nil || ip == nil || !ip.IsLoopback() || !localHost {
+			writeFailure(w, huma.Error403Forbidden("AI connections and OCR require local access"))
+			return
+		}
+	}
 	runtime := s.current.Load()
 	r = r.WithContext(context.WithValue(r.Context(), runtimeKey{}, runtime))
 	w.Header().Set("X-Content-Type-Options", "nosniff")

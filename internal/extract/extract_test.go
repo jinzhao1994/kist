@@ -103,3 +103,19 @@ func TestCheckAcceptsAValidBatch(t *testing.T) {
 		t.Errorf("a valid batch was rejected: %v", err)
 	}
 }
+
+func TestOCRTextLimitDoesNotRelaxScalarFields(t *testing.T) {
+	e := fake{id: "ocr", ns: []string{"ocr"}}
+	for _, tc := range []struct {
+		key   string
+		size  int
+		valid bool
+	}{
+		{"ocr:text", 256 << 10, true}, {"ocr:text", (256 << 10) + 1, false}, {"ocr:model", 1025, false},
+	} {
+		err := Check(e, []KV{{Key: tc.key, Value: strings.Repeat("a", tc.size), Type: TypeText}})
+		if (err == nil) != tc.valid {
+			t.Fatalf("%s size %d: %v", tc.key, tc.size, err)
+		}
+	}
+}

@@ -5,10 +5,12 @@ go 1.26.1
 require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/bep/imagemeta v1.0.1
+	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/danielgtaylor/huma/v2 v2.39.1
 	github.com/disintegration/imaging v1.6.2
 	github.com/dustin/go-humanize v1.0.1
 	github.com/fogleman/fauxgl v0.0.0-20250110135958-abf826acbbbd
+	github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/google/uuid v1.6.0
 	github.com/hschendel/stl v1.0.4
 	github.com/pressly/goose/v3 v3.28.0
@@ -40,6 +42,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.55.0 // indirect
 	golang.org/x/net v0.58.0 // indirect
+	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
 	modernc.org/libc v1.77.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect

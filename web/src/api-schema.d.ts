@@ -1,5 +1,73 @@
 // Generated from the Go HTTP contract. Run npm run generate:api.
 export interface paths {
+    "/api/v1/ai": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 ai */
+        get: operations["get-api-v1-ai"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 ai connect */
+        post: operations["post-api-v1-ai-connect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 ai disconnect */
+        post: operations["post-api-v1-ai-disconnect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List API v1 ai models */
+        get: operations["list-api-v1-ai-models"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/boxes": {
         parameters: {
             query?: never;
@@ -329,6 +397,23 @@ export interface paths {
         put?: never;
         /** Post API v1 files by ID extractions by extractor */
         post: operations["post-api-v1-files-by-id-extractions-by-extractor"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{id}/ocr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 files by ID ocr */
+        post: operations["post-api-v1-files-by-id-ocr"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1113,6 +1198,13 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AIStatus: {
+            connected: boolean;
+            email: string;
+            error: string;
+            pending: boolean;
+            supported: boolean;
+        };
         AttachTagInputBody: {
             ids: string[] | null;
         };
@@ -1469,6 +1561,10 @@ export interface components {
             type: string;
             value: string;
         };
+        Model: {
+            id: string;
+            name: string;
+        };
         MoveTagInputBody: {
             parent_id: string | null;
         };
@@ -1487,7 +1583,18 @@ export interface components {
             note?: string;
             token: string;
         };
+        OcrInputBody: {
+            model: string;
+        };
+        "OutputStruct { Revoked bool \"json:\\\"revoked\\\"\" }Body": {
+            revoked: boolean;
+        };
+        "OutputStruct { URL string \"json:\\\"url\\\"\" }Body": {
+            url: string;
+        };
         "OutputStruct {}Body": Record<string, never>;
+        "Post-api-v1-ai-connectRequest": Record<string, never>;
+        "Post-api-v1-ai-disconnectRequest": Record<string, never>;
         "Post-api-v1-boxes-by-id-foldersRequest": {
             name: string;
             parent?: string;
@@ -1836,6 +1943,130 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    "get-api-v1-ai": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AIStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-ai-connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-ai-connectRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutputStruct { URL string \"json:\\\"url\\\"\" }Body"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-ai-disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-ai-disconnectRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutputStruct { Revoked bool \"json:\\\"revoked\\\"\" }Body"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "list-api-v1-ai-models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Model"][] | null;
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
     "get-api-v1-boxes": {
         parameters: {
             query?: {
@@ -2858,6 +3089,43 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ExtractionInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-files-by-id-ocr": {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OcrInputBody"];
             };
         };
         responses: {

@@ -8,6 +8,23 @@ import {
 } from "react";
 
 export const en = {
+  aiConnection: "AI connection",
+  aiLocalHint:
+    "Connect ChatGPT on this computer. OCR sends only the image you choose and uses your ChatGPT plan.",
+  aiConnected: "Connected",
+  aiContinue: "Continue with ChatGPT",
+  aiOpenSignIn: "Open ChatGPT sign-in",
+  aiDisconnect: "Disconnect",
+  aiWaiting: "Complete sign-in in the new tab, then return here.",
+  aiRevocationUnconfirmed:
+    "Local credentials cleared. Remote revocation was not confirmed; disconnect kist in ChatGPT Settings.",
+  aiConnectFirst: "Connect ChatGPT in Settings first.",
+  aiModel: "Model",
+  ocrExtract: "Extract text (OCR)",
+  ocrText: "Recognized text",
+  ocrSendHint:
+    "Send this image to OpenAI and save the recognized text in its metadata. Unreadable text may be marked [illegible].",
+
   pageContents: "On this page",
   instanceSettings: "Settings",
   settingsSaved: "Settings saved.",
@@ -766,6 +783,23 @@ export const en = {
 } as const;
 export type MessageKey = keyof typeof en;
 export const zh: Record<MessageKey, string> = {
+  aiConnection: "AI 连接",
+  aiLocalHint:
+    "在本机连接 ChatGPT。OCR 只发送你选择的图片，并使用你的 ChatGPT 套餐。",
+  aiConnected: "已连接",
+  aiContinue: "使用 ChatGPT 继续",
+  aiOpenSignIn: "打开 ChatGPT 登录",
+  aiDisconnect: "断开连接",
+  aiWaiting: "请在新标签页完成登录，然后返回此处。",
+  aiRevocationUnconfirmed:
+    "本机凭据已清除，但未确认远端撤销成功；请在 ChatGPT 设置中断开 kist。",
+  aiConnectFirst: "请先在设置中连接 ChatGPT。",
+  aiModel: "模型",
+  ocrExtract: "提取文字（OCR）",
+  ocrText: "识别文字",
+  ocrSendHint:
+    "将此图片发送到 OpenAI，识别结果保存到文件元数据。无法辨认的文字可能标记为 [illegible]。",
+
   pageContents: "页面目录",
   instanceSettings: "设置",
   settingsSaved: "设置已保存。",

@@ -172,6 +172,16 @@ async function prepare(page: Page, options: Options = {}) {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.route("**/api/v1/**", async (route) => {
+    if (new URL(route.request().url()).pathname === "/api/v1/ai")
+      return route.fulfill({
+        json: {
+          supported: !options.client,
+          connected: false,
+          email: "",
+          pending: false,
+          error: "",
+        },
+      });
     const path = new URL(route.request().url()).pathname.slice(
       "/api/v1".length,
     );
@@ -3909,6 +3919,7 @@ for (const mode of ["grid", "list", "mobile", "dark", "prepare"] as const) {
 
 for (const scenario of [
   "appearance",
+  "ai",
   "service",
   "maps",
   "credentials",
@@ -4048,6 +4059,17 @@ for (const scenario of [
         .getByRole("navigation", { name: "个人归档" })
         .getByRole("button", { name: "设置", exact: true }),
     ).toHaveClass(/active/);
+    if (scenario === "ai") {
+      await settings
+        .getByRole("link", { name: "AI 连接", exact: true })
+        .click();
+      await expect(
+        settings.getByRole("button", {
+          name: "使用 ChatGPT 继续",
+          exact: true,
+        }),
+      ).toBeEnabled();
+    }
     if (scenario === "service") {
       await settings.getByRole("link", { name: "服务", exact: true }).click();
       await expect(
@@ -4311,6 +4333,89 @@ for (const scope of ["history", "trash"] as const) {
       await expect(
         page.getByRole("button", { name: "恢复", exact: true }),
       ).toBeVisible();
+    await capture(page, errors, info.title);
+  });
+}
+
+for (const scenario of ["ready", "disconnected", "error", "text"] as const) {
+  test(`ocr-${scenario}`, async ({ page }, info) => {
+    const errors = await prepare(page);
+    await page.route("**/api/v1/ai", (route) =>
+      route.fulfill({
+        json: {
+          supported: true,
+          connected: scenario !== "disconnected",
+          email: "reader@example.test",
+          pending: false,
+          error: "",
+        },
+      }),
+    );
+    await page.route("**/api/v1/ai/models", (route) =>
+      route.fulfill({ json: [{ id: "gpt-6-luna", name: "GPT-6 Luna" }] }),
+    );
+    if (scenario === "error")
+      await page.route("**/api/v1/files/file-1/ocr", (route) =>
+        route.fulfill({
+          status: 502,
+          json: {
+            code: "internal",
+            class: "internal",
+            message: "OpenAI did not complete OCR; no result was saved",
+          },
+        }),
+      );
+    if (scenario === "text")
+      await page.route("**/api/v1/files/file-1", (route) =>
+        route.fulfill({
+          json: {
+            file: files[0],
+            tags: ["tag-2"],
+            extracted: ["ocr"],
+            metadata: [
+              {
+                key: "ocr:text",
+                type: "text",
+                source: "ocr",
+                value:
+                  "档案收据\n姓名：张三\n编号：2026-001\n保存日期：2026 年 10 月 25 日\n\n" +
+                  "这是完整保存的识别文字，用于核对长文本的换行与滚动。\n".repeat(
+                    25,
+                  ),
+              },
+            ],
+          },
+        }),
+      );
+    await page.goto("/files?file=file-1");
+    await page.getByRole("button", { name: "文件详情", exact: true }).click();
+    if (scenario === "text") {
+      await expect(page.getByRole("textbox", { name: "识别文字" })).toHaveValue(
+        /档案收据/,
+      );
+    } else {
+      await page
+        .getByRole("button", { name: "提取文字（OCR）", exact: true })
+        .click();
+      const dialog = page.getByRole("dialog", { name: "提取文字（OCR）" });
+      if (scenario === "disconnected")
+        await expect(
+          dialog.getByRole("button", { name: "提取文字（OCR）", exact: true }),
+        ).toBeDisabled();
+      else {
+        await expect(
+          dialog.getByRole("button", { name: "提取文字（OCR）", exact: true }),
+        ).toBeEnabled();
+        if (scenario === "error") {
+          await dialog
+            .getByRole("button", { name: "提取文字（OCR）", exact: true })
+            .click();
+          await expect(dialog.getByRole("alert")).toContainText(
+            "no result was saved",
+          );
+        }
+      }
+    }
     await capture(page, errors, info.title);
   });
 }
