@@ -86,7 +86,8 @@ func (c *Client) cacheLock(ctx context.Context) (func(), error) {
 			return nil, err
 		}
 	}
-	return lockfile.New(filepath.Join(c.root, "cache.lock")).Acquire(ctx)
+	// Reuse the in-process semaphore instead of polling competing kernel locks.
+	return c.cacheGuard.Acquire(ctx)
 }
 
 func (c *Client) cachePinsLocked() (cachePins, map[string]bool, error) {

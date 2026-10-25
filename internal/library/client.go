@@ -47,12 +47,13 @@ func (s ClientSettings) validate() error {
 // Client is a partial-content replica with a separate durable pending journal.
 // The derived database is never opened through the NAS Library.Open path.
 type Client struct {
-	root    string
-	db      *sql.DB
-	lock    *lockfile.Locker
-	queue   *pendingQueue
-	catalog *journal.Dir
-	blobs   *blob.Dir
+	root       string
+	db         *sql.DB
+	lock       *lockfile.Locker
+	cacheGuard *lockfile.Locker
+	queue      *pendingQueue
+	catalog    *journal.Dir
+	blobs      *blob.Dir
 }
 
 func CreateClient(ctx context.Context, root string, settings ClientSettings) (*Client, error) {
@@ -103,7 +104,11 @@ func OpenClient(ctx context.Context, root string) (*Client, error) {
 	if err := migrateInstanceConfig(ctx, root, "client"); err != nil {
 		return nil, err
 	}
-	c := &Client{root: root, lock: lockfile.New(filepath.Join(root, "client.lock"))}
+	c := &Client{
+		root:       root,
+		lock:       lockfile.New(filepath.Join(root, "client.lock")),
+		cacheGuard: lockfile.New(filepath.Join(root, "cache.lock")),
+	}
 	if _, err := c.settings(); err != nil {
 		return nil, err
 	}
@@ -173,6 +178,9 @@ func (c *Client) boundary() (SyncBoundary, bool, error) {
 }
 
 func (c *Client) rebuildLocked(ctx context.Context) (clientOverlay, error) {
+	if err := c.invalidateViewStamp(); err != nil {
+		return clientOverlay{}, err
+	}
 	if _, err := c.catalog.RecoverTail(); err != nil {
 		return clientOverlay{}, err
 	}
@@ -184,7 +192,15 @@ func (c *Client) rebuildLocked(ctx context.Context) (clientOverlay, error) {
 	if err != nil {
 		return clientOverlay{}, err
 	}
-	return rebuildClientPrefixInto(ctx, c.db, c.catalog, pending, head.OpID, head.Sum)
+	stamp, err := c.currentViewStamp(ctx, head, pending)
+	if err != nil {
+		return clientOverlay{}, err
+	}
+	result, err := rebuildClientPrefixInto(ctx, c.db, c.catalog, pending, head.OpID, head.Sum)
+	if err == nil {
+		err = writeClientJSON(c.viewStampPath(), stamp)
+	}
+	return result, err
 }
 
 // Stage persists an already generated domain intent. Command adapters generate

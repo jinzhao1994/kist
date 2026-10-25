@@ -29,7 +29,7 @@ func (c *Client) originalSize(ctx context.Context, key string) (int64, error) {
 		return 0, err
 	}
 	defer release()
-	if _, err := c.rebuildLocked(ctx); err != nil {
+	if err := c.refreshViewLocked(ctx); err != nil {
 		return 0, err
 	}
 	var size int64

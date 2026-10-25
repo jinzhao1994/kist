@@ -35,7 +35,7 @@ func (c *Client) readView(ctx context.Context, fn func(*store.ViewTx) error) err
 			return err
 		}
 		defer release()
-		if _, err := c.rebuildLocked(ctx); err != nil {
+		if err := c.refreshViewLocked(ctx); err != nil {
 			return err
 		}
 	}

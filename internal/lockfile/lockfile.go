@@ -196,7 +196,8 @@ func (l *Locker) describe(f *os.File) {
 		return
 	}
 	f.WriteAt([]byte(body), 0)
-	f.Sync()
+	// This is diagnostic text, not durable state. The kernel lock provides
+	// exclusion; syncing this file would add disk latency to every read lease.
 }
 
 // readHolder reads the holder description back. It is racy by nature — the
