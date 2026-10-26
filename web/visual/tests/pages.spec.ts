@@ -3933,15 +3933,19 @@ for (const scenario of [
   "credentials-create",
   "hint",
   "client-storage",
+  "storage",
+  "storage-mobile",
+  "storage-dark",
   "mobile",
   "dark",
 ] as const) {
   test(`instance-settings-${scenario}`, async ({ page }, info) => {
     const errors = await prepare(page, {
-      mode: scenario === "dark" ? "dark" : "light",
+      mode:
+        scenario === "dark" || scenario === "storage-dark" ? "dark" : "light",
       client: scenario === "client-storage",
     });
-    if (scenario === "mobile")
+    if (scenario === "mobile" || scenario === "storage-mobile")
       await page.setViewportSize({ width: 390, height: 844 });
     const client = scenario === "client-storage";
     const fields = [
@@ -4168,8 +4172,12 @@ for (const scenario of [
         "用于打开 kist 的网址",
       );
     }
-    if (client)
+    if (client || scenario.startsWith("storage")) {
       await settings.getByRole("link", { name: "存储", exact: true }).click();
+      const usage = settings.getByRole("region", { name: "本机存储用量" });
+      await expect(usage.locator(".storage-usage-values > div")).toHaveCount(3);
+      await expect(usage).toContainText("原文件");
+    }
     await capture(page, errors, info.title);
   });
 }

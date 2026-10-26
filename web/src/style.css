@@ -3479,10 +3479,7 @@ main.upload-drag-active {
 .storage-usage-values {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--mantine-spacing-md) var(--mantine-spacing-xl);
-}
-.sync-page-content .storage-usage-values {
-  column-gap: calc(2 * var(--mantine-spacing-xl));
+  gap: var(--mantine-spacing-md) calc(2 * var(--mantine-spacing-xl));
 }
 
 .settings-table th {
@@ -3575,9 +3572,6 @@ main.upload-drag-active {
 .section-heading-action {
   margin-inline-start: auto;
   font-weight: 500;
-}
-.sync-page-content .flat-page-section + .flat-page-section {
-  margin-block-start: var(--mantine-spacing-sm);
 }
 .retention-table td:nth-child(2) {
   white-space: nowrap;

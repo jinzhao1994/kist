@@ -1,3 +1,4 @@
+import { StorageUsageValues } from "./StorageUsageValues";
 import { AIConnection } from "./AI";
 import { EmptyHint } from "./EmptyHint";
 import { HelpTooltip } from "./HelpTooltip";
@@ -24,7 +25,7 @@ import { useElementSize } from "@mantine/hooks";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { APIError, get, result } from "./api";
 import type { components } from "./api-schema";
-import { useI18n, formatInstant, formatBytes, type MessageKey } from "./i18n";
+import { useI18n, formatInstant, type MessageKey } from "./i18n";
 import { errorMessage } from "./mutations";
 import { Select } from "./Select";
 import { colors } from "./theme";
@@ -381,7 +382,7 @@ export function InstanceSettings() {
   );
 }
 function StorageUsage() {
-  const { t, prefs } = useI18n();
+  const { t } = useI18n();
   const usage = useQuery({
     queryKey: ["instance-storage-usage"],
     queryFn: ({ signal }) =>
@@ -417,22 +418,13 @@ function StorageUsage() {
         </Text>
       )}
       {usage.data && (
-        <div className="storage-usage-values">
-          {(
-            [
-              ["originals_bytes", "settingOriginalsUsage"],
-              ["metadata_bytes", "settingMetadataUsage"],
-              ["previews_bytes", "settingPreviewsUsage"],
-            ] as const
-          ).map(([key, label]) => (
-            <div key={key}>
-              <Text size="xs" c="dimmed">
-                {t(label)}
-              </Text>
-              <Text>{formatBytes(usage.data[key], prefs)}</Text>
-            </div>
-          ))}
-        </div>
+        <StorageUsageValues
+          items={[
+            ["settingOriginalsUsage", usage.data.originals_bytes],
+            ["settingMetadataUsage", usage.data.metadata_bytes],
+            ["settingPreviewsUsage", usage.data.previews_bytes],
+          ]}
+        />
       )}
     </section>
   );

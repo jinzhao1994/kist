@@ -1,3 +1,4 @@
+import { StorageUsageValues } from "./StorageUsageValues";
 import { HelpTooltip } from "./HelpTooltip";
 import {
   useConnectionStatus,
@@ -15,7 +16,7 @@ import { OfflineRetention } from "./OfflineRetention";
 import { LocalHistory } from "./LocalHistory";
 import { actionLabel } from "./History";
 import { errorMessage } from "./mutations";
-import { formatBytes, formatInstant, useI18n } from "./i18n";
+import { formatInstant, useI18n } from "./i18n";
 import {
   clientCommand,
   offlineClient,
@@ -120,7 +121,7 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
           </Button>
         </Group>
       </header>
-      <div className="instance-settings-content sync-page-content">
+      <div className="instance-settings-content">
         <Stack gap="md">
           {status.isPending && <Text role="status">{t("loading")}</Text>}
           {status.error && (
@@ -323,37 +324,22 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
                     {storage.error && (
                       <Text role="alert">{errorMessage(storage.error, t)}</Text>
                     )}
-                    <div className="storage-usage-values">
-                      {(
+                    <StorageUsageValues
+                      items={[
                         [
-                          [
-                            "clientCacheLabel",
-                            cache.data
-                              ? cache.data.cached_bytes +
-                                cache.data.partial_bytes
-                              : undefined,
-                          ],
-                          ["clientPinnedLabel", cache.data?.pinned_bytes],
-                          [
-                            "clientOriginalsLabel",
-                            storage.data?.originals_bytes,
-                          ],
-                          [
-                            "clientJournalLabel",
-                            storage.data?.pending_journal_bytes,
-                          ],
-                        ] as const
-                      ).map(([label, bytes]) => (
-                        <div key={label}>
-                          <Text size="xs" c="dimmed">
-                            {t(label)}
-                          </Text>
-                          <Text>
-                            {bytes == null ? "—" : formatBytes(bytes, prefs)}
-                          </Text>
-                        </div>
-                      ))}
-                    </div>
+                          "clientCacheLabel",
+                          cache.data
+                            ? cache.data.cached_bytes + cache.data.partial_bytes
+                            : undefined,
+                        ],
+                        ["clientPinnedLabel", cache.data?.pinned_bytes],
+                        ["clientOriginalsLabel", storage.data?.originals_bytes],
+                        [
+                          "clientJournalLabel",
+                          storage.data?.pending_journal_bytes,
+                        ],
+                      ]}
+                    />
                     {cache.data?.over_limit && (
                       <Alert color="yellow">{t("clientCacheOverLimit")}</Alert>
                     )}
