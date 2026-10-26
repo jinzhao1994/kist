@@ -52,6 +52,15 @@ func TestOCRWireAndModelCatalog(t *testing.T) {
 		if body["store"] != false || body["stream"] != true || body["model"] != "gpt-6-luna" {
 			t.Error(body)
 		}
+		prompt := ai.OCRPrompt()
+		if prompt.Instructions == "" || body["instructions"] != prompt.Instructions {
+			t.Error("OCR instructions did not come from the shared task prompt")
+		}
+		input := body["input"].([]any)[0].(map[string]any)
+		content := input["content"].([]any)
+		if prompt.Input == "" || content[0].(map[string]any)["text"] != prompt.Input {
+			t.Error("OCR input did not come from the shared task prompt")
+		}
 		w.Write([]byte("data: {\"type\":\"response.output_text.delta\",\"delta\":\"hello\"}\n\ndata: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\"}}\n"))
 	}))
 	defer server.Close()
