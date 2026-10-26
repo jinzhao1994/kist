@@ -14,16 +14,20 @@ type Image struct {
 	MIME string
 	Data []byte
 }
-type OCRResult struct {
+type TextResult struct {
 	Text     string
 	Provider string
 	Model    string
 }
 
+// OCRResult preserves the OCR contract while sharing generated-text provenance.
+type OCRResult = TextResult
+
 // Provider does not write archive state. Only completed results may be committed.
 type Provider interface {
 	Models(context.Context) ([]Model, error)
 	OCR(context.Context, string, Image) (OCRResult, error)
+	Describe(context.Context, string, Image, string) (TextResult, error)
 }
 
 // Credentials are private connection state, never archive metadata or API output.

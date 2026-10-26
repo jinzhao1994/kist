@@ -46,6 +46,7 @@ func TestAISettingsAndQueueRoutes(t *testing.T) {
 	}
 	value["model"] = "gpt-6-luna"
 	value["auto_ocr"] = true
+	value["auto_desc"] = true
 	value["proxy_url"] = "http://127.0.0.1:7890"
 	body, _ := json.Marshal(value)
 	if got := callLocal("PUT", "/ai/settings", string(body)); got.Code != 200 {
@@ -54,9 +55,22 @@ func TestAISettingsAndQueueRoutes(t *testing.T) {
 	if got := callLocal("PUT", "/ai/settings", string(body)); got.Code != 409 {
 		t.Fatal("stale update", got.Code)
 	}
-	for _, test := range []struct{ method, path, body string }{{"GET", "/ai/ocr", ""}, {"POST", "/ai/ocr/pause", `{"paused":true}`}, {"POST", "/ai/ocr/backfill", `{"retry":false}`}} {
+	for _, test := range []struct{ method, path, body string }{{"GET", "/ai/desc", ""}, {"POST", "/ai/desc/pause", `{"paused":true}`}, {"POST", "/ai/desc/backfill", `{"retry":false}`}, {"GET", "/ai/ocr", ""}, {"POST", "/ai/ocr/pause", `{"paused":true}`}, {"POST", "/ai/ocr/backfill", `{"retry":false}`}} {
 		if got := callLocal(test.method, test.path, test.body); got.Code != 200 {
 			t.Fatal(test.path, got.Code, got.Body.String())
+		}
+	}
+}
+
+func TestDescriptionFileRouteIsLocalOnly(t *testing.T) {
+	s, _ := testServer(t)
+	for _, method := range []string{"GET", "POST"} {
+		r := httptest.NewRequest(method, "http://localhost:8473"+Prefix+"/files/01a1737a-ceb0-7392-a1a9-a5ecb0b7429e/desc", strings.NewReader(`{"retry":false}`))
+		r.RemoteAddr = "192.0.2.1:1234"
+		w := httptest.NewRecorder()
+		s.ServeHTTP(w, r)
+		if w.Code != 403 {
+			t.Fatal(w.Code, w.Body.String())
 		}
 	}
 }

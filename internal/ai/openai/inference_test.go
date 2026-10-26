@@ -74,3 +74,27 @@ func TestOCRWireAndModelCatalog(t *testing.T) {
 		t.Fatal(out, err)
 	}
 }
+
+func TestDescriptionWireUsesIndependentLocalizedPrompt(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+			return
+		}
+		prompt := ai.DescriptionPrompt("zh-CN")
+		if body["instructions"] != prompt.Instructions || !strings.Contains(prompt.Instructions, "zh-CN") || strings.Contains(prompt.Instructions, "{{language}}") || prompt.Instructions == ai.OCRPrompt().Instructions {
+			t.Error("wrong description prompt")
+		}
+		if body["store"] != false || body["stream"] != true {
+			t.Error("unexpected request policy")
+		}
+		w.Write([]byte("data: {\"type\":\"response.output_text.done\",\"text\":\"一张测试文档。\"}\n\ndata: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\"}}\n"))
+	}))
+	defer server.Close()
+	c := Client{BaseURL: server.URL, Token: "test-token"}
+	out, err := c.Describe(t.Context(), "test", ai.Image{MIME: "image/png", Data: []byte("image")}, "zh-CN")
+	if err != nil || out.Text != "一张测试文档。" {
+		t.Fatal(out, err)
+	}
+}

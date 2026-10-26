@@ -8,10 +8,31 @@ import {
 } from "react";
 
 export const en = {
+  descCopyText: "Copy description",
+  descTitle: "Description",
+  descText: "Description text",
+  descLanguage: "Output language",
+  settingLibraryLanguage: "Library language",
+  settingLanguageHint:
+    "Language for generated descriptions (BCP 47, e.g. zh-CN or en). Changes affect future tasks only; interface language is separate.",
+  descAuto: "Automatically describe new images",
+  descAutoHint:
+    "Only images added after enabling this setting are sent for descriptions. Existing images require an explicit backfill.",
+  descQueuePaused:
+    "Description queue paused. Resume it in AI settings; an in-flight request can still finish.",
+  descQueueRunning: "Describing: {name}",
+  descQueueIdle: "Description worker ready",
+  descScanning: "Finding images without descriptions…",
+  descBackfill: "Describe existing images without descriptions",
+  descBackfillHint:
+    "Send supported images without descriptions to the connected provider. Save results as metadata in the library language. Failures require an explicit retry.",
+  descQueued: "Queued for description",
+  descExtract: "Generate description",
+
   aiSaveSettings: "Save AI settings",
   aiReloadSettings: "Reload AI settings",
   aiDisconnected: "Not connected",
-  aiChooseModel: "Choose a default OCR model",
+  aiChooseModel: "Choose a default AI model",
   aiModelsLoading: "Loading models…",
   aiModelsEmpty: "No models are available for this account.",
   aiUseLuna: "Use GPT-6 Luna",
@@ -37,11 +58,11 @@ export const en = {
     "Backfill sends supported images without OCR to the connected provider. Failures are not retried automatically. If paused, resume the queue to process requests.",
   ocrQueued: "Queued for OCR",
   ocrConfigureFirst:
-    "Connect an account and save a default OCR model in AI settings first.",
+    "Connect an account and save a default AI model in AI settings first.",
   ocrSettings: "AI settings",
   aiConnection: "AI connection",
   aiLocalHint:
-    "Connect ChatGPT to use your plan for OCR. Images requested manually or by enabled background tasks are sent to OpenAI; recognized text is saved in the archive.",
+    "Connect ChatGPT to use your plan for OCR and image descriptions. Images requested manually or by enabled background tasks are sent to OpenAI; results are saved as metadata in the archive.",
   aiConnected: "Connected",
   aiContinue: "Continue with ChatGPT",
   aiOpenSignIn: "Open ChatGPT sign-in",
@@ -821,10 +842,31 @@ export const en = {
 } as const;
 export type MessageKey = keyof typeof en;
 export const zh: Record<MessageKey, string> = {
+  descCopyText: "复制描述",
+  descTitle: "描述",
+  descText: "描述正文",
+  descLanguage: "生成语言",
+  settingLibraryLanguage: "资料库语言",
+  settingLanguageHint:
+    "用于生成描述的语言（BCP 47，例如 zh-CN 或 en）。修改只影响后续任务，与界面语言分开。",
+  descAuto: "自动描述新增图片",
+  descAutoHint:
+    "仅发送启用后新增的图片生成描述；已有图片需要手动发起查缺补漏。",
+  descQueuePaused:
+    "描述队列已暂停。可在 AI 设置中继续；已经发出的请求仍可能完成。",
+  descQueueRunning: "正在描述：{name}",
+  descQueueIdle: "描述后台已就绪",
+  descScanning: "正在查找尚无描述的图片…",
+  descBackfill: "补全已有图片的描述",
+  descBackfillHint:
+    "将尚无描述的支持格式图片发送至已连接的服务，按资料库语言生成描述并保存为元数据。失败任务需明确重试。",
+  descQueued: "已排队等待生成描述",
+  descExtract: "生成描述",
+
   aiSaveSettings: "保存 AI 设置",
   aiReloadSettings: "重新加载 AI 设置",
   aiDisconnected: "未连接",
-  aiChooseModel: "选择默认 OCR 模型",
+  aiChooseModel: "选择默认 AI 模型",
   aiModelsLoading: "正在加载模型列表…",
   aiModelsEmpty: "当前账号没有可用模型。",
   aiUseLuna: "使用 GPT-6 Luna",
@@ -847,11 +889,11 @@ export const zh: Record<MessageKey, string> = {
   ocrBackfillHint:
     "查缺补漏会将尚未识别且受支持的图片发送给已连接的服务商。失败项不会自动重试；队列暂停时，需要点击继续后才开始处理。",
   ocrQueued: "已排队等待 OCR",
-  ocrConfigureFirst: "请先在 AI 设置中连接账号并保存默认 OCR 模型。",
+  ocrConfigureFirst: "请先在 AI 设置中连接账号并保存默认 AI 模型。",
   ocrSettings: "AI 设置",
   aiConnection: "AI 连接",
   aiLocalHint:
-    "连接 ChatGPT 后使用你的套餐进行 OCR。手动请求或已启用的后台任务会将图片发送到 OpenAI，识别文字保存到资料库。",
+    "连接 ChatGPT 后使用你的套餐识别文字和描述图片。手动请求或已启用的后台任务会将图片发送到 OpenAI，结果保存为资料库中的元数据。",
   aiConnected: "已连接",
   aiContinue: "使用 ChatGPT 继续",
   aiOpenSignIn: "打开 ChatGPT 登录",
@@ -1625,6 +1667,7 @@ export function initializeLanguage() {
   applyDocumentLanguage(initialPreferences());
 }
 interface Parameters {
+  descQueueRunning: { name: string };
   ocrQueueRunning: { name: string };
   ocrQueueCounts: { queued: number; failed: number };
   clientSelectLoaded: { count: number };

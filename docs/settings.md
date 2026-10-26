@@ -42,6 +42,8 @@ New-format files use UTC if `library.timezone` is omitted. Initialization writes
 the detected IANA zone when available. Changing it affects future interpretation
 of timestamps without a zone; existing recorded operations do not change.
 
+`library.language` controls generated image descriptions, independently of browser language. It defaults to `zh-CN` and accepts BCP 47 tags such as `en` or `zh-Hant`. Changes affect subsequent tasks only; completed descriptions retain their original language.
+
 Saving validates the whole configuration and atomically replaces the private
 file. Unknown keys and invalid values are rejected. An outdated settings page
 cannot overwrite a newer configuration: reload and reapply the intended edits.

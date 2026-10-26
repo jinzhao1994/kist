@@ -56,16 +56,19 @@ type ocrQueueState struct {
 // OCRQueue uses OS locks and reloads state for every operation, including across
 // processes. No archive lock is held while the provider performs inference.
 type OCRQueue struct {
+	kind          string
 	library       *Library
 	state, worker *lockfile.Locker
 	provider      func(context.Context) (ai.Provider, error)
 }
 
-func (l *Library) OCRQueue() *OCRQueue {
-	return &OCRQueue{l, lockfile.New(filepath.Join(l.layout.Root, "ocr-state.lock")), lockfile.New(filepath.Join(l.layout.Root, "ocr-worker.lock")), l.AIProvider}
+func (l *Library) OCRQueue() *OCRQueue         { return l.imageTextQueue("ocr") }
+func (l *Library) DescriptionQueue() *OCRQueue { return l.imageTextQueue("desc") }
+func (l *Library) imageTextQueue(kind string) *OCRQueue {
+	return &OCRQueue{kind: kind, library: l, state: lockfile.New(filepath.Join(l.layout.Root, kind+"-state.lock")), worker: lockfile.New(filepath.Join(l.layout.Root, "ocr-worker.lock")), provider: l.AIProvider}
 }
 func (q *OCRQueue) path() string {
-	return filepath.Join(q.library.layout.Derived(), "ocr", "queue.json")
+	return filepath.Join(q.library.layout.Derived(), q.kind, "queue.json")
 }
 func (q *OCRQueue) load() (ocrQueueState, error) {
 	var s ocrQueueState
@@ -79,7 +82,7 @@ func (q *OCRQueue) load() (ocrQueueState, error) {
 	defer f.Close()
 	err = json.NewDecoder(io.LimitReader(f, 32<<20)).Decode(&s)
 	if err != nil {
-		return s, errors.New("OCR queue state is unreadable")
+		return s, errors.New("AI task queue state is unreadable")
 	}
 	return s, nil
 }
@@ -141,7 +144,7 @@ func (q *OCRQueue) Backfill(ctx context.Context, retry bool) (OCRQueueStatus, er
 		return OCRQueueStatus{}, err
 	}
 	if cfg.Model == "" {
-		return OCRQueueStatus{}, errors.New("choose an OCR model in Settings first")
+		return OCRQueueStatus{}, errors.New("choose an AI model in Settings first")
 	}
 	head, err := q.library.SyncHead(ctx)
 	if err != nil {
@@ -174,7 +177,7 @@ func (q *OCRQueue) resolve(ctx context.Context, id domain.FileID) (OCRJob, error
 		j.Name = f.Name
 		j.BlobKey = f.BlobKey
 		versions, err := store.Extractions(tx.Queryer(), id)
-		if versions["ocr"] >= 1 {
+		if versions[q.kind] >= 1 {
 			j.State = "ready"
 		}
 		return err
@@ -241,14 +244,14 @@ func (q *OCRQueue) Request(ctx context.Context, id domain.FileID, retry bool) (O
 		return OCRJob{}, err
 	}
 	if cfg.Model == "" {
-		return OCRJob{}, errors.New("choose an OCR model in Settings first")
+		return OCRJob{}, errors.New("choose an AI model in Settings first")
 	}
 	j, err := q.resolve(ctx, id)
 	if err != nil || j.State == "ready" {
 		return j, err
 	}
 	if !q.eligible(j) {
-		return j, errors.New("OCR supports JPEG, PNG and static WebP images")
+		return j, errors.New("AI extraction supports JPEG, PNG and static WebP images")
 	}
 	release, err := q.state.Acquire(ctx)
 	if err != nil {
@@ -265,7 +268,7 @@ func (q *OCRQueue) Request(ctx context.Context, id domain.FileID, retry bool) (O
 
 // scanBatch runs under the short state lock and never performs network I/O.
 func (q *OCRQueue) scanBatch(ctx context.Context, s *ocrQueueState, scan *ocrScan, automatic bool) (bool, error) {
-	ids, err := store.OCRCandidates(q.library.db, scan.After, scan.Through, scan.Cursor, 100)
+	ids, err := store.ImageTextCandidates(q.library.db, q.kind, scan.After, scan.Through, scan.Cursor, 100)
 	if err != nil {
 		return false, err
 	}
@@ -302,6 +305,10 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	auto, after := cfg.AIOptions.AutoOCR, cfg.AIOptions.AfterOp
+	if q.kind == "desc" {
+		auto, after = cfg.AIOptions.AutoDesc, cfg.AIOptions.DescAfterOp
+	}
 	unlock, err := q.state.Acquire(ctx)
 	if err != nil {
 		return err
@@ -318,7 +325,7 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 				s.Jobs[i].State = "ready"
 			} else {
 				s.Jobs[i].State = "failed"
-				s.Jobs[i].Error = "OCR was interrupted; retry explicitly"
+				s.Jobs[i].Error = "AI extraction was interrupted; retry explicitly"
 				s.Paused = true
 				s.Error = s.Jobs[i].Error
 			}
@@ -327,7 +334,7 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 	// Discard ready/stale jobs from the expendable queue, not from the archive.
 	kept := s.Jobs[:0]
 	for _, j := range s.Jobs {
-		if j.State == "ready" || j.State == "queued" && j.Automatic && !cfg.AIOptions.AutoOCR {
+		if j.State == "ready" || j.State == "queued" && j.Automatic && !auto {
 			continue
 		}
 		if j.State == "failed" {
@@ -348,12 +355,12 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 		unlock()
 		return err
 	}
-	if cfg.AIOptions.AutoOCR {
-		if s.AutoScan != nil && s.AutoScan.After < cfg.AIOptions.AfterOp {
+	if auto {
+		if s.AutoScan != nil && s.AutoScan.After < after {
 			s.AutoScan = nil
 		}
-		if s.AutoCursor < cfg.AIOptions.AfterOp {
-			s.AutoCursor = cfg.AIOptions.AfterOp
+		if s.AutoCursor < after {
+			s.AutoCursor = after
 		}
 		if s.AutoScan == nil && head.OpID > s.AutoCursor {
 			s.AutoScan = &ocrScan{After: s.AutoCursor, Through: head.OpID}
@@ -413,7 +420,7 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	err = q.execute(ctx, job, cfg.AIOptions.Model)
+	err = q.execute(ctx, job, cfg.AIOptions.Model, cfg.Library.Language)
 	// Use a bounded independent context to record shutdown/cancellation failures.
 	finishCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -441,9 +448,9 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 	}
 	return q.save(s)
 }
-func (q *OCRQueue) execute(ctx context.Context, j OCRJob, model string) error {
+func (q *OCRQueue) execute(ctx context.Context, j OCRJob, model, language string) error {
 	if model == "" {
-		return errors.New("choose an OCR model in Settings first")
+		return errors.New("choose an AI model in Settings first")
 	}
 	current, err := q.resolve(ctx, j.FileID)
 	if err != nil {
@@ -459,32 +466,38 @@ func (q *OCRQueue) execute(ctx context.Context, j OCRJob, model string) error {
 	if err != nil {
 		return err
 	}
-	prepared, err := q.library.prepareOCR(ctx, j.FileID, provider, model, j.BlobKey)
+	prepared, err := q.library.prepareImageText(ctx, j.FileID, provider, model, j.BlobKey, q.kind, language)
 	if err != nil {
 		return err
 	}
-	sum := sha256.Sum256([]byte(j.FileID.String() + "\n" + j.BlobKey + "\nocr:1"))
+	sum := sha256.Sum256([]byte(j.FileID.String() + "\n" + j.BlobKey + "\n" + q.kind + ":1"))
 	_, err = q.library.ExecuteRequest(ctx, Request{ID: j.RequestID, Digest: hex.EncodeToString(sum[:])}, prepared.Commit)
 	return err
 }
-func (q *OCRQueue) Run(ctx context.Context) {
+func (q *OCRQueue) Run(ctx context.Context, companions ...*OCRQueue) {
+	queues := append([]*OCRQueue{q}, companions...)
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	for {
 		if ctx.Err() != nil {
 			return
 		}
-		if err := q.Step(ctx); err != nil && ctx.Err() == nil {
-			// A state/config failure must not start network work; surface it when possible.
-			unlock, e := q.state.Acquire(ctx)
-			if e == nil {
-				s, e := q.load()
+		for _, queue := range queues {
+			if ctx.Err() != nil {
+				return
+			}
+			if err := queue.Step(ctx); err != nil && ctx.Err() == nil {
+				// A state/config failure must not start network work; surface it when possible.
+				unlock, e := queue.state.Acquire(ctx)
 				if e == nil {
-					s.Paused = true
-					s.Error = "OCR queue could not continue; check configuration and storage"
-					_ = q.save(s)
+					s, e := queue.load()
+					if e == nil {
+						s.Paused = true
+						s.Error = "AI task queue could not continue; check configuration and storage"
+						_ = queue.save(s)
+					}
+					unlock()
 				}
-				unlock()
 			}
 		}
 		select {

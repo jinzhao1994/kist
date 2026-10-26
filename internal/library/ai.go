@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -128,25 +129,37 @@ func (ocrExtractor) Extract(context.Context, io.ReadSeeker, string) ([]extract.K
 	return nil, errors.New("OCR requires an explicit provider")
 }
 
+type descriptionExtractor struct{ ocrExtractor }
+
+func (descriptionExtractor) ID() string           { return "desc" }
+func (descriptionExtractor) Namespaces() []string { return []string{"desc"} }
+
 // ErrOCRChanged rejects inference based on a stale file or metadata snapshot.
-var ErrOCRChanged = errors.New("file changed during OCR; reload before trying again")
+var ErrOCRChanged = errors.New("file changed during AI extraction; reload before trying again")
 
 type PreparedOCR struct {
-	library *Library
-	file    domain.File
-	rows    []store.MetadataRow
-	version int
-	payload []byte
+	extractor string
+	library   *Library
+	file      domain.File
+	rows      []store.MetadataRow
+	version   int
+	payload   []byte
 }
 
 func (l *Library) PrepareOCR(ctx context.Context, id domain.FileID, provider ai.Provider, model string) (*PreparedOCR, error) {
 	return l.prepareOCR(ctx, id, provider, model, "")
 }
 func (l *Library) prepareOCR(ctx context.Context, id domain.FileID, provider ai.Provider, model, expectedBlob string) (*PreparedOCR, error) {
+	return l.prepareImageText(ctx, id, provider, model, expectedBlob, "ocr", "")
+}
+func (l *Library) PrepareDescription(ctx context.Context, id domain.FileID, provider ai.Provider, model, language string) (*PreparedOCR, error) {
+	return l.prepareImageText(ctx, id, provider, model, "", "desc", language)
+}
+func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provider ai.Provider, model, expectedBlob, kind, language string) (*PreparedOCR, error) {
 	if ctx.Value(requestContextKey{}) != nil {
 		return nil, ErrRequestScope
 	}
-	p := &PreparedOCR{library: l}
+	p := &PreparedOCR{library: l, extractor: kind}
 	var zone *time.Location
 	err := l.readTx(ctx, func(tx *store.ViewTx) error {
 		var ok bool
@@ -163,7 +176,7 @@ func (l *Library) prepareOCR(ctx context.Context, id domain.FileID, provider ai.
 			return err
 		}
 		versions, err := store.Extractions(tx.Queryer(), id)
-		p.version = versions["ocr"]
+		p.version = versions[kind]
 		zone = l.zone()
 		return err
 	})
@@ -190,22 +203,25 @@ func (l *Library) prepareOCR(ctx context.Context, id domain.FileID, provider ai.
 		return nil, err
 	}
 	if len(data) > ai.MaxImageBytes {
-		return nil, errors.New("OCR image exceeds 20 MiB")
+		return nil, errors.New("AI image exceeds 20 MiB")
 	}
 	mime, err := extract.DetectMedia(bytes.NewReader(data))
 	if err != nil {
 		return nil, err
 	}
-	e := ocrExtractor{}
+	var e extract.Extractor = ocrExtractor{}
+	if kind == "desc" {
+		e = descriptionExtractor{}
+	}
 	if !e.Wants(mime) {
-		return nil, errors.New("OCR supports JPEG, PNG and static WebP images")
+		return nil, errors.New("AI extraction supports JPEG, PNG and static WebP images")
 	}
 	// Inspect compressed chunks without allocating animation frames.
 	if mime == "image/webp" {
 		for pos := 12; pos+8 <= len(data); {
 			chunk := string(data[pos : pos+4])
 			if chunk == "ANIM" || chunk == "ANMF" {
-				return nil, errors.New("OCR requires a static image")
+				return nil, errors.New("AI extraction requires a static image")
 			}
 			n := uint64(binary.LittleEndian.Uint32(data[pos+4 : pos+8]))
 			next := uint64(pos) + 8 + n + (n % 2)
@@ -219,22 +235,33 @@ func (l *Library) prepareOCR(ctx context.Context, id domain.FileID, provider ai.
 	if err != nil {
 		return nil, err
 	}
-	result, err := provider.OCR(ctx, model, input)
+	var result ai.TextResult
+	if kind == "desc" {
+		result, err = provider.Describe(ctx, model, input, language)
+	} else {
+		result, err = provider.OCR(ctx, model, input)
+	}
 	if err != nil {
 		return nil, err
 	}
 	if err = ctx.Err(); err != nil {
 		return nil, err
 	}
-	facts := []extract.KV{{Key: "ocr:text", Value: result.Text, Type: extract.TypeText}, {Key: "ocr:provider", Value: result.Provider, Type: extract.TypeText}, {Key: "ocr:model", Value: result.Model, Type: extract.TypeText}, {Key: "ocr:input_sha256", Value: fmt.Sprint(p.file.BlobKey), Type: extract.TypeText}, {Key: "ocr:recipe", Value: "1", Type: extract.TypeInt}}
+	if kind == "desc" && strings.TrimSpace(result.Text) == "" {
+		return nil, errors.New("description is empty; no result was saved")
+	}
+	facts := []extract.KV{{Key: kind + ":text", Value: result.Text, Type: extract.TypeText}, {Key: kind + ":provider", Value: result.Provider, Type: extract.TypeText}, {Key: kind + ":model", Value: result.Model, Type: extract.TypeText}, {Key: kind + ":input_sha256", Value: fmt.Sprint(p.file.BlobKey), Type: extract.TypeText}, {Key: kind + ":recipe", Value: "1", Type: extract.TypeInt}}
+	if kind == "desc" {
+		facts = append(facts, extract.KV{Key: "desc:language", Value: language, Type: extract.TypeText})
+	}
 	if err = extract.Check(e, facts); err != nil {
 		return nil, err
 	}
 	change := extractionChange(e, p.file, facts, p.rows, zone)
-	// OCR has no date authority and must not reinterpret capture time.
+	// AI extraction has no date authority and must not reinterpret capture time.
 	change.CapturedAt = p.file.CapturedAt
 	change.CapturedWas = p.file.CapturedAt
-	p.payload, err = oplog.Marshal(oplog.ExtractMetadataPayload{Extractor: "ocr", Version: 1, PreviousVersion: p.version, Files: []oplog.FileExtraction{*change}})
+	p.payload, err = oplog.Marshal(oplog.ExtractMetadataPayload{Extractor: kind, Version: 1, PreviousVersion: p.version, Files: []oplog.FileExtraction{*change}})
 	return p, err
 }
 
@@ -263,7 +290,7 @@ func (p *PreparedOCR) Commit(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if !reflect.DeepEqual(rows, p.rows) || versions["ocr"] != p.version || file.CapturedAt != p.file.CapturedAt {
+	if !reflect.DeepEqual(rows, p.rows) || versions[p.extractor] != p.version || file.CapturedAt != p.file.CapturedAt {
 		return ErrOCRChanged
 	}
 	_, err = l.write(ctx, oplog.ActionExtractMetadata, p.payload, oplog.OriginExtractor, writeOptions{})

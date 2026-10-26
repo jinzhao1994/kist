@@ -163,6 +163,7 @@ export function AIConnection({
 type AISettingsData = {
   model: string;
   auto_ocr: boolean;
+  auto_desc: boolean;
   proxy_url: string;
   revision: string;
 };
@@ -185,10 +186,11 @@ function useAISettings() {
     retry: false,
   });
 }
-function useOCRQueue() {
+type ImageTask = "ocr" | "desc";
+function useOCRQueue(kind: ImageTask = "ocr") {
   return useQuery({
-    queryKey: ["ocr-queue"],
-    queryFn: ({ signal }) => get<QueueStatus>("/ai/ocr", signal),
+    queryKey: [`${kind}-queue`],
+    queryFn: ({ signal }) => get<QueueStatus>(`/ai/${kind}`, signal),
     retry: false,
     refetchInterval: 2000,
   });
@@ -204,7 +206,6 @@ function AISettings({
 }) {
   const { t } = useI18n();
   const query = useAISettings();
-  const queue = useOCRQueue();
   const queries = useQueryClient();
   const models = useQuery({
     queryKey: ["ai-models"],
@@ -247,13 +248,6 @@ function AISettings({
       await queries.invalidateQueries({ queryKey: ["ai-models"] });
       await onChanged?.();
       setNotice(t("settingsSaved"));
-    });
-  }
-  async function command(path: string, body: unknown) {
-    await perform(async () => {
-      const value = await post<QueueStatus>(path, body);
-      queries.setQueryData(["ocr-queue"], value);
-      if (path.endsWith("backfill")) setNotice(t("ocrBackfillStarted"));
     });
   }
   const modelOptions = (models.data || []).map((m) => ({
@@ -335,11 +329,21 @@ function AISettings({
             onChange={(e) => edit({ auto_ocr: e.currentTarget.checked })}
             disabled={disabled || busy}
           />
+          <Checkbox
+            label={t("descAuto")}
+            description={t("descAutoHint")}
+            checked={!!draft.auto_desc}
+            onChange={(e) => edit({ auto_desc: e.currentTarget.checked })}
+            disabled={disabled || busy}
+          />
           <Group>
             <Button
               onClick={() => void save()}
               disabled={
-                disabled || busy || !dirty || (draft.auto_ocr && !draft.model)
+                disabled ||
+                busy ||
+                !dirty ||
+                ((draft.auto_ocr || draft.auto_desc) && !draft.model)
               }
             >
               {t("aiSaveSettings")}
@@ -358,6 +362,62 @@ function AISettings({
           </Group>
         </>
       )}
+      {(["ocr", "desc"] as const).map((kind) => (
+        <ImageTaskQueue
+          key={kind}
+          kind={kind}
+          disabled={disabled || busy || dirty}
+          connected={connected}
+          model={query.data?.model}
+        />
+      ))}
+    </Stack>
+  );
+}
+function ImageTaskQueue({
+  kind,
+  disabled,
+  connected,
+  model,
+}: {
+  kind: ImageTask;
+  disabled: boolean;
+  connected: boolean;
+  model?: string;
+}) {
+  const { t } = useI18n();
+  const queue = useOCRQueue(kind);
+  const queries = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  async function command(path: string, body: unknown) {
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const value = await post<QueueStatus>(path, body);
+      queries.setQueryData([`${kind}-queue`], value);
+      if (path.endsWith("backfill")) setNotice(t("ocrBackfillStarted"));
+    } catch (e) {
+      setError(errorMessage(e, t));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Stack>
+      <Text fw={600}>{kind === "ocr" ? "OCR" : t("descTitle")}</Text>
+      {error && (
+        <Text role="alert" size="sm">
+          {error}
+        </Text>
+      )}
+      {notice && (
+        <Text role="status" size="sm">
+          {notice}
+        </Text>
+      )}
       {queue.error && (
         <Group>
           <Text role="alert" size="sm">
@@ -370,10 +430,12 @@ function AISettings({
         <>
           <Text size="sm" role="status">
             {queue.data.paused
-              ? t("ocrQueuePaused")
+              ? t(kind === "ocr" ? "ocrQueuePaused" : "descQueuePaused")
               : queue.data.running
-                ? t("ocrQueueRunning", { name: queue.data.running })
-                : t("ocrQueueIdle")}
+                ? t(kind === "ocr" ? "ocrQueueRunning" : "descQueueRunning", {
+                    name: queue.data.running,
+                  })
+                : t(kind === "ocr" ? "ocrQueueIdle" : "descQueueIdle")}
           </Text>
           <Text size="sm" c="dimmed">
             {t("ocrQueueCounts", {
@@ -383,7 +445,7 @@ function AISettings({
           </Text>
           {queue.data.scanning && (
             <Text role="status" size="sm">
-              {t("ocrScanning")}
+              {t(kind === "ocr" ? "ocrScanning" : "descScanning")}
             </Text>
           )}
           {queue.data.error && (
@@ -394,56 +456,62 @@ function AISettings({
           <Group>
             <Button
               disabled={
-                disabled ||
-                busy ||
-                dirty ||
-                !query.data?.model ||
-                !connected ||
-                queue.data.scanning
+                disabled || busy || !model || !connected || queue.data.scanning
               }
-              onClick={() => void command("/ai/ocr/backfill", { retry: false })}
+              onClick={() =>
+                void command(`/ai/${kind}/backfill`, { retry: false })
+              }
             >
-              {t("ocrBackfill")}
+              {t(kind === "ocr" ? "ocrBackfill" : "descBackfill")}
             </Button>
             <Button
               disabled={
                 disabled ||
                 busy ||
-                dirty ||
                 !connected ||
                 !queue.data.failed ||
                 queue.data.scanning
               }
-              onClick={() => void command("/ai/ocr/backfill", { retry: true })}
+              onClick={() =>
+                void command(`/ai/${kind}/backfill`, { retry: true })
+              }
             >
               {t("ocrRetryFailed")}
             </Button>
             <Button
               disabled={disabled || busy}
               onClick={() =>
-                void command("/ai/ocr/pause", { paused: !queue.data?.paused })
+                void command(`/ai/${kind}/pause`, {
+                  paused: !queue.data?.paused,
+                })
               }
             >
               {t(queue.data.paused ? "ocrResume" : "ocrPause")}
             </Button>
           </Group>
           <Text size="sm" c="dimmed">
-            {t("ocrBackfillHint")}
+            {t(kind === "ocr" ? "ocrBackfillHint" : "descBackfillHint")}
           </Text>
         </>
       )}
     </Stack>
   );
 }
-export function OCRAction({ fileID }: { fileID: string }) {
+export function OCRAction({
+  fileID,
+  kind = "ocr",
+}: {
+  fileID: string;
+  kind?: ImageTask;
+}) {
   const { t } = useI18n();
   const queries = useQueryClient();
   const status = useStatus();
   const settings = useAISettings();
-  const queue = useOCRQueue();
+  const queue = useOCRQueue(kind);
   const job = useQuery({
-    queryKey: ["ocr-job", fileID],
-    queryFn: ({ signal }) => get<OCRJob>(`/files/${fileID}/ocr`, signal),
+    queryKey: [`${kind}-job`, fileID],
+    queryFn: ({ signal }) => get<OCRJob>(`/files/${fileID}/${kind}`, signal),
     retry: false,
     refetchInterval: 2000,
   });
@@ -457,11 +525,11 @@ export function OCRAction({ fileID }: { fileID: string }) {
     setBusy(true);
     setError("");
     try {
-      const value = await post<OCRJob>(`/files/${fileID}/ocr`, {
+      const value = await post<OCRJob>(`/files/${fileID}/${kind}`, {
         retry: job.data?.state === "failed",
       });
-      queries.setQueryData(["ocr-job", fileID], value);
-      await queries.invalidateQueries({ queryKey: ["ocr-queue"] });
+      queries.setQueryData([`${kind}-job`, fileID], value);
+      await queries.invalidateQueries({ queryKey: [`${kind}-queue`] });
     } catch (e) {
       setError(errorMessage(e, t));
     } finally {
@@ -484,10 +552,20 @@ export function OCRAction({ fileID }: { fileID: string }) {
       )}
       {pending && (
         <Text role="status" size="sm">
-          {t(job.data?.state === "running" ? "extracting" : "ocrQueued")}
+          {t(
+            job.data?.state === "running"
+              ? "extracting"
+              : kind === "ocr"
+                ? "ocrQueued"
+                : "descQueued",
+          )}
         </Text>
       )}
-      {queue.data?.paused && <Text size="sm">{t("ocrQueuePaused")}</Text>}
+      {queue.data?.paused && (
+        <Text size="sm">
+          {t(kind === "ocr" ? "ocrQueuePaused" : "descQueuePaused")}
+        </Text>
+      )}
       {(!status.data?.connected || !settings.data?.model) && (
         <Text size="sm">{t("ocrConfigureFirst")}</Text>
       )}
@@ -504,7 +582,13 @@ export function OCRAction({ fileID }: { fileID: string }) {
           }
           onClick={() => void request()}
         >
-          {t(job.data?.state === "failed" ? "retry" : "ocrExtract")}
+          {t(
+            job.data?.state === "failed"
+              ? "retry"
+              : kind === "ocr"
+                ? "ocrExtract"
+                : "descExtract",
+          )}
         </Button>
         <Button component="a" href="/settings#settings-ai" variant="subtle">
           {t("ocrSettings")}

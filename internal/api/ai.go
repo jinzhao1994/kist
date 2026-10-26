@@ -106,7 +106,6 @@ func (s *Server) aiRoutes() {
 		return response(models, nil)
 	})
 
-	q := s.library.OCRQueue()
 	huma.Get(s.contract, Prefix+"/ai/settings", func(ctx context.Context, _ *struct{}) (*output[library.OCRSettings], error) {
 		v, err := s.library.OCRSettings(ctx)
 		return response(v, err)
@@ -121,60 +120,62 @@ func (s *Server) aiRoutes() {
 		}
 		return response(v, nil)
 	})
-	huma.Get(s.contract, Prefix+"/ai/ocr", func(ctx context.Context, _ *struct{}) (*output[library.OCRQueueStatus], error) {
-		v, err := q.Status(ctx)
-		return response(v, err)
-	})
-	huma.Post(s.contract, Prefix+"/ai/ocr/backfill", func(ctx context.Context, in *struct {
-		Body struct {
-			Retry bool `json:"retry"`
-		}
-	}) (*output[library.OCRQueueStatus], error) {
-		v, err := q.Backfill(ctx, in.Body.Retry)
-		if err != nil {
-			return nil, huma.Error400BadRequest(err.Error())
-		}
-		return response(v, nil)
-	})
-	huma.Post(s.contract, Prefix+"/ai/ocr/pause", func(ctx context.Context, in *struct {
-		Body struct {
-			Paused bool `json:"paused"`
-		}
-	}) (*output[library.OCRQueueStatus], error) {
-		v, err := q.Pause(ctx, in.Body.Paused)
-		return response(v, err)
-	})
-	huma.Get(s.contract, Prefix+"/files/{id}/ocr", func(ctx context.Context, in *struct {
-		ID string `path:"id"`
-	}) (*output[library.OCRJob], error) {
-		id, err := parseID(in.ID)
-		if err != nil {
-			return nil, err
-		}
-		v, err := q.FileStatus(ctx, domain.FileID{ID: id})
-		return response(v, err)
-	})
-	huma.Post(s.contract, Prefix+"/files/{id}/ocr", func(ctx context.Context, in *struct {
-		ID   string `path:"id"`
-		Body struct {
-			Retry bool `json:"retry"`
-		}
-	}) (*output[library.OCRJob], error) {
-		id, err := parseID(in.ID)
-		if err != nil {
-			return nil, err
-		}
-		v, err := q.Request(ctx, domain.FileID{ID: id}, in.Body.Retry)
-		if err != nil {
-			return nil, huma.Error400BadRequest(err.Error())
-		}
-		return response(v, nil)
-	})
+	for kind, q := range map[string]*library.OCRQueue{"ocr": s.library.OCRQueue(), "desc": s.library.DescriptionQueue()} {
+		huma.Get(s.contract, Prefix+"/ai/"+kind, func(ctx context.Context, _ *struct{}) (*output[library.OCRQueueStatus], error) {
+			v, err := q.Status(ctx)
+			return response(v, err)
+		})
+		huma.Post(s.contract, Prefix+"/ai/"+kind+"/backfill", func(ctx context.Context, in *struct {
+			Body struct {
+				Retry bool `json:"retry"`
+			}
+		}) (*output[library.OCRQueueStatus], error) {
+			v, err := q.Backfill(ctx, in.Body.Retry)
+			if err != nil {
+				return nil, huma.Error400BadRequest(err.Error())
+			}
+			return response(v, nil)
+		})
+		huma.Post(s.contract, Prefix+"/ai/"+kind+"/pause", func(ctx context.Context, in *struct {
+			Body struct {
+				Paused bool `json:"paused"`
+			}
+		}) (*output[library.OCRQueueStatus], error) {
+			v, err := q.Pause(ctx, in.Body.Paused)
+			return response(v, err)
+		})
+		huma.Get(s.contract, Prefix+"/files/{id}/"+kind, func(ctx context.Context, in *struct {
+			ID string `path:"id"`
+		}) (*output[library.OCRJob], error) {
+			id, err := parseID(in.ID)
+			if err != nil {
+				return nil, err
+			}
+			v, err := q.FileStatus(ctx, domain.FileID{ID: id})
+			return response(v, err)
+		})
+		huma.Post(s.contract, Prefix+"/files/{id}/"+kind, func(ctx context.Context, in *struct {
+			ID   string `path:"id"`
+			Body struct {
+				Retry bool `json:"retry"`
+			}
+		}) (*output[library.OCRJob], error) {
+			id, err := parseID(in.ID)
+			if err != nil {
+				return nil, err
+			}
+			v, err := q.Request(ctx, domain.FileID{ID: id}, in.Body.Retry)
+			if err != nil {
+				return nil, huma.Error400BadRequest(err.Error())
+			}
+			return response(v, nil)
+		})
+	}
 }
 
 // RunOCR joins the server lifetime; requests only update the persistent queue.
 func (s *Server) RunOCR(ctx context.Context) {
 	if s.library != nil {
-		s.library.OCRQueue().Run(ctx)
+		s.library.OCRQueue().Run(ctx, s.library.DescriptionQueue())
 	}
 }

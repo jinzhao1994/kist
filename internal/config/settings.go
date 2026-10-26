@@ -20,6 +20,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/jinzhao1994/kist/internal/ai"
 	"github.com/jinzhao1994/kist/internal/domain"
+	"golang.org/x/text/language"
 )
 
 type Appearance struct {
@@ -69,7 +70,7 @@ func Defaults(mode string) *Config {
 	}
 	return &Config{Version: CurrentVersion, Mode: mode,
 		Appearance: Appearance{PrimaryColor: "blue"},
-		Library:    Library{Timezone: "UTC"},
+		Library:    Library{Timezone: "UTC", Language: "zh-CN"},
 		Client:     Client{CacheMaxAge: "180d", CacheMaxBytes: 10 << 30},
 		Server: Server{Listen: listen, AllowedOrigins: []string{}, MaxUploadBytes: 32 << 30, MaxUploadFiles: 1000,
 			MapStyle: "https://tiles.openfreemap.org/styles/liberty", MapTerrainTiles: "https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png", MapTerrainAttribution: `<a href="https://www.mapzen.com/rights/">Mapzen terrain</a>`, MapResourceOrigins: []string{}},
@@ -77,7 +78,14 @@ func Defaults(mode string) *Config {
 }
 
 func (c *Config) Validate() error {
-	if len(c.AIOptions.Model) > 200 || len(c.AIOptions.ProxyURL) > 2048 || c.AIOptions.AfterOp < 0 || (c.AIOptions.AutoOCR && c.AIOptions.Model == "") {
+	if len(c.Library.Language) > 64 || c.Library.Language == "" {
+		return fmt.Errorf("library language must be a BCP 47 language tag")
+	}
+	if _, err := language.Parse(c.Library.Language); err != nil {
+		return fmt.Errorf("invalid library language")
+	}
+
+	if len(c.AIOptions.Model) > 200 || len(c.AIOptions.ProxyURL) > 2048 || c.AIOptions.AfterOp < 0 || ((c.AIOptions.AutoOCR || c.AIOptions.AutoDesc) && c.AIOptions.Model == "") || c.AIOptions.DescAfterOp < 0 {
 		return fmt.Errorf("invalid AI options")
 	}
 	if _, err := ai.HTTPClient(c.AIOptions.ProxyURL, time.Second); err != nil {

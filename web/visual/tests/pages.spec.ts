@@ -190,11 +190,12 @@ async function prepare(page: Page, options: Options = {}) {
         json: {
           model: "gpt-6-luna",
           auto_ocr: false,
+          auto_desc: false,
           proxy_url: "",
           revision: "visual",
         },
       });
-    if (path === "/ai/ocr")
+    if (path === "/ai/ocr" || path === "/ai/desc")
       return route.fulfill({
         json: {
           paused: false,
@@ -205,7 +206,7 @@ async function prepare(page: Page, options: Options = {}) {
         },
       });
     if (
-      /^\/files\/[^/]+\/ocr$/.test(path) &&
+      /^\/files\/[^/]+\/(?:ocr|desc)$/.test(path) &&
       route.request().method() === "GET"
     )
       return route.fulfill({ json: { state: "missing" } });
@@ -3955,6 +3956,7 @@ for (const scenario of [
   "ai-error",
   "ai-empty",
   "ai-paused",
+  "ai-description",
   "service",
   "maps",
   "credentials",
@@ -4045,7 +4047,24 @@ for (const scenario of [
               restart: false,
             },
           ]
-        : []),
+        : [
+            {
+              key: "library.timezone",
+              kind: "text",
+              value: "UTC",
+              default: "UTC",
+              explicit: false,
+              restart: false,
+            },
+            {
+              key: "library.language",
+              kind: "text",
+              value: "zh-CN",
+              default: "zh-CN",
+              explicit: false,
+              restart: false,
+            },
+          ]),
     ];
     await page.route("**/api/v1/settings/storage", (route) =>
       route.fulfill({
@@ -4106,6 +4125,7 @@ for (const scenario of [
           json: {
             model: "gpt-6-luna",
             auto_ocr: scenario === "ai-paused",
+            auto_desc: scenario === "ai-description",
             proxy_url: "",
             revision: "visual",
           },
@@ -4159,6 +4179,23 @@ for (const scenario of [
           exact: true,
         }),
       ).toBeEnabled();
+    }
+    if (scenario === "ai-description") {
+      const backfill = settings.getByRole("button", {
+        name: "补全已有图片的描述",
+        exact: true,
+      });
+      await backfill.scrollIntoViewIfNeeded();
+      await expect(backfill).toBeEnabled();
+      await expect(
+        settings.getByRole("checkbox", {
+          name: "自动描述新增图片",
+          exact: true,
+        }),
+      ).toBeChecked();
+      await expect(
+        settings.getByText("描述后台已就绪", { exact: true }),
+      ).toBeVisible();
     }
     if (scenario === "service") {
       await settings.getByRole("link", { name: "服务", exact: true }).click();
@@ -4597,7 +4634,12 @@ for (const scenario of [
           "no result was saved",
         );
       await expect(
-        page.getByRole("link", { name: "AI 设置", exact: true }),
+        page
+          .locator(".file-metadata-group")
+          .filter({
+            has: page.getByRole("heading", { name: "OCR", exact: true }),
+          })
+          .getByRole("link", { name: "AI 设置", exact: true }),
       ).toBeVisible();
     }
     await capture(
@@ -4626,5 +4668,109 @@ for (const mode of ["light", "dark"] as const) {
     await home.click();
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByRole("alert")).toHaveCount(0);
+  });
+}
+
+for (const scenario of ["text", "ready", "error", "disconnected"] as const) {
+  test(`description-${scenario}`, async ({ page }, info) => {
+    const errors = await prepare(page);
+    await page.route("**/api/v1/ai", (route) =>
+      route.fulfill({
+        json: {
+          supported: true,
+          connected: scenario !== "disconnected",
+          email: "reader@example.test",
+          pending: false,
+          error: "",
+        },
+      }),
+    );
+    if (scenario === "error")
+      await page.route("**/api/v1/files/file-1/desc", (route) =>
+        route.fulfill({
+          json: {
+            state: "failed",
+            error: "Description was interrupted; retry explicitly",
+          },
+        }),
+      );
+    if (scenario === "text")
+      await page.route("**/api/v1/files/file-1", (route) =>
+        route.fulfill({
+          json: {
+            file: files[0],
+            tags: [],
+            extracted: ["ocr", "desc"],
+            metadata: [
+              {
+                key: "desc:text",
+                type: "text",
+                source: "desc",
+                value:
+                  "一张白底的测试文档，列有姓名、文档编号以及生效和到期日期。页面注明这些内容仅为合成测试数据。",
+              },
+              {
+                key: "desc:model",
+                type: "text",
+                source: "desc",
+                value: "gpt-6-luna",
+              },
+              {
+                key: "desc:provider",
+                type: "text",
+                source: "desc",
+                value: "openai",
+              },
+              {
+                key: "desc:language",
+                type: "text",
+                source: "desc",
+                value: "zh-CN",
+              },
+              {
+                key: "desc:input_sha256",
+                type: "text",
+                source: "desc",
+                value: "sha256:" + "a".repeat(64),
+              },
+              { key: "desc:recipe", type: "int", source: "desc", value: "1" },
+            ],
+          },
+        }),
+      );
+    await page.goto("/files?file=file-1");
+    await page.getByRole("button", { name: "文件详情", exact: true }).click();
+    const group = page.locator(".file-metadata-group").filter({
+      has: page.getByRole("heading", { name: "描述", exact: true }),
+    });
+    await expect(group).toBeVisible();
+    if (scenario === "text") {
+      await expect(
+        group.getByRole("button", { name: "复制描述", exact: true }),
+      ).toBeVisible();
+      await expect(group).toContainText("zh-CN");
+      expect(
+        await group
+          .locator(".copy-text-preview")
+          .evaluate(
+            (el) =>
+              el.getBoundingClientRect().height /
+              parseFloat(getComputedStyle(el).lineHeight),
+          ),
+      ).toBeLessThanOrEqual(3.05);
+    } else {
+      const action = group.getByRole("button", {
+        name: scenario === "error" ? "重试" : "生成描述",
+        exact: true,
+      });
+      if (scenario === "disconnected") await expect(action).toBeDisabled();
+      else await expect(action).toBeEnabled();
+    }
+    await capture(
+      page,
+      errors,
+      info.title,
+      scenario === "error" ? ["Description was interrupted"] : [],
+    );
   });
 }

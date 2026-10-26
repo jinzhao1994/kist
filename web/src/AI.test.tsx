@@ -44,10 +44,11 @@ function defaults(path: string) {
     return Response.json({
       model: "gpt-6-luna",
       auto_ocr: false,
+      auto_desc: false,
       proxy_url: "",
       revision: "one",
     });
-  if (path.endsWith("/ai/ocr"))
+  if (path.endsWith("/ai/ocr") || path.endsWith("/ai/desc"))
     return Response.json({
       paused: false,
       scanning: false,
@@ -97,6 +98,7 @@ it("does not run OCR before a default model is saved", async () => {
         return Response.json({
           model: "",
           auto_ocr: false,
+          auto_desc: false,
           proxy_url: "",
           revision: "one",
         });
@@ -112,7 +114,7 @@ it("does not run OCR before a default model is saved", async () => {
   );
   mount(<OCRAction fileID="file" />);
   await screen.findByText(
-    "Connect an account and save a default OCR model in AI settings first.",
+    "Connect an account and save a default AI model in AI settings first.",
   );
   expect(
     screen.getByRole("button", { name: "Extract text (OCR)" }),
@@ -138,6 +140,7 @@ it("shows model loading and saves shared options without triggering a backfill",
         return Response.json({
           model: "",
           auto_ocr: false,
+          auto_desc: false,
           proxy_url: "",
           revision: "one",
         });
@@ -176,6 +179,7 @@ it("shows model loading and saves shared options without triggering a backfill",
     body: {
       model: "gpt-6-luna",
       auto_ocr: true,
+      auto_desc: false,
       proxy_url: "http://127.0.0.1:7890",
       revision: "one",
     },
@@ -303,4 +307,33 @@ it("allows model-list retry and explains an empty catalog", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Try again" }));
   await screen.findByText("No models are available for this account.");
   expect(modelRequests).toBe(2);
+});
+
+it("queues a description independently of OCR", async () => {
+  const writes: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        writes.push(path);
+        return Response.json({ state: "queued" });
+      }
+      return (
+        defaults(path) ||
+        Response.json(
+          path.endsWith("/ai")
+            ? { supported: true, connected: true }
+            : { state: "missing" },
+        )
+      );
+    }),
+  );
+  mount(<OCRAction fileID="file" kind="desc" />);
+  const run = await screen.findByRole("button", {
+    name: "Generate description",
+  });
+  await waitFor(() => expect(run).toBeEnabled());
+  await userEvent.click(run);
+  await screen.findByText("Queued for description");
+  expect(writes).toEqual(["/api/v1/files/file/desc"]);
 });

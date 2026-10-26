@@ -174,6 +174,9 @@ func checkValue(kv KV) error {
 		return fmt.Errorf("unknown type %q", kv.Type)
 	}
 	limit := MaxValueLen
+	if kv.Key == "desc:text" && kv.Type == TypeText {
+		limit = 16 << 10
+	}
 	if kv.Key == "ocr:text" && kv.Type == TypeText {
 		limit = 256 << 10
 	}

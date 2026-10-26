@@ -1,6 +1,6 @@
 import { CopyButton } from "@mantine/core";
 import { useLayoutEffect, useRef, useState } from "react";
-import { useI18n } from "./i18n";
+import { useI18n, type MessageKey } from "./i18n";
 
 function parts(text: string) {
   return text.split(/(↵)/u);
@@ -8,7 +8,13 @@ function parts(text: string) {
 
 // Measure the inline action together with the text so only the final line
 // reserves space for copying. The stored and copied value remains untouched.
-export function CopyTextPreview({ text }: { text: string }) {
+export function CopyTextPreview({
+  text,
+  copyLabel = "ocrCopyText",
+}: {
+  text: string;
+  copyLabel?: MessageKey;
+}) {
   const { t } = useI18n();
   const preview = text
     .trim()
@@ -95,7 +101,7 @@ export function CopyTextPreview({ text }: { text: string }) {
           <button
             type="button"
             onClick={copy}
-            aria-label={t(copied ? "copied" : "ocrCopyText")}
+            aria-label={t(copied ? "copied" : copyLabel)}
           >
             {t(copied ? "copied" : "copy")}
           </button>

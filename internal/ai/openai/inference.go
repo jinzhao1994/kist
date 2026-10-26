@@ -82,10 +82,15 @@ func (c Client) Models(ctx context.Context) ([]ai.Model, error) {
 	return out, nil
 }
 func (c Client) OCR(ctx context.Context, model string, img ai.Image) (ai.OCRResult, error) {
+	return c.imageText(ctx, model, img, ai.OCRPrompt())
+}
+func (c Client) Describe(ctx context.Context, model string, img ai.Image, language string) (ai.TextResult, error) {
+	return c.imageText(ctx, model, img, ai.DescriptionPrompt(language))
+}
+func (c Client) imageText(ctx context.Context, model string, img ai.Image, prompt ai.Prompt) (ai.TextResult, error) {
 	if len(img.Data) == 0 || len(img.Data) > ai.MaxImageBytes {
-		return ai.OCRResult{}, errors.New("image exceeds OCR input limit")
+		return ai.OCRResult{}, errors.New("image exceeds AI input limit")
 	}
-	prompt := ai.OCRPrompt()
 	body := map[string]any{"model": model, "store": false, "stream": true, "reasoning": map[string]string{"effort": "low"},
 		"instructions": prompt.Instructions,
 		"input":        []any{map[string]any{"role": "user", "content": []any{map[string]string{"type": "input_text", "text": prompt.Input}, map[string]string{"type": "input_image", "image_url": "data:" + img.MIME + ";base64," + base64.StdEncoding.EncodeToString(img.Data), "detail": "high"}}}}}
@@ -135,20 +140,20 @@ func readText(r io.Reader) (string, error) {
 			next := previous + event.Delta
 			if event.Type == "response.output_text.done" {
 				if event.Text == nil {
-					return "", errors.New("invalid completed OCR text")
+					return "", errors.New("invalid completed image extraction text")
 				}
 				next = *event.Text
 			}
 			total += len(next) - len(previous)
 			if total > ai.MaxTextBytes || len(parts) > 1024 {
-				return "", errors.New("OCR text exceeds 256 KiB; no result was saved")
+				return "", errors.New("Image extraction text exceeds 256 KiB; no result was saved")
 			}
 			parts[key] = next
 		case "response.refusal.delta", "response.refusal.done", "response.failed", "response.incomplete", "error":
-			return "", errors.New("OpenAI did not complete OCR; no result was saved")
+			return "", errors.New("OpenAI did not complete image extraction; no result was saved")
 		case "response.completed":
 			if event.Response.Status != "completed" || len(parts) == 0 {
-				return "", errors.New("OpenAI completed without OCR text; no result was saved")
+				return "", errors.New("OpenAI completed without Image extraction text; no result was saved")
 			}
 			keys := make([][2]int, 0, len(parts))
 			for k := range parts {
@@ -165,10 +170,10 @@ func readText(r io.Reader) (string, error) {
 				text.WriteString(parts[k])
 			}
 			if !utf8.ValidString(text.String()) {
-				return "", errors.New("invalid completed OCR response")
+				return "", errors.New("invalid completed image extraction response")
 			}
 			return text.String(), nil
 		}
 	}
-	return "", errors.New("OCR stream interrupted; no result was saved")
+	return "", errors.New("Image extraction stream interrupted; no result was saved")
 }

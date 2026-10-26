@@ -34,6 +34,7 @@ type SettingsData = components["schemas"]["SettingsResponse"];
 type SettingField = NonNullable<SettingsData["fields"]>[number];
 const labels: Record<string, MessageKey> = {
   "appearance.primary_color": "primaryColor",
+  "library.language": "settingLibraryLanguage",
   "library.timezone": "settingLibraryTimezone",
   "storage.link_mode": "settingLinkMode",
   "client.cache_max_age": "clientMaxAge",
@@ -440,19 +441,21 @@ function SettingInput(props: {
   const { field } = props;
   const label = labels[field.key] ? t(labels[field.key]) : field.key;
   const hint =
-    field.key === "client.cache_max_age"
-      ? t("clientMaxAgeHint")
-      : field.key === "storage.link_mode"
-        ? t("settingLinkModeHint")
-        : field.key === "library.timezone"
-          ? t("settingTimezoneHint")
-          : field.key === "server.allowed_origins"
-            ? t("settingOriginsHint")
-            : field.kind === "bytes"
-              ? t("settingBytesHint")
-              : field.kind === "list"
-                ? t("settingOnePerLine")
-                : undefined;
+    field.key === "library.language"
+      ? t("settingLanguageHint")
+      : field.key === "client.cache_max_age"
+        ? t("clientMaxAgeHint")
+        : field.key === "storage.link_mode"
+          ? t("settingLinkModeHint")
+          : field.key === "library.timezone"
+            ? t("settingTimezoneHint")
+            : field.key === "server.allowed_origins"
+              ? t("settingOriginsHint")
+              : field.kind === "bytes"
+                ? t("settingBytesHint")
+                : field.kind === "list"
+                  ? t("settingOnePerLine")
+                  : undefined;
   return (
     <>
       <Group className="setting-field-heading" gap="xs" mb={4}>

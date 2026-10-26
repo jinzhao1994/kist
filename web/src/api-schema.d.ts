@@ -34,6 +34,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai/desc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 ai desc */
+        get: operations["get-api-v1-ai-desc"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/desc/backfill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 ai desc backfill */
+        post: operations["post-api-v1-ai-desc-backfill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/desc/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 ai desc pause */
+        post: operations["post-api-v1-ai-desc-pause"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ai/disconnect": {
         parameters: {
             query?: never;
@@ -452,6 +503,24 @@ export interface paths {
         options?: never;
         /** Read completed derived media; supports HTTP ranges */
         head: operations["HEAD-derived-content"];
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{id}/desc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 files by ID desc */
+        get: operations["get-api-v1-files-by-id-desc"];
+        put?: never;
+        /** Post API v1 files by ID desc */
+        post: operations["post-api-v1-files-by-id-desc"];
+        delete?: never;
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -1674,6 +1743,7 @@ export interface components {
             scanning: boolean;
         };
         OCRSettings: {
+            auto_desc: boolean;
             auto_ocr: boolean;
             model: string;
             proxy_url: string;
@@ -1687,6 +1757,12 @@ export interface components {
         };
         "OutputStruct {}Body": Record<string, never>;
         "Post-api-v1-ai-connectRequest": Record<string, never>;
+        "Post-api-v1-ai-desc-backfillRequest": {
+            retry: boolean;
+        };
+        "Post-api-v1-ai-desc-pauseRequest": {
+            paused: boolean;
+        };
         "Post-api-v1-ai-disconnectRequest": Record<string, never>;
         "Post-api-v1-ai-ocr-backfillRequest": {
             retry: boolean;
@@ -1697,6 +1773,9 @@ export interface components {
         "Post-api-v1-boxes-by-id-foldersRequest": {
             name: string;
             parent?: string;
+        };
+        "Post-api-v1-files-by-id-descRequest": {
+            retry: boolean;
         };
         "Post-api-v1-files-by-id-ocrRequest": {
             retry: boolean;
@@ -2094,6 +2173,101 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OutputStruct { URL string \"json:\\\"url\\\"\" }Body"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-ai-desc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRQueueStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-ai-desc-backfill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-ai-desc-backfillRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRQueueStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-ai-desc-pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-ai-desc-pauseRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRQueueStatus"];
                 };
             };
             /** @description Error */
@@ -3330,6 +3504,72 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    "get-api-v1-files-by-id-desc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRJob"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-files-by-id-desc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-files-by-id-descRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRJob"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
             };
         };
     };

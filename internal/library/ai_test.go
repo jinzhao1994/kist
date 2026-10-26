@@ -30,6 +30,9 @@ func (f *fakeOCR) OCR(context.Context, string, ai.Image) (ai.OCRResult, error) {
 	f.calls++
 	return ai.OCRResult{Text: f.text, Provider: "test", Model: "image-model"}, nil
 }
+func (f *fakeOCR) Describe(ctx context.Context, model string, img ai.Image, language string) (ai.TextResult, error) {
+	return f.OCR(ctx, model, img)
+}
 func ocrFile(t *testing.T, l *Library) domain.FileID {
 	t.Helper()
 	box, err := l.CreateBox(t.Context(), domain.NewID().String(), "", domain.LocalDate{}, domain.LocalDate{})

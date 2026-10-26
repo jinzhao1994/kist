@@ -18,10 +18,12 @@ import (
 const CurrentVersion = 2
 
 type AIOptions struct {
-	Model    string `toml:"model" json:"model"`
-	AutoOCR  bool   `toml:"auto_ocr" json:"auto_ocr"`
-	AfterOp  int64  `toml:"after_op" json:"-"`
-	ProxyURL string `toml:"proxy_url" json:"proxy_url"`
+	AutoDesc    bool   `toml:"auto_desc" json:"auto_desc"`
+	DescAfterOp int64  `toml:"desc_after_op" json:"-"`
+	Model       string `toml:"model" json:"model"`
+	AutoOCR     bool   `toml:"auto_ocr" json:"auto_ocr"`
+	AfterOp     int64  `toml:"after_op" json:"-"`
+	ProxyURL    string `toml:"proxy_url" json:"proxy_url"`
 }
 
 type Config struct {
@@ -53,6 +55,7 @@ type Remote struct {
 }
 
 type Library struct {
+	Language string `toml:"language"`
 	// ID identifies this library. Nothing uses it in v0.1; it exists because
 	// op ids become (instance_id, seq) when devices start syncing (spec 3.12),
 	// and minting it at init is free while backfilling it later is not.

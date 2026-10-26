@@ -1,3 +1,4 @@
+import { CopyTextPreview } from "./CopyTextPreview";
 import { useClientMode } from "./OfflineEntry";
 import { OCRAction, OCRText } from "./AI";
 import { Button, CopyButton, Stack, Tooltip } from "@mantine/core";
@@ -29,6 +30,11 @@ export function FileDetail({
     !data.extracted?.includes("ocr") &&
     !ocr &&
     ["image/jpeg", "image/png", "image/webp"].includes(file.media_type || "");
+  const canDescribe =
+    !clientMode &&
+    !data.extracted?.includes("desc") &&
+    !data.metadata?.some((row) => row.key === "desc:text") &&
+    ["image/jpeg", "image/png", "image/webp"].includes(file.media_type || "");
   const displayID = combination?.folder.id || file.id;
   const labels: Record<string, string> = {
     "exif:ExifImageHeight": t("imageHeight"),
@@ -46,6 +52,12 @@ export function FileDetail({
     "media:mime": t("mimeType"),
     "media:kind": t("mediaKind"),
     "file:mtime": t("modified"),
+    "desc:text": t("descText"),
+    "desc:model": t("aiModel"),
+    "desc:provider": t("ocrProvider"),
+    "desc:recipe": t("ocrRecipe"),
+    "desc:input_sha256": t("ocrInputHash"),
+    "desc:language": t("descLanguage"),
     "ocr:text": t("ocrText"),
     "ocr:model": t("aiModel"),
     "ocr:provider": t("ocrProvider"),
@@ -63,7 +75,11 @@ export function FileDetail({
     if (key === "file:size" && Number.isSafeInteger(Number(value))) {
       return formatBytes(Number(value), prefs);
     }
-    if (key === "ocr:provider" && value === "openai") return "OpenAI";
+    if (
+      (key === "ocr:provider" || key === "desc:provider") &&
+      value === "openai"
+    )
+      return "OpenAI";
     return value || "—";
   };
   const groups = new Map<string, NonNullable<FileData["metadata"]>>();
@@ -74,6 +90,7 @@ export function FileDetail({
     groups.set(source, rows);
   }
   if (canOCR && !groups.has("ocr")) groups.set("ocr", []);
+  if (canDescribe && !groups.has("desc")) groups.set("desc", []);
   return (
     <div className="file-info-panel">
       <div className="file-info-heading">
@@ -174,13 +191,18 @@ export function FileDetail({
                           ? "Media"
                           : source === "ocr"
                             ? "OCR"
-                            : source}
+                            : source === "desc"
+                              ? t("descTitle")
+                              : source}
                   </bdi>
                 </h4>
               )}
               <Stack>
                 {source === "ocr" && canOCR && (
                   <OCRAction key={file.id} fileID={file.id} />
+                )}
+                {source === "desc" && canDescribe && (
+                  <OCRAction key={file.id} fileID={file.id} kind="desc" />
                 )}
                 <dl className="metadata-list">
                   {rows.map((row) => (
@@ -209,7 +231,14 @@ export function FileDetail({
                       <dd>
                         {row.key === "ocr:text" ? (
                           <OCRText text={row.value} />
-                        ) : row.key === "ocr:input_sha256" ? (
+                        ) : row.key === "desc:text" ? (
+                          <CopyTextPreview
+                            text={row.value}
+                            copyLabel="descCopyText"
+                          />
+                        ) : ["ocr:input_sha256", "desc:input_sha256"].includes(
+                            row.key,
+                          ) ? (
                           <CopyButton value={row.value}>
                             {({ copied, copy }) => (
                               <button

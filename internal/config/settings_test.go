@@ -130,3 +130,21 @@ func TestSettingsByteSizes(t *testing.T) {
 		t.Fatal("file count accepted byte units")
 	}
 }
+
+func TestLibraryLanguageDefaultsAndValidation(t *testing.T) {
+	path := writeConfig(t, "version = 2\n")
+	c, err := Load(path)
+	if err != nil || c.Library.Language != "zh-CN" {
+		t.Fatal(c.Library.Language, err)
+	}
+	for _, value := range []string{"fr", "en-GB", "zh-Hant"} {
+		if err = Update(path, "", map[string]any{"library.language": value}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, value := range []string{"", "not a language", strings.Repeat("x", 65)} {
+		if err = Update(path, "", map[string]any{"library.language": value}); err == nil {
+			t.Fatal("invalid language accepted")
+		}
+	}
+}
