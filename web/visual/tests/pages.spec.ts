@@ -3931,6 +3931,7 @@ for (const scenario of [
   "maps",
   "credentials",
   "credentials-create",
+  "credentials-empty",
   "hint",
   "client-storage",
   "storage",
@@ -4094,6 +4095,19 @@ for (const scenario of [
       ).toBeInViewport();
       await expect(settings).toContainText("127.0.0.1:19000");
       await expect(settings).toContainText("重启");
+    }
+    if (scenario === "credentials-empty") {
+      await settings
+        .getByRole("link", { name: "访问凭据", exact: true })
+        .click();
+      const access = settings.locator("#settings-access");
+      await expect(access.getByRole("table")).toHaveCount(0);
+      await expect(
+        access.getByText("暂无访问凭据", { exact: true }),
+      ).toBeVisible();
+      await expect(
+        access.getByRole("button", { name: "创建凭据", exact: true }),
+      ).toBeVisible();
     }
     if (scenario === "credentials-create") {
       await settings

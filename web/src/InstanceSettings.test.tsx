@@ -199,3 +199,20 @@ it("displays exact capacity units and submits the user's size string", async () 
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0].changes).toEqual({ "server.max_upload_bytes": "32G" });
 });
+
+it("shows an empty credential row without a table and can open and cancel creation", async () => {
+  const user = userEvent.setup();
+  mount();
+  await screen.findByText("No access credentials yet");
+  expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Create credential" }));
+  expect(
+    screen.getByRole("textbox", { name: "Note (optional)" }),
+  ).toBeVisible();
+  expect(
+    screen.queryByText("No access credentials yet"),
+  ).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(screen.getByText("No access credentials yet")).toBeVisible();
+  expect(screen.queryByRole("table")).not.toBeInTheDocument();
+});
