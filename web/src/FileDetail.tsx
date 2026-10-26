@@ -1,3 +1,4 @@
+import { MetadataGroup } from "./MetadataGroup";
 import { CopyTextPreview } from "./CopyTextPreview";
 import { useClientMode } from "./OfflineEntry";
 import { OCRAction, OCRText } from "./AI";
@@ -248,26 +249,34 @@ export function FileDetail({
           <h3>{t("metadata")}</h3>
           <ExtractionStatus files={[file]} state={extraction} />
           {Array.from(groups, ([source, rows]) => (
-            <section className="file-metadata-group" key={source}>
-              {source && (
-                <h4>
-                  <bdi>
-                    {source === "exif"
-                      ? "EXIF"
-                      : source === "gps"
-                        ? "GPS"
-                        : source === "file"
-                          ? "File"
-                          : source === "media"
-                            ? "Media"
-                            : source === "ocr"
-                              ? "OCR"
-                              : source === "desc"
-                                ? t("descTitle")
-                                : source}
-                  </bdi>
-                </h4>
-              )}
+            <MetadataGroup
+              key={`${file.id}/${source}`}
+              fileID={file.id}
+              title={
+                source === "exif"
+                  ? "EXIF"
+                  : source === "gps"
+                    ? "GPS"
+                    : source === "file"
+                      ? "File"
+                      : source === "media"
+                        ? "Media"
+                        : source === "ocr"
+                          ? "OCR"
+                          : source === "desc"
+                            ? t("descTitle")
+                            : source
+              }
+              extractor={
+                rows.length &&
+                ["exif", "gps", "media", "ocr", "desc"].includes(source) &&
+                !(clientMode && ["ocr", "desc"].includes(source))
+                  ? source === "gps"
+                    ? "exif"
+                    : source
+                  : undefined
+              }
+            >
               <Stack>
                 {source === "ocr" && canOCR && (
                   <OCRAction key={file.id} fileID={file.id} />
@@ -360,7 +369,7 @@ export function FileDetail({
                   ))}
                 </dl>
               </Stack>
-            </section>
+            </MetadataGroup>
           ))}
         </section>
       )}

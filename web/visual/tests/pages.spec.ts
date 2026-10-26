@@ -4720,6 +4720,7 @@ for (const mode of ["light", "dark"] as const) {
 for (const scenario of [
   "text",
   "text-tooltip",
+  "text-refresh",
   "ready",
   "unclassified",
   "error",
@@ -4807,6 +4808,25 @@ for (const scenario of [
           },
         }),
       );
+    let refreshRequested = false;
+    if (scenario === "text-refresh") {
+      await page.route("**/api/v1/files/file-1/desc", (route) => {
+        if (route.request().method() === "POST") {
+          const body = route.request().postDataJSON();
+          expect(body.force).toBe(true);
+          expect(body.request_id).toMatch(/^[a-f0-9-]{36}$/);
+          refreshRequested = true;
+        }
+        return route.fulfill({
+          json: refreshRequested
+            ? {
+                state: "failed",
+                error: "Refresh failed; previous description retained",
+              }
+            : { state: "ready" },
+        });
+      });
+    }
     await page.goto("/files?file=file-1");
     await page.getByRole("button", { name: "文件详情", exact: true }).click();
     const group = page.locator(".file-metadata-group").filter({
@@ -4844,63 +4864,116 @@ for (const scenario of [
         .poll(async () => (await tip.boundingBox())?.y ?? 0)
         .toBeGreaterThan(0);
     }
+    if (scenario === "text-refresh") {
+      await group.hover();
+      await group
+        .getByRole("button", { name: "重新提取描述", exact: true })
+        .click();
+      await expect(group.getByRole("alert")).toContainText("Refresh failed");
+      await expect(
+        group.getByRole("button", { name: "重新提取描述", exact: true }),
+      ).toBeEnabled();
+      await expect(group.locator(".copy-text-preview")).toContainText(
+        "一张白底的测试文档",
+      );
+    }
     await capture(
       page,
       errors,
       info.title,
-      scenario === "error" ? ["Description was interrupted"] : [],
+      scenario === "error"
+        ? ["Description was interrupted"]
+        : scenario === "text-refresh"
+          ? ["Refresh failed; previous description retained"]
+          : [],
     );
   });
 }
 
-test("detail-exif-labels", async ({ page }, info) => {
-  const errors = await prepare(page);
-  await page.route("**/api/v1/files/file-1", (route) =>
-    route.fulfill({
-      json: {
-        file: files[0],
-        tags: [],
-        extracted: ["file", "media", "exif"],
-        metadata: [
-          ["exif:DateTimeOriginal", "2026:01:02 12:00:00"],
-          ["exif:ExposureTime", "1/125"],
-          ["exif:FNumber", "28/10"],
-          ["exif:ISO", "100"],
-          ["exif:FocalLength", "50/1"],
-          ["exif:LensModel", "Example 50mm"],
-          ["exif:WhiteBalance", "0"],
-          ["gps:LatitudeRef", "N"],
-          ["exif:UnknownVendorTag", "Original value"],
-        ].map(([key, value]) => ({ key, value, type: "text", source: "exif" })),
-      },
-    }),
+for (const refresh of [false, true]) {
+  test(
+    refresh ? "metadata-reextract" : "detail-exif-labels",
+    async ({ page }, info) => {
+      const errors = await prepare(page);
+      await page.route("**/api/v1/files/file-1", (route) =>
+        route.fulfill({
+          json: {
+            file: files[0],
+            tags: [],
+            extracted: ["file", "media", "exif"],
+            metadata: [
+              ["exif:DateTimeOriginal", "2026:01:02 12:00:00"],
+              ["exif:ExposureTime", "1/125"],
+              ["exif:FNumber", "28/10"],
+              ["exif:ISO", "100"],
+              ["exif:FocalLength", "50/1"],
+              ["exif:LensModel", "Example 50mm"],
+              ["exif:WhiteBalance", "0"],
+              ["gps:LatitudeRef", "N"],
+              ["exif:UnknownVendorTag", "Original value"],
+            ].map(([key, value]) => ({
+              key,
+              value,
+              type: "text",
+              source: "exif",
+            })),
+          },
+        }),
+      );
+      let requests = 0;
+      await page.route("**/api/v1/files/file-1/extractions/exif", (route) => {
+        expect(route.request().postDataJSON()).toEqual({ force: true });
+        requests++;
+        return route.fulfill({ json: { op_id: 20 } });
+      });
+      await page.goto("/files?file=file-1");
+      await page.getByRole("button", { name: "文件详情", exact: true }).click();
+      const group = page.locator(".file-metadata-group").filter({
+        has: page.getByRole("heading", { name: "EXIF", exact: true }),
+      });
+      for (const label of [
+        "拍摄时间",
+        "曝光时间",
+        "光圈系数",
+        "ISO 感光度",
+        "焦距",
+        "镜头型号",
+        "白平衡",
+        "exif:UnknownVendorTag",
+      ]) {
+        await expect(group.getByText(label, { exact: true })).toBeVisible();
+      }
+      const gps = page.locator(".file-metadata-group").filter({
+        has: page.getByRole("heading", { name: "GPS", exact: true }),
+      });
+      await expect(gps.getByText("南北纬", { exact: true })).toBeVisible();
+      await expect(group.getByText("南北纬", { exact: true })).toHaveCount(0);
+      await expect(gps.getByText("曝光时间", { exact: true })).toHaveCount(0);
+      await group.getByText("曝光时间", { exact: true }).hover();
+      await expect(page.getByRole("tooltip")).toHaveText("exif:ExposureTime");
+      await page.mouse.move(0, 0);
+      await expect(page.getByRole("tooltip")).toHaveCount(0);
+      if (refresh) {
+        const button = group.getByRole("button", { name: "重新提取EXIF" });
+        await expect(button).toHaveCSS("opacity", "0");
+        await group.hover();
+        await expect(button).toHaveCSS("opacity", "1");
+        await button.click();
+        await expect.poll(() => requests).toBe(1);
+        await expect(button).toBeEnabled();
+        await expect(
+          group.getByText("曝光时间", { exact: true }),
+        ).toBeVisible();
+        await button.focus();
+        await page.mouse.move(0, 0);
+        await expect(button).toHaveCSS("opacity", "1");
+        await button.evaluate((el) => el.blur());
+        await gps.hover();
+        await expect(
+          gps.getByRole("button", { name: "重新提取GPS" }),
+        ).toHaveCSS("opacity", "1");
+      }
+      await capture(page, errors, info.title);
+    },
   );
-  await page.goto("/files?file=file-1");
-  await page.getByRole("button", { name: "文件详情", exact: true }).click();
-  const group = page.locator(".file-metadata-group").filter({
-    has: page.getByRole("heading", { name: "EXIF", exact: true }),
-  });
-  for (const label of [
-    "拍摄时间",
-    "曝光时间",
-    "光圈系数",
-    "ISO 感光度",
-    "焦距",
-    "镜头型号",
-    "白平衡",
-    "exif:UnknownVendorTag",
-  ]) {
-    await expect(group.getByText(label, { exact: true })).toBeVisible();
-  }
-  const gps = page.locator(".file-metadata-group").filter({
-    has: page.getByRole("heading", { name: "GPS", exact: true }),
-  });
-  await expect(gps.getByText("南北纬", { exact: true })).toBeVisible();
-  await expect(group.getByText("南北纬", { exact: true })).toHaveCount(0);
-  await expect(gps.getByText("曝光时间", { exact: true })).toHaveCount(0);
-  await group.getByText("曝光时间", { exact: true }).hover();
-  await expect(page.getByRole("tooltip")).toHaveText("exif:ExposureTime");
-  await page.mouse.move(0, 0);
-  await expect(page.getByRole("tooltip")).toHaveCount(0);
-  await capture(page, errors, info.title);
-});
+}

@@ -51,6 +51,13 @@ func TestClientExtractionPersistsFactsSyncsAndUndoes(t *testing.T) {
 	if err != nil || !nr.Noop {
 		t.Fatal(nr, err)
 	}
+	refreshed, err := c.PrepareReExtraction(ctx, file.ID, "media")
+	if err != nil || len(refreshed.payload) == 0 {
+		t.Fatal("explicit client refresh skipped", err)
+	}
+	if _, err := c.ExecuteRequest(ctx, Request{ID: "client-extract-refresh", Digest: strings.Repeat("d", 64)}, refreshed.Commit); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := c.Synchronize(ctx, &testSyncPeer{nas: nas}); err != nil {
 		t.Fatal(err)
 	}

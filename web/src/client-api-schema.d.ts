@@ -1761,7 +1761,9 @@ export interface components {
             /** Format: int64 */
             upload_offset?: number;
         };
-        ExtractionInputBody: Record<string, never>;
+        ExtractionInputBody: {
+            force?: boolean;
+        };
         Field: {
             default: unknown;
             explicit: boolean;

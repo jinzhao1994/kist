@@ -45,6 +45,22 @@ func TestExtractionKindsAndRetry(t *testing.T) {
 		if retry.Body.String() != first.Body.String() {
 			t.Fatal("retry changed receipt")
 		}
+		forced := call(s, "POST", Prefix+route, "refresh-"+file.ID, `{"force":true}`)
+		if forced.Code != 200 {
+			t.Fatalf("refresh: %d %s", forced.Code, forced.Body)
+		}
+		var refreshed library.RequestResult
+		if err := json.Unmarshal(forced.Body.Bytes(), &refreshed); err != nil {
+			t.Fatal(err)
+		}
+		entry, err := l.HistoryOp(t.Context(), refreshed.OpID)
+		if err != nil || entry.Action != "extract_metadata" {
+			t.Fatal("refresh was skipped", entry, err)
+		}
+		replay := call(s, "POST", Prefix+route, "refresh-"+file.ID, `{"force":true}`)
+		if replay.Body.String() != forced.Body.String() {
+			t.Fatal("refresh retry changed receipt")
+		}
 		detail := decodeBody[fileDetail](t, s, "/files/"+file.ID)
 		if len(detail.File.ExtractionPending) != 1 || detail.File.ExtractionPending[0] != "exif" {
 			t.Fatal(detail)

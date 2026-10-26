@@ -30,6 +30,7 @@ type OCRJob struct {
 	Error     string        `json:"error,omitempty"`
 	RequestID string        `json:"request_id"`
 	Automatic bool          `json:"automatic"`
+	Force     bool          `json:"force,omitempty"`
 }
 type OCRQueueStatus struct {
 	Paused   bool   `json:"paused"`
@@ -159,6 +160,15 @@ func (q *OCRQueue) Backfill(ctx context.Context, retry bool) (OCRQueueStatus, er
 	if err != nil {
 		return OCRQueueStatus{}, err
 	}
+	// Completed files are absent from the missing-result scan. Explicitly
+	// retry their failed refresh jobs as well, retaining the force intent.
+	if retry {
+		for i := range s.Jobs {
+			if s.Jobs[i].Force && s.Jobs[i].State == "failed" {
+				s.Jobs[i].State, s.Jobs[i].Error, s.Jobs[i].RequestID = "queued", "", uuid.NewString()
+			}
+		}
+	}
 	if s.Backfill == nil {
 		s.Backfill = &ocrScan{After: -1, Through: head.OpID, Retry: retry}
 	}
@@ -186,7 +196,7 @@ func (q *OCRQueue) resolve(ctx context.Context, id domain.FileID) (OCRJob, error
 }
 func (q *OCRQueue) FileStatus(ctx context.Context, id domain.FileID) (OCRJob, error) {
 	j, err := q.resolve(ctx, id)
-	if err != nil || j.State == "ready" {
+	if err != nil {
 		return j, err
 	}
 	release, err := q.state.Acquire(ctx)
@@ -199,7 +209,7 @@ func (q *OCRQueue) FileStatus(ctx context.Context, id domain.FileID) (OCRJob, er
 		return j, err
 	}
 	for _, old := range s.Jobs {
-		if old.FileID == id && old.BlobKey == j.BlobKey {
+		if old.FileID == id && old.BlobKey == j.BlobKey && (old.Force || j.State != "ready") {
 			return old, nil
 		}
 	}
@@ -233,12 +243,26 @@ func enqueueOCR(s *ocrQueueState, j OCRJob, retry, automatic bool) OCRJob {
 		}
 	}
 	j.State = "queued"
-	j.RequestID = uuid.NewString()
+	if j.RequestID == "" {
+		j.RequestID = uuid.NewString()
+	}
 	j.Automatic = automatic
 	s.Jobs = append(s.Jobs, j)
 	return j
 }
 func (q *OCRQueue) Request(ctx context.Context, id domain.FileID, retry bool) (OCRJob, error) {
+	return q.request(ctx, id, retry, false, "")
+}
+
+// Reextract uses a stable caller key to avoid rebilling successful HTTP retries.
+func (q *OCRQueue) Reextract(ctx context.Context, id domain.FileID, key string) (OCRJob, error) {
+	if _, err := uuid.Parse(key); err != nil {
+		return OCRJob{}, ErrInvalidRequest
+	}
+	return q.request(ctx, id, true, true, key)
+}
+
+func (q *OCRQueue) request(ctx context.Context, id domain.FileID, retry, force bool, key string) (OCRJob, error) {
 	cfg, err := q.library.OCRSettings(ctx)
 	if err != nil {
 		return OCRJob{}, err
@@ -247,8 +271,14 @@ func (q *OCRQueue) Request(ctx context.Context, id domain.FileID, retry bool) (O
 		return OCRJob{}, errors.New("choose an AI model in Settings first")
 	}
 	j, err := q.resolve(ctx, id)
-	if err != nil || j.State == "ready" {
+	if err != nil || j.State == "ready" && !force {
 		return j, err
+	}
+	j.Force, j.RequestID = force, key
+	if force {
+		if _, found, err := q.library.CheckRequest(ctx, q.jobRequest(j)); err != nil || found {
+			return j, err
+		}
 	}
 	if !q.eligible(j) {
 		return j, errors.New("AI extraction supports JPEG, PNG and static WebP images")
@@ -261,6 +291,14 @@ func (q *OCRQueue) Request(ctx context.Context, id domain.FileID, retry bool) (O
 	s, err := q.load()
 	if err != nil {
 		return j, err
+	}
+	for _, old := range s.Jobs {
+		if key != "" && old.RequestID == key {
+			if old.FileID != id || old.BlobKey != j.BlobKey {
+				return j, ErrRequestConflict
+			}
+			return old, nil
+		}
 	}
 	j = enqueueOCR(&s, j, retry, false)
 	return j, q.save(s)
@@ -321,7 +359,16 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 	for i := range s.Jobs {
 		if s.Jobs[i].State == "running" {
 			current, e := q.resolve(ctx, s.Jobs[i].FileID)
-			if e == nil && current.State == "ready" {
+			completed := e == nil && current.State == "ready" && !s.Jobs[i].Force
+			if s.Jobs[i].Force {
+				_, found, err := q.library.CheckRequest(ctx, q.jobRequest(s.Jobs[i]))
+				if err != nil {
+					unlock()
+					return err
+				}
+				completed = found
+			}
+			if completed {
 				s.Jobs[i].State = "ready"
 			} else {
 				s.Jobs[i].State = "failed"
@@ -339,7 +386,7 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 		}
 		if j.State == "failed" {
 			current, e := q.resolve(ctx, j.FileID)
-			if errors.Is(e, ErrNoSuchFile) || e == nil && (current.State == "ready" || current.BlobKey != j.BlobKey) {
+			if errors.Is(e, ErrNoSuchFile) || e == nil && (current.State == "ready" && !j.Force || current.BlobKey != j.BlobKey) {
 				continue
 			}
 			if e != nil {
@@ -397,7 +444,7 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 			continue
 		}
 		current, e := q.resolve(ctx, j.FileID)
-		if errors.Is(e, ErrNoSuchFile) || e == nil && (current.State == "ready" || current.BlobKey != j.BlobKey) {
+		if errors.Is(e, ErrNoSuchFile) || e == nil && (current.State == "ready" && !j.Force || current.BlobKey != j.BlobKey) {
 			s.Jobs = append(s.Jobs[:i], s.Jobs[i+1:]...)
 			continue
 		}
@@ -456,23 +503,35 @@ func (q *OCRQueue) execute(ctx context.Context, j OCRJob, model, language string
 	if err != nil {
 		return err
 	}
-	if current.State == "ready" {
+	if current.State == "ready" && !j.Force {
 		return nil
 	}
 	if current.BlobKey != j.BlobKey {
 		return ErrOCRChanged
 	}
+	request := q.jobRequest(j)
+	if _, found, err := q.library.CheckRequest(ctx, request); err != nil || found {
+		return err
+	}
 	provider, err := q.provider(ctx)
 	if err != nil {
 		return err
 	}
-	prepared, err := q.library.prepareImageText(ctx, j.FileID, provider, model, j.BlobKey, q.kind, language)
+	prepared, err := q.library.prepareImageText(ctx, j.FileID, provider, model, j.BlobKey, q.kind, language, j.Force)
 	if err != nil {
 		return err
 	}
-	sum := sha256.Sum256([]byte(j.FileID.String() + "\n" + j.BlobKey + "\n" + q.kind + ":1"))
-	_, err = q.library.ExecuteRequest(ctx, Request{ID: j.RequestID, Digest: hex.EncodeToString(sum[:])}, prepared.Commit)
+	_, err = q.library.ExecuteRequest(ctx, request, prepared.Commit)
 	return err
+}
+
+func (q *OCRQueue) jobRequest(j OCRJob) Request {
+	input := j.FileID.String() + "\n" + j.BlobKey + "\n" + q.kind + ":1"
+	if j.Force {
+		input += ":force"
+	}
+	sum := sha256.Sum256([]byte(input))
+	return Request{ID: j.RequestID, Digest: hex.EncodeToString(sum[:])}
 }
 func (q *OCRQueue) Run(ctx context.Context, companions ...*OCRQueue) {
 	queues := append([]*OCRQueue{q}, companions...)

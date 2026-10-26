@@ -1455,7 +1455,9 @@ export interface components {
             /** Format: int64 */
             upload_offset?: number;
         };
-        ExtractionInputBody: Record<string, never>;
+        ExtractionInputBody: {
+            force?: boolean;
+        };
         Field: {
             default: unknown;
             explicit: boolean;
@@ -1727,6 +1729,7 @@ export interface components {
             blob_key: string;
             error?: string;
             file_id: string;
+            force?: boolean;
             name: string;
             request_id: string;
             /** @enum {string} */
@@ -1775,9 +1778,13 @@ export interface components {
             parent?: string;
         };
         "Post-api-v1-files-by-id-descRequest": {
+            force?: boolean;
+            request_id?: string;
             retry: boolean;
         };
         "Post-api-v1-files-by-id-ocrRequest": {
+            force?: boolean;
+            request_id?: string;
             retry: boolean;
         };
         "Post-api-v1-settings-credentialsRequest": {

@@ -690,6 +690,9 @@ export const en = {
   userComment: "Comment",
   cameraMake: "Camera make",
   cameraModel: "Camera model",
+  reextract: "Re-extract",
+  reextractGroup: "Re-extract {group}",
+  reextractQueued: "Queued",
   software: "Software",
   exifApertureValue: "Aperture value (APEX)",
   exifBrightnessValue: "Brightness value",
@@ -1534,6 +1537,9 @@ export const zh: Record<MessageKey, string> = {
   userComment: "备注",
   cameraMake: "相机厂商",
   cameraModel: "相机型号",
+  reextract: "重新提取",
+  reextractGroup: "重新提取{group}",
+  reextractQueued: "已排队",
   software: "软件",
   exifApertureValue: "APEX 光圈",
   exifBrightnessValue: "亮度值",
@@ -1801,6 +1807,7 @@ export function initializeLanguage() {
 interface Parameters {
   descQueueRunning: { name: string };
   ocrQueueRunning: { name: string };
+  reextractGroup: { group: string };
   ocrQueueCounts: { queued: number; failed: number };
   clientSelectLoaded: { count: number };
   clientSelectedCount: { count: number };

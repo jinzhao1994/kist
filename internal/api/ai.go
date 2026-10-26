@@ -157,14 +157,21 @@ func (s *Server) aiRoutes() {
 		huma.Post(s.contract, Prefix+"/files/{id}/"+kind, func(ctx context.Context, in *struct {
 			ID   string `path:"id"`
 			Body struct {
-				Retry bool `json:"retry"`
+				Retry     bool   `json:"retry"`
+				Force     bool   `json:"force,omitempty"`
+				RequestID string `json:"request_id,omitempty"`
 			}
 		}) (*output[library.OCRJob], error) {
 			id, err := parseID(in.ID)
 			if err != nil {
 				return nil, err
 			}
-			v, err := q.Request(ctx, domain.FileID{ID: id}, in.Body.Retry)
+			var v library.OCRJob
+			if in.Body.Force {
+				v, err = q.Reextract(ctx, domain.FileID{ID: id}, in.Body.RequestID)
+			} else {
+				v, err = q.Request(ctx, domain.FileID{ID: id}, in.Body.Retry)
+			}
 			if err != nil {
 				return nil, huma.Error400BadRequest(err.Error())
 			}

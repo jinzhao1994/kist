@@ -19,6 +19,15 @@ type PreparedClientExtraction struct {
 }
 
 func (c *Client) PrepareExtraction(ctx context.Context, id domain.FileID, extractor string) (*PreparedClientExtraction, error) {
+	return c.prepareExtraction(ctx, id, extractor, false)
+}
+
+// PrepareReExtraction explicitly refreshes existing observations.
+func (c *Client) PrepareReExtraction(ctx context.Context, id domain.FileID, extractor string) (*PreparedClientExtraction, error) {
+	return c.prepareExtraction(ctx, id, extractor, true)
+}
+
+func (c *Client) prepareExtraction(ctx context.Context, id domain.FileID, extractor string, force bool) (*PreparedClientExtraction, error) {
 	if ctx.Value(clientRequestContextKey{}) != nil || ctx.Value(clientViewContextKey{}) != nil {
 		return nil, ErrRequestScope
 	}
@@ -59,7 +68,7 @@ func (c *Client) PrepareExtraction(ctx context.Context, id domain.FileID, extrac
 		return nil, err
 	}
 	prepared := &PreparedClientExtraction{client: c, file: SyncFileState{ID: id, BlobKey: file.BlobKey}}
-	if previous >= e.Version() {
+	if !force && previous >= e.Version() {
 		return prepared, nil
 	}
 	reader, err := c.OpenOriginal(ctx, file.BlobKey)

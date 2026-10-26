@@ -150,12 +150,12 @@ func (l *Library) PrepareOCR(ctx context.Context, id domain.FileID, provider ai.
 	return l.prepareOCR(ctx, id, provider, model, "")
 }
 func (l *Library) prepareOCR(ctx context.Context, id domain.FileID, provider ai.Provider, model, expectedBlob string) (*PreparedOCR, error) {
-	return l.prepareImageText(ctx, id, provider, model, expectedBlob, "ocr", "")
+	return l.prepareImageText(ctx, id, provider, model, expectedBlob, "ocr", "", false)
 }
 func (l *Library) PrepareDescription(ctx context.Context, id domain.FileID, provider ai.Provider, model, language string) (*PreparedOCR, error) {
-	return l.prepareImageText(ctx, id, provider, model, "", "desc", language)
+	return l.prepareImageText(ctx, id, provider, model, "", "desc", language, false)
 }
-func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provider ai.Provider, model, expectedBlob, kind, language string) (*PreparedOCR, error) {
+func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provider ai.Provider, model, expectedBlob, kind, language string, force bool) (*PreparedOCR, error) {
 	if ctx.Value(requestContextKey{}) != nil {
 		return nil, ErrRequestScope
 	}
@@ -186,7 +186,7 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 	if expectedBlob != "" && p.file.BlobKey != expectedBlob {
 		return nil, ErrOCRChanged
 	}
-	if p.version >= 1 {
+	if !force && p.version >= 1 {
 		return p, nil
 	}
 	path, ok := l.blobs.LocalPath(blobKey(p.file.BlobKey))

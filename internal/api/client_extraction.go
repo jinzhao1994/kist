@@ -19,7 +19,11 @@ func (s *Server) clientExtractionRoutes() {
 		if _, err := extract.Lookup(in.Extractor); err != nil {
 			return nil, invalid("Unknown extractor")
 		}
-		prepared, prepareErr := s.client.PrepareExtraction(ctx, domain.FileID{ID: id}, in.Extractor)
+		prepare := s.client.PrepareExtraction
+		if in.Body.Force {
+			prepare = s.client.PrepareReExtraction
+		}
+		prepared, prepareErr := prepare(ctx, domain.FileID{ID: id}, in.Extractor)
 		if errors.Is(prepareErr, library.ErrNotCached) {
 			_, reader, err := s.openCurrentContent(ctx, domain.FileID{ID: id})
 			prepareErr = err
@@ -27,7 +31,7 @@ func (s *Server) clientExtractionRoutes() {
 				if err = reader.Close(); err != nil {
 					return nil, failure(err)
 				}
-				prepared, prepareErr = s.client.PrepareExtraction(ctx, domain.FileID{ID: id}, in.Extractor)
+				prepared, prepareErr = prepare(ctx, domain.FileID{ID: id}, in.Extractor)
 			}
 		}
 		return s.clientMutate(ctx, in.Key, "POST", Prefix+"/files/"+id.String()+"/extractions/"+in.Extractor, in.Body, func(ctx context.Context) error {

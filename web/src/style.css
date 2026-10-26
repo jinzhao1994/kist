@@ -2509,8 +2509,16 @@ main.upload-drag-active {
 .file-info-panel .inline-form {
   margin-block-start: 10px;
 }
-.file-info-panel .file-metadata-group h4 {
+.metadata-group-heading {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
   margin: 16px 0 8px;
+}
+.file-info-panel .file-metadata-group h4 {
+  margin: 0;
   color: var(--muted);
   font-size: 11px;
   font-weight: 700;
@@ -3588,4 +3596,22 @@ main.upload-drag-active {
 
 .retention-table td:nth-child(3) {
   min-inline-size: 7rem;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .metadata-refresh-action {
+    opacity: 0;
+  }
+  .file-metadata-group:hover .metadata-refresh-action,
+  .file-metadata-group:focus-within .metadata-refresh-action,
+  .metadata-refresh-action[data-active] {
+    opacity: 1;
+  }
+}
+
+.metadata-refresh-action {
+  position: absolute;
+  inset-inline-end: 0;
+  top: 50%;
+  transform: translateY(-50%);
 }

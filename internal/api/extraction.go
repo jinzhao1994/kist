@@ -13,7 +13,9 @@ type extractionInput struct {
 	ID        string `path:"id"`
 	Extractor string `path:"extractor"`
 	Key       string `header:"Idempotency-Key" required:"true"`
-	Body      struct{}
+	Body      struct {
+		Force bool `json:"force,omitempty"`
+	}
 }
 
 func (s *Server) extractionRoutes() {
@@ -25,7 +27,11 @@ func (s *Server) extractionRoutes() {
 		if _, err := extract.Lookup(in.Extractor); err != nil {
 			return nil, invalid("Unknown extractor")
 		}
-		prepared, prepareErr := s.library.PrepareExtraction(ctx, domain.FileID{ID: id}, in.Extractor)
+		prepare := s.library.PrepareExtraction
+		if in.Body.Force {
+			prepare = s.library.PrepareReExtraction
+		}
+		prepared, prepareErr := prepare(ctx, domain.FileID{ID: id}, in.Extractor)
 		return s.mutate(ctx, in.Key, "POST", Prefix+"/files/"+id.String()+"/extractions/"+in.Extractor, in.Body, func(ctx context.Context) error {
 			if prepareErr != nil {
 				return prepareErr
