@@ -330,6 +330,16 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 		if j.State == "ready" || j.State == "queued" && j.Automatic && !cfg.AIOptions.AutoOCR {
 			continue
 		}
+		if j.State == "failed" {
+			current, e := q.resolve(ctx, j.FileID)
+			if errors.Is(e, ErrNoSuchFile) || e == nil && (current.State == "ready" || current.BlobKey != j.BlobKey) {
+				continue
+			}
+			if e != nil {
+				unlock()
+				return e
+			}
+		}
 		kept = append(kept, j)
 	}
 	s.Jobs = kept

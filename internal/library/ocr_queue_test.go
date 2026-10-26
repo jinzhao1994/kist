@@ -243,3 +243,31 @@ func TestOCRQueueSkipsStaleInputBeforeProvider(t *testing.T) {
 		t.Fatalf("status=%+v calls=%d err=%v", status, p.calls, err)
 	}
 }
+
+func TestOCRQueueArchiveCompletionOverridesFailedRuntimeState(t *testing.T) {
+	l := openTestLibrary(t)
+	id := ocrFile(t, l)
+	setOCR(t, l, false)
+	p := &fakeOCR{text: "saved"}
+	q := queueFor(t, l, p)
+	job, err := q.Request(t.Context(), id, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = q.Step(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	// Simulate a runtime failure recorded after the archive write became durable.
+	job.State, job.Error = "failed", "interrupted after commit"
+	if err = q.save(ocrQueueState{Paused: true, Jobs: []OCRJob{job}}); err != nil {
+		t.Fatal(err)
+	}
+	if err = q.Step(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	status, err := q.Status(t.Context())
+	if err != nil || status.Failed != 0 || !status.Paused || p.calls != 1 {
+		t.Fatalf("status=%+v calls=%d err=%v", status, p.calls, err)
+	}
+	requireOCRState(t, q, id, "ready")
+}

@@ -3951,6 +3951,10 @@ for (const mode of ["grid", "list", "mobile", "dark", "prepare"] as const) {
 for (const scenario of [
   "appearance",
   "ai",
+  "ai-loading",
+  "ai-error",
+  "ai-empty",
+  "ai-paused",
   "service",
   "maps",
   "credentials",
@@ -4085,6 +4089,56 @@ for (const scenario of [
         },
       }),
     );
+    if (scenario.startsWith("ai-")) {
+      await page.route("**/api/v1/ai", (route) =>
+        route.fulfill({
+          json: {
+            supported: true,
+            connected: true,
+            email: "reader@example.test",
+            pending: false,
+            error: "",
+          },
+        }),
+      );
+      await page.route("**/api/v1/ai/settings", (route) =>
+        route.fulfill({
+          json: {
+            model: "gpt-6-luna",
+            auto_ocr: scenario === "ai-paused",
+            proxy_url: "",
+            revision: "visual",
+          },
+        }),
+      );
+      await page.route("**/api/v1/ai/models", async (route) => {
+        if (scenario === "ai-loading") return;
+        if (scenario === "ai-error")
+          return route.fulfill({
+            status: 502,
+            json: { code: "internal", message: "Model service unavailable" },
+          });
+        await route.fulfill({
+          json:
+            scenario === "ai-empty"
+              ? []
+              : [{ id: "gpt-6-luna", name: "GPT-6 Luna" }],
+        });
+      });
+      if (scenario === "ai-paused")
+        await page.route("**/api/v1/ai/ocr", (route) =>
+          route.fulfill({
+            json: {
+              paused: true,
+              scanning: false,
+              queued: 12,
+              failed: 1,
+              running: "",
+              error: "OCR was interrupted; retry explicitly",
+            },
+          }),
+        );
+    }
     await page.goto("/settings");
     const settings = page.getByRole("region", { name: "设置", exact: true });
     await expect(
@@ -4095,7 +4149,7 @@ for (const scenario of [
         .getByRole("navigation", { name: "个人归档" })
         .getByRole("button", { name: "设置", exact: true }),
     ).toHaveClass(/active/);
-    if (scenario === "ai") {
+    if (scenario === "ai" || scenario.startsWith("ai-")) {
       await settings
         .getByRole("link", { name: "AI 连接", exact: true })
         .click();
@@ -4216,7 +4270,39 @@ for (const scenario of [
       await expect(usage.locator(".storage-usage-values > div")).toHaveCount(3);
       await expect(usage).toContainText("原文件");
     }
-    await capture(page, errors, info.title);
+    if (scenario.startsWith("ai-")) {
+      await expect(
+        page.getByRole("checkbox", { name: "自动识别新增图片" }),
+      ).toBeVisible();
+      if (scenario === "ai-loading")
+        await expect(
+          page.getByText("正在加载模型列表…", { exact: true }),
+        ).toBeVisible();
+      if (scenario === "ai-error")
+        await expect(page.getByText(/Model service unavailable/)).toBeVisible();
+      if (scenario === "ai-empty")
+        await expect(
+          page.getByText("当前账号没有可用模型。", { exact: true }),
+        ).toBeVisible();
+      if (scenario === "ai-paused") {
+        await expect(
+          page.getByRole("checkbox", { name: "自动识别新增图片" }),
+        ).toBeChecked();
+        await expect(
+          page.getByRole("button", { name: "继续队列", exact: true }),
+        ).toBeEnabled();
+      }
+    }
+    await capture(
+      page,
+      errors,
+      info.title,
+      scenario === "ai-error"
+        ? ["Model service unavailable"]
+        : scenario === "ai-paused"
+          ? ["OCR was interrupted"]
+          : [],
+    );
   });
 }
 
@@ -4540,92 +4626,5 @@ for (const mode of ["light", "dark"] as const) {
     await home.click();
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByRole("alert")).toHaveCount(0);
-  });
-}
-
-for (const scenario of ["loading", "error", "empty", "paused"] as const) {
-  test(`ocr-settings-${scenario}`, async ({ page }, info) => {
-    const errors = await prepare(page);
-    await page.route("**/api/v1/ai", (route) =>
-      route.fulfill({
-        json: {
-          supported: true,
-          connected: true,
-          email: "reader@example.test",
-          pending: false,
-          error: "",
-        },
-      }),
-    );
-    await page.route("**/api/v1/ai/settings", (route) =>
-      route.fulfill({
-        json: {
-          model: "gpt-6-luna",
-          auto_ocr: scenario === "paused",
-          proxy_url: "",
-          revision: "visual",
-        },
-      }),
-    );
-    await page.route("**/api/v1/ai/models", async (route) => {
-      if (scenario === "loading") return;
-      if (scenario === "error")
-        return route.fulfill({
-          status: 502,
-          json: { code: "internal", message: "Model service unavailable" },
-        });
-      await route.fulfill({
-        json:
-          scenario === "empty"
-            ? []
-            : [{ id: "gpt-6-luna", name: "GPT-6 Luna" }],
-      });
-    });
-    if (scenario === "paused")
-      await page.route("**/api/v1/ai/ocr", (route) =>
-        route.fulfill({
-          json: {
-            paused: true,
-            scanning: false,
-            queued: 12,
-            failed: 1,
-            running: "",
-            error: "OCR was interrupted; retry explicitly",
-          },
-        }),
-      );
-    await page.goto("/settings#settings-ai");
-    await page.getByRole("link", { name: "AI 连接", exact: true }).click();
-    await expect(
-      page.getByRole("checkbox", { name: "自动识别新增图片" }),
-    ).toBeVisible();
-    if (scenario === "loading")
-      await expect(
-        page.getByText("正在加载模型列表…", { exact: true }),
-      ).toBeVisible();
-    if (scenario === "error")
-      await expect(page.getByText(/Model service unavailable/)).toBeVisible();
-    if (scenario === "empty")
-      await expect(
-        page.getByText("当前账号没有可用模型。", { exact: true }),
-      ).toBeVisible();
-    if (scenario === "paused") {
-      await expect(
-        page.getByRole("checkbox", { name: "自动识别新增图片" }),
-      ).toBeChecked();
-      await expect(
-        page.getByRole("button", { name: "继续队列", exact: true }),
-      ).toBeEnabled();
-    }
-    await capture(
-      page,
-      errors,
-      info.title,
-      scenario === "error"
-        ? ["Model service unavailable"]
-        : scenario === "paused"
-          ? ["OCR was interrupted"]
-          : [],
-    );
   });
 }
