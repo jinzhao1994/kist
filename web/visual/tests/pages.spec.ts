@@ -4852,3 +4852,50 @@ for (const scenario of [
     );
   });
 }
+
+test("detail-exif-labels", async ({ page }, info) => {
+  const errors = await prepare(page);
+  await page.route("**/api/v1/files/file-1", (route) =>
+    route.fulfill({
+      json: {
+        file: files[0],
+        tags: [],
+        extracted: ["file", "media", "exif"],
+        metadata: [
+          ["exif:DateTimeOriginal", "2026:01:02 12:00:00"],
+          ["exif:ExposureTime", "1/125"],
+          ["exif:FNumber", "28/10"],
+          ["exif:ISO", "100"],
+          ["exif:FocalLength", "50/1"],
+          ["exif:LensModel", "Example 50mm"],
+          ["exif:WhiteBalance", "0"],
+          ["gps:LatitudeRef", "N"],
+          ["exif:UnknownVendorTag", "Original value"],
+        ].map(([key, value]) => ({ key, value, type: "text", source: "exif" })),
+      },
+    }),
+  );
+  await page.goto("/files?file=file-1");
+  await page.getByRole("button", { name: "文件详情", exact: true }).click();
+  const group = page.locator(".file-metadata-group").filter({
+    has: page.getByRole("heading", { name: "EXIF", exact: true }),
+  });
+  for (const label of [
+    "原始拍摄时间",
+    "曝光时间",
+    "光圈系数",
+    "ISO 感光度",
+    "焦距",
+    "镜头型号",
+    "白平衡",
+    "GPS 南北纬标识",
+    "exif:UnknownVendorTag",
+  ]) {
+    await expect(group.getByText(label, { exact: true })).toBeVisible();
+  }
+  await group.getByText("曝光时间", { exact: true }).hover();
+  await expect(page.getByRole("tooltip")).toHaveText("exif:ExposureTime");
+  await page.mouse.move(0, 0);
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+  await capture(page, errors, info.title);
+});
