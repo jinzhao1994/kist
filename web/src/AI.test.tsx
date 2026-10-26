@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
+import { FileDetail } from "./FileDetail";
 import { AIConnection, OCRAction, OCRText } from "./AI";
 import { I18nProvider, storageKey } from "./i18n";
 import { ThemeProvider } from "./theme";
@@ -336,4 +337,58 @@ it("queues a description independently of OCR", async () => {
   await userEvent.click(run);
   await screen.findByText("Queued for description");
   expect(writes).toEqual(["/api/v1/files/file/desc"]);
+});
+
+it("offers description before basic image metadata has been extracted", async () => {
+  const writes: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        writes.push(path);
+        return Response.json({ state: "queued" });
+      }
+      return (
+        defaults(path) ||
+        Response.json(
+          path.endsWith("/ai")
+            ? { supported: true, connected: true }
+            : { state: "missing" },
+        )
+      );
+    }),
+  );
+  mount(
+    <FileDetail
+      data={{
+        file: {
+          id: "file",
+          name: "scan.PNG",
+          captured_at: null,
+          folder_id: "folder",
+          blob_key: "blob",
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: "2026-01-01T00:00:00Z",
+          media_type: "",
+          extraction_pending: ["media"],
+        },
+        metadata: [],
+        tags: [],
+        extracted: [],
+      }}
+      tags={[]}
+    />,
+  );
+  const run = await screen.findByRole("button", {
+    name: "Generate description",
+  });
+  await waitFor(() => expect(run).toBeEnabled());
+  await userEvent.click(run);
+  expect(writes).toEqual(["/api/v1/files/file/desc"]);
+});
+it("shows original OCR whitespace in the full-text tooltip", async () => {
+  const text = "First  line\n\nSecond line\tvalue";
+  mount(<OCRText text={text} />);
+  await userEvent.hover(document.querySelector(".copy-text-preview")!);
+  expect((await screen.findByRole("tooltip")).textContent).toBe(text);
 });

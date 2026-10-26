@@ -4539,6 +4539,7 @@ for (const scenario of [
   "disconnected",
   "error",
   "text",
+  "text-tooltip",
   "empty",
 ] as const) {
   test(`ocr-${scenario}`, async ({ page }, info) => {
@@ -4566,7 +4567,7 @@ for (const scenario of [
           },
         }),
       );
-    if (scenario === "text" || scenario === "empty")
+    if (scenario.startsWith("text") || scenario === "empty")
       await page.route("**/api/v1/files/file-1", (route) =>
         route.fulfill({
           json: {
@@ -4618,7 +4619,7 @@ for (const scenario of [
       await expect(page.getByRole("textbox", { name: "识别文字" })).toHaveCount(
         0,
       );
-    } else if (scenario === "text") {
+    } else if (scenario.startsWith("text")) {
       await expect(
         page.getByRole("heading", { name: "OCR", exact: true }),
       ).toBeVisible();
@@ -4663,6 +4664,20 @@ for (const scenario of [
           .getByRole("link", { name: "AI 设置", exact: true }),
       ).toBeVisible();
     }
+    if (scenario === "text-tooltip") {
+      await page.locator(".copy-text-preview").hover();
+      const tip = page.getByRole("tooltip");
+      await expect(tip).toBeVisible();
+      expect(await tip.textContent()).toContain("档案收据\n姓名：张三\n");
+      expect(await tip.evaluate((el) => getComputedStyle(el).whiteSpace)).toBe(
+        "pre-wrap",
+      );
+      await tip.hover();
+      await page.mouse.wheel(0, 100);
+      await expect
+        .poll(() => tip.evaluate((el) => el.scrollTop))
+        .toBeGreaterThan(0);
+    }
     await capture(
       page,
       errors,
@@ -4692,7 +4707,14 @@ for (const mode of ["light", "dark"] as const) {
   });
 }
 
-for (const scenario of ["text", "ready", "error", "disconnected"] as const) {
+for (const scenario of [
+  "text",
+  "text-tooltip",
+  "ready",
+  "unclassified",
+  "error",
+  "disconnected",
+] as const) {
   test(`description-${scenario}`, async ({ page }, info) => {
     const errors = await prepare(page);
     await page.route("**/api/v1/ai", (route) =>
@@ -4715,7 +4737,23 @@ for (const scenario of ["text", "ready", "error", "disconnected"] as const) {
           },
         }),
       );
-    if (scenario === "text")
+    if (scenario === "unclassified")
+      await page.route("**/api/v1/files/file-1", (route) =>
+        route.fulfill({
+          json: {
+            file: {
+              ...files[0],
+              media_type: "",
+              kind: "",
+              extraction_pending: ["media"],
+            },
+            tags: [],
+            extracted: [],
+            metadata: [],
+          },
+        }),
+      );
+    if (scenario.startsWith("text"))
       await page.route("**/api/v1/files/file-1", (route) =>
         route.fulfill({
           json: {
@@ -4728,7 +4766,7 @@ for (const scenario of ["text", "ready", "error", "disconnected"] as const) {
                 type: "text",
                 source: "desc",
                 value:
-                  "一张白底的测试文档，列有姓名、文档编号以及生效和到期日期。页面注明这些内容仅为合成测试数据。",
+                  "一张白底的测试文档，列有姓名、文档编号以及生效和到期日期。\n页面注明这些内容仅为合成测试数据。",
               },
               {
                 key: "desc:model",
@@ -4765,7 +4803,7 @@ for (const scenario of ["text", "ready", "error", "disconnected"] as const) {
       has: page.getByRole("heading", { name: "描述", exact: true }),
     });
     await expect(group).toBeVisible();
-    if (scenario === "text") {
+    if (scenario.startsWith("text")) {
       await expect(
         group.getByRole("button", { name: "复制描述", exact: true }),
       ).toBeVisible();
@@ -4786,6 +4824,12 @@ for (const scenario of ["text", "ready", "error", "disconnected"] as const) {
       });
       if (scenario === "disconnected") await expect(action).toBeDisabled();
       else await expect(action).toBeEnabled();
+    }
+    if (scenario === "text-tooltip") {
+      await group.locator(".copy-text-preview").hover();
+      const tip = page.getByRole("tooltip");
+      await expect(tip).toBeVisible();
+      expect(await tip.textContent()).toContain("日期。\n页面");
     }
     await capture(
       page,

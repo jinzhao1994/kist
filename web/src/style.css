@@ -2580,6 +2580,14 @@ main.upload-drag-active {
   font-size: 12px;
 }
 
+.metadata-tooltip--text {
+  max-width: min(480px, calc(100vw - 32px));
+  max-height: min(480px, 60vh);
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .gallery-header:focus {
   outline: none;
 }

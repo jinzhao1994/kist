@@ -25,16 +25,18 @@ export function FileDetail({
   const clientMode = useClientMode();
   const ocr = data.metadata?.find((row) => row.key === "ocr:text");
   const file = data.file;
+  // A filename is only a UI hint until basic metadata is available. The
+  // backend validates image bytes before sending anything to a provider.
+  const imageTextInput = file.media_type
+    ? ["image/jpeg", "image/png", "image/webp"].includes(file.media_type)
+    : /\.(?:jpe?g|png|webp)$/i.test(file.name);
   const canOCR =
-    !clientMode &&
-    !data.extracted?.includes("ocr") &&
-    !ocr &&
-    ["image/jpeg", "image/png", "image/webp"].includes(file.media_type || "");
+    !clientMode && !data.extracted?.includes("ocr") && !ocr && imageTextInput;
   const canDescribe =
     !clientMode &&
     !data.extracted?.includes("desc") &&
     !data.metadata?.some((row) => row.key === "desc:text") &&
-    ["image/jpeg", "image/png", "image/webp"].includes(file.media_type || "");
+    imageTextInput;
   const displayID = combination?.folder.id || file.id;
   const labels: Record<string, string> = {
     "exif:ExifImageHeight": t("imageHeight"),

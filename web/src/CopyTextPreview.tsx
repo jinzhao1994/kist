@@ -1,4 +1,4 @@
-import { CopyButton } from "@mantine/core";
+import { CopyButton, Tooltip } from "@mantine/core";
 import { useLayoutEffect, useRef, useState } from "react";
 import { useI18n, type MessageKey } from "./i18n";
 
@@ -84,29 +84,42 @@ export function CopyTextPreview({
     };
   }, [preview, label, t]);
   return (
-    <span className="copy-text-preview" ref={root}>
-      <bdi>
-        {parts(visible).map((part, index) =>
-          part === "↵" ? (
-            <span className="text-break-marker" key={index}>
-              {part}
-            </span>
-          ) : (
-            part
-          ),
-        )}
-      </bdi>
-      <CopyButton value={text}>
-        {({ copied, copy }) => (
-          <button
-            type="button"
-            onClick={copy}
-            aria-label={t(copied ? "copied" : copyLabel)}
-          >
-            {t(copied ? "copied" : "copy")}
-          </button>
-        )}
-      </CopyButton>
-    </span>
+    <Tooltip
+      label={text}
+      multiline
+      interactive
+      position="bottom-start"
+      offset={8}
+      classNames={{ tooltip: "metadata-tooltip metadata-tooltip--text" }}
+      openDelay={0}
+      closeDelay={100}
+      transitionProps={{ duration: 0 }}
+      events={{ hover: true, focus: true, touch: true }}
+    >
+      <span className="copy-text-preview" ref={root} tabIndex={0}>
+        <bdi>
+          {parts(visible).map((part, index) =>
+            part === "↵" ? (
+              <span className="text-break-marker" key={index}>
+                {part}
+              </span>
+            ) : (
+              part
+            ),
+          )}
+        </bdi>
+        <CopyButton value={text}>
+          {({ copied, copy }) => (
+            <button
+              type="button"
+              onClick={copy}
+              aria-label={t(copied ? "copied" : copyLabel)}
+            >
+              {t(copied ? "copied" : "copy")}
+            </button>
+          )}
+        </CopyButton>
+      </span>
+    </Tooltip>
   );
 }
