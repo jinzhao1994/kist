@@ -2522,7 +2522,7 @@ main.upload-drag-active {
   border: 0;
   padding-block: 2px;
 }
-.file-id-copy {
+.copy-value {
   display: flex;
   align-items: baseline;
   gap: 8px;
@@ -2535,14 +2535,26 @@ main.upload-drag-active {
   font: inherit;
   cursor: pointer;
 }
-.file-id-copy bdi {
+.copy-value bdi {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.copy-value--identifier bdi {
   font-family: monospace;
 }
-.file-id-copy span {
+.copy-value--multiline {
+  align-items: flex-start;
+}
+.copy-value--multiline bdi {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.copy-value span {
   flex-shrink: 0;
   color: var(--mantine-primary-color-filled);
 }

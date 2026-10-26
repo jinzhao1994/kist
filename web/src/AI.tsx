@@ -1,12 +1,4 @@
-import {
-  Alert,
-  Button,
-  CopyButton,
-  Group,
-  Stack,
-  Text,
-  Textarea,
-} from "@mantine/core";
+import { Alert, Button, CopyButton, Group, Stack, Text } from "@mantine/core";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, result, createWrite } from "./api";
@@ -243,27 +235,24 @@ export function OCRDialog({
 }
 export function OCRText({ text }: { text: string }) {
   const { t } = useI18n();
-  if (!text.trim())
-    return (
-      <Text size="sm" c="dimmed">
-        {t("ocrEmpty")}
-      </Text>
-    );
+  if (!text.trim()) return <>{t("ocrEmpty")}</>;
+  const preview = text
+    .replace(/\r\n|[\n\r\u2028\u2029]/g, "↵ ")
+    .replace(/\s+/gu, " ")
+    .trim();
   return (
-    <Stack>
-      <Textarea
-        label={t("ocrText")}
-        value={text}
-        readOnly
-        autosize
-        minRows={3}
-        maxRows={14}
-      />
-      <CopyButton value={text}>
-        {({ copied, copy }) => (
-          <Button onClick={copy}>{t(copied ? "copied" : "copy")}</Button>
-        )}
-      </CopyButton>
-    </Stack>
+    <CopyButton value={text}>
+      {({ copied, copy }) => (
+        <button
+          type="button"
+          className="copy-value copy-value--multiline"
+          onClick={copy}
+          aria-label={t(copied ? "copied" : "ocrCopyText")}
+        >
+          <bdi>{preview}</bdi>
+          <span>{t(copied ? "copied" : "copy")}</span>
+        </button>
+      )}
+    </CopyButton>
   );
 }

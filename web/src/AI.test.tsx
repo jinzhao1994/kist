@@ -90,12 +90,17 @@ it("does not silently select a different model", async () => {
     screen.getByRole("button", { name: "Extract text (OCR)" }),
   ).toBeDisabled();
 });
-it("preserves multiline OCR text without truncating the value", () => {
-  const text = "证件\n姓名：张三\n".repeat(1000);
+it("compacts OCR for display but copies the complete original text", async () => {
+  const user = userEvent.setup();
+  const copy = vi.spyOn(navigator.clipboard, "writeText");
+  const text = "证件  名称\t详情\r\n姓名：张三\n".repeat(1000);
   mount(<OCRText text={text} />);
-  expect(screen.getByRole("textbox", { name: "Recognized text" })).toHaveValue(
-    text,
+  const button = screen.getByRole("button", { name: "Copy recognized text" });
+  expect(button.querySelector("bdi")?.textContent).toBe(
+    "证件 名称 详情↵ 姓名：张三↵ ".repeat(1000).trim(),
   );
+  await user.click(button);
+  expect(copy).toHaveBeenCalledWith(text);
 });
 it("clears connection state and reports unconfirmed revocation", async () => {
   let connected = true;
@@ -175,6 +180,6 @@ it("shows an explicit empty OCR result without a blank editor or copy action", (
   expect(screen.getByText("No text was recognized.")).toBeVisible();
   expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   expect(
-    screen.queryByRole("button", { name: "Copy" }),
+    screen.queryByRole("button", { name: "Copy recognized text" }),
   ).not.toBeInTheDocument();
 });

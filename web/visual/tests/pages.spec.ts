@@ -4437,9 +4437,9 @@ for (const scenario of [
       await expect(
         page.getByText("源文件校验值", { exact: true }),
       ).toBeVisible();
-      await expect(page.getByRole("textbox", { name: "识别文字" })).toHaveValue(
-        /档案收据/,
-      );
+      await expect(
+        page.getByRole("button", { name: "复制识别文字" }),
+      ).toContainText("档案收据↵ 姓名：张三↵ ");
     } else {
       await page
         .getByRole("button", { name: "提取文字（OCR）", exact: true })
