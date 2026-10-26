@@ -152,10 +152,11 @@ export function FileDetail({
   };
   const groups = new Map<string, NonNullable<FileData["metadata"]>>();
   for (const row of data.metadata || []) {
-    const source = row.source || "";
-    const rows = groups.get(source) || [];
+    // GPS is a display group; its extractor provenance stays unchanged.
+    const group = row.key.startsWith("gps:") ? "gps" : row.source || "";
+    const rows = groups.get(group) || [];
     rows.push(row);
-    groups.set(source, rows);
+    groups.set(group, rows);
   }
   if (canOCR && !groups.has("ocr")) groups.set("ocr", []);
   if (canDescribe && !groups.has("desc")) groups.set("desc", []);
@@ -253,15 +254,17 @@ export function FileDetail({
                   <bdi>
                     {source === "exif"
                       ? "EXIF"
-                      : source === "file"
-                        ? "File"
-                        : source === "media"
-                          ? "Media"
-                          : source === "ocr"
-                            ? "OCR"
-                            : source === "desc"
-                              ? t("descTitle")
-                              : source}
+                      : source === "gps"
+                        ? "GPS"
+                        : source === "file"
+                          ? "File"
+                          : source === "media"
+                            ? "Media"
+                            : source === "ocr"
+                              ? "OCR"
+                              : source === "desc"
+                                ? t("descTitle")
+                                : source}
                   </bdi>
                 </h4>
               )}

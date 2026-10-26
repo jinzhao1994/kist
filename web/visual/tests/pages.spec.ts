@@ -4888,11 +4888,16 @@ test("detail-exif-labels", async ({ page }, info) => {
     "焦距",
     "镜头型号",
     "白平衡",
-    "南北纬",
     "exif:UnknownVendorTag",
   ]) {
     await expect(group.getByText(label, { exact: true })).toBeVisible();
   }
+  const gps = page.locator(".file-metadata-group").filter({
+    has: page.getByRole("heading", { name: "GPS", exact: true }),
+  });
+  await expect(gps.getByText("南北纬", { exact: true })).toBeVisible();
+  await expect(group.getByText("南北纬", { exact: true })).toHaveCount(0);
+  await expect(gps.getByText("曝光时间", { exact: true })).toHaveCount(0);
   await group.getByText("曝光时间", { exact: true }).hover();
   await expect(page.getByRole("tooltip")).toHaveText("exif:ExposureTime");
   await page.mouse.move(0, 0);
