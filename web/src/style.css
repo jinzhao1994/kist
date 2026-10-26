@@ -2532,6 +2532,7 @@ main.upload-drag-active {
   background: transparent;
   text-align: start;
   color: inherit;
+  font: inherit;
   cursor: pointer;
 }
 .file-id-copy bdi {
@@ -2540,12 +2541,10 @@ main.upload-drag-active {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: monospace;
-  font-size: 11px;
 }
 .file-id-copy span {
   flex-shrink: 0;
   color: var(--mantine-primary-color-filled);
-  font-size: 11px;
 }
 
 .metadata-tooltip {
