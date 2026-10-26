@@ -2575,12 +2575,33 @@ for (const mode of ["light", "dark"] as const) {
     // The hash assertion above verifies automatic navigation. Pin the capture
     // viewport separately from CodeMirror's asynchronous measurement scroll.
     await page.evaluate(() => document.fonts.ready);
-    await page
-      .locator(".cm-selected-line")
-      .first()
-      .evaluate((node) => {
-        node.scrollIntoView({ block: "center", behavior: "instant" });
-      });
+    await expect
+      .poll(async () => {
+        const selected = page.locator(".cm-selected-line").first();
+        await selected.evaluate((node) => {
+          node.scrollIntoView({ block: "center", behavior: "instant" });
+        });
+        // Let CodeMirror measure the newly visible lines before checking the
+        // capture position; one scroll can be shifted by its height correction.
+        await page.evaluate(
+          () =>
+            new Promise<void>((resolve) =>
+              requestAnimationFrame(() =>
+                requestAnimationFrame(() => resolve()),
+              ),
+            ),
+        );
+        return selected.evaluate((node) => {
+          const line = node.getBoundingClientRect();
+          const viewport = node
+            .closest(".cm-scroller")!
+            .getBoundingClientRect();
+          return Math.abs(
+            (line.top + line.bottom - viewport.top - viewport.bottom) / 2,
+          );
+        });
+      })
+      .toBeLessThan(1);
     await expect(page.locator(".cm-selected-line").last()).toBeInViewport();
     await capture(page, errors, info.title);
     await page.getByRole("button", { name: "下一个文件", exact: true }).click();
