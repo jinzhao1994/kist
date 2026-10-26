@@ -4665,18 +4665,24 @@ for (const scenario of [
       ).toBeVisible();
     }
     if (scenario === "text-tooltip") {
-      await page.locator(".copy-text-preview").hover();
+      await page.locator(".copy-text-preview bdi").hover();
       const tip = page.getByRole("tooltip");
       await expect(tip).toBeVisible();
       expect(await tip.textContent()).toContain("档案收据\n姓名：张三\n");
       expect(await tip.evaluate((el) => getComputedStyle(el).whiteSpace)).toBe(
         "pre-wrap",
       );
-      await tip.hover();
-      await page.mouse.wheel(0, 100);
+      expect(
+        await tip.evaluate((el) => getComputedStyle(el).backgroundColor),
+      ).toBe("rgba(33, 37, 41, 0.85)");
+      const before = await tip.boundingBox();
+      await page.mouse.move(1100, 650);
+      await page
+        .locator(".copy-text-preview bdi")
+        .hover({ position: { x: 8, y: 8 } });
       await expect
-        .poll(() => tip.evaluate((el) => el.scrollTop))
-        .toBeGreaterThan(0);
+        .poll(async () => (await tip.boundingBox())?.x)
+        .not.toBe(before?.x);
     }
     await capture(
       page,
@@ -4826,10 +4832,13 @@ for (const scenario of [
       else await expect(action).toBeEnabled();
     }
     if (scenario === "text-tooltip") {
-      await group.locator(".copy-text-preview").hover();
+      await group.locator(".copy-text-preview bdi").hover();
       const tip = page.getByRole("tooltip");
       await expect(tip).toBeVisible();
       expect(await tip.textContent()).toContain("日期。\n页面");
+      await expect
+        .poll(async () => (await tip.boundingBox())?.y ?? 0)
+        .toBeGreaterThan(0);
     }
     await capture(
       page,

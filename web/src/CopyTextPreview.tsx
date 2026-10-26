@@ -94,20 +94,29 @@ export function CopyTextPreview({
       openDelay={0}
       closeDelay={100}
       transitionProps={{ duration: 0 }}
-      events={{ hover: true, focus: true, touch: true }}
+      events={{ hover: false, focus: true, touch: true }}
     >
       <span className="copy-text-preview" ref={root} tabIndex={0}>
-        <bdi>
-          {parts(visible).map((part, index) =>
-            part === "↵" ? (
-              <span className="text-break-marker" key={index}>
-                {part}
-              </span>
-            ) : (
-              part
-            ),
-          )}
-        </bdi>
+        <Tooltip.Floating
+          label={text}
+          multiline
+          position="bottom-start"
+          offset={16}
+          role="tooltip"
+          classNames={{ tooltip: "metadata-tooltip metadata-tooltip--text" }}
+        >
+          <bdi>
+            {parts(visible).map((part, index) =>
+              part === "↵" ? (
+                <span className="text-break-marker" key={index}>
+                  {part}
+                </span>
+              ) : (
+                part
+              ),
+            )}
+          </bdi>
+        </Tooltip.Floating>
         <CopyButton value={text}>
           {({ copied, copy }) => (
             <button
