@@ -68,6 +68,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai/ocr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 ai ocr */
+        get: operations["get-api-v1-ai-ocr"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/ocr/backfill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 ai ocr backfill */
+        post: operations["post-api-v1-ai-ocr-backfill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/ocr/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 ai ocr pause */
+        post: operations["post-api-v1-ai-ocr-pause"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 ai settings */
+        get: operations["get-api-v1-ai-settings"];
+        /** Put API v1 ai settings */
+        put: operations["put-api-v1-ai-settings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/boxes": {
         parameters: {
             query?: never;
@@ -410,7 +479,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Get API v1 files by ID ocr */
+        get: operations["get-api-v1-files-by-id-ocr"];
         put?: never;
         /** Post API v1 files by ID ocr */
         post: operations["post-api-v1-files-by-id-ocr"];
@@ -1583,8 +1653,31 @@ export interface components {
             note?: string;
             token: string;
         };
-        OcrInputBody: {
+        OCRJob: {
+            automatic: boolean;
+            blob_key: string;
+            error?: string;
+            file_id: string;
+            name: string;
+            request_id: string;
+            /** @enum {string} */
+            state: "missing" | "queued" | "running" | "ready" | "failed";
+        };
+        OCRQueueStatus: {
+            error?: string;
+            /** Format: int64 */
+            failed: number;
+            paused: boolean;
+            /** Format: int64 */
+            queued: number;
+            running: string;
+            scanning: boolean;
+        };
+        OCRSettings: {
+            auto_ocr: boolean;
             model: string;
+            proxy_url: string;
+            revision: string;
         };
         "OutputStruct { Revoked bool \"json:\\\"revoked\\\"\" }Body": {
             revoked: boolean;
@@ -1595,9 +1688,18 @@ export interface components {
         "OutputStruct {}Body": Record<string, never>;
         "Post-api-v1-ai-connectRequest": Record<string, never>;
         "Post-api-v1-ai-disconnectRequest": Record<string, never>;
+        "Post-api-v1-ai-ocr-backfillRequest": {
+            retry: boolean;
+        };
+        "Post-api-v1-ai-ocr-pauseRequest": {
+            paused: boolean;
+        };
         "Post-api-v1-boxes-by-id-foldersRequest": {
             name: string;
             parent?: string;
+        };
+        "Post-api-v1-files-by-id-ocrRequest": {
+            retry: boolean;
         };
         "Post-api-v1-settings-credentialsRequest": {
             note?: string;
@@ -2054,6 +2156,163 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Model"][] | null;
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-ai-ocr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRQueueStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-ai-ocr-backfill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-ai-ocr-backfillRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRQueueStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-ai-ocr-pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-ai-ocr-pauseRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRQueueStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-ai-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRSettings"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "put-api-v1-ai-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OCRSettings"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRSettings"];
                 };
             };
             /** @description Error */
@@ -3112,12 +3371,41 @@ export interface operations {
             };
         };
     };
+    "get-api-v1-files-by-id-ocr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRJob"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
     "post-api-v1-files-by-id-ocr": {
         parameters: {
             query?: never;
-            header: {
-                "Idempotency-Key": string;
-            };
+            header?: never;
             path: {
                 id: string;
             };
@@ -3125,7 +3413,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["OcrInputBody"];
+                "application/json": components["schemas"]["Post-api-v1-files-by-id-ocrRequest"];
             };
         };
         responses: {
@@ -3135,7 +3423,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RequestResult"];
+                    "application/json": components["schemas"]["OCRJob"];
                 };
             };
             /** @description Error */

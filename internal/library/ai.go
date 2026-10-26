@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -72,12 +73,20 @@ func (l *Library) SaveAIConnection(ctx context.Context, before, next ai.Credenti
 	})
 }
 func (l *Library) AIProvider(ctx context.Context) (ai.Provider, error) {
+	client, err := l.AIHTTP(3 * time.Minute)
+	if err != nil {
+		return nil, err
+	}
+	auth, err := l.AIHTTP(30 * time.Second)
+	if err != nil {
+		return nil, err
+	}
 	var token string
-	err := l.updateAI(ctx, func(c *ai.Credentials) error {
+	err = l.updateAI(ctx, func(c *ai.Credentials) error {
 		if c.Provider != "openai" {
 			return errors.New("connect ChatGPT first")
 		}
-		next, err := openai.Refresh(ctx, *c)
+		next, err := openai.Refresh(ctx, *c, auth)
 		if err != nil {
 			return err
 		}
@@ -85,12 +94,16 @@ func (l *Library) AIProvider(ctx context.Context) (ai.Provider, error) {
 		token = c.AccessToken
 		return nil
 	})
-	return openai.Client{Token: token}, err
+	return openai.Client{Token: token, HTTP: client}, err
 }
 func (l *Library) DisconnectAI(ctx context.Context) (bool, error) {
+	client, err := l.AIHTTP(30 * time.Second)
+	if err != nil {
+		return false, err
+	}
 	confirmed := true
-	err := l.updateAI(ctx, func(c *ai.Credentials) error {
-		if openai.Revoke(ctx, *c) != nil {
+	err = l.updateAI(ctx, func(c *ai.Credentials) error {
+		if openai.Revoke(ctx, *c, client) != nil {
 			confirmed = false
 		}
 		c.AccessToken = ""
@@ -127,6 +140,9 @@ type PreparedOCR struct {
 }
 
 func (l *Library) PrepareOCR(ctx context.Context, id domain.FileID, provider ai.Provider, model string) (*PreparedOCR, error) {
+	return l.prepareOCR(ctx, id, provider, model, "")
+}
+func (l *Library) prepareOCR(ctx context.Context, id domain.FileID, provider ai.Provider, model, expectedBlob string) (*PreparedOCR, error) {
 	if ctx.Value(requestContextKey{}) != nil {
 		return nil, ErrRequestScope
 	}
@@ -153,6 +169,9 @@ func (l *Library) PrepareOCR(ctx context.Context, id domain.FileID, provider ai.
 	})
 	if err != nil {
 		return nil, err
+	}
+	if expectedBlob != "" && p.file.BlobKey != expectedBlob {
+		return nil, ErrOCRChanged
 	}
 	if p.version >= 1 {
 		return p, nil
@@ -249,4 +268,13 @@ func (p *PreparedOCR) Commit(ctx context.Context) error {
 	}
 	_, err = l.write(ctx, oplog.ActionExtractMetadata, p.payload, oplog.OriginExtractor, writeOptions{})
 	return err
+}
+
+// AIHTTP rereads the per-instance proxy before each connection.
+func (l *Library) AIHTTP(timeout time.Duration) (*http.Client, error) {
+	cfg, err := config.Load(l.layout.ConfigPath())
+	if err != nil {
+		return nil, err
+	}
+	return ai.HTTPClient(cfg.AIOptions.ProxyURL, timeout)
 }

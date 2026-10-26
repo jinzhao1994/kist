@@ -46,7 +46,6 @@ type Server struct {
 	aiMu             sync.Mutex
 	aiAttempt        *openai.Attempt
 	aiError          string
-	aiSlots          chan struct{}
 	autoSyncRunning  atomic.Int64
 	syncProgress     atomic.Pointer[library.ClientSyncProgress]
 	autoSyncWake     chan struct{}
@@ -114,7 +113,6 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 	cfg.CreateHooks = nil
 	cfg.Transformers = nil // Keep wire JSON identical to the CLI: no injected $schema.
 	s.contract = humago.New(s.mux, cfg)
-	s.aiSlots = make(chan struct{}, 1)
 	s.aiRoutes()
 	s.mapRoutes()
 	if err := s.settingsRoutes(opt); err != nil {

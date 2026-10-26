@@ -8,9 +8,38 @@ import {
 } from "react";
 
 export const en = {
+  aiDisconnected: "Not connected",
+  aiChooseModel: "Choose a default OCR model",
+  aiModelsLoading: "Loading models…",
+  aiModelsEmpty: "No models are available for this account.",
+  aiUseLuna: "Use GPT-6 Luna",
+  aiProxy: "AI proxy address",
+  aiProxyHint:
+    "HTTP or SOCKS5 URL. Leave empty to use the server's proxy environment. The browser sign-in page uses its own network settings.",
+  ocrAuto: "Automatically recognize new images",
+  ocrAutoHint:
+    "Only images added after enabling this setting are sent for OCR. Existing images require an explicit backfill.",
+  ocrQueuePaused:
+    "OCR queue paused. Resume it in AI settings; an in-flight request can still finish.",
+  ocrQueueRunning: "Recognizing: {name}",
+  ocrQueueIdle: "OCR worker ready",
+  ocrQueueCounts: "Queued: {queued} · Failed: {failed}",
+  ocrScanning: "Finding images without OCR…",
+  ocrBackfill: "Recognize existing images without OCR",
+  ocrRetryFailed: "Retry failed images",
+  ocrPause: "Pause queue",
+  ocrResume: "Resume queue",
+  ocrBackfillStarted:
+    "Backfill requested. Completed and queued images will be skipped.",
+  ocrBackfillHint:
+    "Backfill sends supported images without OCR to the connected provider. Failures are not retried automatically. If paused, resume the queue to process requests.",
+  ocrQueued: "Queued for OCR",
+  ocrConfigureFirst:
+    "Connect an account and save a default OCR model in AI settings first.",
+  ocrSettings: "AI settings",
   aiConnection: "AI connection",
   aiLocalHint:
-    "Connect ChatGPT on this computer. OCR sends only the image you choose and uses your ChatGPT plan.",
+    "Connect ChatGPT to use your plan for OCR. Images requested manually or by enabled background tasks are sent to OpenAI; recognized text is saved in the archive.",
   aiConnected: "Connected",
   aiContinue: "Continue with ChatGPT",
   aiOpenSignIn: "Open ChatGPT sign-in",
@@ -790,9 +819,35 @@ export const en = {
 } as const;
 export type MessageKey = keyof typeof en;
 export const zh: Record<MessageKey, string> = {
+  aiDisconnected: "未连接",
+  aiChooseModel: "选择默认 OCR 模型",
+  aiModelsLoading: "正在加载模型列表…",
+  aiModelsEmpty: "当前账号没有可用模型。",
+  aiUseLuna: "使用 GPT-6 Luna",
+  aiProxy: "AI 代理地址",
+  aiProxyHint:
+    "填写 HTTP 或 SOCKS5 地址；留空使用服务进程的代理环境变量。浏览器登录页沿用浏览器自己的网络设置。",
+  ocrAuto: "自动识别新增图片",
+  ocrAutoHint: "仅发送启用后新增的图片进行 OCR；已有图片需要手动发起查缺补漏。",
+  ocrQueuePaused:
+    "OCR 队列已暂停，可在 AI 设置中继续；已在途的请求仍可能完成。",
+  ocrQueueRunning: "正在识别：{name}",
+  ocrQueueIdle: "OCR 后台已就绪",
+  ocrQueueCounts: "排队 {queued} 项 · 失败 {failed} 项",
+  ocrScanning: "正在查找尚未识别的图片…",
+  ocrBackfill: "补全已有图片的文字识别",
+  ocrRetryFailed: "重试失败图片",
+  ocrPause: "暂停队列",
+  ocrResume: "继续队列",
+  ocrBackfillStarted: "已发起查缺补漏，将跳过已完成及已排队的图片。",
+  ocrBackfillHint:
+    "查缺补漏会将尚未识别且受支持的图片发送给已连接的服务商。失败项不会自动重试；队列暂停时，需要点击继续后才开始处理。",
+  ocrQueued: "已排队等待 OCR",
+  ocrConfigureFirst: "请先在 AI 设置中连接账号并保存默认 OCR 模型。",
+  ocrSettings: "AI 设置",
   aiConnection: "AI 连接",
   aiLocalHint:
-    "在本机连接 ChatGPT。OCR 只发送你选择的图片，并使用你的 ChatGPT 套餐。",
+    "连接 ChatGPT 后使用你的套餐进行 OCR。手动请求或已启用的后台任务会将图片发送到 OpenAI，识别文字保存到资料库。",
   aiConnected: "已连接",
   aiContinue: "使用 ChatGPT 继续",
   aiOpenSignIn: "打开 ChatGPT 登录",
@@ -1566,6 +1621,8 @@ export function initializeLanguage() {
   applyDocumentLanguage(initialPreferences());
 }
 interface Parameters {
+  ocrQueueRunning: { name: string };
+  ocrQueueCounts: { queued: number; failed: number };
   clientSelectLoaded: { count: number };
   clientSelectedCount: { count: number };
   clientBatchProgress: { retained: number; prepared: number; total: number };

@@ -1,7 +1,5 @@
-import { DialogPresence } from "./Dialog";
-import { useState } from "react";
 import { useClientMode } from "./OfflineEntry";
-import { OCRDialog, OCRText } from "./AI";
+import { OCRAction, OCRText } from "./AI";
 import { Button, CopyButton, Stack, Tooltip } from "@mantine/core";
 import type { components } from "./api-schema";
 import type { FileDetail as FileData, Tag } from "./api";
@@ -24,7 +22,6 @@ export function FileDetail({
   const { t, prefs } = useI18n();
   const extraction = useExtraction();
   const clientMode = useClientMode();
-  const [ocrOpen, setOCROpen] = useState(false);
   const ocr = data.metadata?.find((row) => row.key === "ocr:text");
   const file = data.file;
   const canOCR =
@@ -149,15 +146,6 @@ export function FileDetail({
           </CopyButton>
         </dd>
       </dl>
-      <DialogPresence>
-        {ocrOpen && (
-          <OCRDialog
-            key={file.id}
-            fileID={file.id}
-            onClose={() => setOCROpen(false)}
-          />
-        )}
-      </DialogPresence>
       <TagAssignment
         showEmpty
         collapsible
@@ -192,9 +180,7 @@ export function FileDetail({
               )}
               <Stack>
                 {source === "ocr" && canOCR && (
-                  <Button onClick={() => setOCROpen(true)}>
-                    {t("ocrExtract")}
-                  </Button>
+                  <OCRAction key={file.id} fileID={file.id} />
                 )}
                 <dl className="metadata-list">
                   {rows.map((row) => (

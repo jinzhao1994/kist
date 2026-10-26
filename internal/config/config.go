@@ -17,7 +17,15 @@ import (
 // CurrentVersion is the config schema this build writes.
 const CurrentVersion = 2
 
+type AIOptions struct {
+	Model    string `toml:"model" json:"model"`
+	AutoOCR  bool   `toml:"auto_ocr" json:"auto_ocr"`
+	AfterOp  int64  `toml:"after_op" json:"-"`
+	ProxyURL string `toml:"proxy_url" json:"proxy_url"`
+}
+
 type Config struct {
+	AIOptions  AIOptions      `toml:"ai_options" json:"-"`
 	AI         ai.Credentials `toml:"ai" json:"-"`
 	Version    int            `toml:"version"`
 	Mode       string         `toml:"mode,omitempty"`

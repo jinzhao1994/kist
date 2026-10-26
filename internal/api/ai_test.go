@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -21,6 +22,41 @@ func TestAIOnlyAcceptsLoopbackRequests(t *testing.T) {
 		}
 		if strings.Contains(w.Body.String(), "access_token") {
 			t.Fatal("secret field exposed")
+		}
+	}
+}
+
+func TestAISettingsAndQueueRoutes(t *testing.T) {
+	s, _ := testServer(t)
+	callLocal := func(method, path, body string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(method, "http://localhost:8473"+Prefix+path, strings.NewReader(body))
+		r.RemoteAddr = "127.0.0.1:1234"
+		r.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		s.ServeHTTP(w, r)
+		return w
+	}
+	settings := callLocal("GET", "/ai/settings", "")
+	if settings.Code != 200 {
+		t.Fatal(settings.Code, settings.Body.String())
+	}
+	var value map[string]any
+	if err := json.Unmarshal(settings.Body.Bytes(), &value); err != nil {
+		t.Fatal(err)
+	}
+	value["model"] = "gpt-6-luna"
+	value["auto_ocr"] = true
+	value["proxy_url"] = "http://127.0.0.1:7890"
+	body, _ := json.Marshal(value)
+	if got := callLocal("PUT", "/ai/settings", string(body)); got.Code != 200 {
+		t.Fatal(got.Code, got.Body.String())
+	}
+	if got := callLocal("PUT", "/ai/settings", string(body)); got.Code != 409 {
+		t.Fatal("stale update", got.Code)
+	}
+	for _, test := range []struct{ method, path, body string }{{"GET", "/ai/ocr", ""}, {"POST", "/ai/ocr/pause", `{"paused":true}`}, {"POST", "/ai/ocr/backfill", `{"retry":false}`}} {
+		if got := callLocal(test.method, test.path, test.body); got.Code != 200 {
+			t.Fatal(test.path, got.Code, got.Body.String())
 		}
 	}
 }

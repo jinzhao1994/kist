@@ -18,6 +18,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/BurntSushi/toml"
+	"github.com/jinzhao1994/kist/internal/ai"
 	"github.com/jinzhao1994/kist/internal/domain"
 )
 
@@ -76,6 +77,13 @@ func Defaults(mode string) *Config {
 }
 
 func (c *Config) Validate() error {
+	if len(c.AIOptions.Model) > 200 || len(c.AIOptions.ProxyURL) > 2048 || c.AIOptions.AfterOp < 0 || (c.AIOptions.AutoOCR && c.AIOptions.Model == "") {
+		return fmt.Errorf("invalid AI options")
+	}
+	if _, err := ai.HTTPClient(c.AIOptions.ProxyURL, time.Second); err != nil {
+		return err
+	}
+
 	if c.Mode != "library" && c.Mode != "client" {
 		return fmt.Errorf("unknown instance mode")
 	}

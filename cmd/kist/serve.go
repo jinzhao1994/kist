@@ -63,6 +63,9 @@ func newServeCmd() *cobra.Command {
 		uploadDone := make(chan struct{})
 		go func() { handler.RunUploads(mediaCtx); close(uploadDone) }()
 		defer func() { cancelMedia(); <-uploadDone }()
+		ocrDone := make(chan struct{})
+		go func() { handler.RunOCR(mediaCtx); close(ocrDone) }()
+		defer func() { cancelMedia(); <-ocrDone }()
 		fmt.Fprintf(cmd.ErrOrStderr(), "Serving kist on %s\n", listener.Addr())
 		if len(effective.AllowedOrigins) > 0 {
 			fmt.Fprintln(cmd.ErrOrStderr(), "No authentication: allow access only from trusted networks or an authenticated proxy.")

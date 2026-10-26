@@ -38,7 +38,8 @@ type Attempt struct {
 	Cancel func()
 }
 
-func Begin(saved ai.Credentials, save func(context.Context, ai.Credentials) error) (*Attempt, error) {
+func Begin(saved ai.Credentials, save func(context.Context, ai.Credentials) error, clients ...*http.Client) (*Attempt, error) {
+	client := authClient(clients)
 	listener, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
 		return nil, err
@@ -102,12 +103,12 @@ func Begin(saved ai.Credentials, save func(context.Context, ai.Credentials) erro
 			fail()
 			return
 		}
-		token, err := exchange(ctx, url.Values{"grant_type": {"authorization_code"}, "client_id": {issued}, "code": {values.Get("code")}, "code_verifier": {verifier}, "redirect_uri": {callback}, "resource": {Resource}})
+		token, err := exchange(ctx, url.Values{"grant_type": {"authorization_code"}, "client_id": {issued}, "code": {values.Get("code")}, "code_verifier": {verifier}, "redirect_uri": {callback}, "resource": {Resource}}, client)
 		if err != nil {
 			fail()
 			return
 		}
-		verifyCtx := oidc.ClientContext(ctx, authHTTP)
+		verifyCtx := oidc.ClientContext(ctx, client)
 		provider, err := oidc.NewProvider(verifyCtx, Issuer)
 		if err != nil {
 			fail()
@@ -161,14 +162,14 @@ type tokens struct {
 	ExpiresIn    int64  `json:"expires_in"`
 }
 
-func exchange(ctx context.Context, form url.Values) (tokens, error) {
+func exchange(ctx context.Context, form url.Values, client *http.Client) (tokens, error) {
 	var out tokens
 	req, err := http.NewRequestWithContext(ctx, "POST", Issuer+"/api/accounts/oauth/token", strings.NewReader(form.Encode()))
 	if err != nil {
 		return out, err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	res, err := authHTTP.Do(req)
+	res, err := client.Do(req)
 	if err != nil {
 		return out, errors.New("ChatGPT token exchange failed")
 	}
@@ -189,7 +190,8 @@ func hasScope(scopes, scope string) bool {
 	}
 	return false
 }
-func Refresh(ctx context.Context, c ai.Credentials) (ai.Credentials, error) {
+func Refresh(ctx context.Context, c ai.Credentials, clients ...*http.Client) (ai.Credentials, error) {
+	client := authClient(clients)
 	if c.AccessToken == "" {
 		return c, errors.New("connect ChatGPT first")
 	}
@@ -199,7 +201,7 @@ func Refresh(ctx context.Context, c ai.Credentials) (ai.Credentials, error) {
 	if c.RefreshToken == "" {
 		return c, errors.New("ChatGPT session expired; reconnect your account")
 	}
-	t, err := exchange(ctx, url.Values{"grant_type": {"refresh_token"}, "client_id": {c.ClientID}, "refresh_token": {c.RefreshToken}, "resource": {Resource}})
+	t, err := exchange(ctx, url.Values{"grant_type": {"refresh_token"}, "client_id": {c.ClientID}, "refresh_token": {c.RefreshToken}, "resource": {Resource}}, client)
 	if err != nil {
 		return c, err
 	}
@@ -218,12 +220,13 @@ func Refresh(ctx context.Context, c ai.Credentials) (ai.Credentials, error) {
 }
 
 // Revoke attempts remote revocation; callers must clear local tokens even on failure.
-func Revoke(ctx context.Context, c ai.Credentials) error {
+func Revoke(ctx context.Context, c ai.Credentials, clients ...*http.Client) error {
+	client := authClient(clients)
 	if c.RefreshToken == "" {
 		return nil
 	}
 	req, _ := http.NewRequestWithContext(ctx, "GET", Issuer+"/.well-known/openid-configuration", nil)
-	res, err := authHTTP.Do(req)
+	res, err := client.Do(req)
 	if err != nil {
 		return errors.New("remote revocation was not confirmed")
 	}
@@ -241,7 +244,7 @@ func Revoke(ctx context.Context, c ai.Credentials) error {
 	form := url.Values{"token": {c.RefreshToken}, "token_type_hint": {"refresh_token"}, "client_id": {c.ClientID}}
 	req, _ = http.NewRequestWithContext(ctx, "POST", meta.Endpoint, strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	res, err = authHTTP.Do(req)
+	res, err = client.Do(req)
 	if err != nil {
 		return errors.New("remote revocation was not confirmed")
 	}
@@ -250,4 +253,11 @@ func Revoke(ctx context.Context, c ai.Credentials) error {
 		return errors.New("remote revocation was not confirmed")
 	}
 	return nil
+}
+
+func authClient(clients []*http.Client) *http.Client {
+	if len(clients) > 0 && clients[0] != nil {
+		return clients[0]
+	}
+	return authHTTP
 }
