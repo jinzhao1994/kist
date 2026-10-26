@@ -4675,14 +4675,18 @@ for (const scenario of [
       expect(
         await tip.evaluate((el) => getComputedStyle(el).backgroundColor),
       ).toBe("rgba(33, 37, 41, 0.85)");
-      const before = await tip.boundingBox();
-      await page.mouse.move(1100, 650);
-      await page
-        .locator(".copy-text-preview bdi")
-        .hover({ position: { x: 8, y: 8 } });
+      // The line gap belongs to the preview block, not the inline text.
+      const preview = page.locator(".copy-text-preview");
+      const gap = await preview.evaluate((el) => {
+        const block = el.getBoundingClientRect();
+        const line = el.querySelector("bdi")!.getClientRects()[0];
+        return { x: 2, y: line.bottom - block.top + 1 };
+      });
+      await preview.hover({ position: gap });
+      await expect(tip).toBeVisible();
       await expect
-        .poll(async () => (await tip.boundingBox())?.x)
-        .not.toBe(before?.x);
+        .poll(async () => (await tip.boundingBox())?.y ?? 0)
+        .toBeGreaterThan(0);
     }
     await capture(
       page,

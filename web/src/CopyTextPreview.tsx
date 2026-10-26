@@ -84,27 +84,27 @@ export function CopyTextPreview({
     };
   }, [preview, label, t]);
   return (
-    <Tooltip
+    <Tooltip.Floating
       label={text}
       multiline
-      interactive
       position="bottom-start"
-      offset={8}
+      offset={16}
+      role="tooltip"
       classNames={{ tooltip: "metadata-tooltip metadata-tooltip--text" }}
-      openDelay={0}
-      closeDelay={100}
-      transitionProps={{ duration: 0 }}
-      events={{ hover: false, focus: true, touch: true }}
     >
-      <span className="copy-text-preview" ref={root} tabIndex={0}>
-        <Tooltip.Floating
-          label={text}
-          multiline
-          position="bottom-start"
-          offset={16}
-          role="tooltip"
-          classNames={{ tooltip: "metadata-tooltip metadata-tooltip--text" }}
-        >
+      <Tooltip
+        label={text}
+        multiline
+        interactive
+        position="bottom-start"
+        offset={8}
+        classNames={{ tooltip: "metadata-tooltip metadata-tooltip--text" }}
+        openDelay={0}
+        closeDelay={100}
+        transitionProps={{ duration: 0 }}
+        events={{ hover: false, focus: true, touch: true }}
+      >
+        <span className="copy-text-preview" ref={root} tabIndex={0}>
           <bdi>
             {parts(visible).map((part, index) =>
               part === "↵" ? (
@@ -116,19 +116,19 @@ export function CopyTextPreview({
               ),
             )}
           </bdi>
-        </Tooltip.Floating>
-        <CopyButton value={text}>
-          {({ copied, copy }) => (
-            <button
-              type="button"
-              onClick={copy}
-              aria-label={t(copied ? "copied" : copyLabel)}
-            >
-              {t(copied ? "copied" : "copy")}
-            </button>
-          )}
-        </CopyButton>
-      </span>
-    </Tooltip>
+          <CopyButton value={text}>
+            {({ copied, copy }) => (
+              <button
+                type="button"
+                onClick={copy}
+                aria-label={t(copied ? "copied" : copyLabel)}
+              >
+                {t(copied ? "copied" : "copy")}
+              </button>
+            )}
+          </CopyButton>
+        </span>
+      </Tooltip>
+    </Tooltip.Floating>
   );
 }

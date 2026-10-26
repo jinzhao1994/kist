@@ -389,6 +389,6 @@ it("offers description before basic image metadata has been extracted", async ()
 it("shows original OCR whitespace in the full-text tooltip", async () => {
   const text = "First  line\n\nSecond line\tvalue";
   mount(<OCRText text={text} />);
-  await userEvent.hover(document.querySelector(".copy-text-preview bdi")!);
+  await userEvent.hover(document.querySelector(".copy-text-preview")!);
   expect((await screen.findByRole("tooltip")).textContent).toBe(text);
 });
