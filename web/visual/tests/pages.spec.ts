@@ -4437,9 +4437,24 @@ for (const scenario of [
       await expect(
         page.getByText("源文件校验值", { exact: true }),
       ).toBeVisible();
-      await expect(
-        page.getByRole("button", { name: "复制识别文字" }),
-      ).toContainText("档案收据↵ 姓名：张三↵ ");
+      await expect(page.locator(".copy-text-preview")).toContainText(
+        "档案收据↵ 姓名：张三↵ ",
+      );
+      const layout = await page
+        .locator(".copy-text-preview")
+        .evaluate((element) => {
+          const lineHeight = parseFloat(getComputedStyle(element).lineHeight);
+          const bounds = element.getBoundingClientRect();
+          const action = element
+            .querySelector("button")!
+            .getBoundingClientRect();
+          return {
+            lines: bounds.height / lineHeight,
+            lastLine: bounds.bottom - action.bottom < lineHeight / 2,
+          };
+        });
+      expect(layout.lines).toBeLessThanOrEqual(3.05);
+      expect(layout.lastLine).toBe(true);
     } else {
       await page
         .getByRole("button", { name: "提取文字（OCR）", exact: true })

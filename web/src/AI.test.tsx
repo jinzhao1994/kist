@@ -93,11 +93,11 @@ it("does not silently select a different model", async () => {
 it("compacts OCR for display but copies the complete original text", async () => {
   const user = userEvent.setup();
   const copy = vi.spyOn(navigator.clipboard, "writeText");
-  const text = "证件  名称\t详情\r\n姓名：张三\n".repeat(1000);
+  const text = "证件  名称\t详情\r\n \n\n姓名：张三\n".repeat(1000);
   mount(<OCRText text={text} />);
   const button = screen.getByRole("button", { name: "Copy recognized text" });
-  expect(button.querySelector("bdi")?.textContent).toBe(
-    "证件 名称 详情↵ 姓名：张三↵ ".repeat(1000).trim(),
+  expect(button.parentElement?.querySelector("bdi")?.textContent).toBe(
+    Array(1000).fill("证件 名称 详情↵ 姓名：张三").join("↵ "),
   );
   await user.click(button);
   expect(copy).toHaveBeenCalledWith(text);

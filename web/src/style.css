@@ -2544,19 +2544,33 @@ main.upload-drag-active {
 .copy-value--identifier bdi {
   font-family: monospace;
 }
-.copy-value--multiline {
-  align-items: flex-start;
-}
-.copy-value--multiline bdi {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
 .copy-value span {
   flex-shrink: 0;
   color: var(--mantine-primary-color-filled);
+}
+
+.copy-text-preview {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.copy-text-preview button {
+  padding: 0;
+  margin-inline-start: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--mantine-primary-color-filled);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.text-break-marker {
+  font-size: 0.75em;
+  color: var(--muted);
+}
+.copy-text-measure {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .metadata-tooltip {
