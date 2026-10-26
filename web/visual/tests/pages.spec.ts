@@ -4814,6 +4814,7 @@ for (const scenario of [
         if (route.request().method() === "POST") {
           const body = route.request().postDataJSON();
           expect(body.force).toBe(true);
+          expect(body.retry).toBe(false);
           expect(body.request_id).toMatch(/^[a-f0-9-]{36}$/);
           refreshRequested = true;
         }

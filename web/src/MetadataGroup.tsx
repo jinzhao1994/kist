@@ -7,6 +7,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { createWrite, get, requestKey, result } from "./api";
+import type { components } from "./api-schema";
 import { useI18n } from "./i18n";
 import { errorMessage } from "./mutations";
 
@@ -60,11 +61,17 @@ export function MetadataGroup({
       setError("");
       if (ai) {
         request.current ??= requestKey();
+        const body: components["schemas"]["Post-api-v1-files-by-id-descRequest"] &
+          components["schemas"]["Post-api-v1-files-by-id-ocrRequest"] = {
+          force: true,
+          retry: job.data?.state === "failed",
+          request_id: request.current,
+        };
         const value = await result<Job>(
           await fetch(`/api/v1/files/${fileID}/${extractor}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ force: true, request_id: request.current }),
+            body: JSON.stringify(body),
           }),
         );
         queries.setQueryData([`${extractor}-job`, fileID], value);

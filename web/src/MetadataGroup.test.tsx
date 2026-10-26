@@ -36,7 +36,7 @@ function mount(extractor?: string) {
   return client;
 }
 it("retains original text and the same AI request key after a lost response", async () => {
-  const bodies: { force: boolean; request_id: string }[] = [];
+  const bodies: { force: boolean; retry: boolean; request_id: string }[] = [];
   let state = "ready";
   vi.stubGlobal(
     "fetch",
@@ -63,6 +63,7 @@ it("retains original text and the same AI request key after a lost response", as
   expect(bodies).toHaveLength(2);
   expect(bodies[0]).toEqual(bodies[1]);
   expect(bodies[0].force).toBe(true);
+  expect(bodies[0].retry).toBe(false);
   expect(bodies[0].request_id).toMatch(/^[\da-f-]{36}$/);
   state = "failed";
   await client.invalidateQueries();

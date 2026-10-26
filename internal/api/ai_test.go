@@ -1,7 +1,14 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
+	"github.com/google/uuid"
+	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/library"
+	"github.com/jinzhao1994/kist/internal/wire"
+	"image"
+	"image/png"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -71,6 +78,62 @@ func TestDescriptionFileRouteIsLocalOnly(t *testing.T) {
 		s.ServeHTTP(w, r)
 		if w.Code != 403 {
 			t.Fatal(w.Code, w.Body.String())
+		}
+	}
+}
+
+// Exercise the real HTTP validator; mocked browser responses cannot catch
+// missing required fields before a refresh reaches its queue.
+func TestAIReextractHTTPContract(t *testing.T) {
+	s, l := testServer(t)
+	box, err := l.CreateBox(t.Context(), "refresh", "", domain.LocalDate{}, domain.LocalDate{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var imageData bytes.Buffer
+	if err := png.Encode(&imageData, image.NewRGBA(image.Rect(0, 0, 1, 1))); err != nil {
+		t.Fatal(err)
+	}
+	body, media := multipartUpload(t, []uploadFile{{Path: "sample.png", LastModified: 1600000000000}}, []uploadFixture{{"sample.png", imageData.String()}})
+	if w := upload(t, s, box.ID.String(), "refresh-fixture", body, media); w.Code != 200 {
+		t.Fatal(w.Code, w.Body)
+	}
+	files := decodeBody[wire.FileList](t, s, "/files")
+	cfg, err := l.OCRSettings(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Model = "test"
+	if _, err := l.SaveOCRSettings(t.Context(), cfg); err != nil {
+		t.Fatal(err)
+	}
+	for _, kind := range []string{"ocr", "desc"} {
+		key := uuid.NewString()
+		send := func(payload string) *httptest.ResponseRecorder {
+			r := httptest.NewRequest("POST", "http://localhost:8473"+Prefix+"/files/"+files.Files[0].ID+"/"+kind, strings.NewReader(payload))
+			r.RemoteAddr = "127.0.0.1:1234"
+			r.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			s.ServeHTTP(w, r)
+			return w
+		}
+		missing, _ := json.Marshal(map[string]any{"force": true, "request_id": key})
+		if w := send(string(missing)); w.Code != 422 {
+			t.Fatal("missing retry should fail validation", w.Code, w.Body)
+		}
+		valid, _ := json.Marshal(map[string]any{"force": true, "retry": false, "request_id": key})
+		for range 2 {
+			w := send(string(valid))
+			if w.Code != 200 {
+				t.Fatal(kind, w.Code, w.Body)
+			}
+			var job library.OCRJob
+			if err := json.Unmarshal(w.Body.Bytes(), &job); err != nil {
+				t.Fatal(err)
+			}
+			if job.State != "queued" || !job.Force || job.RequestID != key {
+				t.Fatal(job)
+			}
 		}
 	}
 }
