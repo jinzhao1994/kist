@@ -8,6 +8,8 @@ import {
 } from "react";
 
 export const en = {
+  aiSaveSettings: "Save AI settings",
+  aiReloadSettings: "Reload AI settings",
   aiDisconnected: "Not connected",
   aiChooseModel: "Choose a default OCR model",
   aiModelsLoading: "Loading models…",
@@ -819,6 +821,8 @@ export const en = {
 } as const;
 export type MessageKey = keyof typeof en;
 export const zh: Record<MessageKey, string> = {
+  aiSaveSettings: "保存 AI 设置",
+  aiReloadSettings: "重新加载 AI 设置",
   aiDisconnected: "未连接",
   aiChooseModel: "选择默认 OCR 模型",
   aiModelsLoading: "正在加载模型列表…",

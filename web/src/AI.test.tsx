@@ -167,7 +167,9 @@ it("shows model loading and saves shared options without triggering a backfill",
     screen.getByLabelText("AI proxy address"),
     "http://127.0.0.1:7890",
   );
-  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Save AI settings" }),
+  );
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0]).toEqual({
     path: "/api/v1/ai/settings",

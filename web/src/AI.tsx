@@ -342,7 +342,7 @@ function AISettings({
                 disabled || busy || !dirty || (draft.auto_ocr && !draft.model)
               }
             >
-              {t("save")}
+              {t("aiSaveSettings")}
             </Button>
             <Button
               disabled={busy || disabled}
@@ -353,7 +353,7 @@ function AISettings({
                 if (connected) void models.refetch();
               }}
             >
-              {t("settingsReload")}
+              {t("aiReloadSettings")}
             </Button>
           </Group>
         </>
