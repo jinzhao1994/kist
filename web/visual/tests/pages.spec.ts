@@ -4881,14 +4881,14 @@ test("detail-exif-labels", async ({ page }, info) => {
     has: page.getByRole("heading", { name: "EXIF", exact: true }),
   });
   for (const label of [
-    "原始拍摄时间",
+    "拍摄时间",
     "曝光时间",
     "光圈系数",
     "ISO 感光度",
     "焦距",
     "镜头型号",
     "白平衡",
-    "GPS 南北纬标识",
+    "南北纬",
     "exif:UnknownVendorTag",
   ]) {
     await expect(group.getByText(label, { exact: true })).toBeVisible();
