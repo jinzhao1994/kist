@@ -55,6 +55,9 @@ func TestDescriptionMetadataReplayUndoAndIsolation(t *testing.T) {
 	if values["ocr:text"] != "original OCR" || values["desc:text"] != p.text || values["desc:language"] != "zh-CN" || p.language != "zh-CN" {
 		t.Fatal(values)
 	}
+	if values["desc:recipe"] != "2" || values["ocr:recipe"] != "1" {
+		t.Fatal("incorrect recipe versions", values)
+	}
 	afterFile, _, _ := l.File(t.Context(), id)
 	if beforeFile.Name != afterFile.Name || beforeFile.BlobKey != afterFile.BlobKey || beforeFile.CapturedAt != afterFile.CapturedAt {
 		t.Fatal("description modified file attributes")

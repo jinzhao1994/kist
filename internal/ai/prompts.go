@@ -31,6 +31,9 @@ var descriptionInstructions string
 //go:embed prompts/description-input.txt
 var descriptionInput string
 
+// DescriptionRecipeVersion identifies the description instructions used for new results.
+const DescriptionRecipeVersion = 2
+
 // DescriptionPrompt describes visible content in the configured archive language.
 func DescriptionPrompt(language string) Prompt {
 	return Prompt{Instructions: strings.ReplaceAll(strings.TrimSpace(descriptionInstructions), "{{language}}", language), Input: strings.TrimSpace(descriptionInput)}
