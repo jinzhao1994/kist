@@ -64,3 +64,13 @@ before starting a release rehearsal. Contact sheets help scan the complete set;
 inspect changed dense or clipped regions at full size before accepting.
 
 The acceptance workflow only accepts a completed Visual push/manual run from this repository's current main commit, checks the latest attempt, approved baseline SHA and exact artifact contents, and verifies PNG hashes. Both captures must complete before an acceptable candidate is published. If the approved revision no longer builds or its scenarios cannot run with the current driver, fix the compatibility problem explicitly; there is no fallback that compares the current revision to itself. It never automatically decides that a visual change is correct.
+
+The capture driver has one explicit compatibility fix for approved revision
+`293bb4da02688a2a092eaa3af5ce5af71f5b47ea`: its pagination fixture expected
+one prefetch, but an asynchronous initial catalog invalidation could produce two.
+For that exact revision and fixture SHA-256 only, the disposable checkout waits
+for the invalidation and its replacement request before navigating, then checks
+that navigation does not issue a third request. This matches the corrected current
+scenario. It changes neither the old application nor the screenshot assertions;
+all old scenarios still run and must pass. Once a newer baseline is accepted, this
+compatibility branch is inactive. Unexpected old fixture contents fail closed.
