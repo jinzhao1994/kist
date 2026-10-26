@@ -2543,6 +2543,7 @@ main.upload-drag-active {
 }
 .copy-value--identifier bdi {
   font-family: monospace;
+  font-size: 11px;
 }
 .copy-value span {
   flex-shrink: 0;
