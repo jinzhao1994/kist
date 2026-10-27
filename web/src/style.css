@@ -3021,7 +3021,7 @@ main.upload-drag-active {
 }
 .box-grid:not(.view-list) .box-entry > .sidebar-row-menu {
   inset-block-start: 1rem;
-  transform: none;
+  translate: none;
 }
 .breadcrumb-segment {
   display: inline-flex;
