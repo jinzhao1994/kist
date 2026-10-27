@@ -56,6 +56,8 @@ type ocrQueueState struct {
 
 // OCRQueue uses OS locks and reloads state for every operation, including across
 // processes. No archive lock is held while the provider performs inference.
+type aiWorkerContextKey struct{}
+
 type OCRQueue struct {
 	kind          string
 	library       *Library
@@ -344,6 +346,7 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 		return err
 	}
 	defer release()
+	ctx = context.WithValue(ctx, aiWorkerContextKey{}, q.library)
 	head, err := q.library.SyncHead(ctx)
 	if err != nil {
 		return err
@@ -480,6 +483,10 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 		return err
 	}
 	err = q.execute(ctx, job, cfg.AIOptions.Model, cfg.Library.Language)
+	return q.finishJob(job, err)
+}
+
+func (q *OCRQueue) finishJob(job OCRJob, err error) error {
 	// Use a bounded independent context to record shutdown/cancellation failures.
 	finishCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -488,7 +495,7 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 		return e
 	}
 	defer unlock()
-	s, e = q.load()
+	s, e := q.load()
 	if e != nil {
 		return e
 	}

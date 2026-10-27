@@ -1,4 +1,4 @@
-import { Button, Group, Text } from "@mantine/core";
+import { Button, Text } from "@mantine/core";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   useIsMutating,
@@ -19,13 +19,11 @@ export function MetadataGroup({
   fileID,
   extractor,
   children,
-  actions,
 }: {
   title: string;
   fileID: string;
   extractor?: string;
   children: ReactNode;
-  actions?: ReactNode;
 }) {
   const { t } = useI18n();
   const queries = useQueryClient();
@@ -102,28 +100,25 @@ export function MetadataGroup({
           <h4>
             <bdi>{title}</bdi>
           </h4>
-          <Group gap="xs">
-            {actions}
-            {extractor && (
-              <Button
-                variant="subtle"
-                size="compact-xs"
-                className="metadata-refresh-action"
-                data-active={busy || pending || !!issue || undefined}
-                disabled={busy || pending || (ai && job.isPending)}
-                aria-label={t("reextractGroup", { group: title })}
-                onClick={() => mutation.mutate()}
-              >
-                {t(
-                  busy || (ai && job.data?.state === "running")
-                    ? "extracting"
-                    : pending
-                      ? "reextractQueued"
-                      : "reextract",
-                )}
-              </Button>
-            )}
-          </Group>
+          {extractor && (
+            <Button
+              variant="subtle"
+              size="compact-xs"
+              className="metadata-refresh-action"
+              data-active={busy || pending || !!issue || undefined}
+              disabled={busy || pending || (ai && job.isPending)}
+              aria-label={t("reextractGroup", { group: title })}
+              onClick={() => mutation.mutate()}
+            >
+              {t(
+                busy || (ai && job.data?.state === "running")
+                  ? "extracting"
+                  : pending
+                    ? "reextractQueued"
+                    : "reextract",
+              )}
+            </Button>
+          )}
         </div>
       )}
       {issue && (
@@ -133,7 +128,13 @@ export function MetadataGroup({
       )}
       {ai && queue.data?.paused && (
         <Text size="sm">
-          {t("ocrQueuePaused")}{" "}
+          {t(
+            extractor === "orientation"
+              ? "orientationQueuePaused"
+              : extractor === "desc"
+                ? "descQueuePaused"
+                : "ocrQueuePaused",
+          )}{" "}
           <a href="/settings#settings-ai">{t("ocrSettings")}</a>
         </Text>
       )}

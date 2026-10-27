@@ -2,15 +2,20 @@ import { Button, Group, Stack, Text } from "@mantine/core";
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { createWrite, requestKey, result, type ArchiveFile } from "./api";
-import { Dialog, DialogPresence } from "./Dialog";
+import { Dialog } from "./Dialog";
 import { Select } from "./Select";
 import { useI18n } from "./i18n";
 import { errorMessage } from "./mutations";
 
-export function ImageRotation({ file }: { file: ArchiveFile }) {
+export function ImageRotation({
+  file,
+  close,
+}: {
+  file: ArchiveFile;
+  close: () => void;
+}) {
   const { t } = useI18n();
   const queries = useQueryClient();
-  const [open, setOpen] = useState(false);
   const [angle, setAngle] = useState(String(file.image_rotation || 0));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -57,7 +62,7 @@ export function ImageRotation({ file }: { file: ArchiveFile }) {
           }),
         );
       pending.current = undefined;
-      setOpen(false);
+      close();
     } catch (e) {
       setError(errorMessage(e, t));
     } finally {
@@ -66,60 +71,47 @@ export function ImageRotation({ file }: { file: ArchiveFile }) {
     }
   }
   return (
-    <>
-      <Button variant="subtle" size="compact-xs" onClick={() => setOpen(true)}>
-        {t("orientationEdit")}
-      </Button>
-      <DialogPresence>
-        {open && (
-          <Dialog
-            open
-            onOpenChange={(value) => {
-              if (!busy) setOpen(value);
-            }}
-            title={t("orientationEdit")}
-          >
-            <Stack>
-              <Select
-                label={t("orientationAngle")}
-                value={angle}
-                onValueChange={setAngle}
-                disabled={busy}
-                options={[0, 90, 180, 270].map((n) => ({
-                  value: String(n),
-                  label: t("orientationDegrees", { degrees: n }),
-                }))}
-              />
-              <Text size="sm" c="dimmed">
-                {t(
-                  file.image_rotation_manual
-                    ? "orientationManualHint"
-                    : "orientationEditHint",
-                )}
-              </Text>
-              {error && (
-                <Text role="alert" size="sm">
-                  {error}
-                </Text>
-              )}
-              <Group>
-                <Button
-                  disabled={busy}
-                  onClick={() => void save(Number(angle))}
-                >
-                  {t("orientationSave")}
-                </Button>
-                {(file.image_rotation_manual ||
-                  pending.current?.value === null) && (
-                  <Button disabled={busy} onClick={() => void save(null)}>
-                    {t("orientationRestoreAuto")}
-                  </Button>
-                )}
-              </Group>
-            </Stack>
-          </Dialog>
+    <Dialog
+      open
+      onOpenChange={(value) => {
+        if (!busy && !value) close();
+      }}
+      title={t("orientationEdit")}
+    >
+      <Stack>
+        <Select
+          label={t("orientationAngle")}
+          value={angle}
+          onValueChange={setAngle}
+          disabled={busy}
+          options={[0, 90, 180, 270].map((n) => ({
+            value: String(n),
+            label: t("orientationDegrees", { degrees: n }),
+          }))}
+        />
+        <Text size="sm" c="dimmed">
+          {t(
+            file.image_rotation_manual
+              ? "orientationManualHint"
+              : "orientationEditHint",
+          )}
+        </Text>
+        {error && (
+          <Text role="alert" size="sm">
+            {error}
+          </Text>
         )}
-      </DialogPresence>
-    </>
+        <Group>
+          <Button disabled={busy} onClick={() => void save(Number(angle))}>
+            {t("orientationSave")}
+          </Button>
+          {(file.image_rotation_manual || pending.current?.value === null) && (
+            <Button disabled={busy} onClick={() => void save(null)}>
+              {t("orientationRestoreAuto")}
+            </Button>
+          )}
+        </Group>
+      </Stack>
+    </Dialog>
   );
 }

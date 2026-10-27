@@ -37,3 +37,18 @@ export function mediaProfile(
   }
   return profile;
 }
+
+// Catalog hints control UI availability; the backend validates the actual bytes.
+export function supportsImageAI(
+  file: Pick<ArchiveFile, "name" | "media_type">,
+) {
+  return file.media_type
+    ? [
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/heic",
+        "image/heif",
+      ].includes(file.media_type)
+    : /\.(?:jpe?g|png|webp|heic|heif)$/i.test(file.name);
+}

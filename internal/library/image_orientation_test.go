@@ -273,3 +273,39 @@ func TestOrientationDerivedCacheAndOfflineSelection(t *testing.T) {
 		}
 	}
 }
+
+func TestOrientationDependencyFailureCannotBeRetriedByAnotherTask(t *testing.T) {
+	l := openTestLibrary(t)
+	id := rotationFile(t, l)
+	setOCR(t, l, false)
+	p := &uprightProvider{fail: true, fakeOCR: fakeOCR{text: "synthetic description"}}
+	if _, err := l.PrepareOCR(t.Context(), id, p, "test"); err == nil {
+		t.Fatal("expected failure")
+	}
+	if _, err := l.PrepareDescription(t.Context(), id, p, "test", "en"); err == nil {
+		t.Fatal("description bypassed failure")
+	}
+	if p.directions != 1 {
+		t.Fatal("dependency was rebilled", p.directions)
+	}
+	q := l.OrientationQueue()
+	q.provider = func(context.Context) (ai.Provider, error) { return p, nil }
+	requireOCRState(t, q, id, "failed")
+	p.fail = false
+	if _, err := q.Request(t.Context(), id, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := q.Pause(t.Context(), false); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.Step(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	requireOCRState(t, q, id, "ready")
+	if _, err := l.PrepareDescription(t.Context(), id, p, "test", "en"); err != nil {
+		t.Fatal(err)
+	}
+	if p.directions != 2 || p.calls != 1 {
+		t.Fatal(p.directions, p.calls)
+	}
+}

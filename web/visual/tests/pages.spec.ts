@@ -5099,11 +5099,25 @@ for (const manual of [false, true]) {
     await expect(
       page.getByRole("heading", { name: "图片方向", exact: true }),
     ).toBeVisible();
+    const group = page.locator(".file-metadata-group").filter({
+      has: page.getByRole("heading", { name: "图片方向", exact: true }),
+    });
+    await group.hover();
+    await expect(
+      group.getByRole("button", { name: "调整方向", exact: true }),
+    ).toHaveCount(0);
+    if (!manual)
+      await expect(
+        group.getByRole("button", { name: "重新提取图片方向", exact: true }),
+      ).toBeVisible();
     if (manual) {
       await expect(
         page.getByRole("button", { name: "重新提取图片方向" }),
       ).toHaveCount(0);
-      await page.getByRole("button", { name: "调整方向", exact: true }).click();
+      await page.getByRole("button", { name: "更多操作", exact: true }).click();
+      await page
+        .getByRole("menuitem", { name: "调整方向", exact: true })
+        .click();
       await expect(page.getByRole("dialog")).toBeVisible();
       await expect(
         page.getByRole("button", { name: "恢复 AI 判断", exact: true }),

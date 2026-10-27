@@ -3,7 +3,7 @@ import { MetadataGroup } from "./MetadataGroup";
 import { CopyTextPreview } from "./CopyTextPreview";
 import { useClientMode } from "./OfflineEntry";
 import { OCRAction, OCRText } from "./AI";
-import { ImageRotation } from "./ImageRotation";
+import { supportsImageAI } from "./media-profile";
 import { Button, CopyButton, Stack, Tooltip } from "@mantine/core";
 import type { components } from "./api-schema";
 import type { FileDetail as FileData, Tag } from "./api";
@@ -28,17 +28,7 @@ export function FileDetail({
   const clientMode = useClientMode();
   const ocr = data.metadata?.find((row) => row.key === "ocr:text");
   const file = data.file;
-  // A filename is only a UI hint until basic metadata is available. The
-  // backend validates image bytes before sending anything to a provider.
-  const imageTextInput = file.media_type
-    ? [
-        "image/jpeg",
-        "image/png",
-        "image/webp",
-        "image/heic",
-        "image/heif",
-      ].includes(file.media_type)
-    : /\.(?:jpe?g|png|webp|heic|heif)$/i.test(file.name);
+  const imageTextInput = supportsImageAI(file);
   const canOCR =
     !clientMode && !data.extracted?.includes("ocr") && !ocr && imageTextInput;
   const canDescribe =
@@ -309,11 +299,6 @@ export function FileDetail({
                             : source === "orientation"
                               ? t("orientationTitle")
                               : source
-              }
-              actions={
-                source === "orientation" && !clientMode && imageTextInput ? (
-                  <ImageRotation file={file} />
-                ) : undefined
               }
               extractor={
                 !(source === "orientation" && file.image_rotation_manual) &&

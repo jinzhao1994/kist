@@ -2,9 +2,7 @@ package library
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
-	"fmt"
 	"reflect"
 	"strconv"
 
@@ -44,15 +42,70 @@ func imageRotation(rows []store.MetadataRow, blob string) (degrees int, known, m
 }
 
 func (l *Library) ensureImageOrientation(ctx context.Context, id domain.FileID, provider ai.Provider, model, blob string) error {
-	p, err := l.prepareImageText(ctx, id, provider, model, blob, "orientation", "", false)
+	q := l.OrientationQueue()
+	// Dependencies share the same durable queue and worker lock as standalone
+	// checks, so another task cannot retry a failed or interrupted inference.
+	if ctx.Value(aiWorkerContextKey{}) != l {
+		release, err := q.worker.Acquire(ctx)
+		if err != nil {
+			return err
+		}
+		defer release()
+	}
+	job, err := q.resolve(ctx, id)
 	if err != nil {
 		return err
 	}
-	if len(p.payload) == 0 {
+	if job.BlobKey != blob {
+		return ErrOCRChanged
+	}
+	if job.State == "ready" {
 		return nil
 	}
-	request := Request{ID: uuid.NewString(), Digest: fmt.Sprintf("%x", sha256.Sum256([]byte(id.String()+"\n"+blob+"\norientation:1")))}
-	_, err = l.ExecuteRequest(ctx, request, p.Commit)
+	unlock, err := q.state.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	state, err := q.load()
+	if err != nil {
+		unlock()
+		return err
+	}
+	if state.Paused {
+		unlock()
+		return errors.New("image orientation queue is paused; resume it in AI settings")
+	}
+	index := -1
+	for i, previous := range state.Jobs {
+		if previous.FileID != id || previous.BlobKey != blob {
+			continue
+		}
+		if previous.State == "failed" || previous.State == "running" {
+			unlock()
+			return errors.New("image orientation failed or was interrupted; retry it explicitly in AI settings")
+		}
+		if previous.State == "queued" {
+			index = i
+			job = previous
+			break
+		}
+	}
+	if index < 0 {
+		job.RequestID = uuid.NewString()
+		state.Jobs = append(state.Jobs, job)
+		index = len(state.Jobs) - 1
+	}
+	job.State, job.Automatic = "running", false
+	state.Jobs[index] = job
+	err = q.save(state)
+	unlock()
+	if err != nil {
+		return err
+	}
+	prepared, err := l.prepareImageText(ctx, id, provider, model, blob, "orientation", "", job.Force)
+	if err == nil {
+		_, err = l.ExecuteRequest(ctx, q.jobRequest(job), prepared.Commit)
+	}
 	if err == nil {
 		err = l.readTx(ctx, func(tx *store.ViewTx) error {
 			rows, e := store.FileMetadata(tx.Queryer(), id)
@@ -65,7 +118,7 @@ func (l *Library) ensureImageOrientation(ctx context.Context, id domain.FileID, 
 			return nil
 		})
 	}
-	return err
+	return errors.Join(err, q.finishJob(job, err))
 }
 
 // SetImageRotation records an explicit human override, or releases it when nil.

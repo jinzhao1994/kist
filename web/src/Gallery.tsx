@@ -1,3 +1,5 @@
+import { ImageRotation } from "./ImageRotation";
+import { supportsImageAI } from "./media-profile";
 import { MoreActionsMenu } from "./MoreActionsMenu";
 import { ObjectLinkMenuItems, useObjectLink } from "./ObjectLinkMenuItems";
 import { OfflineMenuItem } from "./OfflineMenuItem";
@@ -63,7 +65,8 @@ export function Gallery({
     () => document.activeElement as HTMLElement | null,
   );
   const [editing, setEditing] = useState(false);
-  const focusTrap = useFocusTrap(!editing);
+  const [rotating, setRotating] = useState(false);
+  const focusTrap = useFocusTrap(!editing && !rotating);
   const alive = useRef(true);
   const currentID = useRef(id);
   currentID.current = id;
@@ -233,6 +236,7 @@ export function Gallery({
         onKeyDown={(event) => {
           if (
             editing ||
+            rotating ||
             (event.target as HTMLElement).closest("[role=menu]") ||
             event.defaultPrevented ||
             event.altKey ||
@@ -326,6 +330,11 @@ export function Gallery({
               {data && (
                 <>
                   <OpenMediaButton file={data.file} menu />
+                  {!clientMode && supportsImageAI(data.file) && (
+                    <Menu.Item onClick={() => setRotating(true)}>
+                      {t("orientationEdit")}
+                    </Menu.Item>
+                  )}
                   <Menu.Item
                     component="a"
                     href={contentURL(data.file, true)}
@@ -538,6 +547,15 @@ export function Gallery({
           )}
         </div>
       </section>
+      <DialogPresence>
+        {rotating && data && (
+          <ImageRotation
+            key={data.file.id}
+            file={data.file}
+            close={() => setRotating(false)}
+          />
+        )}
+      </DialogPresence>
       <DialogPresence>
         {offline && data && (
           <OfflineEntry

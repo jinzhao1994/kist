@@ -439,10 +439,7 @@ it("restores automatic direction with a stable request key after a lost response
     image_rotation: 90,
     image_rotation_manual: true,
   } as ArchiveFile;
-  mount(<ImageRotation file={file} />);
-  await userEvent.click(
-    screen.getByRole("button", { name: "Adjust orientation" }),
-  );
+  mount(<ImageRotation file={file} close={vi.fn()} />);
   await userEvent.click(
     screen.getByRole("button", { name: "Restore AI orientation" }),
   );
