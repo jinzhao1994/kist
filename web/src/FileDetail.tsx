@@ -291,6 +291,9 @@ export function FileDetail({
             <MetadataGroup
               key={`${file.id}/${source}`}
               fileID={file.id}
+              help={
+                source === "gps" && data.gps ? t("geoCaptureHint") : undefined
+              }
               secondary={
                 source === "gps" && data.gps && !clientMode
                   ? {
@@ -342,7 +345,6 @@ export function FileDetail({
                         />
                       </Suspense>
                     </div>
-                    <span className="metadata-help">{t("geoCaptureHint")}</span>
                   </>
                 )}
                 {source === "orientation" && canOrient && (

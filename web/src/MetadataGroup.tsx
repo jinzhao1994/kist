@@ -1,3 +1,4 @@
+import { HelpTooltip } from "./HelpTooltip";
 import { Button, Text, Group } from "@mantine/core";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -25,9 +26,11 @@ type TaskControls = { action: ReactNode; status: ReactNode };
 export function MetadataGroup({
   children,
   secondary,
+  help,
   ...task
 }: TaskOptions & {
   children: ReactNode;
+  help?: string;
   secondary?: Omit<TaskOptions, "fileID">;
 }) {
   const primary = useMetadataTask(task);
@@ -40,9 +43,12 @@ export function MetadataGroup({
     <section className="file-metadata-group">
       {task.title && (
         <div className="metadata-group-heading">
-          <h4>
-            <bdi>{task.title}</bdi>
-          </h4>
+          <Group gap="xs">
+            <h4>
+              <bdi>{task.title}</bdi>
+            </h4>
+            {help && <HelpTooltip label={task.title}>{help}</HelpTooltip>}
+          </Group>
           <Group gap="xs" className="metadata-group-actions">
             {primary.action}
             {extra.action}

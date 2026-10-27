@@ -5141,7 +5141,13 @@ for (const manual of [false, true]) {
   });
 }
 
-for (const variant of ["desktop", "mobile", "failure"] as const) {
+for (const variant of [
+  "desktop",
+  "mobile",
+  "failure",
+  "help",
+  "wheel",
+] as const) {
   test(`gps-location-${variant}`, async ({ page }, info) => {
     const errors = await prepare(page, {
       gps: true,
@@ -5198,13 +5204,52 @@ for (const variant of ["desktop", "mobile", "failure"] as const) {
         exact: true,
       }),
     ).toBeVisible();
-    await page.mouse.move(0, 0);
+    if (variant === "wheel") {
+      const panel = page.locator("#gallery-details");
+      const before = await panel.evaluate((el) => el.scrollTop);
+      expect(before).toBeGreaterThan(0);
+      await group.locator("canvas").hover();
+      await page.mouse.wheel(0, -160);
+      await expect
+        .poll(() => panel.evaluate((el) => el.scrollTop))
+        .toBeLessThan(before);
+      await group.scrollIntoViewIfNeeded();
+    }
+    if (variant === "help") {
+      await group.getByRole("button", { name: "GPS", exact: true }).hover();
+      await expect(page.getByRole("tooltip")).toContainText(
+        "圆圈表示照片记录的定位误差",
+      );
+    } else await page.mouse.move(0, 0);
     await capture(page, errors, info.title);
   });
 }
 
 test("settings-location", async ({ page }, info) => {
   const errors = await prepare(page);
+  await page.route("**/api/v1/settings", (route) =>
+    route.fulfill({
+      json: {
+        revision: "visual",
+        mode: "library",
+        id: "instance",
+        library_id: "library",
+        credential_configured: false,
+        fields: [],
+        effective: {},
+        overrides: [],
+        restart_required: [],
+      },
+    }),
+  );
+  await page.route("**/api/v1/settings/storage", (route) =>
+    route.fulfill({
+      json: { originals_bytes: 1024, metadata_bytes: 512, previews_bytes: 256 },
+    }),
+  );
+  await page.route("**/api/v1/settings/credentials", (route) =>
+    route.fulfill({ json: [] }),
+  );
   await page.goto("/settings#settings-location");
   const section = page.locator("#settings-location");
   await expect(

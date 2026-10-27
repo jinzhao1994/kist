@@ -108,6 +108,7 @@ export default function MapPreview({
             duration: 0,
           },
           interactive: detail,
+          scrollZoom: !point,
           pixelRatio: detail ? window.devicePixelRatio : 1,
           locale: {
             "NavigationControl.ZoomIn": t("mapZoomIn"),
