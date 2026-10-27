@@ -136,12 +136,24 @@ func (s *Server) aiRoutes() {
 			return s.library.SetImageRotation(ctx, domain.FileID{ID: id}, in.Body.BlobKey, in.Body.Degrees)
 		})
 	})
-	for kind, q := range map[string]*library.OCRQueue{"orientation": s.library.OrientationQueue(), "ocr": s.library.OCRQueue(), "desc": s.library.DescriptionQueue()} {
-		huma.Get(s.contract, Prefix+"/ai/"+kind, func(ctx context.Context, _ *struct{}) (*output[library.OCRQueueStatus], error) {
+	s.queueRoutes("/ai/", map[string]*library.OCRQueue{"orientation": s.library.OrientationQueue(), "ocr": s.library.OCRQueue(), "desc": s.library.DescriptionQueue()})
+	s.locationRoutes()
+}
+
+// RunOCR joins the server lifetime; requests only update the persistent queue.
+func (s *Server) RunOCR(ctx context.Context) {
+	if s.library != nil {
+		s.library.OrientationQueue().Run(ctx, s.library.OCRQueue(), s.library.DescriptionQueue(), s.library.LocationQueue())
+	}
+}
+
+func (s *Server) queueRoutes(prefix string, queues map[string]*library.OCRQueue) {
+	for kind, q := range queues {
+		huma.Get(s.contract, Prefix+prefix+kind, func(ctx context.Context, _ *struct{}) (*output[library.OCRQueueStatus], error) {
 			v, err := q.Status(ctx)
 			return response(v, err)
 		})
-		huma.Post(s.contract, Prefix+"/ai/"+kind+"/backfill", func(ctx context.Context, in *struct {
+		huma.Post(s.contract, Prefix+prefix+kind+"/backfill", func(ctx context.Context, in *struct {
 			Body struct {
 				Retry bool `json:"retry"`
 			}
@@ -152,7 +164,7 @@ func (s *Server) aiRoutes() {
 			}
 			return response(v, nil)
 		})
-		huma.Post(s.contract, Prefix+"/ai/"+kind+"/pause", func(ctx context.Context, in *struct {
+		huma.Post(s.contract, Prefix+prefix+kind+"/pause", func(ctx context.Context, in *struct {
 			Body struct {
 				Paused bool `json:"paused"`
 			}
@@ -193,12 +205,5 @@ func (s *Server) aiRoutes() {
 			}
 			return response(v, nil)
 		})
-	}
-}
-
-// RunOCR joins the server lifetime; requests only update the persistent queue.
-func (s *Server) RunOCR(ctx context.Context) {
-	if s.library != nil {
-		s.library.OrientationQueue().Run(ctx, s.library.OCRQueue(), s.library.DescriptionQueue())
 	}
 }

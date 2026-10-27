@@ -1,3 +1,4 @@
+import { LocationSettings } from "./LocationSettings";
 import { StorageUsageValues } from "./StorageUsageValues";
 import { AIConnection } from "./AI";
 import { EmptyHint } from "./EmptyHint";
@@ -211,7 +212,10 @@ export function InstanceSettings() {
                   : []),
                 { id: "settings-access", label: t("settingCredentials") },
                 ...(snapshot.mode === "library"
-                  ? [{ id: "settings-ai", label: t("aiConnection") }]
+                  ? [
+                      { id: "settings-ai", label: t("aiConnection") },
+                      { id: "settings-location", label: t("geoTitle") },
+                    ]
                   : []),
               ]}
             >
@@ -373,6 +377,11 @@ export function InstanceSettings() {
                     if (Object.keys(changes).length === 0)
                       await run(async (signal) => reload(signal));
                   }}
+                />
+              )}
+              {snapshot.mode === "library" && (
+                <LocationSettings
+                  disabled={busy || Object.keys(changes).length > 0}
                 />
               )}
             </SectionIndex>

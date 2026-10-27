@@ -54,12 +54,10 @@ func (l *Library) prepareExtraction(ctx context.Context, id domain.FileID, extra
 	if !force && versions[e.ID()] >= e.Version() {
 		return prepared, nil
 	}
-	if force {
-		prepared.file, prepared.extractor, prepared.version = &file, e.ID(), versions[e.ID()]
-		prepared.rows, err = store.FileMetadata(l.db, id)
-		if err != nil {
-			return nil, err
-		}
+	prepared.file, prepared.extractor, prepared.version = &file, e.ID(), versions[e.ID()]
+	prepared.rows, err = store.FileMetadata(l.db, id)
+	if err != nil {
+		return nil, err
 	}
 	change, result := l.extractOne(ctx, e, id)
 	if result.Err != nil {

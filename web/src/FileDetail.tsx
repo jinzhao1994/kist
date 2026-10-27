@@ -1,3 +1,5 @@
+import { lazy, Suspense } from "react";
+const MapPreview = lazy(() => import("./MapPreview"));
 import { FloatingTooltip } from "./FloatingTooltip";
 import { MetadataGroup } from "./MetadataGroup";
 import { CopyTextPreview } from "./CopyTextPreview";
@@ -42,6 +44,8 @@ export function FileDetail({
     !data.metadata?.some((row) => row.key === "orientation:clockwise_degrees");
   const displayID = combination?.folder.id || file.id;
   const labels: Record<string, string> = {
+    "geo:address": t("geoAddress"),
+    "geo:provider": t("ocrProvider"),
     "orientation:clockwise_degrees": t("orientationAngle"),
     "orientation:input_sha256": t("ocrInputHash"),
     "orientation:model": t("aiModel"),
@@ -175,6 +179,9 @@ export function FileDetail({
       value === "openai"
     )
       return "OpenAI";
+    if (key === "geo:address")
+      return value ? t("geoNearby", { address: value }) : t("geoNotFound");
+    if (key === "geo:provider") return "Photon";
     return value || "—";
   };
   const groups = new Map<string, NonNullable<FileData["metadata"]>>();
@@ -182,13 +189,14 @@ export function FileDetail({
     // GPS is a display group; its extractor provenance stays unchanged.
     const group = row.key.startsWith("orientation:")
       ? "orientation"
-      : row.key.startsWith("gps:")
+      : row.key.startsWith("gps:") || row.key.startsWith("geo:")
         ? "gps"
         : row.source || "";
     const rows = groups.get(group) || [];
     rows.push(row);
     groups.set(group, rows);
   }
+  if (data.gps && !groups.has("gps")) groups.set("gps", []);
   if (canOrient && !groups.has("orientation")) groups.set("orientation", []);
   if (canOCR && !groups.has("ocr")) groups.set("ocr", []);
   if (canDescribe && !groups.has("desc")) groups.set("desc", []);
@@ -283,6 +291,15 @@ export function FileDetail({
             <MetadataGroup
               key={`${file.id}/${source}`}
               fileID={file.id}
+              secondary={
+                source === "gps" && data.gps && !clientMode
+                  ? {
+                      title: t("geoTitle"),
+                      extractor: "geo",
+                      missing: !data.extracted?.includes("geo"),
+                    }
+                  : undefined
+              }
               title={
                 source === "exif"
                   ? "EXIF"
@@ -314,6 +331,20 @@ export function FileDetail({
               }
             >
               <Stack>
+                {source === "gps" && data.gps && (
+                  <>
+                    <div className="metadata-map">
+                      <Suspense fallback={<span>{t("mapLoading")}</span>}>
+                        <MapPreview
+                          point={data.gps}
+                          name={t("geoMap")}
+                          detail
+                        />
+                      </Suspense>
+                    </div>
+                    <span className="metadata-help">{t("geoCaptureHint")}</span>
+                  </>
+                )}
                 {source === "orientation" && canOrient && (
                   <OCRAction
                     key={file.id}
@@ -413,6 +444,19 @@ export function FileDetail({
                     </div>
                   ))}
                 </dl>
+                {source === "gps" &&
+                  !data.gps &&
+                  rows.some((row) => row.key.startsWith("geo:")) && (
+                    <span className="metadata-help">
+                      <a
+                        href="https://www.openstreetmap.org/copyright"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        © OpenStreetMap contributors
+                      </a>
+                    </span>
+                  )}
               </Stack>
             </MetadataGroup>
           ))}

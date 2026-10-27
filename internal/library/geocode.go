@@ -1,0 +1,200 @@
+package library
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"time"
+
+	"github.com/jinzhao1994/kist/internal/config"
+	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/extract"
+	"github.com/jinzhao1994/kist/internal/geocode"
+	"github.com/jinzhao1994/kist/internal/lockfile"
+	"github.com/jinzhao1994/kist/internal/oplog"
+	"github.com/jinzhao1994/kist/internal/store"
+)
+
+type geoExtractor struct{}
+
+func (geoExtractor) ID() string           { return "geo" }
+func (geoExtractor) Version() int         { return 1 }
+func (geoExtractor) Namespaces() []string { return []string{"geo"} }
+func (geoExtractor) Wants(m string) bool  { e, _ := extract.Lookup("exif"); return e.Wants(m) }
+func (geoExtractor) Extract(context.Context, io.ReadSeeker, string) ([]extract.KV, error) {
+	return nil, errors.New("location extraction requires a provider")
+}
+
+func gpsPoint(rows []store.MetadataRow) *geocode.Point {
+	values := map[string]string{}
+	for _, r := range rows {
+		if !r.Tombstone {
+			values[r.Key] = r.Value
+		}
+	}
+	return geocode.Coordinates(values)
+}
+
+func (l *Library) prepareLocation(ctx context.Context, id domain.FileID, expectedBlob string, force bool) (*PreparedExtraction, error) {
+	p := &PreparedExtraction{library: l, extractor: "geo"}
+	err := l.readTx(ctx, func(tx *store.ViewTx) error {
+		f, found, err := tx.GetFile(id)
+		if err != nil {
+			return err
+		}
+		if !found {
+			return ErrNoSuchFile
+		}
+		if f.BlobKey != expectedBlob {
+			return ErrSyncConflict
+		}
+		p.file = &f
+		p.rows, err = store.FileMetadata(tx.Queryer(), id)
+		if err != nil {
+			return err
+		}
+		v, err := store.Extractions(tx.Queryer(), id)
+		p.version = v["geo"]
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	if !force && p.version >= 1 {
+		return p, nil
+	}
+	point := gpsPoint(p.rows)
+	facts := []extract.KV{}
+	if point != nil {
+		cfg, err := config.Load(l.layout.ConfigPath())
+		if err != nil {
+			return nil, err
+		}
+		result, err := l.lookupLocation(ctx, geocode.Photon{Endpoint: cfg.Geocoding.Endpoint, Client: &http.Client{Timeout: 20 * time.Second}}, *point)
+		if err != nil {
+			return nil, err
+		}
+		facts = append(facts, extract.KV{Key: "geo:address", Value: result.Address, Type: extract.TypeText}, extract.KV{Key: "geo:provider", Value: "photon", Type: extract.TypeText})
+	}
+	e := geoExtractor{}
+	if err = extract.Check(e, facts); err != nil {
+		return nil, err
+	}
+	change := extractionChange(e, *p.file, facts, p.rows, time.UTC)
+	change.CapturedAt = p.file.CapturedAt
+	change.CapturedWas = p.file.CapturedAt
+	p.payload, err = oplog.Marshal(oplog.ExtractMetadataPayload{Extractor: "geo", Version: 1, PreviousVersion: p.version, Files: []oplog.FileExtraction{*change}})
+	return p, err
+}
+
+// lookupLocation holds a dedicated OS lease across the request, not the archive
+// write lock. Persisting the next slot makes throttling survive process restarts.
+func (l *Library) lookupLocation(ctx context.Context, provider geocode.Provider, point geocode.Point) (geocode.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return geocode.Result{}, err
+	}
+	release, err := lockfile.New(filepath.Join(l.layout.Root, "geocode-http.lock")).Acquire(ctx)
+	if err != nil {
+		return geocode.Result{}, err
+	}
+	defer release()
+	path := filepath.Join(l.layout.Derived(), "geo", "rate.json")
+	var next time.Time
+	raw, err := os.ReadFile(path)
+	if err == nil {
+		if json.Unmarshal(raw, &next) != nil {
+			return geocode.Result{}, errors.New("location rate state is unreadable")
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return geocode.Result{}, err
+	}
+	if delay := time.Until(next); delay > 0 {
+		if delay > 2*time.Second {
+			return geocode.Result{}, &geocode.RetryError{After: delay}
+		}
+		timer := time.NewTimer(delay)
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+			return geocode.Result{}, ctx.Err()
+		case <-timer.C:
+		}
+	}
+	if err = os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return geocode.Result{}, err
+	}
+	save := func(next time.Time) error { raw, _ := json.Marshal(next); return config.WriteAtomic(path, raw) }
+	// Reserve before I/O, so a killed process cannot release a burst of requests.
+	if err = save(time.Now().Add(2 * time.Second)); err != nil {
+		return geocode.Result{}, err
+	}
+	result, callErr := provider.Reverse(ctx, point)
+	delay := 2 * time.Second
+	if callErr != nil {
+		delay = time.Minute
+		var retry *geocode.RetryError
+		if errors.As(callErr, &retry) && retry.After > delay {
+			delay = retry.After
+		}
+	}
+	if err = save(time.Now().Add(delay)); err != nil {
+		return geocode.Result{}, err
+	}
+	return result, callErr
+}
+
+type LocationSettings struct {
+	Automatic bool   `json:"automatic"`
+	Endpoint  string `json:"endpoint" maxLength:"2048"`
+	Revision  string `json:"revision"`
+}
+
+func locationSettings(c config.Geocoding) LocationSettings {
+	raw, _ := json.Marshal(c)
+	sum := sha256.Sum256(raw)
+	return LocationSettings{Automatic: c.Automatic, Endpoint: c.Endpoint, Revision: hex.EncodeToString(sum[:])}
+}
+func (l *Library) LocationSettings(ctx context.Context) (LocationSettings, error) {
+	c, err := config.Load(l.layout.ConfigPath())
+	if err != nil {
+		return LocationSettings{}, err
+	}
+	return locationSettings(c.Geocoding), ctx.Err()
+}
+func (l *Library) SaveLocationSettings(ctx context.Context, in LocationSettings) (LocationSettings, error) {
+	release, err := l.lock.Acquire(ctx)
+	if err != nil {
+		return LocationSettings{}, err
+	}
+	defer release()
+	if err = l.catchUpLocked(ctx); err != nil {
+		return LocationSettings{}, err
+	}
+	unlock, err := lockfile.New(filepath.Join(l.layout.Root, "config.lock")).Acquire(ctx)
+	if err != nil {
+		return LocationSettings{}, err
+	}
+	defer unlock()
+	cfg, err := config.Load(l.layout.ConfigPath())
+	if err != nil {
+		return LocationSettings{}, err
+	}
+	if in.Revision == "" || in.Revision != locationSettings(cfg.Geocoding).Revision {
+		return LocationSettings{}, config.ErrChanged
+	}
+	next := config.Geocoding{Automatic: in.Automatic, Endpoint: in.Endpoint, AfterOp: cfg.Geocoding.AfterOp}
+	if next.Automatic && !cfg.Geocoding.Automatic {
+		next.AfterOp, err = store.MaxOpID(l.db)
+		if err != nil {
+			return LocationSettings{}, err
+		}
+	}
+	err = config.Update(l.layout.ConfigPath(), "", map[string]any{"geocoding.automatic": next.Automatic, "geocoding.endpoint": next.Endpoint, "geocoding.after_op": next.AfterOp})
+	return locationSettings(next), err
+}

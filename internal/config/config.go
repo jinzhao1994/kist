@@ -28,7 +28,14 @@ type AIOptions struct {
 	ProxyURL           string `toml:"proxy_url" json:"proxy_url"`
 }
 
+type Geocoding struct {
+	Automatic bool   `toml:"automatic" json:"automatic"`
+	Endpoint  string `toml:"endpoint" json:"endpoint"`
+	AfterOp   int64  `toml:"after_op" json:"after_op"`
+}
+
 type Config struct {
+	Geocoding  Geocoding      `toml:"geocoding"`
 	AIOptions  AIOptions      `toml:"ai_options" json:"-"`
 	AI         ai.Credentials `toml:"ai" json:"-"`
 	Version    int            `toml:"version"`

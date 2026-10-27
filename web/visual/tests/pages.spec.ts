@@ -97,6 +97,7 @@ type Options = {
   word?: "doc" | "docx" | "ppt" | "pptx";
   stl?: boolean;
   gpx?: boolean;
+  gps?: boolean;
   mapFailure?: boolean;
   dateline?: boolean;
   text?: string;
@@ -185,6 +186,14 @@ async function prepare(page: Page, options: Options = {}) {
     const path = new URL(route.request().url()).pathname.slice(
       "/api/v1".length,
     );
+    if (path === "/geo/settings")
+      return route.fulfill({
+        json: {
+          automatic: false,
+          endpoint: "https://photon.komoot.io/reverse",
+          revision: "visual",
+        },
+      });
     if (path === "/ai/settings")
       return route.fulfill({
         json: {
@@ -196,7 +205,12 @@ async function prepare(page: Page, options: Options = {}) {
           revision: "visual",
         },
       });
-    if (path === "/ai/ocr" || path === "/ai/desc" || path === "/ai/orientation")
+    if (
+      path === "/geo" ||
+      path === "/ai/ocr" ||
+      path === "/ai/desc" ||
+      path === "/ai/orientation"
+    )
       return route.fulfill({
         json: {
           paused: false,
@@ -207,7 +221,7 @@ async function prepare(page: Page, options: Options = {}) {
         },
       });
     if (
-      /^\/files\/[^/]+\/(?:ocr|desc|orientation)$/.test(path) &&
+      /^\/files\/[^/]+\/(?:ocr|desc|orientation|geo)$/.test(path) &&
       route.request().method() === "GET"
     )
       return route.fulfill({ json: { state: "missing" } });
@@ -363,14 +377,14 @@ async function prepare(page: Page, options: Options = {}) {
         contentType: "application/pdf",
         body: pdfFixture(),
       });
-    if (options.gpx && path === "/map-provider")
+    if ((options.gpx || options.gps) && path === "/map-provider")
       body = {
         style_url: "/api/v1/fixture-map-style",
         terrain_tiles: "",
         terrain_attribution: "",
         resource_origins: [],
       };
-    else if (options.gpx && path === "/fixture-map-style") {
+    else if ((options.gpx || options.gps) && path === "/fixture-map-style") {
       if (options.mapFailure)
         return route.fulfill({ status: 503, body: "Map unavailable" });
       body = {
@@ -5126,3 +5140,78 @@ for (const manual of [false, true]) {
     await capture(page, errors, info.title);
   });
 }
+
+for (const variant of ["desktop", "mobile", "failure"] as const) {
+  test(`gps-location-${variant}`, async ({ page }, info) => {
+    const errors = await prepare(page, {
+      gps: true,
+      mobile: variant === "mobile",
+      mapFailure: variant === "failure",
+    });
+    await page.route("**/api/v1/files/file-1", (route) =>
+      route.fulfill({
+        json: {
+          file: files[0],
+          tags: [],
+          extracted: ["file", "media", "exif", "geo"],
+          gps: { latitude: 12, longitude: 34, accuracy: 35 },
+          metadata: [
+            {
+              key: "geo:address",
+              value: "示例市 · 示例片区 · 示例街道",
+              type: "text",
+              source: "geo",
+            },
+            {
+              key: "geo:provider",
+              value: "photon",
+              type: "text",
+              source: "geo",
+            },
+            { key: "gps:Latitude", value: "12", type: "real", source: "exif" },
+            { key: "gps:Longitude", value: "34", type: "real", source: "exif" },
+          ],
+        },
+      }),
+    );
+    await page.route("**/api/v1/files/file-1/geo", (route) =>
+      route.fulfill({ json: { state: "ready" } }),
+    );
+    await page.goto("/files?file=file-1");
+    await page.getByRole("button", { name: "文件详情", exact: true }).click();
+    const group = page.locator(".file-metadata-group").filter({
+      has: page.getByRole("heading", { name: "GPS", exact: true }),
+    });
+    await group.scrollIntoViewIfNeeded();
+    await expect(
+      group.getByText("示例市 · 示例片区 · 示例街道附近", { exact: true }),
+    ).toBeVisible();
+    if (variant === "failure")
+      await expect(group.locator(".gpx-fallback circle")).toBeVisible();
+    else {
+      await expect(group.locator("canvas")).toBeVisible();
+      await expect(group.locator(".gpx-status")).toHaveCount(0);
+    }
+    await expect(
+      group.getByRole("link", {
+        name: /OpenStreetMap/,
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page.mouse.move(0, 0);
+    await capture(page, errors, info.title);
+  });
+}
+
+test("settings-location", async ({ page }, info) => {
+  const errors = await prepare(page);
+  await page.goto("/settings#settings-location");
+  const section = page.locator("#settings-location");
+  await expect(
+    section.getByRole("checkbox", { name: "自动查询新增图片的位置" }),
+  ).not.toBeChecked();
+  await expect(
+    section.getByRole("button", { name: "补全已有图片的位置", exact: true }),
+  ).toBeEnabled();
+  await capture(page, errors, info.title);
+});

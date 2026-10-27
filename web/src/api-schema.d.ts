@@ -592,6 +592,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/files/{id}/geo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 files by ID geo */
+        get: operations["get-api-v1-files-by-id-geo"];
+        put?: never;
+        /** Post API v1 files by ID geo */
+        post: operations["post-api-v1-files-by-id-geo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/files/{id}/image-rotation": {
         parameters: {
             query?: never;
@@ -707,6 +725,75 @@ export interface paths {
         get: operations["get-api-v1-filesets-by-id"];
         /** Put API v1 filesets by ID */
         put: operations["put-api-v1-filesets-by-id"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/geo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 geo */
+        get: operations["get-api-v1-geo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/geo/backfill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 geo backfill */
+        post: operations["post-api-v1-geo-backfill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/geo/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 geo pause */
+        post: operations["post-api-v1-geo-pause"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/geo/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 geo settings */
+        get: operations["get-api-v1-geo-settings"];
+        /** Put API v1 geo settings */
+        put: operations["put-api-v1-geo-settings"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1584,6 +1671,7 @@ export interface components {
             captured_zone?: string;
             extracted: string[] | null;
             file: components["schemas"]["File"];
+            gps?: components["schemas"]["Point"];
             metadata: components["schemas"]["Metadata"][] | null;
             tags: string[] | null;
         };
@@ -1764,6 +1852,11 @@ export interface components {
             upload_chunk_bytes?: number;
             version: string;
         };
+        LocationSettings: {
+            automatic: boolean;
+            endpoint: string;
+            revision: string;
+        };
         MapProvider: {
             resource_origins: string[] | null;
             style_url: string;
@@ -1858,6 +1951,14 @@ export interface components {
             url: string;
         };
         "OutputStruct {}Body": Record<string, never>;
+        Point: {
+            /** Format: double */
+            accuracy?: number;
+            /** Format: double */
+            latitude: number;
+            /** Format: double */
+            longitude: number;
+        };
         "Post-api-v1-ai-connectRequest": Record<string, never>;
         "Post-api-v1-ai-desc-backfillRequest": {
             retry: boolean;
@@ -1887,6 +1988,11 @@ export interface components {
             request_id?: string;
             retry: boolean;
         };
+        "Post-api-v1-files-by-id-geoRequest": {
+            force?: boolean;
+            request_id?: string;
+            retry: boolean;
+        };
         "Post-api-v1-files-by-id-ocrRequest": {
             force?: boolean;
             request_id?: string;
@@ -1896,6 +2002,12 @@ export interface components {
             force?: boolean;
             request_id?: string;
             retry: boolean;
+        };
+        "Post-api-v1-geo-backfillRequest": {
+            retry: boolean;
+        };
+        "Post-api-v1-geo-pauseRequest": {
+            paused: boolean;
         };
         "Post-api-v1-settings-credentialsRequest": {
             note?: string;
@@ -3830,6 +3942,72 @@ export interface operations {
             };
         };
     };
+    "get-api-v1-files-by-id-geo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRJob"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-files-by-id-geo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-files-by-id-geoRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRJob"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
     "put-api-v1-files-by-id-image-rotation": {
         parameters: {
             query?: never;
@@ -4158,6 +4336,163 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RequestResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-geo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRQueueStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-geo-backfill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-geo-backfillRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRQueueStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-geo-pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-geo-pauseRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRQueueStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-geo-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocationSettings"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "put-api-v1-geo-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LocationSettings"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocationSettings"];
                 };
             };
             /** @description Error */

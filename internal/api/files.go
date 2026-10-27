@@ -7,6 +7,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/extract"
+	"github.com/jinzhao1994/kist/internal/geocode"
 	"github.com/jinzhao1994/kist/internal/library"
 	"github.com/jinzhao1994/kist/internal/query"
 	"github.com/jinzhao1994/kist/internal/wire"
@@ -34,6 +35,7 @@ type FileQueryInput struct {
 }
 
 type fileDetail struct {
+	GPS *geocode.Point `json:"gps,omitempty"`
 	wire.FileDetail
 	Tags []string `json:"tags"`
 }
@@ -207,6 +209,11 @@ func renderFileDetail(ctx context.Context, reader fileReader, f domain.File) (fi
 			out.Metadata = append(out.Metadata, wire.Metadata{Key: row.Key, Value: row.Value, Type: string(row.Type), Source: row.Source})
 		}
 	}
+	values := map[string]string{}
+	for _, row := range out.Metadata {
+		values[row.Key] = row.Value
+	}
+	out.GPS = geocode.Coordinates(values)
 	return out, nil
 }
 func tagStrings(tags []domain.TagID) []string {

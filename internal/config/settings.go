@@ -20,6 +20,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/jinzhao1994/kist/internal/ai"
 	"github.com/jinzhao1994/kist/internal/domain"
+	"github.com/jinzhao1994/kist/internal/geocode"
 	"golang.org/x/text/language"
 )
 
@@ -68,7 +69,7 @@ func Defaults(mode string) *Config {
 	if mode == "client" {
 		listen = "127.0.0.1:8474"
 	}
-	return &Config{Version: CurrentVersion, Mode: mode,
+	return &Config{Geocoding: Geocoding{Endpoint: geocode.DefaultEndpoint}, Version: CurrentVersion, Mode: mode,
 		Appearance: Appearance{PrimaryColor: "blue"},
 		Library:    Library{Timezone: "UTC", Language: "zh-CN"},
 		Client:     Client{CacheMaxAge: "180d", CacheMaxBytes: 10 << 30},
@@ -85,6 +86,12 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("invalid library language")
 	}
 
+	if c.Geocoding.AfterOp < 0 || len(c.Geocoding.Endpoint) > 2048 {
+		return fmt.Errorf("invalid geocoding settings")
+	}
+	if err := geocode.ValidateEndpoint(c.Geocoding.Endpoint); err != nil {
+		return err
+	}
 	if len(c.AIOptions.Model) > 200 || len(c.AIOptions.ProxyURL) > 2048 || c.AIOptions.AfterOp < 0 || ((c.AIOptions.AutoOCR || c.AIOptions.AutoDesc || c.AIOptions.AutoOrientation) && c.AIOptions.Model == "") || c.AIOptions.DescAfterOp < 0 || c.AIOptions.OrientationAfterOp < 0 {
 		return fmt.Errorf("invalid AI options")
 	}

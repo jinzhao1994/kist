@@ -1,4 +1,4 @@
-import { Button, Text } from "@mantine/core";
+import { Button, Text, Group } from "@mantine/core";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   useIsMutating,
@@ -13,22 +13,62 @@ import { errorMessage } from "./mutations";
 
 type Job = { state: string; error?: string };
 
-// Display groups can share an extractor (EXIF and GPS).
-export function MetadataGroup({
-  title,
-  fileID,
-  extractor,
-  children,
-}: {
+type TaskOptions = {
   title: string;
   fileID: string;
   extractor?: string;
+  missing?: boolean;
+};
+type TaskControls = { action: ReactNode; status: ReactNode };
+
+// One display group may have several independently owned extraction tasks.
+export function MetadataGroup({
+  children,
+  secondary,
+  ...task
+}: TaskOptions & {
   children: ReactNode;
+  secondary?: Omit<TaskOptions, "fileID">;
 }) {
+  const primary = useMetadataTask(task);
+  const extra = useMetadataTask({
+    fileID: task.fileID,
+    title: "",
+    ...secondary,
+  });
+  return (
+    <section className="file-metadata-group">
+      {task.title && (
+        <div className="metadata-group-heading">
+          <h4>
+            <bdi>{task.title}</bdi>
+          </h4>
+          <Group gap="xs" className="metadata-group-actions">
+            {primary.action}
+            {extra.action}
+          </Group>
+        </div>
+      )}
+      {primary.status}
+      {extra.status}
+      {children}
+    </section>
+  );
+}
+
+function useMetadataTask({
+  title,
+  fileID,
+  extractor,
+  missing = false,
+}: TaskOptions): TaskControls {
   const { t } = useI18n();
   const queries = useQueryClient();
   const ai =
-    extractor === "ocr" || extractor === "desc" || extractor === "orientation";
+    extractor === "ocr" ||
+    extractor === "desc" ||
+    extractor === "orientation" ||
+    extractor === "geo";
   const key = ["metadata-refresh", fileID, extractor];
   const busy = useIsMutating({ mutationKey: key }) > 0;
   const [error, setError] = useState("");
@@ -44,7 +84,10 @@ export function MetadataGroup({
   const queue = useQuery({
     queryKey: [`${extractor}-queue`],
     queryFn: ({ signal }) =>
-      get<{ paused: boolean }>(`/ai/${extractor}`, signal),
+      get<{ paused: boolean }>(
+        extractor === "geo" ? "/geo" : `/ai/${extractor}`,
+        signal,
+      ),
     enabled: ai,
     retry: false,
     refetchInterval: ai ? 2000 : false,
@@ -64,7 +107,7 @@ export function MetadataGroup({
         request.current ??= requestKey();
         const body: components["schemas"]["Post-api-v1-files-by-id-descRequest"] &
           components["schemas"]["Post-api-v1-files-by-id-ocrRequest"] = {
-          force: true,
+          force: !missing,
           retry: job.data?.state === "failed",
           request_id: request.current,
         };
@@ -93,52 +136,64 @@ export function MetadataGroup({
   const issue =
     error ||
     (ai && (job.data?.error || (job.error && errorMessage(job.error, t))));
-  return (
-    <section className="file-metadata-group">
-      {title && (
-        <div className="metadata-group-heading">
-          <h4>
-            <bdi>{title}</bdi>
-          </h4>
-          {extractor && (
-            <Button
-              variant="subtle"
-              size="compact-xs"
-              className="metadata-refresh-action"
-              data-active={busy || pending || !!issue || undefined}
-              disabled={busy || pending || (ai && job.isPending)}
-              aria-label={t("reextractGroup", { group: title })}
-              onClick={() => mutation.mutate()}
+  return {
+    action: extractor ? (
+      <Button
+        variant="subtle"
+        size="compact-xs"
+        className="metadata-refresh-action"
+        data-active={missing || busy || pending || !!issue || undefined}
+        disabled={busy || pending || (ai && job.isPending)}
+        aria-label={
+          extractor === "geo"
+            ? t(missing ? "geoExtract" : "geoRefresh")
+            : t("reextractGroup", { group: title })
+        }
+        onClick={() => mutation.mutate()}
+      >
+        {t(
+          busy || (ai && job.data?.state === "running")
+            ? "extracting"
+            : pending
+              ? "reextractQueued"
+              : missing
+                ? "geoExtract"
+                : extractor === "geo"
+                  ? "geoRefresh"
+                  : "reextract",
+        )}
+      </Button>
+    ) : null,
+    status: (
+      <>
+        {issue && (
+          <Text role="alert" size="sm">
+            {issue}
+          </Text>
+        )}
+        {ai && queue.data?.paused && (
+          <Text size="sm">
+            {t(
+              extractor === "geo"
+                ? "geoQueuePaused"
+                : extractor === "orientation"
+                  ? "orientationQueuePaused"
+                  : extractor === "desc"
+                    ? "descQueuePaused"
+                    : "ocrQueuePaused",
+            )}{" "}
+            <a
+              href={
+                extractor === "geo"
+                  ? "/settings#settings-location"
+                  : "/settings#settings-ai"
+              }
             >
-              {t(
-                busy || (ai && job.data?.state === "running")
-                  ? "extracting"
-                  : pending
-                    ? "reextractQueued"
-                    : "reextract",
-              )}
-            </Button>
-          )}
-        </div>
-      )}
-      {issue && (
-        <Text role="alert" size="sm">
-          {issue}
-        </Text>
-      )}
-      {ai && queue.data?.paused && (
-        <Text size="sm">
-          {t(
-            extractor === "orientation"
-              ? "orientationQueuePaused"
-              : extractor === "desc"
-                ? "descQueuePaused"
-                : "ocrQueuePaused",
-          )}{" "}
-          <a href="/settings#settings-ai">{t("ocrSettings")}</a>
-        </Text>
-      )}
-      {children}
-    </section>
-  );
+              {t(extractor === "geo" ? "geoTitle" : "ocrSettings")}
+            </a>
+          </Text>
+        )}
+      </>
+    ),
+  };
 }

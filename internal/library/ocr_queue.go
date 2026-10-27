@@ -65,6 +65,8 @@ type OCRQueue struct {
 	provider      func(context.Context) (ai.Provider, error)
 }
 
+func (l *Library) LocationQueue() *OCRQueue { return l.imageTextQueue("geo") }
+
 func (l *Library) OrientationQueue() *OCRQueue { return l.imageTextQueue("orientation") }
 func (l *Library) OCRQueue() *OCRQueue         { return l.imageTextQueue("ocr") }
 func (l *Library) DescriptionQueue() *OCRQueue { return l.imageTextQueue("desc") }
@@ -86,7 +88,7 @@ func (q *OCRQueue) load() (ocrQueueState, error) {
 	defer f.Close()
 	err = json.NewDecoder(io.LimitReader(f, 32<<20)).Decode(&s)
 	if err != nil {
-		return s, errors.New("AI task queue state is unreadable")
+		return s, errors.New("Metadata task queue state is unreadable")
 	}
 	return s, nil
 }
@@ -147,7 +149,7 @@ func (q *OCRQueue) Backfill(ctx context.Context, retry bool) (OCRQueueStatus, er
 	if err != nil {
 		return OCRQueueStatus{}, err
 	}
-	if cfg.Model == "" {
+	if q.kind != "geo" && cfg.Model == "" {
 		return OCRQueueStatus{}, errors.New("choose an AI model in Settings first")
 	}
 	head, err := q.library.SyncHead(ctx)
@@ -237,6 +239,9 @@ func (q *OCRQueue) eligible(j OCRJob) bool {
 	}
 	defer f.Close()
 	kind, err := extract.DetectMedia(f)
+	if q.kind == "geo" {
+		return err == nil && (geoExtractor{}).Wants(kind)
+	}
 	return err == nil && (ocrExtractor{}).Wants(kind)
 }
 func enqueueOCR(s *ocrQueueState, j OCRJob, retry, automatic bool) OCRJob {
@@ -278,7 +283,7 @@ func (q *OCRQueue) request(ctx context.Context, id domain.FileID, retry, force b
 	if err != nil {
 		return OCRJob{}, err
 	}
-	if cfg.Model == "" {
+	if q.kind != "geo" && cfg.Model == "" {
 		return OCRJob{}, errors.New("choose an AI model in Settings first")
 	}
 	j, err := q.resolve(ctx, id)
@@ -356,6 +361,9 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 		return err
 	}
 	auto, after := cfg.AIOptions.AutoOCR, cfg.AIOptions.AfterOp
+	if q.kind == "geo" {
+		auto, after = cfg.Geocoding.Automatic, cfg.Geocoding.AfterOp
+	}
 	if q.kind == "desc" {
 		auto, after = cfg.AIOptions.AutoDesc, cfg.AIOptions.DescAfterOp
 	}
@@ -387,7 +395,7 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 				s.Jobs[i].State = "ready"
 			} else {
 				s.Jobs[i].State = "failed"
-				s.Jobs[i].Error = "AI extraction was interrupted; retry explicitly"
+				s.Jobs[i].Error = "Metadata extraction was interrupted; retry explicitly"
 				s.Paused = true
 				s.Error = s.Jobs[i].Error
 			}
@@ -515,7 +523,7 @@ func (q *OCRQueue) finishJob(job OCRJob, err error) error {
 	return q.save(s)
 }
 func (q *OCRQueue) execute(ctx context.Context, j OCRJob, model, language string) error {
-	if model == "" {
+	if q.kind != "geo" && model == "" {
 		return errors.New("choose an AI model in Settings first")
 	}
 	current, err := q.resolve(ctx, j.FileID)
@@ -530,6 +538,30 @@ func (q *OCRQueue) execute(ctx context.Context, j OCRJob, model, language string
 	}
 	request := q.jobRequest(j)
 	if _, found, err := q.library.CheckRequest(ctx, request); err != nil || found {
+		return err
+	}
+	// Basic extraction always precedes network metadata. Each stage has its own
+	// idempotency key, so interruption does not repeat completed work.
+	for _, kind := range []string{"media", "exif"} {
+		prepared, err := q.library.PrepareExtraction(ctx, j.FileID, kind)
+		if err != nil {
+			return err
+		}
+		if len(prepared.payload) == 0 {
+			continue
+		}
+		stage := q.jobRequest(j)
+		stage.ID = j.RequestID + "." + kind
+		if _, err = q.library.ExecuteRequest(ctx, stage, prepared.Commit); err != nil {
+			return err
+		}
+	}
+	if q.kind == "geo" {
+		prepared, err := q.library.prepareLocation(ctx, j.FileID, j.BlobKey, j.Force)
+		if err != nil {
+			return err
+		}
+		_, err = q.library.ExecuteRequest(ctx, request, prepared.Commit)
 		return err
 	}
 	provider, err := q.provider(ctx)
@@ -571,7 +603,7 @@ func (q *OCRQueue) Run(ctx context.Context, companions ...*OCRQueue) {
 					s, e := queue.load()
 					if e == nil {
 						s.Paused = true
-						s.Error = "AI task queue could not continue; check configuration and storage"
+						s.Error = "Metadata task queue could not continue; check configuration and storage"
 						_ = queue.save(s)
 					}
 					unlock()

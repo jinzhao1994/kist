@@ -8,6 +8,32 @@ import {
 } from "react";
 
 export const en = {
+  geoTitle: "Capture location",
+  geoRefresh: "Update address",
+  geoSaveSettings: "Save location settings",
+  geoReloadSettings: "Reload location settings",
+  geoAddress: "Location",
+  geoNearby: "Near {address}",
+  geoNotFound: "No nearby street or neighborhood found",
+  geoMap: "Capture location map",
+  geoCaptureHint:
+    "The marker is the photo’s GPS position. The circle shows recorded accuracy when available.",
+  geoSettingsHint:
+    "Photon receives GPS coordinates only. No account or key is required. Requests run serially, at least 2 seconds apart; errors pause the queue. Opening a map requests tiles from the configured map provider.",
+  geoAuto: "Look up locations of new images automatically",
+  geoAutoHint:
+    "Only images added after enabling this setting. Existing images use the backfill button below.",
+  geoEndpoint: "Photon endpoint",
+  geoEndpointHint: "Use the public server or your own Photon reverse endpoint.",
+  geoExtract: "Look up address",
+  geoQueuePaused: "Location queue paused. Resume it in location settings.",
+  geoQueueRunning: "Looking up location: {name}",
+  geoQueueIdle: "Location worker ready",
+  geoScanning: "Finding images without location results…",
+  geoBackfill: "Fill missing locations",
+  geoBackfillHint:
+    "Read GPS from supported images and query missing locations. Saved results are reused; images without GPS do not send requests.",
+
   ocrTitle: "OCR",
   orientationTitle: "Image orientation",
   orientationEdit: "Adjust orientation",
@@ -943,6 +969,30 @@ export const en = {
 } as const;
 export type MessageKey = keyof typeof en;
 export const zh: Record<MessageKey, string> = {
+  geoTitle: "拍摄位置",
+  geoRefresh: "更新地址",
+  geoSaveSettings: "保存位置设置",
+  geoReloadSettings: "重新加载位置设置",
+  geoAddress: "大概位置",
+  geoNearby: "{address}附近",
+  geoNotFound: "未找到附近街道或片区",
+  geoMap: "拍摄位置地图",
+  geoCaptureHint: "标记为照片的 GPS 位置；圆圈表示照片记录的定位误差（如有）。",
+  geoSettingsHint:
+    "Photon 仅接收 GPS 经纬度，无需账号或密钥。请求串行执行，至少间隔 2 秒；失败后暂停队列。打开地图会向配置的地图服务请求该区域地图。",
+  geoAuto: "自动查询新增图片的位置",
+  geoAutoHint: "仅处理开启后新增的图片，已有图片可通过下方按钮补全。",
+  geoEndpoint: "Photon 接口地址",
+  geoEndpointHint: "可使用公共服务或自行部署的 Photon reverse 接口。",
+  geoExtract: "查询地址",
+  geoQueuePaused: "地址查询队列已暂停，请在位置设置中恢复。",
+  geoQueueRunning: "正在查询位置：{name}",
+  geoQueueIdle: "地址查询队列空闲",
+  geoScanning: "正在查找尚未查询位置的图片…",
+  geoBackfill: "补全已有图片的位置",
+  geoBackfillHint:
+    "从支持的图片中读取 GPS 并查询缺失的位置，已有结果会复用；没有 GPS 的图片不会发送请求。",
+
   ocrTitle: "OCR",
   orientationTitle: "图片方向",
   orientationEdit: "调整方向",
@@ -1874,6 +1924,8 @@ interface Parameters {
   ocrQueueRunning: { name: string };
   reextractGroup: { group: string };
   ocrQueueCounts: { queued: number; failed: number };
+  geoNearby: { address: string };
+  geoQueueRunning: { name: string };
   clientSelectLoaded: { count: number };
   clientSelectedCount: { count: number };
   clientBatchProgress: { retained: number; prepared: number; total: number };

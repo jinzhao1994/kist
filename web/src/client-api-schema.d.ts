@@ -1804,6 +1804,7 @@ export interface components {
             captured_zone?: string;
             extracted: string[] | null;
             file: components["schemas"]["File"];
+            gps?: components["schemas"]["Point"];
             metadata: components["schemas"]["Metadata"][] | null;
             tags: string[] | null;
         };
@@ -2039,6 +2040,14 @@ export interface components {
             token: string;
         };
         "OutputStruct {}Body": Record<string, never>;
+        Point: {
+            /** Format: double */
+            accuracy?: number;
+            /** Format: double */
+            latitude: number;
+            /** Format: double */
+            longitude: number;
+        };
         "Post-api-v1-boxes-by-id-foldersRequest": {
             name: string;
             parent?: string;

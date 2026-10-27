@@ -188,12 +188,15 @@ function useAISettings() {
   });
 }
 export type ImageTask = "ocr" | "desc" | "orientation";
-const taskMessage = (kind: ImageTask, suffix: string) =>
+type MetadataTask = ImageTask | "geo";
+const queuePath = (kind: MetadataTask) =>
+  kind === "geo" ? "/geo" : `/ai/${kind}`;
+const taskMessage = (kind: MetadataTask, suffix: string) =>
   `${kind}${suffix}` as MessageKey;
-function useOCRQueue(kind: ImageTask = "ocr") {
+function useOCRQueue(kind: MetadataTask = "ocr") {
   return useQuery({
     queryKey: [`${kind}-queue`],
-    queryFn: ({ signal }) => get<QueueStatus>(`/ai/${kind}`, signal),
+    queryFn: ({ signal }) => get<QueueStatus>(queuePath(kind), signal),
     retry: false,
     refetchInterval: 2000,
   });
@@ -378,7 +381,7 @@ function AISettings({
         </>
       )}
       {(["orientation", "ocr", "desc"] as const).map((kind) => (
-        <ImageTaskQueue
+        <BackgroundTaskQueue
           key={kind}
           kind={kind}
           disabled={disabled || busy || dirty}
@@ -389,13 +392,13 @@ function AISettings({
     </Stack>
   );
 }
-function ImageTaskQueue({
+export function BackgroundTaskQueue({
   kind,
   disabled,
   connected,
   model,
 }: {
-  kind: ImageTask;
+  kind: MetadataTask;
   disabled: boolean;
   connected: boolean;
   model?: string;
@@ -474,7 +477,7 @@ function ImageTaskQueue({
                 disabled || busy || !model || !connected || queue.data.scanning
               }
               onClick={() =>
-                void command(`/ai/${kind}/backfill`, { retry: false })
+                void command(`${queuePath(kind)}/backfill`, { retry: false })
               }
             >
               {t(taskMessage(kind, "Backfill"))}
@@ -488,7 +491,7 @@ function ImageTaskQueue({
                 queue.data.scanning
               }
               onClick={() =>
-                void command(`/ai/${kind}/backfill`, { retry: true })
+                void command(`${queuePath(kind)}/backfill`, { retry: true })
               }
             >
               {t("ocrRetryFailed")}
@@ -496,7 +499,7 @@ function ImageTaskQueue({
             <Button
               disabled={disabled || busy}
               onClick={() =>
-                void command(`/ai/${kind}/pause`, {
+                void command(`${queuePath(kind)}/pause`, {
                   paused: !queue.data?.paused,
                 })
               }
