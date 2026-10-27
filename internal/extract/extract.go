@@ -82,7 +82,7 @@ const (
 	// never" is a property of the fact, not a design choice.
 	ImportSource = "file"
 	// MaxValueLen bounds scalar metadata. OCR text has a separate long-text
-	// allowance in checkValue; EXIF binary blocks remain excluded.
+	// allowance in CheckValue; EXIF binary blocks remain excluded.
 	MaxValueLen = 1024
 )
 
@@ -152,14 +152,15 @@ func Check(e Extractor, kvs []KV) error {
 		}
 		seen[kv.Key] = true
 
-		if err := checkValue(kv); err != nil {
+		if err := CheckValue(kv); err != nil {
 			return fmt.Errorf("extractor %s: %s: %w", e.ID(), kv.Key, err)
 		}
 	}
 	return nil
 }
 
-func checkValue(kv KV) error {
+// CheckValue validates a stored scalar, including its task-specific text limit.
+func CheckValue(kv KV) error {
 	switch kv.Type {
 	case TypeText:
 	case TypeInt:

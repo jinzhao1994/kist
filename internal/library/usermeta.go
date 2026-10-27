@@ -58,3 +58,22 @@ func withoutKey(rows []store.MetadataRow, key string) []extract.KV {
 func (l *Library) resolveCaptured(kvs []extract.KV) domain.Instant {
 	return capturedFrom(kvs, l.zone())
 }
+
+// EditMetadata replaces an existing value with an explicit human override.
+func (l *Library) EditMetadata(ctx context.Context, id domain.FileID, edit MetadataEdit) error {
+	var change *oplog.FileMetadataChange
+	err := l.readTx(ctx, func(tx *store.ViewTx) error {
+		var err error
+		change, err = editMetadataChange(tx, id, edit, l.zone())
+		return err
+	})
+	if err != nil || change == nil {
+		return err
+	}
+	raw, err := oplog.Marshal(oplog.SetMetadataPayload{Files: []oplog.FileMetadataChange{*change}})
+	if err != nil {
+		return err
+	}
+	_, err = l.write(ctx, oplog.ActionSetMetadata, raw, oplog.OriginUser, writeOptions{})
+	return err
+}

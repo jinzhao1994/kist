@@ -641,6 +641,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/files/{id}/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put API v1 files by ID metadata */
+        put: operations["put-api-v1-files-by-id-metadata"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/files/{id}/sheet-preview": {
         parameters: {
             query?: never;
@@ -2019,6 +2036,14 @@ export interface components {
             key: string;
             source: string;
             type: string;
+            value: string;
+        };
+        MetadataEdit: {
+            before_source: string;
+            before_type: string;
+            before_value: string;
+            blob_key: string;
+            key: string;
             value: string;
         };
         MoveTagInputBody: {
@@ -4143,6 +4168,43 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ExtractionInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientRequestResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "put-api-v1-files-by-id-metadata": {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MetadataEdit"];
             };
         };
         responses: {

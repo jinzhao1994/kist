@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 const MapPreview = lazy(() => import("./MapPreview"));
 import { FloatingTooltip } from "./FloatingTooltip";
+import { MetadataValue } from "./MetadataValue";
 import { MetadataGroup } from "./MetadataGroup";
 import { CopyTextPreview } from "./CopyTextPreview";
 import { useClientMode } from "./OfflineEntry";
@@ -148,14 +149,14 @@ export function FileDetail({
     "ocr:recipe": t("ocrRecipe"),
     "ocr:input_sha256": t("ocrInputHash"),
   };
-  const metadataValue = (key: string, value: string) => {
+  const metadataValue = (key: string, value: string, source: string) => {
     if (
       key === "orientation:clockwise_degrees" ||
       key.endsWith(":input_rotation")
     )
       return `${value}°`;
     if (key === "orientation:method")
-      return file.image_rotation_manual
+      return file.image_rotation_manual && source !== "user"
         ? t("orientationManual")
         : {
             overview: t("orientationOverview"),
@@ -181,7 +182,7 @@ export function FileDetail({
       return "OpenAI";
     if (key === "geo:address")
       return value ? t("geoNearby", { address: value }) : t("geoNotFound");
-    if (key === "geo:provider") return "Photon";
+    if (key === "geo:provider" && value === "photon") return "Photon";
     return value || "—";
   };
   const groups = new Map<string, NonNullable<FileData["metadata"]>>();
@@ -191,7 +192,9 @@ export function FileDetail({
       ? "orientation"
       : row.key.startsWith("gps:") || row.key.startsWith("geo:")
         ? "gps"
-        : row.source || "";
+        : row.source === "user"
+          ? row.key.split(":", 1)[0]
+          : row.source || "";
     const rows = groups.get(group) || [];
     rows.push(row);
     groups.set(group, rows);
@@ -385,63 +388,79 @@ export function FileDetail({
                         </dt>
                       </Tooltip>
                       <dd>
-                        {row.key === "ocr:text" ? (
-                          <OCRText text={row.value} />
-                        ) : row.key === "desc:text" ? (
-                          <CopyTextPreview
-                            text={row.value}
-                            copyLabel="descCopyText"
-                          />
-                        ) : [
-                            "ocr:input_sha256",
-                            "desc:input_sha256",
-                            "orientation:input_sha256",
-                          ].includes(row.key) ? (
-                          <CopyButton value={row.value}>
-                            {({ copied, copy }) => (
-                              <button
-                                type="button"
-                                className="copy-value copy-value--identifier"
-                                onClick={copy}
-                                title={row.value}
-                                aria-label={t(
-                                  copied ? "copied" : "ocrCopyHash",
-                                )}
-                              >
-                                <bdi>{row.value}</bdi>
-                                <span>{t(copied ? "copied" : "copy")}</span>
-                              </button>
-                            )}
-                          </CopyButton>
-                        ) : row.key === "file:mtime" ? (
-                          <Tooltip
-                            label={row.value}
-                            position="bottom-end"
-                            offset={6}
-                            classNames={{ tooltip: "metadata-tooltip" }}
-                            openDelay={0}
-                            transitionProps={{ duration: 0 }}
-                            events={{
-                              hover: false,
-                              focus: true,
-                              touch: false,
-                            }}
-                          >
-                            <bdi tabIndex={0}>
-                              <FloatingTooltip
-                                label={row.value}
-                                position="bottom-start"
-                                offset={16}
-                                role="tooltip"
-                                classNames={{ tooltip: "metadata-tooltip" }}
-                              >
-                                <span>{metadataValue(row.key, row.value)}</span>
-                              </FloatingTooltip>
+                        <MetadataValue
+                          key={`${file.id}/${file.blob_key}/${row.key}`}
+                          fileID={file.id}
+                          blobKey={file.blob_key}
+                          row={row}
+                          label={labels[row.key] || row.key}
+                        >
+                          {row.key === "ocr:text" ? (
+                            <OCRText text={row.value} />
+                          ) : row.key === "desc:text" ? (
+                            <CopyTextPreview
+                              text={row.value}
+                              copyLabel="descCopyText"
+                            />
+                          ) : [
+                              "ocr:input_sha256",
+                              "desc:input_sha256",
+                              "orientation:input_sha256",
+                            ].includes(row.key) ? (
+                            <CopyButton value={row.value}>
+                              {({ copied, copy }) => (
+                                <button
+                                  type="button"
+                                  className="copy-value copy-value--identifier"
+                                  onClick={copy}
+                                  title={row.value}
+                                  aria-label={t(
+                                    copied ? "copied" : "ocrCopyHash",
+                                  )}
+                                >
+                                  <bdi>{row.value}</bdi>
+                                  <span>{t(copied ? "copied" : "copy")}</span>
+                                </button>
+                              )}
+                            </CopyButton>
+                          ) : row.key === "file:mtime" ? (
+                            <Tooltip
+                              label={row.value}
+                              position="bottom-end"
+                              offset={6}
+                              classNames={{ tooltip: "metadata-tooltip" }}
+                              openDelay={0}
+                              transitionProps={{ duration: 0 }}
+                              events={{
+                                hover: false,
+                                focus: true,
+                                touch: false,
+                              }}
+                            >
+                              <bdi tabIndex={0}>
+                                <FloatingTooltip
+                                  label={row.value}
+                                  position="bottom-start"
+                                  offset={16}
+                                  role="tooltip"
+                                  classNames={{ tooltip: "metadata-tooltip" }}
+                                >
+                                  <span>
+                                    {metadataValue(
+                                      row.key,
+                                      row.value,
+                                      row.source,
+                                    )}
+                                  </span>
+                                </FloatingTooltip>
+                              </bdi>
+                            </Tooltip>
+                          ) : (
+                            <bdi>
+                              {metadataValue(row.key, row.value, row.source)}
                             </bdi>
-                          </Tooltip>
-                        ) : (
-                          <bdi>{metadataValue(row.key, row.value)}</bdi>
-                        )}
+                          )}
+                        </MetadataValue>
                       </dd>
                     </div>
                   ))}

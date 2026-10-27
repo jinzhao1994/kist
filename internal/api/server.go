@@ -155,6 +155,7 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 		s.writeRoutes()
 		s.syncRoutes()
 	}
+	s.metadataEditRoutes()
 	s.navigationRoutes()
 	s.catalogRevisionRoute()
 	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

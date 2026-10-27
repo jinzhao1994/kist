@@ -76,3 +76,37 @@ func (c *Client) RemoveMetadata(ctx context.Context, id domain.FileID, key strin
 	_, err = c.commandIntentLocked(ctx, scope, oplog.ActionSetMetadata, oplog.SetMetadataPayload{Files: []oplog.FileMetadataChange{*change}}, SyncFileState{ID: id, BlobKey: file.BlobKey})
 	return err == nil, err
 }
+
+// EditMetadata shares the primary library's validation and queues a strict edit.
+func (c *Client) EditMetadata(ctx context.Context, id domain.FileID, edit MetadataEdit) error {
+	scope, release, err := c.commandLock(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
+	settings, err := c.settings()
+	if err != nil {
+		return err
+	}
+	zone, err := time.LoadLocation(settings.Timezone)
+	if err != nil {
+		return err
+	}
+	tx, err := c.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	change, err := editMetadataChange(store.NewViewTx(tx, time.Time{}), id, edit, zone)
+	rollbackErr := tx.Rollback()
+	if err != nil {
+		return err
+	}
+	if rollbackErr != nil {
+		return rollbackErr
+	}
+	if change == nil {
+		return nil
+	}
+	_, err = c.commandIntentLocked(ctx, scope, oplog.ActionSetMetadata, oplog.SetMetadataPayload{Files: []oplog.FileMetadataChange{*change}}, SyncFileState{ID: id, BlobKey: edit.BlobKey})
+	return err
+}

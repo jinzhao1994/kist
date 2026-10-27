@@ -883,6 +883,9 @@ export const en = {
   tagAny: "Any of these tags",
   tagNot: "None of these tags",
   newTag: "New tag",
+  editMetadata: "Edit {field}",
+  metadataUserEdited:
+    "Edited by user; automatic extraction will not overwrite this value",
   rename: "Rename",
   tagActions: "Actions for {name}",
   addChildTag: "Add child tag",
@@ -1781,6 +1784,8 @@ export const zh: Record<MessageKey, string> = {
   tagAny: "包含任一标签",
   tagNot: "排除这些标签",
   newTag: "新建标签",
+  editMetadata: "编辑{field}",
+  metadataUserEdited: "人工编辑，自动提取不会覆盖此值",
   rename: "重命名",
   tagActions: "{name}的操作",
   addChildTag: "添加子标签",
@@ -1918,6 +1923,7 @@ export function initializeLanguage() {
   applyDocumentLanguage(initialPreferences());
 }
 interface Parameters {
+  editMetadata: { field: string };
   orientationQueueRunning: { name: string };
   orientationDegrees: { degrees: number };
   descQueueRunning: { name: string };

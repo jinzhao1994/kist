@@ -5266,3 +5266,100 @@ test("settings-location", async ({ page }, info) => {
   ).toBeEnabled();
   await capture(page, errors, info.title);
 });
+
+for (const variant of [
+  "edit",
+  "saved",
+  "mobile",
+  "dark",
+  "error",
+  "hover",
+] as const) {
+  test(`metadata-inline-${variant}`, async ({ page }, info) => {
+    const errors = await prepare(page, {
+      mobile: variant === "mobile",
+      mode: variant === "dark" ? "dark" : "light",
+    });
+    let value = "示例文档\n姓名：测试用户\n日期：2026-01-02";
+    let source = "ocr";
+    await page.route("**/api/v1/files/file-1", (route) =>
+      route.fulfill({
+        json: {
+          file: files[0],
+          tags: [],
+          extracted: ["file", "media", "exif", "ocr", "desc", "orientation"],
+          metadata: [
+            {
+              key: "exif:Make",
+              value: "示例相机",
+              source: "user",
+              type: "text",
+            },
+            { key: "ocr:text", value, source, type: "text" },
+            {
+              key: "desc:text",
+              value: "用于验证编辑功能的合成文档。",
+              source: "desc",
+              type: "text",
+            },
+          ],
+        },
+      }),
+    );
+    await page.route("**/api/v1/files/file-1/metadata", (route) => {
+      const body = route.request().postDataJSON();
+      expect(body.before_value).toBe(value);
+      expect(body.key).toBe("ocr:text");
+      if (variant === "error")
+        return route.fulfill({
+          status: 409,
+          json: { code: "conflict", message: "Changed", class: "conflict" },
+        });
+      value = body.value;
+      source = "user";
+      return route.fulfill({ json: { op_id: 42 } });
+    });
+    await page.goto("/files?file=file-1");
+    await page.getByRole("button", { name: "文件详情", exact: true }).click();
+    const group = page
+      .locator(".file-metadata-group")
+      .filter({ has: page.getByRole("heading", { name: "OCR", exact: true }) });
+    await group.locator(".metadata-value").hover();
+    if (variant === "hover") {
+      const cell = group.locator(".metadata-value");
+      const value = await cell.locator(".metadata-value-content").boundingBox();
+      const bounds = await cell.boundingBox();
+      expect(value?.width).toBe(bounds?.width);
+      const action = await cell
+        .getByRole("button", { name: "编辑识别文字" })
+        .boundingBox();
+      const lineHeight = await cell.evaluate((el) =>
+        parseFloat(getComputedStyle(el).lineHeight),
+      );
+      expect(
+        Math.abs(action!.y + action!.height / 2 - bounds!.y - lineHeight / 2),
+      ).toBeLessThan(1);
+      await capture(page, errors, info.title);
+      return;
+    }
+    await group
+      .getByRole("button", { name: "编辑识别文字", exact: true })
+      .click();
+    const input = group.getByRole("textbox", { name: "编辑识别文字" });
+    await expect(input).toHaveValue(value);
+    await input.fill("示例文档\n姓名：合成姓名\n日期：2026-01-02");
+    if (variant === "saved" || variant === "error") {
+      await group.getByRole("button", { name: "保存", exact: true }).click();
+      if (variant === "saved") {
+        await expect(input).toHaveCount(0);
+        await expect(
+          group.getByRole("img", { name: /人工编辑/ }),
+        ).toBeVisible();
+        await expect(
+          page.getByRole("heading", { name: "user", exact: true }),
+        ).toHaveCount(0);
+      } else await expect(group.getByRole("alert")).toBeVisible();
+    }
+    await capture(page, errors, info.title);
+  });
+}

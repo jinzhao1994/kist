@@ -3626,3 +3626,55 @@ main.upload-drag-active {
   font-size: 12px;
   color: var(--mantine-color-dimmed);
 }
+
+/* Transient editing floats over the value; only persistent provenance has space. */
+.metadata-value {
+  position: relative;
+}
+.metadata-value[data-user] {
+  padding-inline-end: 22px;
+}
+.metadata-value-content {
+  min-width: 0;
+}
+.metadata-value-actions {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-start: 0;
+  height: 1lh;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+.metadata-edit-action {
+  margin-inline-end: var(--metadata-copy-space, 0px);
+  opacity: 0;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--mantine-color-body) 70%, transparent);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.metadata-value:hover .metadata-edit-action,
+.metadata-value:focus-within .metadata-edit-action {
+  opacity: 1;
+  pointer-events: auto;
+}
+.metadata-value[data-editing] .metadata-edit-action {
+  visibility: hidden;
+}
+.metadata-user-source {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+  pointer-events: auto;
+}
+@media (hover: none) {
+  .metadata-edit-action {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
