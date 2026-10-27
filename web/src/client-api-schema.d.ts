@@ -1783,6 +1783,12 @@ export interface components {
             extraction_pending?: string[] | null;
             folder_id: string;
             id: string;
+            /**
+             * Format: int64
+             * @enum {integer}
+             */
+            image_rotation?: 0 | 90 | 180 | 270;
+            image_rotation_manual?: boolean;
             kind?: string;
             media_type?: string;
             name: string;
@@ -1813,6 +1819,12 @@ export interface components {
             fileset_id?: string;
             folder_id: string;
             id: string;
+            /**
+             * Format: int64
+             * @enum {integer}
+             */
+            image_rotation?: 0 | 90 | 180 | 270;
+            image_rotation_manual?: boolean;
             kind?: string;
             media_type?: string;
             name: string;
@@ -4029,6 +4041,7 @@ export interface operations {
                     "application/geo+json": Record<string, never>;
                     "application/pdf": string;
                     "image/jpeg": string;
+                    "image/png": string;
                     "video/mp4": string;
                 };
             };
@@ -4079,6 +4092,7 @@ export interface operations {
                     "application/geo+json": Record<string, never>;
                     "application/pdf": string;
                     "image/jpeg": string;
+                    "image/png": string;
                     "video/mp4": string;
                 };
             };

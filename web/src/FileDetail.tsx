@@ -3,6 +3,7 @@ import { MetadataGroup } from "./MetadataGroup";
 import { CopyTextPreview } from "./CopyTextPreview";
 import { useClientMode } from "./OfflineEntry";
 import { OCRAction, OCRText } from "./AI";
+import { ImageRotation } from "./ImageRotation";
 import { Button, CopyButton, Stack, Tooltip } from "@mantine/core";
 import type { components } from "./api-schema";
 import type { FileDetail as FileData, Tag } from "./api";
@@ -45,8 +46,21 @@ export function FileDetail({
     !data.extracted?.includes("desc") &&
     !data.metadata?.some((row) => row.key === "desc:text") &&
     imageTextInput;
+  const canOrient =
+    !clientMode &&
+    imageTextInput &&
+    !data.metadata?.some((row) => row.key === "orientation:clockwise_degrees");
   const displayID = combination?.folder.id || file.id;
   const labels: Record<string, string> = {
+    "orientation:clockwise_degrees": t("orientationAngle"),
+    "orientation:input_sha256": t("ocrInputHash"),
+    "orientation:model": t("aiModel"),
+    "orientation:provider": t("ocrProvider"),
+    "orientation:recipe": t("ocrRecipe"),
+    "orientation:confidence": t("orientationConfidence"),
+    "orientation:method": t("orientationMethod"),
+    "ocr:input_rotation": t("orientationInput"),
+    "desc:input_rotation": t("orientationInput"),
     "exif:ApertureValue": t("exifApertureValue"),
     "exif:BrightnessValue": t("exifBrightnessValue"),
     "exif:ColorSpace": t("exifColorSpace"),
@@ -141,6 +155,19 @@ export function FileDetail({
     "ocr:input_sha256": t("ocrInputHash"),
   };
   const metadataValue = (key: string, value: string) => {
+    if (
+      key === "orientation:clockwise_degrees" ||
+      key.endsWith(":input_rotation")
+    )
+      return `${value}°`;
+    if (key === "orientation:method")
+      return file.image_rotation_manual
+        ? t("orientationManual")
+        : {
+            overview: t("orientationOverview"),
+            regions: t("orientationRegions"),
+            uncertain: t("orientationUncertain"),
+          }[value] || value;
     if (key === "file:mtime" && /^-?\d+$/.test(value)) {
       // Import records file modification times as Unix nanoseconds.
       const date = new Date(Number(BigInt(value) / 1_000_000n));
@@ -152,7 +179,9 @@ export function FileDetail({
       return formatBytes(Number(value), prefs);
     }
     if (
-      (key === "ocr:provider" || key === "desc:provider") &&
+      (key === "ocr:provider" ||
+        key === "desc:provider" ||
+        key === "orientation:provider") &&
       value === "openai"
     )
       return "OpenAI";
@@ -161,11 +190,16 @@ export function FileDetail({
   const groups = new Map<string, NonNullable<FileData["metadata"]>>();
   for (const row of data.metadata || []) {
     // GPS is a display group; its extractor provenance stays unchanged.
-    const group = row.key.startsWith("gps:") ? "gps" : row.source || "";
+    const group = row.key.startsWith("orientation:")
+      ? "orientation"
+      : row.key.startsWith("gps:")
+        ? "gps"
+        : row.source || "";
     const rows = groups.get(group) || [];
     rows.push(row);
     groups.set(group, rows);
   }
+  if (canOrient && !groups.has("orientation")) groups.set("orientation", []);
   if (canOCR && !groups.has("ocr")) groups.set("ocr", []);
   if (canDescribe && !groups.has("desc")) groups.set("desc", []);
   return (
@@ -272,12 +306,22 @@ export function FileDetail({
                           ? "OCR"
                           : source === "desc"
                             ? t("descTitle")
-                            : source
+                            : source === "orientation"
+                              ? t("orientationTitle")
+                              : source
+              }
+              actions={
+                source === "orientation" && !clientMode && imageTextInput ? (
+                  <ImageRotation file={file} />
+                ) : undefined
               }
               extractor={
+                !(source === "orientation" && file.image_rotation_manual) &&
                 rows.length &&
-                ["exif", "gps", "media", "ocr", "desc"].includes(source) &&
-                !(clientMode && ["ocr", "desc"].includes(source))
+                ["exif", "gps", "media", "ocr", "desc", "orientation"].includes(
+                  source,
+                ) &&
+                !(clientMode && ["ocr", "desc", "orientation"].includes(source))
                   ? source === "gps"
                     ? "exif"
                     : source
@@ -285,6 +329,13 @@ export function FileDetail({
               }
             >
               <Stack>
+                {source === "orientation" && canOrient && (
+                  <OCRAction
+                    key={file.id}
+                    fileID={file.id}
+                    kind="orientation"
+                  />
+                )}
                 {source === "ocr" && canOCR && (
                   <OCRAction key={file.id} fileID={file.id} />
                 )}
@@ -323,9 +374,11 @@ export function FileDetail({
                             text={row.value}
                             copyLabel="descCopyText"
                           />
-                        ) : ["ocr:input_sha256", "desc:input_sha256"].includes(
-                            row.key,
-                          ) ? (
+                        ) : [
+                            "ocr:input_sha256",
+                            "desc:input_sha256",
+                            "orientation:input_sha256",
+                          ].includes(row.key) ? (
                           <CopyButton value={row.value}>
                             {({ copied, copy }) => (
                               <button

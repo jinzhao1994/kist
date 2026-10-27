@@ -32,7 +32,22 @@ var descriptionInstructions string
 var descriptionInput string
 
 // DescriptionRecipeVersion identifies the description instructions used for new results.
-const DescriptionRecipeVersion = 3
+const DescriptionRecipeVersion = 5
+
+const OCRRecipeVersion = 3
+const OrientationRecipeVersion = 1
+
+//go:embed prompts/orientation.txt
+var orientationInstructions string
+
+// OrientationPrompt asks only for an already upright candidate, never an angle.
+func OrientationPrompt(overview bool) Prompt {
+	input := "These are four versions of a local region cropped from a larger image."
+	if overview {
+		input = "These are four versions of an overview of the entire image."
+	}
+	return Prompt{Instructions: strings.TrimSpace(orientationInstructions), Input: input}
+}
 
 // DescriptionPrompt describes visible content in the configured archive language.
 func DescriptionPrompt(language string) Prompt {

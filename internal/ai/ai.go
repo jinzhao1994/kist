@@ -28,6 +28,7 @@ type Provider interface {
 	Models(context.Context) ([]Model, error)
 	OCR(context.Context, string, Image) (OCRResult, error)
 	Describe(context.Context, string, Image, string) (TextResult, error)
+	ChooseUpright(context.Context, string, []Image, bool) (UprightChoice, error)
 }
 
 // Credentials are private connection state, never archive metadata or API output.

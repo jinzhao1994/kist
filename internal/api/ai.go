@@ -120,7 +120,23 @@ func (s *Server) aiRoutes() {
 		}
 		return response(v, nil)
 	})
-	for kind, q := range map[string]*library.OCRQueue{"ocr": s.library.OCRQueue(), "desc": s.library.DescriptionQueue()} {
+	huma.Put(s.contract, Prefix+"/files/{id}/image-rotation", func(ctx context.Context, in *struct {
+		ID   string `path:"id"`
+		Key  string `header:"Idempotency-Key" required:"true"`
+		Body struct {
+			BlobKey string `json:"blob_key"`
+			Degrees *int   `json:"clockwise_degrees" nullable:"true"`
+		}
+	}) (*output[library.RequestResult], error) {
+		id, err := parseID(in.ID)
+		if err != nil {
+			return nil, err
+		}
+		return s.mutate(ctx, in.Key, "PUT", Prefix+"/files/"+id.String()+"/image-rotation", in.Body, func(ctx context.Context) error {
+			return s.library.SetImageRotation(ctx, domain.FileID{ID: id}, in.Body.BlobKey, in.Body.Degrees)
+		})
+	})
+	for kind, q := range map[string]*library.OCRQueue{"orientation": s.library.OrientationQueue(), "ocr": s.library.OCRQueue(), "desc": s.library.DescriptionQueue()} {
 		huma.Get(s.contract, Prefix+"/ai/"+kind, func(ctx context.Context, _ *struct{}) (*output[library.OCRQueueStatus], error) {
 			v, err := q.Status(ctx)
 			return response(v, err)
@@ -183,6 +199,6 @@ func (s *Server) aiRoutes() {
 // RunOCR joins the server lifetime; requests only update the persistent queue.
 func (s *Server) RunOCR(ctx context.Context) {
 	if s.library != nil {
-		s.library.OCRQueue().Run(ctx, s.library.DescriptionQueue())
+		s.library.OrientationQueue().Run(ctx, s.library.OCRQueue(), s.library.DescriptionQueue())
 	}
 }

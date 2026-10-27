@@ -8,6 +8,38 @@ import {
 } from "react";
 
 export const en = {
+  ocrTitle: "OCR",
+  orientationTitle: "Image orientation",
+  orientationEdit: "Adjust orientation",
+  orientationAuto: "Automatically orient new images",
+  orientationAutoHint:
+    "Only images added after enabling this setting are sent for orientation checks. OCR and descriptions also check missing orientation first. Originals remain unchanged.",
+  orientationQueuePaused:
+    "Orientation queue paused. Resume it in AI settings; an in-flight request can still finish.",
+  orientationQueueRunning: "Checking orientation: {name}",
+  orientationQueueIdle: "Orientation worker ready",
+  orientationScanning: "Finding images without orientation results…",
+  orientationBackfill: "Check orientation of existing images",
+  orientationBackfillHint:
+    "Send supported images without orientation results to the connected provider. Thumbnails and subsequent AI extraction share the saved direction. Uncertain images stay unchanged.",
+  orientationQueued: "Queued for orientation check",
+  orientationExtract: "Check orientation",
+  orientationAngle: "Image correction",
+  orientationConfidence: "Reported confidence",
+  orientationMethod: "Decision method",
+  orientationInput: "Input correction",
+  orientationManual: "Manual",
+  orientationOverview: "Full image",
+  orientationRegions: "Image regions",
+  orientationUncertain: "Uncertain; unchanged",
+  orientationDegrees: "Clockwise {degrees}°",
+  orientationSave: "Save manual direction",
+  orientationRestoreAuto: "Restore AI orientation",
+  orientationManualHint:
+    "This direction is set manually. AI will not overwrite it. Originals remain unchanged.",
+  orientationEditHint:
+    "Correction is relative to the camera’s orientation. Saving creates a manual override; future OCR and descriptions use this direction.",
+
   descCopyText: "Copy description",
   descTitle: "Description",
   descText: "Description text",
@@ -62,7 +94,7 @@ export const en = {
   ocrSettings: "AI settings",
   aiConnection: "AI connection",
   aiLocalHint:
-    "Connect ChatGPT to use your plan for OCR and image descriptions. Images requested manually or by enabled background tasks are sent to OpenAI; results are saved as metadata in the archive.",
+    "Connect ChatGPT to use your plan for image orientation, OCR and descriptions. Images requested manually or by enabled background tasks are sent to OpenAI; results are saved as metadata in the archive.",
   aiConnected: "Connected",
   aiContinue: "Continue with ChatGPT",
   aiOpenSignIn: "Open ChatGPT sign-in",
@@ -911,6 +943,37 @@ export const en = {
 } as const;
 export type MessageKey = keyof typeof en;
 export const zh: Record<MessageKey, string> = {
+  ocrTitle: "OCR",
+  orientationTitle: "图片方向",
+  orientationEdit: "调整方向",
+  orientationAuto: "自动校正新增图片方向",
+  orientationAutoHint:
+    "仅发送启用后新增的图片。OCR 和描述也会先补齐缺失的方向结果，原始文件保持不变。",
+  orientationQueuePaused:
+    "方向任务已暂停。请在 AI 设置中恢复；正在进行的请求仍可能完成。",
+  orientationQueueRunning: "正在判断方向：{name}",
+  orientationQueueIdle: "方向任务就绪",
+  orientationScanning: "正在查找尚未判断方向的图片…",
+  orientationBackfill: "补全已有图片方向",
+  orientationBackfillHint:
+    "将尚未判断方向的受支持图片发送给已连接的服务。缩略图和后续 AI 提取共用保存的方向；不确定时保持原方向。",
+  orientationQueued: "已加入方向判断队列",
+  orientationExtract: "判断图片方向",
+  orientationAngle: "方向校正",
+  orientationConfidence: "自报置信度",
+  orientationMethod: "判断方式",
+  orientationInput: "输入旋转角度",
+  orientationManual: "人工设定",
+  orientationOverview: "整图判断",
+  orientationRegions: "局部验证",
+  orientationUncertain: "不确定，保持原向",
+  orientationDegrees: "顺时针 {degrees}°",
+  orientationSave: "保存人工方向",
+  orientationRestoreAuto: "恢复 AI 判断",
+  orientationManualHint: "此方向由人工设定，AI 不会覆盖，原始文件保持不变。",
+  orientationEditHint:
+    "相对于相机方向进行校正。保存后由人工管理；后续 OCR 和描述使用此方向。",
+
   descCopyText: "复制描述",
   descTitle: "描述",
   descText: "描述正文",
@@ -962,7 +1025,7 @@ export const zh: Record<MessageKey, string> = {
   ocrSettings: "AI 设置",
   aiConnection: "AI 连接",
   aiLocalHint:
-    "连接 ChatGPT 后使用你的套餐识别文字和描述图片。手动请求或已启用的后台任务会将图片发送到 OpenAI，结果保存为资料库中的元数据。",
+    "连接 ChatGPT 后使用你的套餐判断图片方向、识别文字和描述图片。手动请求或已启用的后台任务会将图片发送到 OpenAI，结果保存为资料库中的元数据。",
   aiConnected: "已连接",
   aiContinue: "使用 ChatGPT 继续",
   aiOpenSignIn: "打开 ChatGPT 登录",
@@ -1805,6 +1868,8 @@ export function initializeLanguage() {
   applyDocumentLanguage(initialPreferences());
 }
 interface Parameters {
+  orientationQueueRunning: { name: string };
+  orientationDegrees: { degrees: number };
   descQueueRunning: { name: string };
   ocrQueueRunning: { name: string };
   reextractGroup: { group: string };

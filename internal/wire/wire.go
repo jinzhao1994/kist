@@ -77,20 +77,22 @@ func NewBoxes(boxes []domain.Box) []Box {
 // them — a listing that already names its box has no reason to pay for it per
 // row.
 type File struct {
-	TypeLabel         string     `json:"type_label,omitempty"`
-	Size              *int64     `json:"size,omitempty"`
-	MediaType         string     `json:"media_type,omitempty"`
-	Kind              string     `json:"kind,omitempty"`
-	ExtractionPending []string   `json:"extraction_pending,omitempty"`
-	ID                string     `json:"id"`
-	BoxID             string     `json:"box_id,omitempty"`
-	FolderID          string     `json:"folder_id"`
-	Name              string     `json:"name"`
-	Path              string     `json:"path,omitempty"`
-	BlobKey           string     `json:"blob_key"`
-	CapturedAt        *time.Time `json:"captured_at"`
-	CreatedAt         time.Time  `json:"created_at"`
-	UpdatedAt         time.Time  `json:"updated_at"`
+	ImageRotation       int        `json:"image_rotation,omitempty" enum:"0,90,180,270"`
+	ImageRotationManual bool       `json:"image_rotation_manual,omitempty"`
+	TypeLabel           string     `json:"type_label,omitempty"`
+	Size                *int64     `json:"size,omitempty"`
+	MediaType           string     `json:"media_type,omitempty"`
+	Kind                string     `json:"kind,omitempty"`
+	ExtractionPending   []string   `json:"extraction_pending,omitempty"`
+	ID                  string     `json:"id"`
+	BoxID               string     `json:"box_id,omitempty"`
+	FolderID            string     `json:"folder_id"`
+	Name                string     `json:"name"`
+	Path                string     `json:"path,omitempty"`
+	BlobKey             string     `json:"blob_key"`
+	CapturedAt          *time.Time `json:"captured_at"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
 }
 
 // NewFile renders a file. loc is the library timezone; box and path may be

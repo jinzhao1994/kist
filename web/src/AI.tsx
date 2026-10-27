@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, result } from "./api";
 import { Select } from "./Select";
-import { useI18n } from "./i18n";
+import { useI18n, type MessageKey } from "./i18n";
 import { errorMessage } from "./mutations";
 
 type Status = {
@@ -164,6 +164,7 @@ type AISettingsData = {
   model: string;
   auto_ocr: boolean;
   auto_desc: boolean;
+  auto_orientation: boolean;
   proxy_url: string;
   revision: string;
 };
@@ -186,7 +187,9 @@ function useAISettings() {
     retry: false,
   });
 }
-type ImageTask = "ocr" | "desc";
+export type ImageTask = "ocr" | "desc" | "orientation";
+const taskMessage = (kind: ImageTask, suffix: string) =>
+  `${kind}${suffix}` as MessageKey;
 function useOCRQueue(kind: ImageTask = "ocr") {
   return useQuery({
     queryKey: [`${kind}-queue`],
@@ -323,6 +326,15 @@ function AISettings({
             autoComplete="off"
           />
           <Checkbox
+            label={t("orientationAuto")}
+            description={t("orientationAutoHint")}
+            checked={!!draft.auto_orientation}
+            onChange={(e) =>
+              edit({ auto_orientation: e.currentTarget.checked })
+            }
+            disabled={disabled || busy}
+          />
+          <Checkbox
             label={t("ocrAuto")}
             description={t("ocrAutoHint")}
             checked={draft.auto_ocr}
@@ -343,7 +355,10 @@ function AISettings({
                 disabled ||
                 busy ||
                 !dirty ||
-                ((draft.auto_ocr || draft.auto_desc) && !draft.model)
+                ((draft.auto_ocr ||
+                  draft.auto_desc ||
+                  draft.auto_orientation) &&
+                  !draft.model)
               }
             >
               {t("aiSaveSettings")}
@@ -362,7 +377,7 @@ function AISettings({
           </Group>
         </>
       )}
-      {(["ocr", "desc"] as const).map((kind) => (
+      {(["orientation", "ocr", "desc"] as const).map((kind) => (
         <ImageTaskQueue
           key={kind}
           kind={kind}
@@ -407,7 +422,7 @@ function ImageTaskQueue({
   }
   return (
     <Stack>
-      <Text fw={600}>{kind === "ocr" ? "OCR" : t("descTitle")}</Text>
+      <Text fw={600}>{t(taskMessage(kind, "Title"))}</Text>
       {error && (
         <Text role="alert" size="sm">
           {error}
@@ -430,12 +445,12 @@ function ImageTaskQueue({
         <>
           <Text size="sm" role="status">
             {queue.data.paused
-              ? t(kind === "ocr" ? "ocrQueuePaused" : "descQueuePaused")
+              ? t(taskMessage(kind, "QueuePaused"))
               : queue.data.running
-                ? t(kind === "ocr" ? "ocrQueueRunning" : "descQueueRunning", {
+                ? t(taskMessage(kind, "QueueRunning"), {
                     name: queue.data.running,
                   })
-                : t(kind === "ocr" ? "ocrQueueIdle" : "descQueueIdle")}
+                : t(taskMessage(kind, "QueueIdle"))}
           </Text>
           <Text size="sm" c="dimmed">
             {t("ocrQueueCounts", {
@@ -445,7 +460,7 @@ function ImageTaskQueue({
           </Text>
           {queue.data.scanning && (
             <Text role="status" size="sm">
-              {t(kind === "ocr" ? "ocrScanning" : "descScanning")}
+              {t(taskMessage(kind, "Scanning"))}
             </Text>
           )}
           {queue.data.error && (
@@ -462,7 +477,7 @@ function ImageTaskQueue({
                 void command(`/ai/${kind}/backfill`, { retry: false })
               }
             >
-              {t(kind === "ocr" ? "ocrBackfill" : "descBackfill")}
+              {t(taskMessage(kind, "Backfill"))}
             </Button>
             <Button
               disabled={
@@ -490,7 +505,7 @@ function ImageTaskQueue({
             </Button>
           </Group>
           <Text size="sm" c="dimmed">
-            {t(kind === "ocr" ? "ocrBackfillHint" : "descBackfillHint")}
+            {t(taskMessage(kind, "BackfillHint"))}
           </Text>
         </>
       )}
@@ -555,16 +570,12 @@ export function OCRAction({
           {t(
             job.data?.state === "running"
               ? "extracting"
-              : kind === "ocr"
-                ? "ocrQueued"
-                : "descQueued",
+              : taskMessage(kind, "Queued"),
           )}
         </Text>
       )}
       {queue.data?.paused && (
-        <Text size="sm">
-          {t(kind === "ocr" ? "ocrQueuePaused" : "descQueuePaused")}
-        </Text>
+        <Text size="sm">{t(taskMessage(kind, "QueuePaused"))}</Text>
       )}
       {(!status.data?.connected || !settings.data?.model) && (
         <Text size="sm">{t("ocrConfigureFirst")}</Text>
@@ -585,9 +596,7 @@ export function OCRAction({
           {t(
             job.data?.state === "failed"
               ? "retry"
-              : kind === "ocr"
-                ? "ocrExtract"
-                : "descExtract",
+              : taskMessage(kind, "Extract"),
           )}
         </Button>
         <Button component="a" href="/settings#settings-ai" variant="subtle">

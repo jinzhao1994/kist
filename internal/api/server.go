@@ -168,7 +168,7 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path == Prefix+"/ai" || strings.HasPrefix(r.URL.Path, Prefix+"/ai/") || (strings.HasPrefix(r.URL.Path, Prefix+"/files/") && (strings.HasSuffix(r.URL.Path, "/ocr") || strings.HasSuffix(r.URL.Path, "/desc"))) {
+	if r.URL.Path == Prefix+"/ai" || strings.HasPrefix(r.URL.Path, Prefix+"/ai/") || (strings.HasPrefix(r.URL.Path, Prefix+"/files/") && (strings.HasSuffix(r.URL.Path, "/ocr") || strings.HasSuffix(r.URL.Path, "/desc") || strings.HasSuffix(r.URL.Path, "/orientation"))) {
 		host, _, err := net.SplitHostPort(r.RemoteAddr)
 		ip := net.ParseIP(host)
 		hostName, _, hostErr := net.SplitHostPort(r.Host)

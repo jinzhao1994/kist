@@ -5,6 +5,7 @@ import (
 	"image"
 	"io"
 	"os"
+	"strings"
 )
 
 // WorkspaceBudget is a conservative admission estimate, not a second format
@@ -16,7 +17,8 @@ func WorkspaceBudget(ctx context.Context, input, recipe string) (int64, error) {
 	}
 	// Native image conversion writes only a resized JPEG. External converters
 	// may also materialize full decoded images, PDFs and private profiles.
-	if recipe == Thumbnail || recipe == Preview || recipe == VideoThumbnail {
+	base, _, _ := strings.Cut(recipe, "_cw")
+	if base == Thumbnail || base == Preview || base == VideoThumbnail || base == UprightImage {
 		f, err := os.Open(input)
 		if err != nil {
 			return 0, err

@@ -87,18 +87,25 @@ export function OpenMediaButton({
   menu?: boolean;
 }) {
   const { t } = useI18n();
-  const officePDF = officePDFRecipe(file);
+  const correctedImage =
+    !!file.image_rotation && mediaProfile(file)?.id === "image";
+  const officePDF = correctedImage
+    ? mediaProfile(file)!.detail
+    : officePDFRecipe(file);
   // Media owns requests and polling. This observer follows the same cache entry.
   const { data: job } = useQuery<MediaJob>({
     queryKey: mediaKey(file, officePDF),
     enabled: false,
   });
   const original = file.media_type === "application/pdf";
-  const image = usesOriginalImage(file);
-  if (!image && !original && !(isOffice(file) && job?.state === "ready"))
+  const image = usesOriginalImage(file) || correctedImage;
+  if (
+    (!image && !original && !(isOffice(file) && job?.state === "ready")) ||
+    (correctedImage && job?.state !== "ready")
+  )
     return null;
   const href =
-    original || image
+    original || (image && !correctedImage)
       ? contentURL(file)
       : `/api/v1${mediaPath(file, officePDF)}/content?v=${encodeURIComponent(job!.generation)}`;
   if (menu)

@@ -46,3 +46,19 @@ it("uses a combination's primary filename to select its preview", () => {
     mediaProfile({ name: "Passport", primary_name: "front.png" })?.id,
   ).toBe("native-image");
 });
+
+it.each([90, 180, 270] as const)(
+  "uses immutable corrected recipes for %s degrees",
+  (image_rotation) => {
+    const native = mediaProfile({ name: "photo.jpg", image_rotation });
+    expect(native?.id).toBe("image");
+    expect(native?.thumbnail).toBe(`thumb_512_v1_cw${image_rotation}`);
+    expect(native?.detail).toBe(`image_upright_v1_cw${image_rotation}`);
+    expect(mediaProfile({ name: "photo.heic", image_rotation })?.detail).toBe(
+      `preview_2048_v1_cw${image_rotation}`,
+    );
+    expect(mediaProfile({ name: "clip.mov", image_rotation })?.thumbnail).toBe(
+      "video_thumb_512_v2",
+    );
+  },
+);

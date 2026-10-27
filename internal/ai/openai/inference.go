@@ -91,9 +91,37 @@ func (c Client) imageText(ctx context.Context, model string, img ai.Image, promp
 	if len(img.Data) == 0 || len(img.Data) > ai.MaxImageBytes {
 		return ai.OCRResult{}, errors.New("image exceeds AI input limit")
 	}
-	body := map[string]any{"model": model, "store": false, "stream": true, "reasoning": map[string]string{"effort": "low"},
-		"instructions": prompt.Instructions,
-		"input":        []any{map[string]any{"role": "user", "content": []any{map[string]string{"type": "input_text", "text": prompt.Input}, map[string]string{"type": "input_image", "image_url": "data:" + img.MIME + ";base64," + base64.StdEncoding.EncodeToString(img.Data), "detail": "original"}}}}}
+	content := []any{map[string]string{"type": "input_text", "text": prompt.Input}, imagePart(img)}
+	return c.imageContent(ctx, model, prompt, content)
+}
+
+func imagePart(img ai.Image) map[string]string {
+	return map[string]string{"type": "input_image", "image_url": "data:" + img.MIME + ";base64," + base64.StdEncoding.EncodeToString(img.Data), "detail": "original"}
+}
+
+func (c Client) ChooseUpright(ctx context.Context, model string, images []ai.Image, overview bool) (ai.UprightChoice, error) {
+	if len(images) != 4 {
+		return ai.UprightChoice{}, errors.New("orientation requires four candidates")
+	}
+	prompt := ai.OrientationPrompt(overview)
+	content := []any{map[string]string{"type": "input_text", "text": prompt.Input}}
+	for i, img := range images {
+		if len(img.Data) == 0 || len(img.Data) > ai.MaxImageBytes {
+			return ai.UprightChoice{}, errors.New("image exceeds AI input limit")
+		}
+		content = append(content, map[string]string{"type": "input_text", "text": fmt.Sprintf("Image %c", 'A'+i)}, imagePart(img))
+	}
+	result, err := c.imageContent(ctx, model, prompt, content)
+	if err != nil {
+		return ai.UprightChoice{}, err
+	}
+	choice, err := ai.ParseUprightChoice(result.Text)
+	choice.Provider, choice.Model = result.Provider, result.Model
+	return choice, err
+}
+
+func (c Client) imageContent(ctx context.Context, model string, prompt ai.Prompt, content []any) (ai.TextResult, error) {
+	body := map[string]any{"model": model, "store": false, "stream": true, "reasoning": map[string]string{"effort": "low"}, "instructions": prompt.Instructions, "input": []any{map[string]any{"role": "user", "content": content}}}
 	raw, err := json.Marshal(body)
 	if err != nil {
 		return ai.OCRResult{}, err

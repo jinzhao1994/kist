@@ -10,6 +10,7 @@ export const mediaProfiles = [
     kind: "",
     thumbnail: "slides_thumb_512_v1",
     detail: "slides_pdf_v1",
+    corrected_detail: "",
   },
   {
     id: "word",
@@ -21,6 +22,7 @@ export const mediaProfiles = [
     kind: "",
     thumbnail: "office_thumb_512_v1",
     detail: "office_pdf_v1",
+    corrected_detail: "",
   },
   {
     id: "gpx",
@@ -29,6 +31,7 @@ export const mediaProfiles = [
     kind: "",
     thumbnail: "gpx_map_v1",
     detail: "gpx_map_v1",
+    corrected_detail: "",
   },
   {
     id: "stl",
@@ -37,6 +40,7 @@ export const mediaProfiles = [
     kind: "",
     thumbnail: "stl_thumb_512_v1",
     detail: "stl_preview_2048_v1",
+    corrected_detail: "",
   },
   {
     id: "pdf",
@@ -45,6 +49,7 @@ export const mediaProfiles = [
     kind: "",
     thumbnail: "thumb_512_v1",
     detail: "",
+    corrected_detail: "",
   },
   {
     id: "native-image",
@@ -60,6 +65,7 @@ export const mediaProfiles = [
     kind: "image",
     thumbnail: "thumb_512_v1",
     detail: "",
+    corrected_detail: "image_upright_v1",
   },
   {
     id: "image",
@@ -68,6 +74,7 @@ export const mediaProfiles = [
     kind: "image",
     thumbnail: "thumb_512_v1",
     detail: "preview_2048_v1",
+    corrected_detail: "preview_2048_v1",
   },
   {
     id: "video",
@@ -85,5 +92,6 @@ export const mediaProfiles = [
     kind: "video",
     thumbnail: "video_thumb_512_v2",
     detail: "preview_1080p_v1",
+    corrected_detail: "",
   },
 ] as const;

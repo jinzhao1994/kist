@@ -63,6 +63,7 @@ type OCRQueue struct {
 	provider      func(context.Context) (ai.Provider, error)
 }
 
+func (l *Library) OrientationQueue() *OCRQueue { return l.imageTextQueue("orientation") }
 func (l *Library) OCRQueue() *OCRQueue         { return l.imageTextQueue("ocr") }
 func (l *Library) DescriptionQueue() *OCRQueue { return l.imageTextQueue("desc") }
 func (l *Library) imageTextQueue(kind string) *OCRQueue {
@@ -187,7 +188,15 @@ func (q *OCRQueue) resolve(ctx context.Context, id domain.FileID) (OCRJob, error
 		j.Name = f.Name
 		j.BlobKey = f.BlobKey
 		versions, err := store.Extractions(tx.Queryer(), id)
-		if versions[q.kind] >= 1 {
+		if q.kind == "orientation" {
+			rows, e := store.FileMetadata(tx.Queryer(), id)
+			if e != nil {
+				return e
+			}
+			if _, known, _ := imageRotation(rows, f.BlobKey); known {
+				j.State = "ready"
+			}
+		} else if versions[q.kind] >= 1 {
 			j.State = "ready"
 		}
 		return err
@@ -346,6 +355,9 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 	auto, after := cfg.AIOptions.AutoOCR, cfg.AIOptions.AfterOp
 	if q.kind == "desc" {
 		auto, after = cfg.AIOptions.AutoDesc, cfg.AIOptions.DescAfterOp
+	}
+	if q.kind == "orientation" {
+		auto, after = cfg.AIOptions.AutoOrientation, cfg.AIOptions.OrientationAfterOp
 	}
 	unlock, err := q.state.Acquire(ctx)
 	if err != nil {

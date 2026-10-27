@@ -172,6 +172,10 @@ func renderFile(ctx context.Context, reader fileReader, f domain.File) (wire.Fil
 		return out, err
 	}
 	out.MediaType, out.Kind, out.ExtractionPending = info.MIME, info.Kind, info.Pending
+	if info.RotationBlob == f.BlobKey {
+		out.ImageRotation = info.Rotation
+		out.ImageRotationManual = info.RotationManual
+	}
 	out.Size = info.Size
 	out.TypeLabel = domain.DisplayFileType(f.Name, info.MIME)
 	return out, nil

@@ -85,7 +85,7 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("invalid library language")
 	}
 
-	if len(c.AIOptions.Model) > 200 || len(c.AIOptions.ProxyURL) > 2048 || c.AIOptions.AfterOp < 0 || ((c.AIOptions.AutoOCR || c.AIOptions.AutoDesc) && c.AIOptions.Model == "") || c.AIOptions.DescAfterOp < 0 {
+	if len(c.AIOptions.Model) > 200 || len(c.AIOptions.ProxyURL) > 2048 || c.AIOptions.AfterOp < 0 || ((c.AIOptions.AutoOCR || c.AIOptions.AutoDesc || c.AIOptions.AutoOrientation) && c.AIOptions.Model == "") || c.AIOptions.DescAfterOp < 0 || c.AIOptions.OrientationAfterOp < 0 {
 		return fmt.Errorf("invalid AI options")
 	}
 	if _, err := ai.HTTPClient(c.AIOptions.ProxyURL, time.Second); err != nil {

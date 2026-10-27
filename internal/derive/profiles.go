@@ -10,12 +10,13 @@ import (
 // ordered table is generated into the web bundle; changing a recipe cannot
 // silently leave offline preparation using a different dependency list.
 type PreviewProfile struct {
-	ID         string   `json:"id"`
-	Extensions []string `json:"extensions"`
-	MediaTypes []string `json:"media_types"`
-	Kind       string   `json:"kind"`
-	Thumbnail  string   `json:"thumbnail"`
-	Detail     string   `json:"detail"`
+	ID              string   `json:"id"`
+	Extensions      []string `json:"extensions"`
+	MediaTypes      []string `json:"media_types"`
+	Kind            string   `json:"kind"`
+	Thumbnail       string   `json:"thumbnail"`
+	Detail          string   `json:"detail"`
+	CorrectedDetail string   `json:"corrected_detail"`
 }
 
 func PreviewProfiles() []PreviewProfile {
@@ -25,8 +26,8 @@ func PreviewProfiles() []PreviewProfile {
 		{ID: "gpx", Extensions: []string{".gpx"}, MediaTypes: []string{"application/gpx+xml"}, Thumbnail: GPXMap, Detail: GPXMap},
 		{ID: "stl", Extensions: []string{".stl"}, MediaTypes: []string{"model/stl"}, Thumbnail: STLThumbnail, Detail: STLPreview},
 		{ID: "pdf", Extensions: []string{".pdf"}, MediaTypes: []string{"application/pdf"}, Thumbnail: Thumbnail},
-		{ID: "native-image", Extensions: []string{".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".ico"}, Kind: "image", MediaTypes: []string{"image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp", "image/x-icon"}, Thumbnail: Thumbnail},
-		{ID: "image", Extensions: []string{".heic", ".heif", ".tif", ".tiff", ".avif"}, Kind: "image", Thumbnail: Thumbnail, Detail: Preview},
+		{ID: "native-image", Extensions: []string{".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".ico"}, Kind: "image", MediaTypes: []string{"image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp", "image/x-icon"}, Thumbnail: Thumbnail, CorrectedDetail: UprightImage},
+		{ID: "image", Extensions: []string{".heic", ".heif", ".tif", ".tiff", ".avif"}, Kind: "image", Thumbnail: Thumbnail, Detail: Preview, CorrectedDetail: Preview},
 		{ID: "video", Extensions: []string{".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi", ".mpeg", ".mpg"}, Kind: "video", Thumbnail: VideoThumbnail, Detail: Video},
 	}
 	for i := range profiles {

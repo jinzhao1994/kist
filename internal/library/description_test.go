@@ -55,7 +55,7 @@ func TestDescriptionMetadataReplayUndoAndIsolation(t *testing.T) {
 	if values["ocr:text"] != "original OCR" || values["desc:text"] != p.text || values["desc:language"] != "zh-CN" || p.language != "zh-CN" {
 		t.Fatal(values)
 	}
-	if values["desc:recipe"] != "3" || values["ocr:recipe"] != "1" {
+	if values["desc:recipe"] != "5" || values["ocr:recipe"] != "3" {
 		t.Fatal("incorrect recipe versions", values)
 	}
 	afterFile, _, _ := l.File(t.Context(), id)

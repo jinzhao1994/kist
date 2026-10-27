@@ -130,6 +130,11 @@ func (ocrExtractor) Extract(context.Context, io.ReadSeeker, string) ([]extract.K
 	return nil, errors.New("OCR requires an explicit provider")
 }
 
+type orientationExtractor struct{ ocrExtractor }
+
+func (orientationExtractor) ID() string           { return "orientation" }
+func (orientationExtractor) Namespaces() []string { return []string{"orientation"} }
+
 type descriptionExtractor struct{ ocrExtractor }
 
 func (descriptionExtractor) ID() string           { return "desc" }
@@ -187,8 +192,21 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 	if expectedBlob != "" && p.file.BlobKey != expectedBlob {
 		return nil, ErrOCRChanged
 	}
-	if !force && p.version >= 1 {
+	if kind == "orientation" {
+		_, known, manual := imageRotation(p.rows, p.file.BlobKey)
+		if manual || known && !force {
+			return p, nil
+		}
+	} else if !force && p.version >= 1 {
 		return p, nil
+	}
+	if kind != "orientation" {
+		if _, known, _ := imageRotation(p.rows, p.file.BlobKey); !known {
+			if err := l.ensureImageOrientation(ctx, id, provider, model, p.file.BlobKey); err != nil {
+				return nil, err
+			}
+			return l.prepareImageText(ctx, id, provider, model, p.file.BlobKey, kind, language, force)
+		}
 	}
 	path, ok := l.blobs.LocalPath(blobKey(p.file.BlobKey))
 	if !ok {
@@ -213,6 +231,8 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 	var e extract.Extractor = ocrExtractor{}
 	if kind == "desc" {
 		e = descriptionExtractor{}
+	} else if kind == "orientation" {
+		e = orientationExtractor{}
 	}
 	if !e.Wants(mime) {
 		return nil, errors.New("AI extraction supports JPEG, PNG, static WebP and still HEIC/HEIF images")
@@ -239,32 +259,54 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 		}
 		mime = "image/jpeg"
 	}
-	input, err := ai.NormalizeImage(ai.Image{MIME: mime, Data: data})
+	input, err := ai.NormalizeImageContext(ctx, ai.Image{MIME: mime, Data: data})
 	if err != nil {
 		return nil, err
 	}
-	var result ai.TextResult
-	if kind == "desc" {
-		result, err = provider.Describe(ctx, model, input, language)
+	var facts []extract.KV
+	if kind == "orientation" {
+		result, err := ai.DetectOrientation(ctx, provider, model, input)
+		if err != nil {
+			return nil, err
+		}
+		facts = []extract.KV{
+			{Key: "orientation:clockwise_degrees", Value: fmt.Sprint(result.Degrees), Type: extract.TypeInt},
+			{Key: "orientation:input_sha256", Value: p.file.BlobKey, Type: extract.TypeText},
+			{Key: "orientation:provider", Value: result.Provider, Type: extract.TypeText},
+			{Key: "orientation:model", Value: result.Model, Type: extract.TypeText},
+			{Key: "orientation:recipe", Value: fmt.Sprint(ai.OrientationRecipeVersion), Type: extract.TypeInt},
+			{Key: "orientation:confidence", Value: fmt.Sprint(result.Confidence), Type: extract.TypeText},
+			{Key: "orientation:method", Value: result.Method, Type: extract.TypeText},
+		}
 	} else {
-		result, err = provider.OCR(ctx, model, input)
-	}
-	if err != nil {
-		return nil, err
+		degrees, _, _ := imageRotation(p.rows, p.file.BlobKey)
+		input, err = ai.RotateImage(input, degrees)
+		if err != nil {
+			return nil, err
+		}
+		var result ai.TextResult
+		if kind == "desc" {
+			result, err = provider.Describe(ctx, model, input, language)
+		} else {
+			result, err = provider.OCR(ctx, model, input)
+		}
+		if err != nil {
+			return nil, err
+		}
+		if kind == "desc" && strings.TrimSpace(result.Text) == "" {
+			return nil, errors.New("description is empty; no result was saved")
+		}
+		recipe := ai.OCRRecipeVersion
+		if kind == "desc" {
+			recipe = ai.DescriptionRecipeVersion
+		}
+		facts = []extract.KV{{Key: kind + ":text", Value: result.Text, Type: extract.TypeText}, {Key: kind + ":provider", Value: result.Provider, Type: extract.TypeText}, {Key: kind + ":model", Value: result.Model, Type: extract.TypeText}, {Key: kind + ":input_sha256", Value: p.file.BlobKey, Type: extract.TypeText}, {Key: kind + ":recipe", Value: fmt.Sprint(recipe), Type: extract.TypeInt}, {Key: kind + ":input_rotation", Value: fmt.Sprint(degrees), Type: extract.TypeInt}}
+		if kind == "desc" {
+			facts = append(facts, extract.KV{Key: "desc:language", Value: language, Type: extract.TypeText})
+		}
 	}
 	if err = ctx.Err(); err != nil {
 		return nil, err
-	}
-	if kind == "desc" && strings.TrimSpace(result.Text) == "" {
-		return nil, errors.New("description is empty; no result was saved")
-	}
-	recipe := 1
-	if kind == "desc" {
-		recipe = ai.DescriptionRecipeVersion
-	}
-	facts := []extract.KV{{Key: kind + ":text", Value: result.Text, Type: extract.TypeText}, {Key: kind + ":provider", Value: result.Provider, Type: extract.TypeText}, {Key: kind + ":model", Value: result.Model, Type: extract.TypeText}, {Key: kind + ":input_sha256", Value: fmt.Sprint(p.file.BlobKey), Type: extract.TypeText}, {Key: kind + ":recipe", Value: fmt.Sprint(recipe), Type: extract.TypeInt}}
-	if kind == "desc" {
-		facts = append(facts, extract.KV{Key: "desc:language", Value: language, Type: extract.TypeText})
 	}
 	if err = extract.Check(e, facts); err != nil {
 		return nil, err

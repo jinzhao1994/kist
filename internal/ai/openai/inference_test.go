@@ -106,3 +106,38 @@ func TestDescriptionWireUsesIndependentLocalizedPrompt(t *testing.T) {
 		t.Fatal(out, err)
 	}
 }
+
+func TestOrientationWireFourCandidates(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+			return
+		}
+		if body["instructions"] != ai.OrientationPrompt(true).Instructions || body["reasoning"].(map[string]any)["effort"] != "low" {
+			t.Error("wrong orientation prompt or effort")
+		}
+		content := body["input"].([]any)[0].(map[string]any)["content"].([]any)
+		if len(content) != 9 {
+			t.Error("missing four labeled images")
+			return
+		}
+		for i := range 4 {
+			if content[1+i*2].(map[string]any)["text"] != "Image "+string(rune('A'+i)) || content[2+i*2].(map[string]any)["detail"] != "original" {
+				t.Error("candidate order or detail")
+			}
+		}
+		raw, _ := json.Marshal(map[string]any{"type": "response.output_text.done", "text": `{"decision":"C","confidence":0.98,"evidence":"text"}`})
+		w.Write([]byte("data: " + string(raw) + "\n\ndata: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\"}}\n"))
+	}))
+	defer server.Close()
+	c := Client{BaseURL: server.URL, Token: "test"}
+	images := make([]ai.Image, 4)
+	for i := range images {
+		images[i] = ai.Image{MIME: "image/png", Data: []byte("synthetic")}
+	}
+	got, err := c.ChooseUpright(t.Context(), "test", images, true)
+	if err != nil || got.Index != 2 || got.Provider != "openai" || got.Model != "test" {
+		t.Fatal(got, err)
+	}
+}

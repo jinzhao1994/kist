@@ -9,8 +9,11 @@ import (
 	"image/color"
 	"image/draw"
 	"image/jpeg"
+	"image/png"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/disintegration/imaging"
@@ -23,6 +26,7 @@ const (
 	Thumbnail            = "thumb_512_v1"
 	VideoThumbnail       = "video_thumb_512_v2"
 	Preview              = "preview_2048_v1"
+	UprightImage         = "image_upright_v1"
 	Video                = "preview_1080p_v1"
 	MaxPixels      int64 = 64_000_000
 	MaxImageBytes  int64 = 256 << 20
@@ -38,7 +42,18 @@ type Recipe struct {
 
 // Lookup is the only registry of public recipes and their output types.
 func Lookup(name string) (Recipe, bool) {
+	if base, angle, ok := strings.Cut(name, "_cw"); ok {
+		n, err := strconv.Atoi(angle)
+		if err != nil || RotatedRecipe(base, n) != name || n == 0 {
+			return Recipe{}, false
+		}
+		spec, ok := Lookup(base)
+		spec.Name = name
+		return spec, ok
+	}
 	switch name {
+	case UprightImage:
+		return Recipe{name, ".png", "image/png", int(MaxPixels)}, true
 	case OfficePDF, SlidesPDF:
 		return Recipe{name, ".pdf", "application/pdf", 0}, true
 	case GPXMap:
@@ -156,6 +171,10 @@ func (r Renderer) Render(ctx context.Context, input, output, recipe string) (res
 			return result, err
 		}
 		img = orient(img, o)
+		if _, angle, ok := strings.Cut(recipe, "_cw"); ok {
+			n, _ := strconv.Atoi(angle)
+			img = RotateClockwise(img, n)
+		}
 		if img.Bounds().Dx() > spec.Size || img.Bounds().Dy() > spec.Size {
 			img = imaging.Fit(img, spec.Size, spec.Size, imaging.Lanczos)
 		}
@@ -171,7 +190,11 @@ func (r Renderer) Render(ctx context.Context, input, output, recipe string) (res
 		if e != nil {
 			return result, e
 		}
-		e = jpeg.Encode(dst, canvas, &jpeg.Options{Quality: 85})
+		if spec.MediaType == "image/png" {
+			e = png.Encode(dst, img)
+		} else {
+			e = jpeg.Encode(dst, canvas, &jpeg.Options{Quality: 85})
+		}
 		if e == nil {
 			e = dst.Sync()
 		}

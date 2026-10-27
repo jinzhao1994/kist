@@ -191,11 +191,12 @@ async function prepare(page: Page, options: Options = {}) {
           model: "gpt-6-luna",
           auto_ocr: false,
           auto_desc: false,
+          auto_orientation: false,
           proxy_url: "",
           revision: "visual",
         },
       });
-    if (path === "/ai/ocr" || path === "/ai/desc")
+    if (path === "/ai/ocr" || path === "/ai/desc" || path === "/ai/orientation")
       return route.fulfill({
         json: {
           paused: false,
@@ -206,7 +207,7 @@ async function prepare(page: Page, options: Options = {}) {
         },
       });
     if (
-      /^\/files\/[^/]+\/(?:ocr|desc)$/.test(path) &&
+      /^\/files\/[^/]+\/(?:ocr|desc|orientation)$/.test(path) &&
       route.request().method() === "GET"
     )
       return route.fulfill({ json: { state: "missing" } });
@@ -4153,6 +4154,7 @@ for (const scenario of [
             model: "gpt-6-luna",
             auto_ocr: scenario === "ai-paused",
             auto_desc: scenario === "ai-description",
+            auto_orientation: false,
             proxy_url: "",
             revision: "visual",
           },
@@ -5045,4 +5047,68 @@ for (const refresh of [false, true]) {
       await capture(page, errors, info.title);
     },
   );
+}
+
+for (const manual of [false, true]) {
+  test(`image-orientation-${manual ? "manual" : "automatic"}`, async ({
+    page,
+  }, info) => {
+    const errors = await prepare(page);
+    const file = {
+      ...files[0],
+      image_rotation: 90,
+      image_rotation_manual: manual,
+    };
+    await page.route("**/api/v1/files/file-1", (route) =>
+      route.fulfill({
+        json: {
+          file,
+          tags: [],
+          extracted: ["file", "media", "orientation"],
+          metadata: [
+            {
+              key: "orientation:clockwise_degrees",
+              value: "90",
+              type: "int",
+              source: manual ? "user" : "orientation",
+            },
+            {
+              key: "orientation:input_sha256",
+              value: file.blob_key,
+              type: "text",
+              source: manual ? "user" : "orientation",
+            },
+            {
+              key: "orientation:method",
+              value: "overview",
+              type: "text",
+              source: "orientation",
+            },
+          ],
+        },
+      }),
+    );
+    await page.route("**/api/v1/files/file-1/orientation", (route) =>
+      route.fulfill({ json: { state: "ready" } }),
+    );
+    await page.goto("/files?file=file-1");
+    await page.getByRole("button", { name: "文件详情", exact: true }).click();
+    await expect(
+      page.locator('img[src*="image_upright_v1_cw90"]'),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "图片方向", exact: true }),
+    ).toBeVisible();
+    if (manual) {
+      await expect(
+        page.getByRole("button", { name: "重新提取图片方向" }),
+      ).toHaveCount(0);
+      await page.getByRole("button", { name: "调整方向", exact: true }).click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "恢复 AI 判断", exact: true }),
+      ).toBeVisible();
+    }
+    await capture(page, errors, info.title);
+  });
 }

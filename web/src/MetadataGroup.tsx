@@ -1,4 +1,4 @@
-import { Button, Text } from "@mantine/core";
+import { Button, Group, Text } from "@mantine/core";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   useIsMutating,
@@ -19,15 +19,18 @@ export function MetadataGroup({
   fileID,
   extractor,
   children,
+  actions,
 }: {
   title: string;
   fileID: string;
   extractor?: string;
   children: ReactNode;
+  actions?: ReactNode;
 }) {
   const { t } = useI18n();
   const queries = useQueryClient();
-  const ai = extractor === "ocr" || extractor === "desc";
+  const ai =
+    extractor === "ocr" || extractor === "desc" || extractor === "orientation";
   const key = ["metadata-refresh", fileID, extractor];
   const busy = useIsMutating({ mutationKey: key }) > 0;
   const [error, setError] = useState("");
@@ -99,25 +102,28 @@ export function MetadataGroup({
           <h4>
             <bdi>{title}</bdi>
           </h4>
-          {extractor && (
-            <Button
-              variant="subtle"
-              size="compact-xs"
-              className="metadata-refresh-action"
-              data-active={busy || pending || !!issue || undefined}
-              disabled={busy || pending || (ai && job.isPending)}
-              aria-label={t("reextractGroup", { group: title })}
-              onClick={() => mutation.mutate()}
-            >
-              {t(
-                busy || (ai && job.data?.state === "running")
-                  ? "extracting"
-                  : pending
-                    ? "reextractQueued"
-                    : "reextract",
-              )}
-            </Button>
-          )}
+          <Group gap="xs">
+            {actions}
+            {extractor && (
+              <Button
+                variant="subtle"
+                size="compact-xs"
+                className="metadata-refresh-action"
+                data-active={busy || pending || !!issue || undefined}
+                disabled={busy || pending || (ai && job.isPending)}
+                aria-label={t("reextractGroup", { group: title })}
+                onClick={() => mutation.mutate()}
+              >
+                {t(
+                  busy || (ai && job.data?.state === "running")
+                    ? "extracting"
+                    : pending
+                      ? "reextractQueued"
+                      : "reextract",
+                )}
+              </Button>
+            )}
+          </Group>
         </div>
       )}
       {issue && (

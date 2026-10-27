@@ -25,6 +25,9 @@ type fakeOCR struct {
 	calls int
 }
 
+func (f *fakeOCR) ChooseUpright(context.Context, string, []ai.Image, bool) (ai.UprightChoice, error) {
+	return ai.UprightChoice{Index: -1, Evidence: "none", Provider: "test", Model: "test"}, nil
+}
 func (f *fakeOCR) Models(context.Context) ([]ai.Model, error) { return nil, nil }
 func (f *fakeOCR) OCR(context.Context, string, ai.Image) (ai.OCRResult, error) {
 	f.calls++

@@ -105,10 +105,13 @@ func (p *PreparedExtraction) Commit(ctx context.Context) error {
 // MediaInfo is persisted classification plus extraction work still needed by
 // the current build. Missing classification is distinct from the "other" kind.
 type MediaInfo struct {
-	Size    *int64
-	MIME    string
-	Kind    string
-	Pending []string
+	Rotation       int
+	RotationBlob   string
+	RotationManual bool
+	Size           *int64
+	MIME           string
+	Kind           string
+	Pending        []string
 }
 
 func (l *Library) MediaInfo(ctx context.Context, id domain.FileID) (MediaInfo, error) {
@@ -142,6 +145,12 @@ func readMediaInfo(q store.Queryer, id domain.FileID) (MediaInfo, error) {
 			out.Kind = row.Value
 		}
 	}
+	for _, row := range rows {
+		if row.Key == "orientation:input_sha256" && !row.Tombstone {
+			out.RotationBlob = row.Value
+		}
+	}
+	out.Rotation, _, out.RotationManual = imageRotation(rows, out.RotationBlob)
 	versions, err := store.Extractions(q, id)
 	if err != nil {
 		return out, err

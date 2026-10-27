@@ -2,6 +2,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
+import { ImageRotation } from "./ImageRotation";
+import type { ArchiveFile } from "./api";
 import { FileDetail } from "./FileDetail";
 import { AIConnection, OCRAction, OCRText } from "./AI";
 import { I18nProvider, storageKey } from "./i18n";
@@ -46,10 +48,15 @@ function defaults(path: string) {
       model: "gpt-6-luna",
       auto_ocr: false,
       auto_desc: false,
+      auto_orientation: false,
       proxy_url: "",
       revision: "one",
     });
-  if (path.endsWith("/ai/ocr") || path.endsWith("/ai/desc"))
+  if (
+    path.endsWith("/ai/ocr") ||
+    path.endsWith("/ai/desc") ||
+    path.endsWith("/ai/orientation")
+  )
     return Response.json({
       paused: false,
       scanning: false,
@@ -100,6 +107,7 @@ it("does not run OCR before a default model is saved", async () => {
           model: "",
           auto_ocr: false,
           auto_desc: false,
+          auto_orientation: false,
           proxy_url: "",
           revision: "one",
         });
@@ -142,6 +150,7 @@ it("shows model loading and saves shared options without triggering a backfill",
           model: "",
           auto_ocr: false,
           auto_desc: false,
+          auto_orientation: false,
           proxy_url: "",
           revision: "one",
         });
@@ -181,6 +190,7 @@ it("shows model loading and saves shared options without triggering a backfill",
       model: "gpt-6-luna",
       auto_ocr: true,
       auto_desc: false,
+      auto_orientation: false,
       proxy_url: "http://127.0.0.1:7890",
       revision: "one",
     },
@@ -402,4 +412,54 @@ it("shows original OCR whitespace in the full-text tooltip", async () => {
   mount(<OCRText text={text} />);
   await userEvent.hover(document.querySelector(".copy-text-preview")!);
   expect((await screen.findByRole("tooltip")).textContent).toBe(text);
+});
+
+it("restores automatic direction with a stable request key after a lost response", async () => {
+  const writes: { path: string; init: RequestInit }[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string, init?: RequestInit) => {
+      if (init?.method) {
+        writes.push({ path, init });
+        if (
+          path.endsWith("/orientation") &&
+          writes.filter((w) => w.path === path).length === 1
+        )
+          return Response.json(
+            { code: "internal", message: "Lost response" },
+            { status: 502 },
+          );
+      }
+      return Response.json({ state: "queued" });
+    }),
+  );
+  const file = {
+    id: "file",
+    blob_key: "blob",
+    image_rotation: 90,
+    image_rotation_manual: true,
+  } as ArchiveFile;
+  mount(<ImageRotation file={file} />);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Adjust orientation" }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Restore AI orientation" }),
+  );
+  await screen.findByText(/Lost response/);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Restore AI orientation" }),
+  );
+  const jobs = writes.filter((w) => w.path.endsWith("/orientation"));
+  expect(jobs).toHaveLength(2);
+  expect(JSON.parse(jobs[0].init.body as string)).toEqual(
+    expect.objectContaining({ force: true, retry: false }),
+  );
+  expect(jobs[0].init.body).toBe(jobs[1].init.body);
+  const overrides = writes.filter((w) => w.path.endsWith("/image-rotation"));
+  expect(JSON.parse(overrides[0].init.body as string)).toEqual({
+    blob_key: "blob",
+    clockwise_degrees: null,
+  });
+  expect(overrides[0].init.headers).toEqual(overrides[1].init.headers);
 });

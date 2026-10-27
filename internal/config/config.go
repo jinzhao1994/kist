@@ -18,12 +18,14 @@ import (
 const CurrentVersion = 2
 
 type AIOptions struct {
-	AutoDesc    bool   `toml:"auto_desc" json:"auto_desc"`
-	DescAfterOp int64  `toml:"desc_after_op" json:"-"`
-	Model       string `toml:"model" json:"model"`
-	AutoOCR     bool   `toml:"auto_ocr" json:"auto_ocr"`
-	AfterOp     int64  `toml:"after_op" json:"-"`
-	ProxyURL    string `toml:"proxy_url" json:"proxy_url"`
+	AutoOrientation    bool   `toml:"auto_orientation" json:"auto_orientation"`
+	OrientationAfterOp int64  `toml:"orientation_after_op" json:"-"`
+	AutoDesc           bool   `toml:"auto_desc" json:"auto_desc"`
+	DescAfterOp        int64  `toml:"desc_after_op" json:"-"`
+	Model              string `toml:"model" json:"model"`
+	AutoOCR            bool   `toml:"auto_ocr" json:"auto_ocr"`
+	AfterOp            int64  `toml:"after_op" json:"-"`
+	ProxyURL           string `toml:"proxy_url" json:"proxy_url"`
 }
 
 type Config struct {

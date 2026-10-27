@@ -54,6 +54,7 @@ func TestAISettingsAndQueueRoutes(t *testing.T) {
 	value["model"] = "gpt-6-luna"
 	value["auto_ocr"] = true
 	value["auto_desc"] = true
+	value["auto_orientation"] = true
 	value["proxy_url"] = "http://127.0.0.1:7890"
 	body, _ := json.Marshal(value)
 	if got := callLocal("PUT", "/ai/settings", string(body)); got.Code != 200 {
@@ -107,7 +108,7 @@ func TestAIReextractHTTPContract(t *testing.T) {
 	if _, err := l.SaveOCRSettings(t.Context(), cfg); err != nil {
 		t.Fatal(err)
 	}
-	for _, kind := range []string{"ocr", "desc"} {
+	for _, kind := range []string{"ocr", "desc", "orientation"} {
 		key := uuid.NewString()
 		send := func(payload string) *httptest.ResponseRecorder {
 			r := httptest.NewRequest("POST", "http://localhost:8473"+Prefix+"/files/"+files.Files[0].ID+"/"+kind, strings.NewReader(payload))
@@ -134,6 +135,40 @@ func TestAIReextractHTTPContract(t *testing.T) {
 			if job.State != "queued" || !job.Force || job.RequestID != key {
 				t.Fatal(job)
 			}
+		}
+	}
+}
+
+func TestManualImageRotationHTTPContract(t *testing.T) {
+	s, l := testServer(t)
+	box, err := l.CreateBox(t.Context(), "rotate", "", domain.LocalDate{}, domain.LocalDate{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var raw bytes.Buffer
+	png.Encode(&raw, image.NewRGBA(image.Rect(0, 0, 4, 2)))
+	body, media := multipartUpload(t, []uploadFile{{Path: "direction.png", LastModified: 1600000000000}}, []uploadFixture{{"direction.png", raw.String()}})
+	if w := upload(t, s, box.ID.String(), "rotation-fixture", body, media); w.Code != 200 {
+		t.Fatal(w.Code, w.Body)
+	}
+	f := decodeBody[wire.FileList](t, s, "/files").Files[0]
+	path := Prefix + "/files/" + f.ID + "/image-rotation"
+	for _, angle := range []any{90, nil, 0} {
+		body, _ := json.Marshal(map[string]any{"blob_key": f.BlobKey, "clockwise_degrees": angle})
+		key := uuid.NewString()
+		for range 2 {
+			w := call(s, "PUT", path, key, string(body))
+			if w.Code != 200 {
+				t.Fatal(w.Code, w.Body)
+			}
+		}
+		got := decodeBody[wire.FileList](t, s, "/files").Files[0]
+		if angle == nil {
+			if got.ImageRotationManual {
+				t.Fatal("manual direction not released")
+			}
+		} else if !got.ImageRotationManual || got.ImageRotation != angle.(int) {
+			t.Fatal(got)
 		}
 	}
 }

@@ -35,6 +35,10 @@ func (c *Client) offlinePreviewsLocked(ctx context.Context, originals []ClientOf
 			if !ok {
 				continue
 			}
+			if info.RotationBlob == original.Key && info.Rotation != 0 && profile.CorrectedDetail != "" {
+				profile.Thumbnail = derive.RotatedRecipe(profile.Thumbnail, info.Rotation)
+				profile.Detail = derive.RotatedRecipe(profile.CorrectedDetail, info.Rotation)
+			}
 			recipes := []string{profile.Thumbnail}
 			if profile.Detail != "" && profile.Detail != profile.Thumbnail {
 				recipes = append(recipes, profile.Detail)

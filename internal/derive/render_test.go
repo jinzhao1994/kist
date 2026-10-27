@@ -318,3 +318,29 @@ func TestPNGEXIFOrientation(t *testing.T) {
 		t.Fatal(result)
 	}
 }
+
+func TestCorrectedRecipesPreserveFullResolutionAndEXIF(t *testing.T) {
+	r := Renderer{}
+	for _, tc := range []struct {
+		input, recipe string
+		w, h          int
+	}{
+		{fixture(t, 2300, 1200), RotatedRecipe(UprightImage, 90), 1200, 2300},
+		{orientedJPEG(t, 6), RotatedRecipe(UprightImage, 270), 80, 40},
+		{fixture(t, 1200, 800), RotatedRecipe(Thumbnail, 90), 341, 512},
+	} {
+		out := filepath.Join(t.TempDir(), "output")
+		if _, err := r.Render(t.Context(), tc.input, out, tc.recipe); err != nil {
+			t.Fatal(err)
+		}
+		cfg := dimensions(t, out)
+		if cfg.Width != tc.w || cfg.Height != tc.h {
+			t.Fatal(tc.recipe, cfg)
+		}
+	}
+	for _, recipe := range []string{"thumb_v1_cw45", Thumbnail + "_cw0", Thumbnail + "_cw090", Video + "_cw90", UprightImage + "_cw360"} {
+		if _, ok := Lookup(recipe); ok {
+			t.Fatal("invalid recipe accepted", recipe)
+		}
+	}
+}

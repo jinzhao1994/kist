@@ -170,6 +170,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai/orientation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 ai orientation */
+        get: operations["get-api-v1-ai-orientation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/orientation/backfill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 ai orientation backfill */
+        post: operations["post-api-v1-ai-orientation-backfill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/orientation/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 ai orientation pause */
+        post: operations["post-api-v1-ai-orientation-pause"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ai/settings": {
         parameters: {
             query?: never;
@@ -541,6 +592,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/files/{id}/image-rotation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put API v1 files by ID image rotation */
+        put: operations["put-api-v1-files-by-id-image-rotation"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/files/{id}/ocr": {
         parameters: {
             query?: never;
@@ -553,6 +621,24 @@ export interface paths {
         put?: never;
         /** Post API v1 files by ID ocr */
         post: operations["post-api-v1-files-by-id-ocr"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{id}/orientation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 files by ID orientation */
+        get: operations["get-api-v1-files-by-id-orientation"];
+        put?: never;
+        /** Post API v1 files by ID orientation */
+        post: operations["post-api-v1-files-by-id-orientation"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1477,6 +1563,12 @@ export interface components {
             extraction_pending?: string[] | null;
             folder_id: string;
             id: string;
+            /**
+             * Format: int64
+             * @enum {integer}
+             */
+            image_rotation?: 0 | 90 | 180 | 270;
+            image_rotation_manual?: boolean;
             kind?: string;
             media_type?: string;
             name: string;
@@ -1507,6 +1599,12 @@ export interface components {
             fileset_id?: string;
             folder_id: string;
             id: string;
+            /**
+             * Format: int64
+             * @enum {integer}
+             */
+            image_rotation?: 0 | 90 | 180 | 270;
+            image_rotation_manual?: boolean;
             kind?: string;
             media_type?: string;
             name: string;
@@ -1748,6 +1846,7 @@ export interface components {
         OCRSettings: {
             auto_desc: boolean;
             auto_ocr: boolean;
+            auto_orientation: boolean;
             model: string;
             proxy_url: string;
             revision: string;
@@ -1773,6 +1872,12 @@ export interface components {
         "Post-api-v1-ai-ocr-pauseRequest": {
             paused: boolean;
         };
+        "Post-api-v1-ai-orientation-backfillRequest": {
+            retry: boolean;
+        };
+        "Post-api-v1-ai-orientation-pauseRequest": {
+            paused: boolean;
+        };
         "Post-api-v1-boxes-by-id-foldersRequest": {
             name: string;
             parent?: string;
@@ -1783,6 +1888,11 @@ export interface components {
             retry: boolean;
         };
         "Post-api-v1-files-by-id-ocrRequest": {
+            force?: boolean;
+            request_id?: string;
+            retry: boolean;
+        };
+        "Post-api-v1-files-by-id-orientationRequest": {
             force?: boolean;
             request_id?: string;
             retry: boolean;
@@ -1799,6 +1909,11 @@ export interface components {
         };
         "Put-api-v1-boxes-by-id-coverRequest": {
             file_id: string;
+        };
+        "Put-api-v1-files-by-id-image-rotationRequest": {
+            blob_key: string;
+            /** Format: int64 */
+            clockwise_degrees: number | null;
         };
         "Put-api-v1-settings-credentials-by-idRequest": {
             note: string;
@@ -2422,6 +2537,101 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["Post-api-v1-ai-ocr-pauseRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRQueueStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-ai-orientation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRQueueStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-ai-orientation-backfill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-ai-orientation-backfillRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRQueueStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-ai-orientation-pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-ai-orientation-pauseRequest"];
             };
         };
         responses: {
@@ -3438,6 +3648,7 @@ export interface operations {
                     "application/geo+json": Record<string, never>;
                     "application/pdf": string;
                     "image/jpeg": string;
+                    "image/png": string;
                     "video/mp4": string;
                 };
             };
@@ -3488,6 +3699,7 @@ export interface operations {
                     "application/geo+json": Record<string, never>;
                     "application/pdf": string;
                     "image/jpeg": string;
+                    "image/png": string;
                     "video/mp4": string;
                 };
             };
@@ -3618,6 +3830,43 @@ export interface operations {
             };
         };
     };
+    "put-api-v1-files-by-id-image-rotation": {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Put-api-v1-files-by-id-image-rotationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
     "get-api-v1-files-by-id-ocr": {
         parameters: {
             query?: never;
@@ -3661,6 +3910,72 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["Post-api-v1-files-by-id-ocrRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRJob"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-files-by-id-orientation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRJob"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-files-by-id-orientation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-files-by-id-orientationRequest"];
             };
         };
         responses: {
