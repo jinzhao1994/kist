@@ -155,7 +155,6 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 		s.writeRoutes()
 		s.syncRoutes()
 	}
-	s.aiHintRoutes()
 	s.metadataEditRoutes()
 	s.navigationRoutes()
 	s.catalogRevisionRoute()

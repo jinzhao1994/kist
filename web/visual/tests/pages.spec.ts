@@ -4686,6 +4686,9 @@ for (const scenario of [
       expect(layout.lines).toBeLessThanOrEqual(3.05);
       expect(layout.lastLine).toBe(true);
     } else {
+      await expect(
+        page.getByRole("button", { name: "编辑补充信息", exact: true }),
+      ).toHaveCount(0);
       const action = page.getByRole("button", {
         name: scenario === "error" ? "重试" : "提取文字（OCR）",
         exact: true,
@@ -5384,7 +5387,8 @@ for (const variant of [
       mobile: variant === "mobile",
       mode: variant === "dark" ? "dark" : "light",
     });
-    let hint: string | null = null;
+    let hint = "";
+    let hintSource = "ocr";
     await page.route("**/api/v1/files/file-1", (route) =>
       route.fulfill({
         json: {
@@ -5392,6 +5396,8 @@ for (const variant of [
           tags: [],
           extracted: ["file", "media", "exif", "orientation", "ocr", "desc"],
           metadata: [
+            { key: "ocr:hint", value: hint, source: hintSource, type: "text" },
+            { key: "desc:hint", value: "", source: "desc", type: "text" },
             {
               key: "ocr:text",
               value: "合成测试文档\n示例姓名",
@@ -5404,24 +5410,18 @@ for (const variant of [
               source: "desc",
               type: "text",
             },
-            ...(hint === null
-              ? []
-              : [
-                  {
-                    key: "ocr:hint",
-                    value: hint,
-                    source: "user",
-                    type: "text",
-                  },
-                ]),
           ],
         },
       }),
     );
-    await page.route("**/api/v1/files/file-1/metadata/hints/ocr", (route) => {
+    await page.route("**/api/v1/files/file-1/metadata", (route) => {
       const body = route.request().postDataJSON();
-      expect(body.before).toBe(hint);
+      expect(body.key).toBe("ocr:hint");
+      expect(body.before_value).toBe(hint);
+      expect(body.before_source).toBe(hintSource);
+      expect(body.before_type).toBe("text");
       hint = body.value;
+      hintSource = "user";
       return route.fulfill({ json: { op_id: 51 } });
     });
     await page.goto("/files?file=file-1");
@@ -5429,6 +5429,8 @@ for (const variant of [
     const group = page
       .locator(".file-metadata-group")
       .filter({ has: page.getByRole("heading", { name: "OCR", exact: true }) });
+    if (variant !== "manual")
+      await expect(group.getByRole("img", { name: /人工编辑/ })).toHaveCount(0);
     const fieldRows = group.locator(".metadata-list > div");
     const hintBounds = await fieldRows.nth(0).boundingBox();
     const textBounds = await fieldRows.nth(1).boundingBox();

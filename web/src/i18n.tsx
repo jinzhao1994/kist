@@ -891,7 +891,6 @@ export const en = {
   aiHintManual:
     "The text was edited by you. You can save hints, but AI will not replace your text.",
   aiHintTooLong: "This hint is too long. Please shorten it before saving.",
-  aiInputHint: "Reference used",
   editMetadata: "Edit {field}",
   metadataUserEdited:
     "Edited by user; automatic extraction will not overwrite this value",
@@ -1800,7 +1799,6 @@ export const zh: Record<MessageKey, string> = {
   aiHintSaveRun: "保存并重新提取",
   aiHintManual: "正文已由你编辑。可以保存补充信息，AI 不会覆盖人工正文。",
   aiHintTooLong: "补充信息过长，请精简后保存。",
-  aiInputHint: "本次补充信息",
   editMetadata: "编辑{field}",
   metadataUserEdited: "人工编辑，自动提取不会覆盖此值",
   rename: "重命名",

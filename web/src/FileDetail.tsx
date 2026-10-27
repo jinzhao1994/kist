@@ -139,8 +139,6 @@ export function FileDetail({
     "media:mime": t("mimeType"),
     "media:kind": t("mediaKind"),
     "file:mtime": t("modified"),
-    "desc:input_hint": t("aiInputHint"),
-    "ocr:input_hint": t("aiInputHint"),
     "desc:text": t("descText"),
     "desc:model": t("aiModel"),
     "desc:provider": t("ocrProvider"),
@@ -368,26 +366,22 @@ export function FileDetail({
                   <OCRAction key={file.id} fileID={file.id} kind="desc" />
                 )}
                 <dl className="metadata-list">
-                  {(source === "ocr" || source === "desc") && (
-                    <AISupplement
-                      key={`${file.id}/${file.blob_key}/${source}`}
-                      fileID={file.id}
-                      blobKey={file.blob_key}
-                      kind={source}
-                      row={rows.find((row) => row.key === `${source}:hint`)}
-                      manual={rows.some(
-                        (row) =>
-                          row.key === `${source}:text` && row.source === "user",
-                      )}
-                      canRun={!clientMode && imageTextInput}
-                    />
-                  )}
-                  {rows
-                    .filter(
-                      (row) =>
-                        row.key !== "ocr:hint" && row.key !== "desc:hint",
-                    )
-                    .map((row) => (
+                  {rows.map((row) =>
+                    row.key === "ocr:hint" || row.key === "desc:hint" ? (
+                      <AISupplement
+                        key={`${file.id}/${file.blob_key}/${row.key}`}
+                        fileID={file.id}
+                        blobKey={file.blob_key}
+                        kind={row.key === "ocr:hint" ? "ocr" : "desc"}
+                        row={row}
+                        manual={rows.some(
+                          (item) =>
+                            item.key === `${source}:text` &&
+                            item.source === "user",
+                        )}
+                        canRun={!clientMode && imageTextInput}
+                      />
+                    ) : (
                       <div key={row.key}>
                         <MetadataLabel
                           metadataKey={row.key}
@@ -469,7 +463,8 @@ export function FileDetail({
                           </MetadataValue>
                         </dd>
                       </div>
-                    ))}
+                    ),
+                  )}
                 </dl>
                 {source === "gps" &&
                   !data.gps &&

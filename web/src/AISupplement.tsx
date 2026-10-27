@@ -14,19 +14,14 @@ type Props = {
   fileID: string;
   blobKey: string;
   kind: "ocr" | "desc";
-  row?: Row;
+  row: Row;
   manual: boolean;
   canRun: boolean;
 };
 
 export function AISupplement(props: Props) {
   const { t } = useI18n();
-  const row = props.row || {
-    key: `${props.kind}:hint`,
-    value: "",
-    type: "text",
-    source: "",
-  };
+  const { row } = props;
   return (
     <div>
       <MetadataLabel metadataKey={row.key} label={t("aiHint")}>
@@ -63,12 +58,10 @@ function HintEditor({
   manual,
   canRun,
   close,
-}: Props & { row: Row; close: () => void }) {
+}: Props & { close: () => void }) {
   const { t } = useI18n();
   const [value, setValue] = useState(row.value);
-  const [before, setBefore] = useState<string | null>(
-    row.source === "user" ? row.value : null,
-  );
+  const [before, setBefore] = useState(row);
   const state = useWrites(close);
   const queries = useQueryClient();
   const job = useQuery({
@@ -83,21 +76,24 @@ function HintEditor({
   const tooLong = new TextEncoder().encode(value).length > 1024;
   const save = (run: boolean) => {
     if (state.busy || state.locked || tooLong) return;
-    const write = createWrite(
-      "PUT",
-      `/files/${fileID}/metadata/hints/${kind}`,
-      {
-        blob_key: blobKey,
-        before,
-        value,
-      },
-    );
+    const write = createWrite("PUT", `/files/${fileID}/metadata`, {
+      blob_key: blobKey,
+      key: row.key,
+      before_value: before.value,
+      before_source: before.source,
+      before_type: before.type,
+      value,
+    });
     const operations = [
       {
         ...write,
         run: async (signal?: AbortSignal) => {
           const result = await write.run(signal);
-          setBefore(before === null && value === "" ? null : value);
+          setBefore({
+            ...before,
+            value,
+            source: value === before.value ? before.source : "user",
+          });
           await queries.invalidateQueries({ queryKey: ["file", fileID] });
           return result;
         },

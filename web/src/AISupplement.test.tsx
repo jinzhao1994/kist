@@ -31,6 +31,7 @@ function mount(manual = false, canRun = true) {
               fileID="file"
               blobKey="sha256:test"
               kind="ocr"
+              row={{ key: "ocr:hint", value: "", type: "text", source: "ocr" }}
               manual={manual}
               canRun={canRun}
             />
@@ -58,10 +59,13 @@ it("saves a bare name without calling inference, including offline", async () =>
   const [url, init] = (
     fetch.mock.calls as unknown as [string, RequestInit][]
   )[0];
-  expect(url).toBe("/api/v1/files/file/metadata/hints/ocr");
+  expect(url).toBe("/api/v1/files/file/metadata");
   expect(JSON.parse(String(init.body))).toEqual({
     blob_key: "sha256:test",
-    before: null,
+    key: "ocr:hint",
+    before_value: "",
+    before_source: "ocr",
+    before_type: "text",
     value: "Example Person",
   });
 });
