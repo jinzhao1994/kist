@@ -16,9 +16,9 @@ type descriptionProvider struct {
 	language string
 }
 
-func (p *descriptionProvider) Describe(ctx context.Context, model string, image ai.Image, language string) (ai.TextResult, error) {
-	p.language = language
-	return p.OCR(ctx, model, image)
+func (p *descriptionProvider) Describe(ctx context.Context, model string, image ai.Image, options ai.TextOptions) (ai.TextResult, error) {
+	p.language = options.Language
+	return p.OCR(ctx, model, image, options)
 }
 func TestDescriptionMetadataReplayUndoAndIsolation(t *testing.T) {
 	l := openTestLibrary(t)
@@ -55,7 +55,7 @@ func TestDescriptionMetadataReplayUndoAndIsolation(t *testing.T) {
 	if values["ocr:text"] != "original OCR" || values["desc:text"] != p.text || values["desc:language"] != "zh-CN" || p.language != "zh-CN" {
 		t.Fatal(values)
 	}
-	if values["desc:recipe"] != "5" || values["ocr:recipe"] != "3" {
+	if values["desc:recipe"] != "6" || values["ocr:recipe"] != "4" {
 		t.Fatal("incorrect recipe versions", values)
 	}
 	afterFile, _, _ := l.File(t.Context(), id)

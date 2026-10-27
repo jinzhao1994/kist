@@ -37,3 +37,35 @@ func (s *Server) metadataEditRoutes() {
 		})
 	})
 }
+
+type aiHintInput struct {
+	ID   string `path:"id"`
+	Kind string `path:"kind" enum:"ocr,desc"`
+	Key  string `header:"Idempotency-Key" required:"true"`
+	Body library.AIHintEdit
+}
+
+func (s *Server) aiHintRoutes() {
+	const path = Prefix + "/files/{id}/metadata/hints/{kind}"
+	if s.client != nil {
+		huma.Put(s.contract, path, func(ctx context.Context, in *aiHintInput) (*output[library.ClientRequestResult], error) {
+			id, err := parseID(in.ID)
+			if err != nil {
+				return nil, err
+			}
+			return s.clientMutate(ctx, in.Key, "PUT", Prefix+"/files/"+id.String()+"/metadata/hints/"+in.Kind, in.Body, func(ctx context.Context) error {
+				return s.client.SetAIHint(ctx, domain.FileID{ID: id}, in.Kind, in.Body)
+			})
+		})
+		return
+	}
+	huma.Put(s.contract, path, func(ctx context.Context, in *aiHintInput) (*output[library.RequestResult], error) {
+		id, err := parseID(in.ID)
+		if err != nil {
+			return nil, err
+		}
+		return s.mutate(ctx, in.Key, "PUT", Prefix+"/files/"+id.String()+"/metadata/hints/"+in.Kind, in.Body, func(ctx context.Context) error {
+			return s.library.SetAIHint(ctx, domain.FileID{ID: id}, in.Kind, in.Body)
+		})
+	})
+}

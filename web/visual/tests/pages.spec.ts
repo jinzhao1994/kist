@@ -5324,9 +5324,16 @@ for (const variant of [
     const group = page
       .locator(".file-metadata-group")
       .filter({ has: page.getByRole("heading", { name: "OCR", exact: true }) });
-    await group.locator(".metadata-value").hover();
+    await group
+      .locator(".metadata-value")
+      .filter({
+        has: group.getByRole("button", { name: "编辑识别文字", exact: true }),
+      })
+      .hover();
     if (variant === "hover") {
-      const cell = group.locator(".metadata-value");
+      const cell = group.locator(".metadata-value").filter({
+        has: group.getByRole("button", { name: "编辑识别文字", exact: true }),
+      });
       const value = await cell.locator(".metadata-value-content").boundingBox();
       const bounds = await cell.boundingBox();
       expect(value?.width).toBe(bounds?.width);
@@ -5359,6 +5366,99 @@ for (const variant of [
           page.getByRole("heading", { name: "user", exact: true }),
         ).toHaveCount(0);
       } else await expect(group.getByRole("alert")).toBeVisible();
+    }
+    await capture(page, errors, info.title);
+  });
+}
+
+for (const variant of [
+  "empty",
+  "edit",
+  "saved",
+  "manual",
+  "mobile",
+  "dark",
+] as const) {
+  test(`ai-supplement-${variant}`, async ({ page }, info) => {
+    const errors = await prepare(page, {
+      mobile: variant === "mobile",
+      mode: variant === "dark" ? "dark" : "light",
+    });
+    let hint: string | null = null;
+    await page.route("**/api/v1/files/file-1", (route) =>
+      route.fulfill({
+        json: {
+          file: files[0],
+          tags: [],
+          extracted: ["file", "media", "exif", "orientation", "ocr", "desc"],
+          metadata: [
+            {
+              key: "ocr:text",
+              value: "合成测试文档\n示例姓名",
+              source: variant === "manual" ? "user" : "ocr",
+              type: "text",
+            },
+            {
+              key: "desc:text",
+              value: "一份用于验收的合成文档。",
+              source: "desc",
+              type: "text",
+            },
+            ...(hint === null
+              ? []
+              : [
+                  {
+                    key: "ocr:hint",
+                    value: hint,
+                    source: "user",
+                    type: "text",
+                  },
+                ]),
+          ],
+        },
+      }),
+    );
+    await page.route("**/api/v1/files/file-1/metadata/hints/ocr", (route) => {
+      const body = route.request().postDataJSON();
+      expect(body.before).toBe(hint);
+      hint = body.value;
+      return route.fulfill({ json: { op_id: 51 } });
+    });
+    await page.goto("/files?file=file-1");
+    await page.getByRole("button", { name: "文件详情", exact: true }).click();
+    const group = page
+      .locator(".file-metadata-group")
+      .filter({ has: page.getByRole("heading", { name: "OCR", exact: true }) });
+    const hintLabel = group.locator("dt bdi").filter({ hasText: /^补充信息$/ });
+    await hintLabel.hover();
+    await expect(
+      page.getByRole("tooltip", { name: "ocr:hint", exact: true }),
+    ).toBeVisible();
+    await page.mouse.move(0, 0);
+    await expect(
+      page.getByRole("tooltip", { name: "ocr:hint", exact: true }),
+    ).toHaveCount(0);
+    if (variant !== "empty") {
+      await group
+        .getByRole("button", { name: "编辑补充信息", exact: true })
+        .focus();
+      await group
+        .getByRole("button", { name: "编辑补充信息", exact: true })
+        .click();
+      await group
+        .getByRole("textbox", { name: "补充信息", exact: true })
+        .fill("示例姓名");
+      if (variant === "saved") {
+        await group.getByRole("button", { name: "保存", exact: true }).click();
+        await expect(group.getByRole("textbox")).toHaveCount(0);
+        await expect(
+          group.getByRole("img", { name: /人工编辑/ }),
+        ).toBeVisible();
+      }
+      if (variant === "manual")
+        await expect(
+          group.getByRole("button", { name: "保存并重新提取", exact: true }),
+        ).toBeDisabled();
     }
     await capture(page, errors, info.title);
   });

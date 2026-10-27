@@ -51,4 +51,30 @@ func TestMetadataEditHTTP(t *testing.T) {
 	if bad.Code != 400 {
 		t.Fatal(bad.Code, bad.Body)
 	}
+	hintPath := Prefix + "/files/" + f.ID + "/metadata/hints/ocr"
+	hint := library.AIHintEdit{BlobKey: f.BlobKey, Value: "Example Person"}
+	raw, _ = json.Marshal(hint)
+	saved := call(s, "PUT", hintPath, "hint-save", string(raw))
+	if saved.Code != 200 {
+		t.Fatal(saved.Code, saved.Body)
+	}
+	again := call(s, "PUT", hintPath, "hint-save", string(raw))
+	if again.Body.String() != saved.Body.String() {
+		t.Fatal("hint retry changed receipt")
+	}
+	stale = call(s, "PUT", hintPath, "hint-stale", string(raw))
+	if stale.Code != 409 {
+		t.Fatal(stale.Code, stale.Body)
+	}
+	detail = decodeBody[fileDetail](t, s, "/files/"+f.ID)
+	found := false
+	for _, row := range detail.Metadata {
+		if row.Key == "ocr:hint" && row.Value == hint.Value && row.Source == "user" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("hint missing from detail")
+	}
+
 }

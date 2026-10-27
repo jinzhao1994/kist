@@ -81,11 +81,11 @@ func (c Client) Models(ctx context.Context) ([]ai.Model, error) {
 	}
 	return out, nil
 }
-func (c Client) OCR(ctx context.Context, model string, img ai.Image) (ai.OCRResult, error) {
-	return c.imageText(ctx, model, img, ai.OCRPrompt())
+func (c Client) OCR(ctx context.Context, model string, img ai.Image, options ai.TextOptions) (ai.OCRResult, error) {
+	return c.imageText(ctx, model, img, ai.OCRPrompt(options.Supplement))
 }
-func (c Client) Describe(ctx context.Context, model string, img ai.Image, language string) (ai.TextResult, error) {
-	return c.imageText(ctx, model, img, ai.DescriptionPrompt(language))
+func (c Client) Describe(ctx context.Context, model string, img ai.Image, options ai.TextOptions) (ai.TextResult, error) {
+	return c.imageText(ctx, model, img, ai.DescriptionPrompt(options.Language, options.Supplement))
 }
 func (c Client) imageText(ctx context.Context, model string, img ai.Image, prompt ai.Prompt) (ai.TextResult, error) {
 	if len(img.Data) == 0 || len(img.Data) > ai.MaxImageBytes {

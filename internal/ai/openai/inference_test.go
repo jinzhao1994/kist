@@ -56,7 +56,7 @@ func TestOCRWireAndModelCatalog(t *testing.T) {
 		if imageInput["detail"] != "original" {
 			t.Errorf("image detail = %v, want original", imageInput["detail"])
 		}
-		prompt := ai.OCRPrompt()
+		prompt := ai.OCRPrompt("")
 		if prompt.Instructions == "" || body["instructions"] != prompt.Instructions {
 			t.Error("OCR instructions did not come from the shared task prompt")
 		}
@@ -73,7 +73,7 @@ func TestOCRWireAndModelCatalog(t *testing.T) {
 	if err != nil || len(models) != 1 {
 		t.Fatal(models, err)
 	}
-	out, err := c.OCR(t.Context(), models[0].ID, ai.Image{MIME: "image/png", Data: []byte("image")})
+	out, err := c.OCR(t.Context(), models[0].ID, ai.Image{MIME: "image/png", Data: []byte("image")}, ai.TextOptions{})
 	if err != nil || out.Text != "hello" || out.Model != "gpt-6-luna" {
 		t.Fatal(out, err)
 	}
@@ -90,8 +90,8 @@ func TestDescriptionWireUsesIndependentLocalizedPrompt(t *testing.T) {
 		if imageInput["detail"] != "original" {
 			t.Errorf("image detail = %v, want original", imageInput["detail"])
 		}
-		prompt := ai.DescriptionPrompt("zh-CN")
-		if body["instructions"] != prompt.Instructions || !strings.Contains(prompt.Instructions, "zh-CN") || strings.Contains(prompt.Instructions, "{{language}}") || prompt.Instructions == ai.OCRPrompt().Instructions {
+		prompt := ai.DescriptionPrompt("zh-CN", "")
+		if body["instructions"] != prompt.Instructions || !strings.Contains(prompt.Instructions, "zh-CN") || strings.Contains(prompt.Instructions, "{{language}}") || prompt.Instructions == ai.OCRPrompt("").Instructions {
 			t.Error("wrong description prompt")
 		}
 		if body["store"] != false || body["stream"] != true {
@@ -101,7 +101,7 @@ func TestDescriptionWireUsesIndependentLocalizedPrompt(t *testing.T) {
 	}))
 	defer server.Close()
 	c := Client{BaseURL: server.URL, Token: "test-token"}
-	out, err := c.Describe(t.Context(), "test", ai.Image{MIME: "image/png", Data: []byte("image")}, "zh-CN")
+	out, err := c.Describe(t.Context(), "test", ai.Image{MIME: "image/png", Data: []byte("image")}, ai.TextOptions{Language: "zh-CN"})
 	if err != nil || out.Text != "一张测试文档。" {
 		t.Fatal(out, err)
 	}
@@ -139,5 +139,41 @@ func TestOrientationWireFourCandidates(t *testing.T) {
 	got, err := c.ChooseUpright(t.Context(), "test", images, true)
 	if err != nil || got.Index != 2 || got.Provider != "openai" || got.Model != "test" {
 		t.Fatal(got, err)
+	}
+}
+
+func TestHintsReachImageRequestAsReferenceData(t *testing.T) {
+	for _, kind := range []string{"ocr", "desc"} {
+		t.Run(kind, func(t *testing.T) {
+			const hint = "Example Person"
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]any
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					t.Fatal(err)
+				}
+				content := body["input"].([]any)[0].(map[string]any)["content"].([]any)
+				text := content[0].(map[string]any)["text"].(string)
+				if !strings.Contains(text, `"Example Person"`) || strings.Contains(body["instructions"].(string), hint) {
+					t.Fatal("reference crossed instruction boundary")
+				}
+				if content[1].(map[string]any)["detail"] != "original" || body["reasoning"].(map[string]any)["effort"] != "low" {
+					t.Fatal("image quality or effort changed")
+				}
+				w.Write([]byte("data: {\"type\":\"response.output_text.done\",\"text\":\"Synthetic result\"}\n\ndata: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\"}}\n"))
+			}))
+			defer server.Close()
+			c := Client{BaseURL: server.URL}
+			options := ai.TextOptions{Language: "zh-CN", Supplement: hint}
+			img := ai.Image{MIME: "image/png", Data: []byte("synthetic")}
+			var err error
+			if kind == "ocr" {
+				_, err = c.OCR(t.Context(), "test", img, options)
+			} else {
+				_, err = c.Describe(t.Context(), "test", img, options)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }

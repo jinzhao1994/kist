@@ -23,11 +23,17 @@ type TextResult struct {
 // OCRResult preserves the OCR contract while sharing generated-text provenance.
 type OCRResult = TextResult
 
+// TextOptions carries task context independently of provider request formats.
+type TextOptions struct {
+	Language   string
+	Supplement string
+}
+
 // Provider does not write archive state. Only completed results may be committed.
 type Provider interface {
 	Models(context.Context) ([]Model, error)
-	OCR(context.Context, string, Image) (OCRResult, error)
-	Describe(context.Context, string, Image, string) (TextResult, error)
+	OCR(context.Context, string, Image, TextOptions) (OCRResult, error)
+	Describe(context.Context, string, Image, TextOptions) (TextResult, error)
 	ChooseUpright(context.Context, string, []Image, bool) (UprightChoice, error)
 }
 

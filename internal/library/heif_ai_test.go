@@ -21,16 +21,16 @@ type heifProvider struct {
 	t *testing.T
 }
 
-func (p *heifProvider) OCR(ctx context.Context, model string, input ai.Image) (ai.TextResult, error) {
+func (p *heifProvider) OCR(ctx context.Context, model string, input ai.Image, options ai.TextOptions) (ai.TextResult, error) {
 	p.t.Helper()
 	cfg, format, err := image.DecodeConfig(bytes.NewReader(input.Data))
 	if err != nil || input.MIME != "image/jpeg" || format != "jpeg" || cfg.Width != 128 || cfg.Height != 96 {
 		p.t.Fatal(input.MIME, cfg, format, err)
 	}
-	return p.fakeOCR.OCR(ctx, model, input)
+	return p.fakeOCR.OCR(ctx, model, input, options)
 }
-func (p *heifProvider) Describe(ctx context.Context, model string, input ai.Image, language string) (ai.TextResult, error) {
-	return p.OCR(ctx, model, input)
+func (p *heifProvider) Describe(ctx context.Context, model string, input ai.Image, options ai.TextOptions) (ai.TextResult, error) {
+	return p.OCR(ctx, model, input, options)
 }
 
 func TestHEIFAIQueueAndSourceIdentity(t *testing.T) {

@@ -29,12 +29,12 @@ func (f *fakeOCR) ChooseUpright(context.Context, string, []ai.Image, bool) (ai.U
 	return ai.UprightChoice{Index: -1, Evidence: "none", Provider: "test", Model: "test"}, nil
 }
 func (f *fakeOCR) Models(context.Context) ([]ai.Model, error) { return nil, nil }
-func (f *fakeOCR) OCR(context.Context, string, ai.Image) (ai.OCRResult, error) {
+func (f *fakeOCR) OCR(context.Context, string, ai.Image, ai.TextOptions) (ai.OCRResult, error) {
 	f.calls++
 	return ai.OCRResult{Text: f.text, Provider: "test", Model: "image-model"}, nil
 }
-func (f *fakeOCR) Describe(ctx context.Context, model string, img ai.Image, language string) (ai.TextResult, error) {
-	return f.OCR(ctx, model, img)
+func (f *fakeOCR) Describe(ctx context.Context, model string, img ai.Image, options ai.TextOptions) (ai.TextResult, error) {
+	return f.OCR(ctx, model, img, options)
 }
 func ocrFile(t *testing.T, l *Library) domain.FileID {
 	t.Helper()

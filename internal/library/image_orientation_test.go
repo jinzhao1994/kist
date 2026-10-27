@@ -44,16 +44,16 @@ func (p *uprightProvider) ChooseUpright(_ context.Context, _ string, images []ai
 	}
 	return ai.UprightChoice{Index: -1, Evidence: "none", Provider: "test", Model: "test"}, nil
 }
-func (p *uprightProvider) OCR(ctx context.Context, m string, input ai.Image) (ai.OCRResult, error) {
+func (p *uprightProvider) OCR(ctx context.Context, m string, input ai.Image, options ai.TextOptions) (ai.OCRResult, error) {
 	cfg, _, err := image.DecodeConfig(bytes.NewReader(input.Data))
 	if err != nil {
 		return ai.OCRResult{}, err
 	}
 	p.inputs = append(p.inputs, image.Pt(cfg.Width, cfg.Height))
-	return p.fakeOCR.OCR(ctx, m, input)
+	return p.fakeOCR.OCR(ctx, m, input, options)
 }
-func (p *uprightProvider) Describe(ctx context.Context, m string, input ai.Image, _ string) (ai.TextResult, error) {
-	return p.OCR(ctx, m, input)
+func (p *uprightProvider) Describe(ctx context.Context, m string, input ai.Image, options ai.TextOptions) (ai.TextResult, error) {
+	return p.OCR(ctx, m, input, options)
 }
 func rotationFile(t *testing.T, l *Library) domain.FileID {
 	t.Helper()

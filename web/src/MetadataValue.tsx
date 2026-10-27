@@ -19,12 +19,14 @@ export function MetadataValue({
   row,
   label,
   children,
+  editor,
 }: {
   fileID: string;
   blobKey: string;
   row: Row;
   label: string;
   children: ReactNode;
+  editor?: (row: Row, close: () => void) => ReactNode;
 }) {
   const { t } = useI18n();
   // Retain the displayed before-state even if background extraction refreshes.
@@ -60,6 +62,10 @@ export function MetadataValue({
     return () => observer.disconnect();
   }, [editing, row.value, t]);
   const editLabel = t("editMetadata", { field: label });
+  const close = () => {
+    setEditing(undefined);
+    trigger.current?.focus();
+  };
   return (
     <div
       ref={root}
@@ -70,30 +76,31 @@ export function MetadataValue({
     >
       <div className="metadata-value-content">
         {editing ? (
-          <InlineValueEdit
-            initialValue={editing.value}
-            label={editLabel}
-            multiline={
-              editing.key === "ocr:text" ||
-              editing.key === "desc:text" ||
-              /[\r\n]/u.test(editing.value) ||
-              editing.value.length > 160
-            }
-            close={() => {
-              setEditing(undefined);
-              trigger.current?.focus();
-            }}
-            write={(value) =>
-              createWrite("PUT", `/files/${fileID}/metadata`, {
-                blob_key: blobKey,
-                key: editing.key,
-                before_value: editing.value,
-                before_source: editing.source,
-                before_type: editing.type,
-                value,
-              })
-            }
-          />
+          editor ? (
+            editor(editing, close)
+          ) : (
+            <InlineValueEdit
+              initialValue={editing.value}
+              label={editLabel}
+              multiline={
+                editing.key === "ocr:text" ||
+                editing.key === "desc:text" ||
+                /[\r\n]/u.test(editing.value) ||
+                editing.value.length > 160
+              }
+              close={close}
+              write={(value) =>
+                createWrite("PUT", `/files/${fileID}/metadata`, {
+                  blob_key: blobKey,
+                  key: editing.key,
+                  before_value: editing.value,
+                  before_source: editing.source,
+                  before_type: editing.type,
+                  value,
+                })
+              }
+            />
+          )
         ) : (
           children
         )}

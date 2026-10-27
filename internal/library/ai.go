@@ -192,6 +192,17 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 	if expectedBlob != "" && p.file.BlobKey != expectedBlob {
 		return nil, ErrOCRChanged
 	}
+	var supplement string
+	if kind == "ocr" || kind == "desc" {
+		for _, row := range p.rows {
+			if row.Key == kind+":text" && row.Source == extract.UserSource {
+				return p, nil
+			}
+			if row.Key == kind+":hint" && !row.Tombstone && row.Source == extract.UserSource {
+				supplement = row.Value
+			}
+		}
+	}
 	if kind == "orientation" {
 		_, known, manual := imageRotation(p.rows, p.file.BlobKey)
 		if manual || known && !force {
@@ -286,9 +297,9 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 		}
 		var result ai.TextResult
 		if kind == "desc" {
-			result, err = provider.Describe(ctx, model, input, language)
+			result, err = provider.Describe(ctx, model, input, ai.TextOptions{Language: language, Supplement: supplement})
 		} else {
-			result, err = provider.OCR(ctx, model, input)
+			result, err = provider.OCR(ctx, model, input, ai.TextOptions{Supplement: supplement})
 		}
 		if err != nil {
 			return nil, err
@@ -301,6 +312,9 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 			recipe = ai.DescriptionRecipeVersion
 		}
 		facts = []extract.KV{{Key: kind + ":text", Value: result.Text, Type: extract.TypeText}, {Key: kind + ":provider", Value: result.Provider, Type: extract.TypeText}, {Key: kind + ":model", Value: result.Model, Type: extract.TypeText}, {Key: kind + ":input_sha256", Value: p.file.BlobKey, Type: extract.TypeText}, {Key: kind + ":recipe", Value: fmt.Sprint(recipe), Type: extract.TypeInt}, {Key: kind + ":input_rotation", Value: fmt.Sprint(degrees), Type: extract.TypeInt}}
+		if supplement != "" {
+			facts = append(facts, extract.KV{Key: kind + ":input_hint", Value: supplement, Type: extract.TypeText})
+		}
 		if kind == "desc" {
 			facts = append(facts, extract.KV{Key: "desc:language", Value: language, Type: extract.TypeText})
 		}

@@ -883,6 +883,15 @@ export const en = {
   tagAny: "Any of these tags",
   tagNot: "None of these tags",
   newTag: "New tag",
+  aiHint: "Supplementary information",
+  aiHintPlaceholder: "Add a name, keywords, or context",
+  aiHintHelp:
+    "A name or a few keywords are enough. Saved information is reused on future extraction. Saving alone does not call AI.",
+  aiHintSaveRun: "Save and re-extract",
+  aiHintManual:
+    "The text was edited by you. You can save hints, but AI will not replace your text.",
+  aiHintTooLong: "This hint is too long. Please shorten it before saving.",
+  aiInputHint: "Reference used",
   editMetadata: "Edit {field}",
   metadataUserEdited:
     "Edited by user; automatic extraction will not overwrite this value",
@@ -1784,6 +1793,14 @@ export const zh: Record<MessageKey, string> = {
   tagAny: "包含任一标签",
   tagNot: "排除这些标签",
   newTag: "新建标签",
+  aiHint: "补充信息",
+  aiHintPlaceholder: "填写姓名、关键词或说明",
+  aiHintHelp:
+    "可以只填姓名或几个关键词。以后提取时默认复用。仅保存不会调用 AI。",
+  aiHintSaveRun: "保存并重新提取",
+  aiHintManual: "正文已由你编辑。可以保存补充信息，AI 不会覆盖人工正文。",
+  aiHintTooLong: "补充信息过长，请精简后保存。",
+  aiInputHint: "本次补充信息",
   editMetadata: "编辑{field}",
   metadataUserEdited: "人工编辑，自动提取不会覆盖此值",
   rename: "重命名",

@@ -17,10 +17,10 @@ type directionProvider struct {
 }
 
 func (p *directionProvider) Models(context.Context) ([]Model, error) { return nil, nil }
-func (p *directionProvider) OCR(context.Context, string, Image) (OCRResult, error) {
+func (p *directionProvider) OCR(context.Context, string, Image, TextOptions) (OCRResult, error) {
 	panic("unexpected OCR")
 }
-func (p *directionProvider) Describe(context.Context, string, Image, string) (TextResult, error) {
+func (p *directionProvider) Describe(context.Context, string, Image, TextOptions) (TextResult, error) {
 	panic("unexpected description")
 }
 func (p *directionProvider) ChooseUpright(_ context.Context, _ string, images []Image, overview bool) (UprightChoice, error) {

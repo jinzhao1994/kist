@@ -70,7 +70,7 @@ func TestOCRQueueNewOnlyAndExplicitBackfill(t *testing.T) {
 
 type failingOCR struct{ fakeOCR }
 
-func (p *failingOCR) OCR(context.Context, string, ai.Image) (ai.OCRResult, error) {
+func (p *failingOCR) OCR(context.Context, string, ai.Image, ai.TextOptions) (ai.OCRResult, error) {
 	p.calls++
 	return ai.OCRResult{}, errors.New("provider unavailable")
 }
@@ -166,13 +166,13 @@ type blockingOCR struct {
 	finish  chan struct{}
 }
 
-func (p *blockingOCR) OCR(ctx context.Context, model string, img ai.Image) (ai.OCRResult, error) {
+func (p *blockingOCR) OCR(ctx context.Context, model string, img ai.Image, options ai.TextOptions) (ai.OCRResult, error) {
 	close(p.started)
 	select {
 	case <-ctx.Done():
 		return ai.OCRResult{}, ctx.Err()
 	case <-p.finish:
-		return p.fakeOCR.OCR(ctx, model, img)
+		return p.fakeOCR.OCR(ctx, model, img, options)
 	}
 }
 func TestOCRQueueWorkerExclusionAndPauseInFlight(t *testing.T) {

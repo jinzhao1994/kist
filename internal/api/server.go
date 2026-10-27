@@ -155,6 +155,7 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 		s.writeRoutes()
 		s.syncRoutes()
 	}
+	s.aiHintRoutes()
 	s.metadataEditRoutes()
 	s.navigationRoutes()
 	s.catalogRevisionRoute()
@@ -169,7 +170,7 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path == Prefix+"/ai" || strings.HasPrefix(r.URL.Path, Prefix+"/ai/") || (strings.HasPrefix(r.URL.Path, Prefix+"/files/") && (strings.HasSuffix(r.URL.Path, "/ocr") || strings.HasSuffix(r.URL.Path, "/desc") || strings.HasSuffix(r.URL.Path, "/orientation"))) {
+	if requiresLocalAI(r.URL.Path) {
 		host, _, err := net.SplitHostPort(r.RemoteAddr)
 		ip := net.ParseIP(host)
 		hostName, _, hostErr := net.SplitHostPort(r.Host)
@@ -275,4 +276,17 @@ func response[T any](body T, err error) (*output[T], error) {
 		return nil, failure(err)
 	}
 	return &output[T]{Body: body}, nil
+}
+
+// Match model invocation routes exactly; nested metadata writes do not call AI.
+func requiresLocalAI(path string) bool {
+	if path == Prefix+"/ai" || strings.HasPrefix(path, Prefix+"/ai/") {
+		return true
+	}
+	rest, ok := strings.CutPrefix(path, Prefix+"/files/")
+	if !ok {
+		return false
+	}
+	parts := strings.Split(rest, "/")
+	return len(parts) == 2 && (parts[1] == "ocr" || parts[1] == "desc" || parts[1] == "orientation")
 }

@@ -2,6 +2,7 @@ package ai
 
 import (
 	_ "embed"
+	"encoding/json"
 	"strings"
 )
 
@@ -18,11 +19,11 @@ var ocrInstructions string
 var ocrInput string
 
 // OCRPrompt returns the shared verbatim text extraction task.
-func OCRPrompt() Prompt {
-	return Prompt{
+func OCRPrompt(supplement string) Prompt {
+	return withSupplement(Prompt{
 		Instructions: strings.TrimSpace(ocrInstructions),
 		Input:        strings.TrimSpace(ocrInput),
-	}
+	}, supplement, ocrSupplement)
 }
 
 //go:embed prompts/description.txt
@@ -32,9 +33,9 @@ var descriptionInstructions string
 var descriptionInput string
 
 // DescriptionRecipeVersion identifies the description instructions used for new results.
-const DescriptionRecipeVersion = 5
+const DescriptionRecipeVersion = 6
 
-const OCRRecipeVersion = 3
+const OCRRecipeVersion = 4
 const OrientationRecipeVersion = 1
 
 //go:embed prompts/orientation.txt
@@ -50,6 +51,22 @@ func OrientationPrompt(overview bool) Prompt {
 }
 
 // DescriptionPrompt describes visible content in the configured archive language.
-func DescriptionPrompt(language string) Prompt {
-	return Prompt{Instructions: strings.ReplaceAll(strings.TrimSpace(descriptionInstructions), "{{language}}", language), Input: strings.TrimSpace(descriptionInput)}
+func DescriptionPrompt(language, supplement string) Prompt {
+	return withSupplement(Prompt{Instructions: strings.ReplaceAll(strings.TrimSpace(descriptionInstructions), "{{language}}", language), Input: strings.TrimSpace(descriptionInput)}, supplement, descriptionSupplement)
+}
+
+//go:embed prompts/ocr-supplement.txt
+var ocrSupplement string
+
+//go:embed prompts/description-supplement.txt
+var descriptionSupplement string
+
+func withSupplement(prompt Prompt, supplement, instructions string) Prompt {
+	if strings.TrimSpace(supplement) == "" {
+		return prompt
+	}
+	prompt.Instructions += "\n\n" + strings.TrimSpace(instructions)
+	encoded, _ := json.Marshal(supplement)
+	prompt.Input += "\n\nUser-provided reference information (JSON string):\n" + string(encoded)
+	return prompt
 }
