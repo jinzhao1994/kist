@@ -5,7 +5,7 @@ import { createWrite, get, requestKey, type FileDetail } from "./api";
 import { useI18n } from "./i18n";
 import { MetadataLabel } from "./MetadataLabel";
 import { MetadataValue } from "./MetadataValue";
-import { CopyTextPreview } from "./CopyTextPreview";
+import { FullTextTooltip } from "./FullTextTooltip";
 import { HelpTooltip } from "./HelpTooltip";
 import { useWrites, WriteFeedback } from "./mutations";
 
@@ -40,7 +40,11 @@ export function AISupplement(props: Props) {
           )}
         >
           {row.value ? (
-            <CopyTextPreview text={row.value} copyLabel="copy" />
+            <FullTextTooltip text={row.value}>
+              <div tabIndex={0}>
+                <bdi>{row.value}</bdi>
+              </div>
+            </FullTextTooltip>
           ) : (
             <span className="metadata-help">{t("aiHintPlaceholder")}</span>
           )}

@@ -5466,6 +5466,18 @@ for (const variant of [
           group.getByRole("img", { name: /人工编辑/ }),
         ).toBeVisible();
       }
+      if (variant === "saved") {
+        await expect(
+          group.getByRole("button", { name: "复制", exact: true }),
+        ).toHaveCount(0);
+        const hintText = group.getByText("示例姓名", { exact: true });
+        await hintText.hover();
+        await expect(
+          page.getByRole("tooltip", { name: "示例姓名", exact: true }),
+        ).toBeVisible();
+        await page.mouse.move(0, 0);
+        await expect(page.getByRole("tooltip")).toHaveCount(0);
+      }
       if (variant === "manual")
         await expect(
           group.getByRole("button", { name: "保存并重新提取", exact: true }),

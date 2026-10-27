@@ -1,5 +1,5 @@
-import { FloatingTooltip } from "./FloatingTooltip";
-import { CopyButton, Tooltip } from "@mantine/core";
+import { FullTextTooltip } from "./FullTextTooltip";
+import { CopyButton } from "@mantine/core";
 import { useLayoutEffect, useRef, useState } from "react";
 import { useI18n, type MessageKey } from "./i18n";
 
@@ -87,50 +87,30 @@ export function CopyTextPreview({
   return (
     <CopyButton value={text}>
       {({ copied, copy }) => (
-        <FloatingTooltip
-          label={text}
-          multiline
-          position="bottom-start"
-          offset={16}
-          role="tooltip"
-          classNames={{ tooltip: "metadata-tooltip metadata-tooltip--text" }}
-        >
-          <Tooltip
-            label={text}
-            multiline
-            interactive
-            position="bottom-start"
-            offset={8}
-            classNames={{ tooltip: "metadata-tooltip metadata-tooltip--text" }}
-            openDelay={0}
-            closeDelay={100}
-            transitionProps={{ duration: 0 }}
-            events={{ hover: false, focus: true, touch: true }}
+        <FullTextTooltip text={text}>
+          <button
+            type="button"
+            className="copy-text-preview"
+            ref={root}
+            onClick={copy}
+            aria-label={t(copied ? "copied" : copyLabel)}
           >
-            <button
-              type="button"
-              className="copy-text-preview"
-              ref={root}
-              onClick={copy}
-              aria-label={t(copied ? "copied" : copyLabel)}
-            >
-              <bdi>
-                {parts(visible).map((part, index) =>
-                  part === "↵" ? (
-                    <span className="text-break-marker" key={index}>
-                      {part}
-                    </span>
-                  ) : (
-                    part
-                  ),
-                )}
-              </bdi>
-              <span className="copy-text-action">
-                {t(copied ? "copied" : "copy")}
-              </span>
-            </button>
-          </Tooltip>
-        </FloatingTooltip>
+            <bdi>
+              {parts(visible).map((part, index) =>
+                part === "↵" ? (
+                  <span className="text-break-marker" key={index}>
+                    {part}
+                  </span>
+                ) : (
+                  part
+                ),
+              )}
+            </bdi>
+            <span className="copy-text-action">
+              {t(copied ? "copied" : "copy")}
+            </span>
+          </button>
+        </FullTextTooltip>
       )}
     </CopyButton>
   );
