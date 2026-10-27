@@ -339,7 +339,13 @@ it("queues a description independently of OCR", async () => {
   expect(writes).toEqual(["/api/v1/files/file/desc"]);
 });
 
-it("offers description before basic image metadata has been extracted", async () => {
+it.each([
+  ["scan.PNG", ""],
+  ["scan.HEIC", ""],
+  ["scan.HEIF", ""],
+  ["renamed.bin", "image/heic"],
+  ["renamed.bin", "image/heif"],
+])("offers image AI actions for %s (%s)", async (name, mediaType) => {
   const writes: string[] = [];
   vi.stubGlobal(
     "fetch",
@@ -363,13 +369,13 @@ it("offers description before basic image metadata has been extracted", async ()
       data={{
         file: {
           id: "file",
-          name: "scan.PNG",
+          name,
           captured_at: null,
           folder_id: "folder",
           blob_key: "blob",
           created_at: "2026-01-01T00:00:00Z",
           updated_at: "2026-01-01T00:00:00Z",
-          media_type: "",
+          media_type: mediaType,
           extraction_pending: ["media"],
         },
         metadata: [],
@@ -383,6 +389,11 @@ it("offers description before basic image metadata has been extracted", async ()
     name: "Generate description",
   });
   await waitFor(() => expect(run).toBeEnabled());
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Extract text (OCR)" }),
+    ).toBeEnabled(),
+  );
   await userEvent.click(run);
   expect(writes).toEqual(["/api/v1/files/file/desc"]);
 });

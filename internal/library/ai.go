@@ -18,6 +18,7 @@ import (
 	"github.com/jinzhao1994/kist/internal/ai"
 	"github.com/jinzhao1994/kist/internal/ai/openai"
 	"github.com/jinzhao1994/kist/internal/config"
+	"github.com/jinzhao1994/kist/internal/derive"
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/extract"
 	"github.com/jinzhao1994/kist/internal/lockfile"
@@ -123,7 +124,7 @@ func (ocrExtractor) ID() string           { return "ocr" }
 func (ocrExtractor) Version() int         { return 1 }
 func (ocrExtractor) Namespaces() []string { return []string{"ocr"} }
 func (ocrExtractor) Wants(m string) bool {
-	return m == "image/jpeg" || m == "image/png" || m == "image/webp"
+	return m == "image/jpeg" || m == "image/png" || m == "image/webp" || m == "image/heic" || m == "image/heif"
 }
 func (ocrExtractor) Extract(context.Context, io.ReadSeeker, string) ([]extract.KV, error) {
 	return nil, errors.New("OCR requires an explicit provider")
@@ -214,7 +215,7 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 		e = descriptionExtractor{}
 	}
 	if !e.Wants(mime) {
-		return nil, errors.New("AI extraction supports JPEG, PNG and static WebP images")
+		return nil, errors.New("AI extraction supports JPEG, PNG, static WebP and still HEIC/HEIF images")
 	}
 	// Inspect compressed chunks without allocating animation frames.
 	if mime == "image/webp" {
@@ -230,6 +231,13 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 			}
 			pos = int(next)
 		}
+	}
+	if mime == "image/heic" || mime == "image/heif" {
+		data, err = (derive.Renderer{}).HEIFJPEG(ctx, path, ai.MaxImageBytes)
+		if err != nil {
+			return nil, err
+		}
+		mime = "image/jpeg"
 	}
 	input, err := ai.NormalizeImage(ai.Image{MIME: mime, Data: data})
 	if err != nil {

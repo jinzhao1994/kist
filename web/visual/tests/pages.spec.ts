@@ -976,6 +976,12 @@ for (const state of [
         .getByRole("region", { name: "画廊", exact: true })
         .getByText("旅途/山间清晨.heic", { exact: true }),
     ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "提取文字（OCR）", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "生成描述", exact: true }),
+    ).toBeVisible();
     if (state === "ready")
       await expect
         .poll(() =>

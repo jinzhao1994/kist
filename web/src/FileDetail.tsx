@@ -29,8 +29,14 @@ export function FileDetail({
   // A filename is only a UI hint until basic metadata is available. The
   // backend validates image bytes before sending anything to a provider.
   const imageTextInput = file.media_type
-    ? ["image/jpeg", "image/png", "image/webp"].includes(file.media_type)
-    : /\.(?:jpe?g|png|webp)$/i.test(file.name);
+    ? [
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/heic",
+        "image/heif",
+      ].includes(file.media_type)
+    : /\.(?:jpe?g|png|webp|heic|heif)$/i.test(file.name);
   const canOCR =
     !clientMode && !data.extracted?.includes("ocr") && !ocr && imageTextInput;
   const canDescribe =
