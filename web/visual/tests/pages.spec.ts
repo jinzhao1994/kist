@@ -4676,7 +4676,7 @@ for (const scenario of [
           const lineHeight = parseFloat(getComputedStyle(element).lineHeight);
           const bounds = element.getBoundingClientRect();
           const action = element
-            .querySelector("button")!
+            .querySelector(".copy-text-action")!
             .getBoundingClientRect();
           return {
             lines: bounds.height / lineHeight,

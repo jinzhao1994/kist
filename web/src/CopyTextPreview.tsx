@@ -22,7 +22,7 @@ export function CopyTextPreview({
     .replace(/\r\n|[\r\u2028\u2029]/gu, "\n")
     .replace(/[^\S\n]+/gu, " ")
     .replace(/ *\n(?: *\n)* */gu, "↵ ");
-  const root = useRef<HTMLSpanElement>(null);
+  const root = useRef<HTMLButtonElement>(null);
   const [visible, setVisible] = useState(preview);
   const label = t("copy");
   useLayoutEffect(() => {
@@ -31,11 +31,11 @@ export function CopyTextPreview({
     let disposed = false;
     const measure = () => {
       if (disposed || !element.clientWidth) return;
-      const clone = element.cloneNode(true) as HTMLSpanElement;
+      const clone = element.cloneNode(true) as HTMLButtonElement;
       clone.classList.add("copy-text-measure");
       clone.setAttribute("aria-hidden", "true");
       clone.style.width = `${element.clientWidth}px`;
-      const button = clone.querySelector("button")!;
+      const button = clone.querySelector<HTMLElement>(".copy-text-action")!;
       button.tabIndex = -1;
       // Reserve enough room for both action states to avoid a fourth line.
       button.textContent = label;
@@ -85,51 +85,53 @@ export function CopyTextPreview({
     };
   }, [preview, label, t]);
   return (
-    <FloatingTooltip
-      label={text}
-      multiline
-      position="bottom-start"
-      offset={16}
-      role="tooltip"
-      classNames={{ tooltip: "metadata-tooltip metadata-tooltip--text" }}
-    >
-      <Tooltip
-        label={text}
-        multiline
-        interactive
-        position="bottom-start"
-        offset={8}
-        classNames={{ tooltip: "metadata-tooltip metadata-tooltip--text" }}
-        openDelay={0}
-        closeDelay={100}
-        transitionProps={{ duration: 0 }}
-        events={{ hover: false, focus: true, touch: true }}
-      >
-        <span className="copy-text-preview" ref={root} tabIndex={0}>
-          <bdi>
-            {parts(visible).map((part, index) =>
-              part === "↵" ? (
-                <span className="text-break-marker" key={index}>
-                  {part}
-                </span>
-              ) : (
-                part
-              ),
-            )}
-          </bdi>
-          <CopyButton value={text}>
-            {({ copied, copy }) => (
-              <button
-                type="button"
-                onClick={copy}
-                aria-label={t(copied ? "copied" : copyLabel)}
-              >
+    <CopyButton value={text}>
+      {({ copied, copy }) => (
+        <FloatingTooltip
+          label={text}
+          multiline
+          position="bottom-start"
+          offset={16}
+          role="tooltip"
+          classNames={{ tooltip: "metadata-tooltip metadata-tooltip--text" }}
+        >
+          <Tooltip
+            label={text}
+            multiline
+            interactive
+            position="bottom-start"
+            offset={8}
+            classNames={{ tooltip: "metadata-tooltip metadata-tooltip--text" }}
+            openDelay={0}
+            closeDelay={100}
+            transitionProps={{ duration: 0 }}
+            events={{ hover: false, focus: true, touch: true }}
+          >
+            <button
+              type="button"
+              className="copy-text-preview"
+              ref={root}
+              onClick={copy}
+              aria-label={t(copied ? "copied" : copyLabel)}
+            >
+              <bdi>
+                {parts(visible).map((part, index) =>
+                  part === "↵" ? (
+                    <span className="text-break-marker" key={index}>
+                      {part}
+                    </span>
+                  ) : (
+                    part
+                  ),
+                )}
+              </bdi>
+              <span className="copy-text-action">
                 {t(copied ? "copied" : "copy")}
-              </button>
-            )}
-          </CopyButton>
-        </span>
-      </Tooltip>
-    </FloatingTooltip>
+              </span>
+            </button>
+          </Tooltip>
+        </FloatingTooltip>
+      )}
+    </CopyButton>
   );
 }

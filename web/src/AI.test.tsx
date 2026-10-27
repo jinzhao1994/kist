@@ -202,11 +202,17 @@ it("compacts OCR for display but copies the complete original text", async () =>
   const text = "证件  名称\t详情\r\n \n\n姓名：张三\n".repeat(1000);
   mount(<OCRText text={text} />);
   const button = screen.getByRole("button", { name: "Copy recognized text" });
-  expect(button.parentElement?.querySelector("bdi")?.textContent).toBe(
+  expect(button.querySelector("bdi")?.textContent).toBe(
     Array(1000).fill("证件 名称 详情↵ 姓名：张三").join("↵ "),
   );
-  await user.click(button);
-  expect(copy).toHaveBeenCalledWith(text);
+  await user.click(button.querySelector("bdi")!);
+  expect(copy).toHaveBeenLastCalledWith(text);
+  await user.click(button.querySelector(".copy-text-action")!);
+  await user.keyboard("{Enter}");
+  await user.keyboard(" ");
+  expect(copy).toHaveBeenCalledTimes(4);
+  expect(copy).toHaveBeenLastCalledWith(text);
+  expect(button).toHaveAccessibleName("Copied");
 });
 it("clears connection state and reports unconfirmed revocation", async () => {
   let connected = true;

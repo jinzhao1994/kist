@@ -2534,6 +2534,9 @@ main.upload-drag-active {
   display: flex;
   align-items: baseline;
   gap: 8px;
+}
+.copy-value,
+.copy-text-preview {
   width: 100%;
   padding: 0;
   border: 0;
@@ -2562,7 +2565,8 @@ main.upload-drag-active {
   display: block;
   overflow-wrap: anywhere;
 }
-.copy-text-preview button {
+.copy-text-action {
+  display: inline-block;
   padding: 0;
   margin-inline-start: 8px;
   border: 0;

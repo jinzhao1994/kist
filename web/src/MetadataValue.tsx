@@ -38,7 +38,7 @@ export function MetadataValue({
     const element = root.current;
     if (!element) return;
     const copy = element.querySelector<HTMLElement>(
-      ".copy-value span, .copy-text-preview button",
+      ".copy-value span, .copy-text-action",
     );
     if (!copy) {
       setCopySpace(0);
