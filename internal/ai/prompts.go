@@ -32,7 +32,7 @@ var descriptionInstructions string
 var descriptionInput string
 
 // DescriptionRecipeVersion identifies the description instructions used for new results.
-const DescriptionRecipeVersion = 2
+const DescriptionRecipeVersion = 3
 
 // DescriptionPrompt describes visible content in the configured archive language.
 func DescriptionPrompt(language string) Prompt {
