@@ -3652,8 +3652,8 @@ main.upload-drag-active {
   opacity: 0;
   pointer-events: none;
   background: color-mix(in srgb, var(--mantine-color-body) 70%, transparent);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
 }
 .metadata-value:hover .metadata-edit-action,
 .metadata-value:focus-within .metadata-edit-action {
