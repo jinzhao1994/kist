@@ -4959,6 +4959,21 @@ for (const refresh of [false, true]) {
         await expect(button).toHaveCSS("opacity", "0");
         await group.hover();
         await expect(button).toHaveCSS("opacity", "1");
+        // Positioning must not be replaced by Mantine's pressed transform.
+        const pressedOffset = async (target: typeof button) => {
+          await target.hover();
+          const before = (await target.boundingBox())!;
+          await page.mouse.down();
+          const after = (await target.boundingBox())!;
+          await page.mouse.move(0, 0);
+          await page.mouse.up();
+          return after.y - before.y;
+        };
+        const reference = await pressedOffset(
+          page.getByRole("button", { name: "文件版本", exact: true }),
+        );
+        expect(await pressedOffset(button)).toBeCloseTo(reference, 5);
+        expect(requests).toBe(0);
         await button.click();
         await expect.poll(() => requests).toBe(1);
         await expect(button).toBeEnabled();

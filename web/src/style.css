@@ -553,7 +553,7 @@ progress {
   position: absolute;
   inset-inline-end: 0.75rem;
   inset-block-start: 50%;
-  transform: translateY(-50%);
+  translate: 0 -50%;
 }
 .file-card {
   border: 1px solid var(--border);
@@ -3613,5 +3613,5 @@ main.upload-drag-active {
   position: absolute;
   inset-inline-end: 0;
   top: 50%;
-  transform: translateY(-50%);
+  translate: 0 -50%;
 }
