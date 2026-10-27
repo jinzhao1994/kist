@@ -4550,6 +4550,14 @@ for (const scenario of [
 ] as const) {
   test(`ocr-${scenario}`, async ({ page }, info) => {
     const errors = await prepare(page);
+    let descriptionDone = false;
+    if (scenario === "text-tooltip") {
+      await page.route("**/api/v1/files/file-1/desc", (route) =>
+        route.fulfill({
+          json: { state: descriptionDone ? "ready" : "missing" },
+        }),
+      );
+    }
     await page.route("**/api/v1/ai", (route) =>
       route.fulfill({
         json: {
@@ -4581,6 +4589,17 @@ for (const scenario of [
             tags: ["tag-2"],
             extracted: ["ocr"],
             metadata: [
+              ...(descriptionDone
+                ? [
+                    {
+                      key: "desc:text",
+                      type: "text",
+                      source: "desc",
+                      value:
+                        "异步完成的图片描述，用于验证布局变化后的悬停提示。",
+                    },
+                  ]
+                : []),
               {
                 key: "ocr:text",
                 type: "text",
@@ -4700,6 +4719,34 @@ for (const scenario of [
       info.title,
       scenario === "error" ? ["no result was saved"] : [],
     );
+
+    if (scenario === "text-tooltip") {
+      descriptionDone = true;
+      await expect(
+        page
+          .locator(".copy-text-preview")
+          .getByText("异步完成的图片描述，用于验证布局变化后的悬停提示。", {
+            exact: true,
+          }),
+      ).toBeVisible();
+      await page.mouse.move(5, 5);
+      await expect(page.getByRole("tooltip")).toHaveCount(0);
+      const ocrPreview = page
+        .locator(".file-metadata-group")
+        .filter({
+          has: page.getByRole("heading", { name: "OCR", exact: true }),
+        })
+        .locator(".copy-text-preview");
+      await ocrPreview.hover();
+      await expect(page.getByRole("tooltip")).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("tooltip")).toHaveCount(0);
+      await page.mouse.move(5, 5);
+      await ocrPreview.focus();
+      await expect(page.getByRole("tooltip")).toBeVisible();
+      await ocrPreview.evaluate((el) => el.blur());
+      await expect(page.getByRole("tooltip")).toHaveCount(0);
+    }
   });
 }
 

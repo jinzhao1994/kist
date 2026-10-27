@@ -1,3 +1,4 @@
+import { FloatingTooltip } from "./FloatingTooltip";
 import { OfflineBatch } from "./OfflineBatch";
 import { offlineOwner } from "./offline-retention";
 import {
@@ -27,7 +28,6 @@ import {
   Group,
   Text,
   Menu,
-  Tooltip,
   UnstyledButton,
 } from "@mantine/core";
 import {
@@ -657,7 +657,7 @@ export function FileGrid({
                         )}
                         {!boxID && (
                           <small className="file-card-meta">
-                            <Tooltip.Floating
+                            <FloatingTooltip
                               label={source}
                               disabled={!source}
                               multiline
@@ -681,7 +681,7 @@ export function FileGrid({
                                   </time>
                                 )}
                               </span>
-                            </Tooltip.Floating>
+                            </FloatingTooltip>
                             <span className="file-card-size">
                               {size == null ? "—" : formatBytes(size, prefs)}
                             </span>

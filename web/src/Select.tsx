@@ -1,6 +1,6 @@
+import { FloatingTooltip } from "./FloatingTooltip";
 import {
   Select as MantineSelect,
-  Tooltip,
   CheckIcon,
   Combobox,
   InputBase,
@@ -109,7 +109,7 @@ export function Select({
             }}
             onClick={() => store.toggleDropdown()}
           >
-            <Tooltip.Floating
+            <FloatingTooltip
               label={selected?.label}
               disabled={!selected?.label}
               position="bottom-start"
@@ -120,7 +120,7 @@ export function Select({
               classNames={{ tooltip: "metadata-tooltip" }}
             >
               <span className="select-value">{selected?.label}</span>
-            </Tooltip.Floating>
+            </FloatingTooltip>
           </InputBase>
         </Combobox.Target>
         <Combobox.Dropdown>

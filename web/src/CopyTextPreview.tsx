@@ -1,3 +1,4 @@
+import { FloatingTooltip } from "./FloatingTooltip";
 import { CopyButton, Tooltip } from "@mantine/core";
 import { useLayoutEffect, useRef, useState } from "react";
 import { useI18n, type MessageKey } from "./i18n";
@@ -84,7 +85,7 @@ export function CopyTextPreview({
     };
   }, [preview, label, t]);
   return (
-    <Tooltip.Floating
+    <FloatingTooltip
       label={text}
       multiline
       position="bottom-start"
@@ -129,6 +130,6 @@ export function CopyTextPreview({
           </CopyButton>
         </span>
       </Tooltip>
-    </Tooltip.Floating>
+    </FloatingTooltip>
   );
 }

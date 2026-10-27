@@ -1,3 +1,4 @@
+import { FloatingTooltip } from "./FloatingTooltip";
 import { ActionIcon, Tooltip } from "@mantine/core";
 import type { ReactNode } from "react";
 
@@ -27,7 +28,7 @@ export function HelpTooltip({
         size="sm"
         aria-label={label}
       >
-        <Tooltip.Floating
+        <FloatingTooltip
           label={children}
           position="bottom-start"
           offset={16}
@@ -51,7 +52,7 @@ export function HelpTooltip({
               <circle cx="10" cy="6" r=".7" fill="currentColor" stroke="none" />
             </svg>
           </span>
-        </Tooltip.Floating>
+        </FloatingTooltip>
       </ActionIcon>
     </Tooltip>
   );

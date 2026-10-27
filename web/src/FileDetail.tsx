@@ -1,3 +1,4 @@
+import { FloatingTooltip } from "./FloatingTooltip";
 import { MetadataGroup } from "./MetadataGroup";
 import { CopyTextPreview } from "./CopyTextPreview";
 import { useClientMode } from "./OfflineEntry";
@@ -303,7 +304,7 @@ export function FileDetail({
                         events={{ hover: false, focus: true, touch: false }}
                       >
                         <dt tabIndex={0}>
-                          <Tooltip.Floating
+                          <FloatingTooltip
                             label={row.key}
                             position="bottom-start"
                             offset={16}
@@ -311,7 +312,7 @@ export function FileDetail({
                             classNames={{ tooltip: "metadata-tooltip" }}
                           >
                             <bdi>{labels[row.key] || row.key}</bdi>
-                          </Tooltip.Floating>
+                          </FloatingTooltip>
                         </dt>
                       </Tooltip>
                       <dd>
@@ -356,7 +357,7 @@ export function FileDetail({
                             }}
                           >
                             <bdi tabIndex={0}>
-                              <Tooltip.Floating
+                              <FloatingTooltip
                                 label={row.value}
                                 position="bottom-start"
                                 offset={16}
@@ -364,7 +365,7 @@ export function FileDetail({
                                 classNames={{ tooltip: "metadata-tooltip" }}
                               >
                                 <span>{metadataValue(row.key, row.value)}</span>
-                              </Tooltip.Floating>
+                              </FloatingTooltip>
                             </bdi>
                           </Tooltip>
                         ) : (
