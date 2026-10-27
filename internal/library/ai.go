@@ -311,7 +311,7 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 		if kind == "desc" {
 			recipe = ai.DescriptionRecipeVersion
 		}
-		facts = []extract.KV{{Key: kind + ":hint", Value: "", Type: extract.TypeText}, {Key: kind + ":text", Value: result.Text, Type: extract.TypeText}, {Key: kind + ":provider", Value: result.Provider, Type: extract.TypeText}, {Key: kind + ":model", Value: result.Model, Type: extract.TypeText}, {Key: kind + ":input_sha256", Value: p.file.BlobKey, Type: extract.TypeText}, {Key: kind + ":recipe", Value: fmt.Sprint(recipe), Type: extract.TypeInt}, {Key: kind + ":input_rotation", Value: fmt.Sprint(degrees), Type: extract.TypeInt}}
+		facts = []extract.KV{{Key: kind + ":hint", Value: "", Type: extract.TypeText}, {Key: kind + ":text", Value: result.Text, Type: extract.TypeText}, {Key: kind + ":provider", Value: result.Provider, Type: extract.TypeText}, {Key: kind + ":model", Value: result.Model, Type: extract.TypeText}, {Key: kind + ":input_sha256", Value: p.file.BlobKey, Type: extract.TypeText}, {Key: kind + ":recipe", Value: fmt.Sprint(recipe), Type: extract.TypeInt}}
 		if kind == "desc" {
 			facts = append(facts, extract.KV{Key: "desc:language", Value: language, Type: extract.TypeText})
 		}

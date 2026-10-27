@@ -56,8 +56,6 @@ export function FileDetail({
     "orientation:recipe": t("ocrRecipe"),
     "orientation:confidence": t("orientationConfidence"),
     "orientation:method": t("orientationMethod"),
-    "ocr:input_rotation": t("orientationInput"),
-    "desc:input_rotation": t("orientationInput"),
     "exif:ApertureValue": t("exifApertureValue"),
     "exif:BrightnessValue": t("exifBrightnessValue"),
     "exif:ColorSpace": t("exifColorSpace"),
@@ -152,11 +150,7 @@ export function FileDetail({
     "ocr:input_sha256": t("ocrInputHash"),
   };
   const metadataValue = (key: string, value: string, source: string) => {
-    if (
-      key === "orientation:clockwise_degrees" ||
-      key.endsWith(":input_rotation")
-    )
-      return `${value}°`;
+    if (key === "orientation:clockwise_degrees") return `${value}°`;
     if (key === "orientation:method")
       return file.image_rotation_manual && source !== "user"
         ? t("orientationManual")
