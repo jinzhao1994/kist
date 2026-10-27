@@ -93,7 +93,7 @@ func (c Client) imageText(ctx context.Context, model string, img ai.Image, promp
 	}
 	body := map[string]any{"model": model, "store": false, "stream": true, "reasoning": map[string]string{"effort": "low"},
 		"instructions": prompt.Instructions,
-		"input":        []any{map[string]any{"role": "user", "content": []any{map[string]string{"type": "input_text", "text": prompt.Input}, map[string]string{"type": "input_image", "image_url": "data:" + img.MIME + ";base64," + base64.StdEncoding.EncodeToString(img.Data), "detail": "high"}}}}}
+		"input":        []any{map[string]any{"role": "user", "content": []any{map[string]string{"type": "input_text", "text": prompt.Input}, map[string]string{"type": "input_image", "image_url": "data:" + img.MIME + ";base64," + base64.StdEncoding.EncodeToString(img.Data), "detail": "original"}}}}}
 	raw, err := json.Marshal(body)
 	if err != nil {
 		return ai.OCRResult{}, err

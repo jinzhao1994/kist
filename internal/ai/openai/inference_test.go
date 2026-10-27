@@ -52,6 +52,10 @@ func TestOCRWireAndModelCatalog(t *testing.T) {
 		if body["store"] != false || body["stream"] != true || body["model"] != "gpt-6-luna" {
 			t.Error(body)
 		}
+		imageInput := body["input"].([]any)[0].(map[string]any)["content"].([]any)[1].(map[string]any)
+		if imageInput["detail"] != "original" {
+			t.Errorf("image detail = %v, want original", imageInput["detail"])
+		}
 		prompt := ai.OCRPrompt()
 		if prompt.Instructions == "" || body["instructions"] != prompt.Instructions {
 			t.Error("OCR instructions did not come from the shared task prompt")
@@ -81,6 +85,10 @@ func TestDescriptionWireUsesIndependentLocalizedPrompt(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Error(err)
 			return
+		}
+		imageInput := body["input"].([]any)[0].(map[string]any)["content"].([]any)[1].(map[string]any)
+		if imageInput["detail"] != "original" {
+			t.Errorf("image detail = %v, want original", imageInput["detail"])
 		}
 		prompt := ai.DescriptionPrompt("zh-CN")
 		if body["instructions"] != prompt.Instructions || !strings.Contains(prompt.Instructions, "zh-CN") || strings.Contains(prompt.Instructions, "{{language}}") || prompt.Instructions == ai.OCRPrompt().Instructions {
