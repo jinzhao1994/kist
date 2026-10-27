@@ -5189,6 +5189,12 @@ for (const variant of [
       has: page.getByRole("heading", { name: "GPS", exact: true }),
     });
     await group.scrollIntoViewIfNeeded();
+    const headingColor = await group
+      .getByRole("heading", { name: "GPS", exact: true })
+      .evaluate((el) => getComputedStyle(el).color);
+    await expect(
+      group.getByRole("button", { name: "GPS", exact: true }),
+    ).toHaveCSS("color", headingColor);
     await expect(
       group.getByText("示例市 · 示例片区 · 示例街道附近", { exact: true }),
     ).toBeVisible();
