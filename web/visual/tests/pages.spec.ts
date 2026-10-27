@@ -5429,6 +5429,15 @@ for (const variant of [
     const group = page
       .locator(".file-metadata-group")
       .filter({ has: page.getByRole("heading", { name: "OCR", exact: true }) });
+    const fieldRows = group.locator(".metadata-list > div");
+    const hintBounds = await fieldRows.nth(0).boundingBox();
+    const textBounds = await fieldRows.nth(1).boundingBox();
+    expect(hintBounds).not.toBeNull();
+    expect(textBounds).not.toBeNull();
+    expect(textBounds!.y - hintBounds!.y - hintBounds!.height).toBeCloseTo(
+      0,
+      0,
+    );
     const hintLabel = group.locator("dt bdi").filter({ hasText: /^补充信息$/ });
     await hintLabel.hover();
     await expect(

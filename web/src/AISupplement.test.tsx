@@ -26,13 +26,15 @@ function mount(manual = false, canRun = true) {
     <QueryClientProvider client={client}>
       <I18nProvider>
         <ThemeProvider env="test">
-          <AISupplement
-            fileID="file"
-            blobKey="sha256:test"
-            kind="ocr"
-            manual={manual}
-            canRun={canRun}
-          />
+          <dl className="metadata-list">
+            <AISupplement
+              fileID="file"
+              blobKey="sha256:test"
+              kind="ocr"
+              manual={manual}
+              canRun={canRun}
+            />
+          </dl>
         </ThemeProvider>
       </I18nProvider>
     </QueryClientProvider>,

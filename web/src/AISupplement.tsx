@@ -28,32 +28,30 @@ export function AISupplement(props: Props) {
     source: "",
   };
   return (
-    <dl className="metadata-list">
-      <div>
-        <MetadataLabel metadataKey={row.key} label={t("aiHint")}>
-          <HelpTooltip label={t("aiHint")} muted>
-            {t("aiHintHelp")}
-          </HelpTooltip>
-        </MetadataLabel>
-        <dd>
-          <MetadataValue
-            fileID={props.fileID}
-            blobKey={props.blobKey}
-            row={row}
-            label={t("aiHint")}
-            editor={(snapshot, close) => (
-              <HintEditor {...props} row={snapshot} close={close} />
-            )}
-          >
-            {row.value ? (
-              <CopyTextPreview text={row.value} copyLabel="copy" />
-            ) : (
-              <span className="metadata-help">{t("aiHintPlaceholder")}</span>
-            )}
-          </MetadataValue>
-        </dd>
-      </div>
-    </dl>
+    <div>
+      <MetadataLabel metadataKey={row.key} label={t("aiHint")}>
+        <HelpTooltip label={t("aiHint")} muted>
+          {t("aiHintHelp")}
+        </HelpTooltip>
+      </MetadataLabel>
+      <dd>
+        <MetadataValue
+          fileID={props.fileID}
+          blobKey={props.blobKey}
+          row={row}
+          label={t("aiHint")}
+          editor={(snapshot, close) => (
+            <HintEditor {...props} row={snapshot} close={close} />
+          )}
+        >
+          {row.value ? (
+            <CopyTextPreview text={row.value} copyLabel="copy" />
+          ) : (
+            <span className="metadata-help">{t("aiHintPlaceholder")}</span>
+          )}
+        </MetadataValue>
+      </dd>
+    </div>
   );
 }
 

@@ -341,20 +341,6 @@ export function FileDetail({
               }
             >
               <Stack>
-                {(source === "ocr" || source === "desc") && (
-                  <AISupplement
-                    key={`${file.id}/${file.blob_key}/${source}`}
-                    fileID={file.id}
-                    blobKey={file.blob_key}
-                    kind={source}
-                    row={rows.find((row) => row.key === `${source}:hint`)}
-                    manual={rows.some(
-                      (row) =>
-                        row.key === `${source}:text` && row.source === "user",
-                    )}
-                    canRun={!clientMode && imageTextInput}
-                  />
-                )}
                 {source === "gps" && data.gps && (
                   <>
                     <div className="metadata-map">
@@ -382,6 +368,20 @@ export function FileDetail({
                   <OCRAction key={file.id} fileID={file.id} kind="desc" />
                 )}
                 <dl className="metadata-list">
+                  {(source === "ocr" || source === "desc") && (
+                    <AISupplement
+                      key={`${file.id}/${file.blob_key}/${source}`}
+                      fileID={file.id}
+                      blobKey={file.blob_key}
+                      kind={source}
+                      row={rows.find((row) => row.key === `${source}:hint`)}
+                      manual={rows.some(
+                        (row) =>
+                          row.key === `${source}:text` && row.source === "user",
+                      )}
+                      canRun={!clientMode && imageTextInput}
+                    />
+                  )}
                   {rows
                     .filter(
                       (row) =>
