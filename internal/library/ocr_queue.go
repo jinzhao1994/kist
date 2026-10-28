@@ -71,6 +71,8 @@ func (l *Library) LocationQueue() *OCRQueue { return l.imageTextQueue("geo") }
 
 func (l *Library) OrientationQueue() *OCRQueue { return l.imageTextQueue("orientation") }
 func (l *Library) OCRQueue() *OCRQueue         { return l.imageTextQueue("ocr") }
+func (l *Library) FactsQueue() *OCRQueue       { return l.imageTextQueue("facts") }
+
 func (l *Library) DescriptionQueue() *OCRQueue { return l.imageTextQueue("desc") }
 func (l *Library) imageTextQueue(kind string) *OCRQueue {
 	return &OCRQueue{kind: kind, library: l, state: lockfile.New(filepath.Join(l.layout.Root, kind+"-state.lock")), worker: lockfile.New(filepath.Join(l.layout.Root, "ocr-worker.lock")), provider: l.AIProvider}
@@ -248,7 +250,7 @@ func (q *OCRQueue) eligible(j OCRJob) bool {
 	if err != nil {
 		return false
 	}
-	if q.kind == "desc" {
+	if q.kind == "desc" || q.kind == "facts" {
 		if _, ok := descriptionDocumentRecipe(j.Name, kind); ok {
 			return true
 		}
@@ -312,8 +314,8 @@ func (q *OCRQueue) request(ctx context.Context, id domain.FileID, retry, force b
 		}
 	}
 	if !q.eligible(j) {
-		if q.kind == "desc" {
-			return j, errors.New("descriptions support images, PDF, Word and PowerPoint files")
+		if q.kind == "desc" || q.kind == "facts" {
+			return j, errors.New("this extraction supports images, PDF, Word and PowerPoint files")
 		}
 		return j, errors.New("AI extraction supports JPEG, PNG, static WebP and still HEIC/HEIF images")
 	}
@@ -381,6 +383,9 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 	auto, after := cfg.AIOptions.AutoOCR, cfg.AIOptions.AfterOp
 	if q.kind == "geo" {
 		auto, after = cfg.Geocoding.Automatic, cfg.Geocoding.AfterOp
+	}
+	if q.kind == "facts" {
+		auto, after = cfg.AIOptions.AutoFacts, cfg.AIOptions.FactsAfterOp
 	}
 	if q.kind == "desc" {
 		auto, after = cfg.AIOptions.AutoDesc, cfg.AIOptions.DescAfterOp

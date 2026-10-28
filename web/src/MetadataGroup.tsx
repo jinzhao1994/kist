@@ -72,6 +72,7 @@ export function MetadataGroup({
     task.empty &&
     (task.extractor === "ocr" ||
       task.extractor === "desc" ||
+      task.extractor === "facts" ||
       task.extractor === "orientation")
   ) {
     return (
@@ -95,6 +96,7 @@ function useMetadataTask({
   const ai =
     extractor === "ocr" ||
     extractor === "desc" ||
+    extractor === "facts" ||
     extractor === "orientation" ||
     extractor === "geo";
   const key = ["metadata-refresh", fileID, extractor];

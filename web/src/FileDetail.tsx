@@ -3,6 +3,7 @@ const MapPreview = lazy(() => import("./MapPreview"));
 import { FloatingTooltip } from "./FloatingTooltip";
 import { AISupplement } from "./AISupplement";
 import { MetadataLabel } from "./MetadataLabel";
+import { StructuredFields } from "./StructuredFields";
 import { MetadataValue } from "./MetadataValue";
 import { MetadataGroup } from "./MetadataGroup";
 import { CopyTextPreview } from "./CopyTextPreview";
@@ -41,6 +42,11 @@ export function FileDetail({
     !clientMode &&
     !data.extracted?.includes("desc") &&
     !data.metadata?.some((row) => row.key === "desc:text") &&
+    descriptionInput;
+  const canFacts =
+    !clientMode &&
+    !data.extracted?.includes("facts") &&
+    !data.metadata?.some((row) => row.key === "facts:data") &&
     descriptionInput;
   const canOrient =
     !clientMode &&
@@ -136,6 +142,8 @@ export function FileDetail({
     "media:mime": t("mimeType"),
     "media:kind": t("mediaKind"),
     "file:mtime": t("modified"),
+    "facts:model": t("aiModel"),
+    "facts:recipe": t("ocrRecipe"),
     "desc:text": t("descText"),
     "desc:model": t("aiModel"),
     "desc:recipe": t("ocrRecipe"),
@@ -187,6 +195,7 @@ export function FileDetail({
   if (data.gps && !groups.has("gps")) groups.set("gps", []);
   if (canOrient && !groups.has("orientation")) groups.set("orientation", []);
   if (canOCR && !groups.has("ocr")) groups.set("ocr", []);
+  if (canFacts && !groups.has("facts")) groups.set("facts", []);
   if (canDescribe && !groups.has("desc")) groups.set("desc", []);
   return (
     <div className="file-info-panel">
@@ -281,7 +290,7 @@ export function FileDetail({
               fileID={file.id}
               empty={
                 rows.length === 0 &&
-                ["ocr", "desc", "orientation"].includes(source)
+                ["ocr", "desc", "orientation", "facts"].includes(source)
               }
               help={
                 source === "gps" && data.gps ? t("geoCaptureHint") : undefined
@@ -306,20 +315,31 @@ export function FileDetail({
                         ? "Media"
                         : source === "ocr"
                           ? "OCR"
-                          : source === "desc"
-                            ? t("descTitle")
-                            : source === "orientation"
-                              ? t("orientationTitle")
-                              : source
+                          : source === "facts"
+                            ? t("factsTitle")
+                            : source === "desc"
+                              ? t("descTitle")
+                              : source === "orientation"
+                                ? t("orientationTitle")
+                                : source
               }
               extractor={
                 !(source === "orientation" && file.image_rotation_manual) &&
                 (rows.length ||
-                  ["ocr", "desc", "orientation"].includes(source)) &&
-                ["exif", "gps", "media", "ocr", "desc", "orientation"].includes(
-                  source,
-                ) &&
-                !(clientMode && ["ocr", "desc", "orientation"].includes(source))
+                  ["ocr", "desc", "orientation", "facts"].includes(source)) &&
+                [
+                  "exif",
+                  "gps",
+                  "media",
+                  "ocr",
+                  "desc",
+                  "orientation",
+                  "facts",
+                ].includes(source) &&
+                !(
+                  clientMode &&
+                  ["ocr", "desc", "orientation", "facts"].includes(source)
+                )
                   ? source === "gps"
                     ? "exif"
                     : source
@@ -342,12 +362,20 @@ export function FileDetail({
                 )}
                 <dl className="metadata-list">
                   {rows.map((row) =>
-                    row.key === "ocr:hint" || row.key === "desc:hint" ? (
+                    row.key === "facts:data" ? null : row.key === "ocr:hint" ||
+                      row.key === "desc:hint" ||
+                      row.key === "facts:hint" ? (
                       <AISupplement
                         key={`${file.id}/${file.blob_key}/${row.key}`}
                         fileID={file.id}
                         blobKey={file.blob_key}
-                        kind={row.key === "ocr:hint" ? "ocr" : "desc"}
+                        kind={
+                          row.key === "ocr:hint"
+                            ? "ocr"
+                            : row.key === "facts:hint"
+                              ? "facts"
+                              : "desc"
+                        }
                         row={row}
                         manual={rows.some(
                           (item) =>
@@ -356,7 +384,7 @@ export function FileDetail({
                         )}
                         canRun={
                           !clientMode &&
-                          (source === "desc"
+                          (source === "desc" || source === "facts"
                             ? descriptionInput
                             : imageTextInput)
                         }
@@ -425,6 +453,17 @@ export function FileDetail({
                     ),
                   )}
                 </dl>
+                {source === "facts" &&
+                  rows
+                    .filter((row) => row.key === "facts:data")
+                    .map((row) => (
+                      <StructuredFields
+                        key={`${file.id}/${file.blob_key}/${row.key}`}
+                        fileID={file.id}
+                        blobKey={file.blob_key}
+                        row={row}
+                      />
+                    ))}
                 {source === "gps" &&
                   !data.gps &&
                   rows.some((row) => row.key.startsWith("geo:")) && (

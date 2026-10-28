@@ -13,6 +13,27 @@ import { useI18n } from "./i18n";
 import { ConfirmPopover } from "./ConfirmPopover";
 
 type Row = NonNullable<FileDetail["metadata"]>[number];
+type Binding = { row: Row; path: string };
+type Snapshot = Row & { binding?: Binding };
+function writeValue(
+  fileID: string,
+  blobKey: string,
+  snapshot: Snapshot,
+  value: string,
+  remove = false,
+) {
+  const before = snapshot.binding?.row || snapshot;
+  return createWrite("PUT", `/files/${fileID}/metadata`, {
+    blob_key: blobKey,
+    key: before.key,
+    before_value: before.value,
+    before_source: before.source,
+    before_type: before.type,
+    path: snapshot.binding?.path,
+    value,
+    ...(remove ? { remove: true } : {}),
+  });
+}
 
 export function MetadataValue({
   fileID,
@@ -21,6 +42,8 @@ export function MetadataValue({
   label,
   children,
   editor,
+  binding,
+  editable = true,
 }: {
   fileID: string;
   blobKey: string;
@@ -28,14 +51,16 @@ export function MetadataValue({
   label: string;
   children: ReactNode;
   editor?: (row: Row, close: () => void) => ReactNode;
+  binding?: Binding;
+  editable?: boolean;
 }) {
   const { t } = useI18n();
   // Retain the displayed before-state even if background extraction refreshes.
-  const [editing, setEditing] = useState<Row>();
+  const [editing, setEditing] = useState<Snapshot>();
   const trigger = useRef<HTMLButtonElement>(null);
   const removeTrigger = useRef<HTMLButtonElement>(null);
   const [removing, setRemoving] = useState<{
-    row: Row;
+    row: Snapshot;
     fileID: string;
     blobKey: string;
     x: number;
@@ -133,16 +158,7 @@ export function MetadataValue({
                 editing.value.length > 160
               }
               close={close}
-              write={(value) =>
-                createWrite("PUT", `/files/${fileID}/metadata`, {
-                  blob_key: blobKey,
-                  key: editing.key,
-                  before_value: editing.value,
-                  before_source: editing.source,
-                  before_type: editing.type,
-                  value,
-                })
-              }
+              write={(value) => writeValue(fileID, blobKey, editing, value)}
             />
           )
         ) : (
@@ -151,27 +167,29 @@ export function MetadataValue({
       </div>
       <div className="metadata-value-actions">
         <div className="metadata-value-transient-actions">
-          <ActionIcon
-            ref={trigger}
-            variant="subtle"
-            size="xs"
-            className="metadata-edit-action"
-            aria-label={editLabel}
-            disabled={!!editing || !!removing}
-            onClick={() => setEditing({ ...row })}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 20 20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.4"
-              aria-hidden="true"
+          {editable && (
+            <ActionIcon
+              ref={trigger}
+              variant="subtle"
+              size="xs"
+              className="metadata-edit-action"
+              aria-label={editLabel}
+              disabled={!!editing || !!removing}
+              onClick={() => setEditing({ ...row, binding })}
             >
-              <path d="m12 4 4 4M3 17l1-5L14 2l4 4L8 16z" />
-            </svg>
-          </ActionIcon>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                aria-hidden="true"
+              >
+                <path d="m12 4 4 4M3 17l1-5L14 2l4 4L8 16z" />
+              </svg>
+            </ActionIcon>
+          )}
           <ActionIcon
             ref={removeTrigger}
             variant="subtle"
@@ -182,7 +200,7 @@ export function MetadataValue({
             onClick={(event) => {
               const rect = event.currentTarget.getBoundingClientRect();
               setRemoving({
-                row: { ...row },
+                row: { ...row, binding },
                 fileID,
                 blobKey,
                 x: event.detail ? event.clientX : rect.left,
@@ -253,15 +271,13 @@ export function MetadataValue({
             setRemoving(undefined);
           }}
           write={() =>
-            createWrite("PUT", `/files/${removing.fileID}/metadata`, {
-              blob_key: removing.blobKey,
-              key: removing.row.key,
-              before_value: removing.row.value,
-              before_source: removing.row.source,
-              before_type: removing.row.type,
-              value: "",
-              remove: true,
-            })
+            writeValue(
+              removing.fileID,
+              removing.blobKey,
+              removing.row,
+              "",
+              true,
+            )
           }
         />
       )}

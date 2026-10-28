@@ -165,6 +165,7 @@ type AISettingsData = {
   model: string;
   auto_ocr: boolean;
   auto_desc: boolean;
+  auto_facts: boolean;
   auto_orientation: boolean;
   proxy_url: string;
   revision: string;
@@ -189,7 +190,7 @@ function useAISettings() {
     retry: false,
   });
 }
-export type ImageTask = "ocr" | "desc" | "orientation";
+export type ImageTask = "ocr" | "desc" | "orientation" | "facts";
 type MetadataTask = ImageTask | "geo";
 const queuePath = (kind: MetadataTask) =>
   kind === "geo" ? "/geo" : `/ai/${kind}`;
@@ -353,6 +354,13 @@ function AISettings({
             onChange={(e) => edit({ auto_desc: e.currentTarget.checked })}
             disabled={disabled || busy}
           />
+          <Checkbox
+            label={t("factsAuto")}
+            description={t("factsAutoHint")}
+            checked={!!draft.auto_facts}
+            onChange={(e) => edit({ auto_facts: e.currentTarget.checked })}
+            disabled={disabled || busy}
+          />
           <Group>
             <Button
               onClick={() => void save()}
@@ -362,6 +370,7 @@ function AISettings({
                 !dirty ||
                 ((draft.auto_ocr ||
                   draft.auto_desc ||
+                  draft.auto_facts ||
                   draft.auto_orientation) &&
                   !draft.model)
               }
@@ -382,7 +391,7 @@ function AISettings({
           </Group>
         </>
       )}
-      {(["orientation", "ocr", "desc"] as const).map((kind) => (
+      {(["orientation", "ocr", "desc", "facts"] as const).map((kind) => (
         <BackgroundTaskQueue
           key={kind}
           kind={kind}

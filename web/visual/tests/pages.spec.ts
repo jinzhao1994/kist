@@ -200,6 +200,7 @@ async function prepare(page: Page, options: Options = {}) {
           model: "gpt-6-luna",
           auto_ocr: false,
           auto_desc: false,
+          auto_facts: false,
           auto_orientation: false,
           proxy_url: "",
           revision: "visual",
@@ -209,6 +210,7 @@ async function prepare(page: Page, options: Options = {}) {
       path === "/geo" ||
       path === "/ai/ocr" ||
       path === "/ai/desc" ||
+      path === "/ai/facts" ||
       path === "/ai/orientation"
     )
       return route.fulfill({
@@ -221,7 +223,7 @@ async function prepare(page: Page, options: Options = {}) {
         },
       });
     if (
-      /^\/files\/[^/]+\/(?:ocr|desc|orientation|geo)$/.test(path) &&
+      /^\/files\/[^/]+\/(?:ocr|desc|facts|orientation|geo)$/.test(path) &&
       route.request().method() === "GET"
     )
       return route.fulfill({ json: { state: "missing" } });
@@ -4173,6 +4175,7 @@ for (const scenario of [
             model: "gpt-6-luna",
             auto_ocr: scenario === "ai-paused",
             auto_desc: scenario === "ai-description",
+            auto_facts: false,
             auto_orientation: false,
             proxy_url: "",
             revision: "visual",
@@ -5825,6 +5828,149 @@ for (const scenario of ["queued", "running", "mobile", "dark"] as const) {
     await expect(group.getByRole("status")).toHaveCount(0);
     await expect(group.getByRole("link")).toHaveCount(0);
     await action.scrollIntoViewIfNeeded();
+    await capture(page, errors, info.title);
+  });
+}
+
+for (const variant of [
+  "fields",
+  "edit",
+  "delete",
+  "mobile",
+  "dark",
+  "queued",
+] as const) {
+  test(`structured-${variant}`, async ({ page }, info) => {
+    const errors = await prepare(page, {
+      mobile: variant === "mobile",
+      mode: variant === "dark" ? "dark" : "light",
+    });
+    const value = JSON.stringify({
+      version: 1,
+      fields: [
+        {
+          key: "document_type",
+          label: "文件类型",
+          type: "text",
+          value: "合成成绩证书",
+          source: "ai",
+        },
+        {
+          key: "holder",
+          label: "持有人",
+          type: "object",
+          source: "ai",
+          children: [
+            {
+              key: "name",
+              label: "姓名",
+              type: "text",
+              value: "示例用户",
+              source: "user",
+            },
+          ],
+        },
+        {
+          key: "results",
+          label: "成绩",
+          type: "array",
+          source: "ai",
+          children: [
+            {
+              key: "mathematics_final",
+              label: "数学期末",
+              type: "object",
+              source: "ai",
+              children: [
+                {
+                  key: "score",
+                  label: "分数",
+                  type: "number",
+                  value: "92.5",
+                  unit: "分",
+                  source: "ai",
+                },
+                {
+                  key: "graded_on",
+                  label: "评定日期",
+                  type: "date",
+                  value: "2026-01",
+                  source: "ai",
+                },
+                {
+                  key: "examiner",
+                  label: "评定人",
+                  type: "text",
+                  value: "",
+                  uncertain: true,
+                  source: "ai",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    await page.route("**/api/v1/files/file-1", (route) =>
+      route.fulfill({
+        json: {
+          file: files[0],
+          tags: [],
+          extracted: ["file", "media", "ocr", "desc", "orientation", "facts"],
+          metadata: [
+            { key: "facts:hint", value: "", type: "text", source: "facts" },
+            {
+              key: "facts:model",
+              value: "openai/gpt-6-luna",
+              type: "text",
+              source: "facts",
+            },
+            { key: "facts:recipe", value: "1", type: "int", source: "facts" },
+            { key: "facts:data", value, type: "text", source: "facts" },
+          ],
+        },
+      }),
+    );
+    await page.route("**/api/v1/files/file-1/facts", (route) =>
+      route.fulfill({
+        json: {
+          state: variant === "queued" ? "queued" : "ready",
+          manual: true,
+        },
+      }),
+    );
+    await page.goto("/files?file=file-1");
+    await page.getByRole("button", { name: "文件详情", exact: true }).click();
+    const group = page.locator(".file-metadata-group").filter({
+      has: page.getByRole("heading", { name: "结构化信息", exact: true }),
+    });
+    await group.scrollIntoViewIfNeeded();
+    await expect(
+      group.getByText("92.5", { exact: true }).locator("visible=true"),
+    ).toBeVisible();
+    await expect(group.getByText("待核对", { exact: true })).toBeVisible();
+    if (variant === "edit") {
+      await group
+        .getByRole("button", { name: "编辑姓名", exact: true })
+        .click();
+      await group.getByRole("textbox").fill("更正后的示例姓名");
+    } else if (variant === "delete") {
+      await group
+        .getByRole("button", { name: "删除姓名", exact: true })
+        .click();
+      await expect(
+        page.getByRole("button", { name: "确认删除", exact: true }),
+      ).toBeVisible();
+    } else if (variant === "queued") {
+      await expect(
+        group.getByRole("button", { name: "重新提取结构化信息", exact: true }),
+      ).toBeDisabled();
+      await expect(group.getByText("已排队", { exact: true })).toBeVisible();
+    } else {
+      await group
+        .getByRole("button", { name: "编辑姓名", exact: true })
+        .hover();
+    }
     await capture(page, errors, info.title);
   });
 }

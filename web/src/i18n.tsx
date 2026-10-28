@@ -8,6 +8,28 @@ import {
 } from "react";
 
 export const en = {
+  factsTitle: "Structured information",
+  factsExtract: "Extract fields",
+  factsExtracting: "Extracting…",
+  factsAuto: "Automatically extract fields from new files",
+  factsAutoHint:
+    "Only supported images and documents added after enabling this setting. Existing files use backfill below.",
+  factsQueuePaused:
+    "Structured extraction automatic and bulk tasks paused. Single-file requests can still run.",
+  factsQueueRunning: "Extracting fields: {name}",
+  factsQueueIdle: "Structured extraction worker ready",
+  factsScanning: "Finding files without structured information…",
+  factsBackfill: "Fill missing structured information",
+  factsBackfillHint:
+    "Send supported images, PDF, Word and PowerPoint files without structured results to the connected provider. Human edits and deletions remain protected.",
+  factsUncertain: "Uncertain",
+  factsUncertainHelp:
+    "The model could not confidently read this field. Check the original before using it.",
+  factsUnreadable: "Unreadable",
+  factsEmpty: "No visible structured fields",
+  factsInvalid:
+    "Cannot display this structured result. The saved data has been preserved.",
+
   geoTitle: "Capture location",
   geoRefresh: "Update address",
   geoSaveSettings: "Save location settings",
@@ -985,6 +1007,25 @@ export const en = {
 } as const;
 export type MessageKey = keyof typeof en;
 export const zh: Record<MessageKey, string> = {
+  factsTitle: "结构化信息",
+  factsExtract: "提取字段",
+  factsExtracting: "正在提取",
+  factsAuto: "自动提取新增文件的结构化信息",
+  factsAutoHint:
+    "仅处理启用后新增的支持图片和文档。已有文件可使用下方的补全按钮。",
+  factsQueuePaused: "结构化自动与批量任务已暂停，单张提取仍可运行。",
+  factsQueueRunning: "正在提取字段：{name}",
+  factsQueueIdle: "结构化提取后台已就绪",
+  factsScanning: "正在查找尚无结构化信息的文件…",
+  factsBackfill: "补全已有文件的结构化信息",
+  factsBackfillHint:
+    "将尚无结果的支持图片、PDF、Word 和 PowerPoint 文件发送给已连接的服务。人工修改和删除的字段保持受保护。",
+  factsUncertain: "待核对",
+  factsUncertainHelp: "模型无法确定此字段，请对照原件核实后使用。",
+  factsUnreadable: "无法辨认",
+  factsEmpty: "暂无可显示的结构化字段",
+  factsInvalid: "无法显示此结构化结果，已保存的数据保持不变。",
+
   geoTitle: "拍摄位置",
   geoRefresh: "更新地址",
   geoSaveSettings: "保存位置设置",
@@ -1944,6 +1985,7 @@ export function initializeLanguage() {
   applyDocumentLanguage(initialPreferences());
 }
 interface Parameters {
+  factsQueueRunning: { name: string };
   editMetadata: { field: string };
   removeMetadata: { field: string };
   removeMetadataQuestion: { field: string };

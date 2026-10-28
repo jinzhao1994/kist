@@ -192,9 +192,9 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 		return nil, ErrOCRChanged
 	}
 	var supplement string
-	if kind == "ocr" || kind == "desc" {
+	if kind == "ocr" || kind == "desc" || kind == "facts" {
 		for _, row := range p.rows {
-			if row.Key == kind+":text" && row.Source == extract.UserSource {
+			if (row.Key == kind+":text" || kind == "facts" && row.Key == "facts:data") && row.Source == extract.UserSource {
 				return p, nil
 			}
 			if row.Key == kind+":hint" && !row.Tombstone && row.Source == extract.UserSource {
@@ -222,6 +222,9 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 	mime, err := extract.DetectMedia(f)
 	if err != nil {
 		return nil, err
+	}
+	if kind == "facts" && !(ocrExtractor{}).Wants(mime) {
+		return l.prepareDocumentFacts(ctx, p, provider, model, path, mime, language, supplement, zone)
 	}
 	if kind == "desc" && !(ocrExtractor{}).Wants(mime) {
 		return l.prepareDocumentDescription(ctx, p, provider, model, path, mime, language, supplement, zone)
@@ -301,6 +304,9 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 		input, err = ai.RotateImage(input, degrees)
 		if err != nil {
 			return nil, err
+		}
+		if kind == "facts" {
+			return p.prepareFacts(ctx, provider, model, ai.FactsInput{Image: &input}, language, supplement, zone)
 		}
 		var result ai.TextResult
 		if kind == "desc" {

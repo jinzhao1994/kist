@@ -16,6 +16,7 @@ export function taskErrorMessage(message: string | undefined, t: Translate) {
 }
 
 export function taskRunningMessage(kind: string | undefined): MessageKey {
+  if (kind === "facts") return "factsExtracting";
   if (kind === "desc") return "descGenerating";
   if (kind === "ocr") return "ocrRecognizing";
   if (kind === "orientation") return "orientationChecking";

@@ -161,6 +161,7 @@ func Check(e Extractor, kvs []KV) error {
 
 // CheckValue validates a stored scalar, including its task-specific text limit.
 func CheckValue(kv KV) error {
+
 	switch kv.Type {
 	case TypeText:
 	case TypeInt:
@@ -175,6 +176,11 @@ func CheckValue(kv KV) error {
 		return fmt.Errorf("unknown type %q", kv.Type)
 	}
 	limit := MaxValueLen
+	// Library validates the structured document and its per-field ownership.
+	// This package only enforces the scalar observation boundary.
+	if kv.Key == "facts:data" && kv.Type == TypeText {
+		limit = 128 << 10
+	}
 	if kv.Key == "desc:text" && kv.Type == TypeText {
 		limit = 16 << 10
 	}

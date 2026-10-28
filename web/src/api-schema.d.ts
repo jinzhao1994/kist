@@ -102,6 +102,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai/facts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 ai facts */
+        get: operations["get-api-v1-ai-facts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/facts/backfill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 ai facts backfill */
+        post: operations["post-api-v1-ai-facts-backfill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/facts/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 ai facts pause */
+        post: operations["post-api-v1-ai-facts-pause"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ai/models": {
         parameters: {
             query?: never;
@@ -586,6 +637,24 @@ export interface paths {
         put?: never;
         /** Post API v1 files by ID extractions by extractor */
         post: operations["post-api-v1-files-by-id-extractions-by-extractor"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{id}/facts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 files by ID facts */
+        get: operations["get-api-v1-files-by-id-facts"];
+        put?: never;
+        /** Post API v1 files by ID facts */
+        post: operations["post-api-v1-files-by-id-facts"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1916,6 +1985,7 @@ export interface components {
             before_value: string;
             blob_key: string;
             key: string;
+            path?: string;
             remove?: boolean;
             value: string;
         };
@@ -1965,6 +2035,7 @@ export interface components {
         };
         OCRSettings: {
             auto_desc: boolean;
+            auto_facts: boolean;
             auto_ocr: boolean;
             auto_orientation: boolean;
             model: string;
@@ -1994,6 +2065,12 @@ export interface components {
             paused: boolean;
         };
         "Post-api-v1-ai-disconnectRequest": Record<string, never>;
+        "Post-api-v1-ai-facts-backfillRequest": {
+            retry: boolean;
+        };
+        "Post-api-v1-ai-facts-pauseRequest": {
+            paused: boolean;
+        };
         "Post-api-v1-ai-ocr-backfillRequest": {
             retry: boolean;
         };
@@ -2011,6 +2088,11 @@ export interface components {
             parent?: string;
         };
         "Post-api-v1-files-by-id-descRequest": {
+            force?: boolean;
+            request_id?: string;
+            retry: boolean;
+        };
+        "Post-api-v1-files-by-id-factsRequest": {
             force?: boolean;
             request_id?: string;
             retry: boolean;
@@ -2562,6 +2644,101 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OutputStruct { Revoked bool \"json:\\\"revoked\\\"\" }Body"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-ai-facts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRQueueStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-ai-facts-backfill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-ai-facts-backfillRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRQueueStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-ai-facts-pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-ai-facts-pauseRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRQueueStatus"];
                 };
             };
             /** @description Error */
@@ -3956,6 +4133,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RequestResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-files-by-id-facts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRJob"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-files-by-id-facts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-files-by-id-factsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRJob"];
                 };
             };
             /** @description Error */

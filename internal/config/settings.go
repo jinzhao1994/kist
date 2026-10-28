@@ -92,7 +92,7 @@ func (c *Config) Validate() error {
 	if err := geocode.ValidateEndpoint(c.Geocoding.Endpoint); err != nil {
 		return err
 	}
-	if len(c.AIOptions.Model) > 200 || len(c.AIOptions.ProxyURL) > 2048 || c.AIOptions.AfterOp < 0 || ((c.AIOptions.AutoOCR || c.AIOptions.AutoDesc || c.AIOptions.AutoOrientation) && c.AIOptions.Model == "") || c.AIOptions.DescAfterOp < 0 || c.AIOptions.OrientationAfterOp < 0 {
+	if len(c.AIOptions.Model) > 200 || len(c.AIOptions.ProxyURL) > 2048 || c.AIOptions.AfterOp < 0 || ((c.AIOptions.AutoFacts || c.AIOptions.AutoOCR || c.AIOptions.AutoDesc || c.AIOptions.AutoOrientation) && c.AIOptions.Model == "") || c.AIOptions.FactsAfterOp < 0 || c.AIOptions.DescAfterOp < 0 || c.AIOptions.OrientationAfterOp < 0 {
 		return fmt.Errorf("invalid AI options")
 	}
 	if _, err := ai.HTTPClient(c.AIOptions.ProxyURL, time.Second); err != nil {

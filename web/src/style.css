@@ -3699,3 +3699,13 @@ main.upload-drag-active {
     pointer-events: auto;
   }
 }
+
+/* Field trees reuse metadata rows and headings while keeping deep schemas readable. */
+.metadata-field-tree .metadata-group-heading > .metadata-value {
+  width: 100%;
+}
+.metadata-field-tree section section {
+  margin-inline-start: 12px;
+  padding-inline-start: 12px;
+  border-inline-start: 1px solid var(--border);
+}

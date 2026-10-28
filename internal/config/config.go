@@ -18,6 +18,8 @@ import (
 const CurrentVersion = 2
 
 type AIOptions struct {
+	AutoFacts          bool   `toml:"auto_facts" json:"auto_facts"`
+	FactsAfterOp       int64  `toml:"facts_after_op" json:"-"`
 	AutoOrientation    bool   `toml:"auto_orientation" json:"auto_orientation"`
 	OrientationAfterOp int64  `toml:"orientation_after_op" json:"-"`
 	AutoDesc           bool   `toml:"auto_desc" json:"auto_desc"`

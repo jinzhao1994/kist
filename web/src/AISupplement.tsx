@@ -12,7 +12,7 @@ type Row = NonNullable<FileDetail["metadata"]>[number];
 type Props = {
   fileID: string;
   blobKey: string;
-  kind: "ocr" | "desc";
+  kind: "ocr" | "desc" | "facts";
   row: Row;
   manual: boolean;
   canRun: boolean;

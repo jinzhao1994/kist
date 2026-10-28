@@ -6,6 +6,7 @@ import (
 	"github.com/jinzhao1994/kist/internal/extract"
 	"github.com/jinzhao1994/kist/internal/oplog"
 	"github.com/jinzhao1994/kist/internal/store"
+	"github.com/jinzhao1994/kist/internal/structured"
 	"math"
 	"strconv"
 	"time"
@@ -69,6 +70,8 @@ func capturedFrom(kvs []extract.KV, zone *time.Location) domain.Instant {
 // MetadataEdit binds an edit or removal to the exact value and content the user saw.
 // Only existing keys are edited; the declared scalar type is preserved.
 type MetadataEdit struct {
+	// Path identifies a stable field inside facts:data; it never uses array indices.
+	Path         string `json:"path,omitempty"`
 	BlobKey      string `json:"blob_key"`
 	Key          string `json:"key"`
 	BeforeValue  string `json:"before_value"`
@@ -100,6 +103,34 @@ func editMetadataChange(tx *store.ViewTx, id domain.FileID, edit MetadataEdit, z
 		}
 		if row.Value != edit.BeforeValue || row.Source != edit.BeforeSource || string(row.Type) != edit.BeforeType {
 			return nil, oplog.ErrStaleBefore
+		}
+		if edit.Path != "" {
+			if row.Key != "facts:data" || row.Source != "facts" {
+				return nil, ErrInvalidRequest
+			}
+			doc, err := structured.Parse(row.Value)
+			if err != nil {
+				return nil, fmt.Errorf("%w: invalid structured metadata", ErrInvalidRequest)
+			}
+			doc, err = structured.Edit(doc, edit.Path, edit.Value, edit.Remove)
+			if err != nil {
+				return nil, fmt.Errorf("%w: %s", ErrInvalidRequest, err)
+			}
+			value, err := structured.Encode(doc)
+			if err != nil {
+				return nil, fmt.Errorf("%w: %s", ErrInvalidRequest, err)
+			}
+			if value == row.Value {
+				return nil, nil
+			}
+			return &oplog.FileMetadataChange{FileID: id, BlobKey: file.BlobKey,
+				CapturedWas: file.CapturedAt, CapturedAt: file.CapturedAt,
+				Keys: []oplog.KeyChange{{Key: row.Key,
+					Before: &oplog.MetadataState{Value: row.Value, Type: row.Type, Source: row.Source},
+					After:  &oplog.MetadataState{Value: value, Type: row.Type, Source: row.Source}}}}, nil
+		}
+		if row.Key == "facts:data" && !edit.Remove {
+			return nil, ErrInvalidRequest
 		}
 		if edit.Remove {
 			return removeMetadataChange(tx, id, edit.Key, zone)
