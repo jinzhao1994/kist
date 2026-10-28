@@ -5967,9 +5967,9 @@ for (const variant of [
     });
     await group.scrollIntoViewIfNeeded();
     await expect(
-      group.getByText("92.5", { exact: true }).locator("visible=true"),
+      group.getByText("92.5 分", { exact: true }).locator("visible=true"),
     ).toBeVisible();
-    await expect(group.getByText("待核对", { exact: true })).toBeVisible();
+    await expect(group.getByText("无法辨认", { exact: true })).toBeVisible();
     if (variant !== "queued")
       await group
         .locator(".metadata-value")

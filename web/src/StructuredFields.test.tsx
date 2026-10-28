@@ -81,7 +81,7 @@ it("displays grouped values, uncertainty and leaf ownership without raw JSON or 
   expect(screen.getByRole("heading", { name: "Holder" })).toBeVisible();
   expect(screen.getByText("Example Person", { selector: "bdi" })).toBeVisible();
   expect(screen.getByText("001234", { selector: "bdi" })).toBeVisible();
-  expect(screen.getByText("Uncertain")).toBeVisible();
+  expect(screen.getByText("Unreadable")).toBeVisible();
   expect(screen.getByRole("img", { name: /Edited by user/ })).toBeVisible();
   expect(screen.queryByText("Hidden")).not.toBeInTheDocument();
   expect(

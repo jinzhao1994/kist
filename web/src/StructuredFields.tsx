@@ -114,18 +114,17 @@ export function StructuredFields({
               {control(
                 <>
                   {f.value ? (
-                    <CopyTextPreview text={f.value} copyLabel="copy" />
+                    <CopyTextPreview
+                      text={[f.value, f.unit].filter(Boolean).join(" ")}
+                      copyLabel="copy"
+                    />
                   ) : (
                     <span className="metadata-help">
                       {t("factsUnreadable")}
                     </span>
                   )}
-                  {(f.unit || f.uncertain) && (
-                    <span className="metadata-help">
-                      {[f.unit, f.uncertain ? t("factsUncertain") : ""]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </span>
+                  {f.value && f.uncertain && (
+                    <span className="metadata-help">{t("factsUncertain")}</span>
                   )}
                 </>,
               )}
