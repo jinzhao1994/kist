@@ -812,9 +812,16 @@ it("groups preview metadata and opens tag selection only on request", async () =
   );
   await user.unhover(screen.getByText(/Oct 16, 2026/));
   expect(screen.getByText(/Oct 16, 2026/)).toHaveTextContent(/1:21/);
+  const unknownLabel = screen.getByText("unknown", { selector: "dt bdi" });
+  expect(unknownLabel).toBeVisible();
   expect(
-    screen.getByText("custom:unknown", { selector: "dt bdi" }),
-  ).toBeVisible();
+    screen.getByRole("button", { name: "Edit unknown" }),
+  ).toBeInTheDocument();
+  await user.hover(unknownLabel);
+  expect(await screen.findByRole("tooltip")).toHaveTextContent(
+    "custom:unknown",
+  );
+  await user.unhover(unknownLabel);
   expect(screen.getByText("original value")).toBeVisible();
   expect(
     screen.queryByRole("combobox", { name: "Select a tag" }),

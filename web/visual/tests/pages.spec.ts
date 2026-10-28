@@ -4988,7 +4988,7 @@ for (const refresh of [false, true]) {
         "焦距",
         "镜头型号",
         "白平衡",
-        "exif:UnknownVendorTag",
+        "UnknownVendorTag",
       ]) {
         await expect(group.getByText(label, { exact: true })).toBeVisible();
       }
@@ -4998,6 +4998,18 @@ for (const refresh of [false, true]) {
       await expect(gps.getByText("南北纬", { exact: true })).toBeVisible();
       await expect(group.getByText("南北纬", { exact: true })).toHaveCount(0);
       await expect(gps.getByText("曝光时间", { exact: true })).toHaveCount(0);
+      await expect(
+        group.getByRole("button", {
+          name: "编辑UnknownVendorTag",
+          exact: true,
+        }),
+      ).toHaveCount(1);
+      await group.getByText("UnknownVendorTag", { exact: true }).hover();
+      await expect(page.getByRole("tooltip")).toHaveText(
+        "exif:UnknownVendorTag",
+      );
+      await page.mouse.move(0, 0);
+      await expect(page.getByRole("tooltip")).toHaveCount(0);
       await group.getByText("曝光时间", { exact: true }).hover();
       await expect(page.getByRole("tooltip")).toHaveText("exif:ExposureTime");
       await page.mouse.move(0, 0);

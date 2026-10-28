@@ -142,6 +142,8 @@ export function FileDetail({
     "ocr:model": t("aiModel"),
     "ocr:recipe": t("ocrRecipe"),
   };
+  const metadataLabel = (key: string) =>
+    labels[key] || key.slice(key.indexOf(":") + 1);
   const metadataValue = (key: string, value: string, source: string) => {
     if (key === "orientation:clockwise_degrees") return `${value}°`;
     if (key === "orientation:method")
@@ -365,7 +367,7 @@ export function FileDetail({
                       <div key={row.key}>
                         <MetadataLabel
                           metadataKey={row.key}
-                          label={labels[row.key] || row.key}
+                          label={metadataLabel(row.key)}
                         />
                         <dd>
                           <MetadataValue
@@ -373,7 +375,7 @@ export function FileDetail({
                             fileID={file.id}
                             blobKey={file.blob_key}
                             row={row}
-                            label={labels[row.key] || row.key}
+                            label={metadataLabel(row.key)}
                           >
                             {row.key === "ocr:text" ? (
                               <OCRText text={row.value} />
