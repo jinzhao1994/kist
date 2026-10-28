@@ -4629,16 +4629,10 @@ for (const scenario of [
                       ),
               },
               {
-                key: "ocr:provider",
-                type: "text",
-                source: "ocr",
-                value: "openai",
-              },
-              {
                 key: "ocr:model",
                 type: "text",
                 source: "ocr",
-                value: "gpt-6-luna",
+                value: "openai/gpt-6-luna",
               },
               { key: "ocr:recipe", type: "text", source: "ocr", value: "1" },
               {
@@ -4664,6 +4658,10 @@ for (const scenario of [
       await expect(
         page.getByRole("heading", { name: "OCR", exact: true }),
       ).toBeVisible();
+      await expect(
+        page.getByText("openai/gpt-6-luna", { exact: true }),
+      ).toBeVisible();
+      await expect(page.getByText("服务商", { exact: true })).toHaveCount(0);
       await expect(
         page.getByText("源文件校验值", { exact: true }),
       ).toBeVisible();
@@ -4855,19 +4853,7 @@ for (const scenario of [
                 key: "desc:model",
                 type: "text",
                 source: "desc",
-                value: "gpt-6-luna",
-              },
-              {
-                key: "desc:provider",
-                type: "text",
-                source: "desc",
-                value: "openai",
-              },
-              {
-                key: "desc:language",
-                type: "text",
-                source: "desc",
-                value: "zh-CN",
+                value: "openai/gpt-6-luna",
               },
               {
                 key: "desc:input_sha256",
@@ -4910,7 +4896,9 @@ for (const scenario of [
       await expect(
         group.getByRole("button", { name: "复制描述", exact: true }),
       ).toBeVisible();
-      await expect(group).toContainText("zh-CN");
+      await expect(group).toContainText("openai/gpt-6-luna");
+      await expect(group.getByText("生成语言", { exact: true })).toHaveCount(0);
+      await expect(group.getByText("服务商", { exact: true })).toHaveCount(0);
       expect(
         await group
           .locator(".copy-text-preview")

@@ -52,7 +52,6 @@ export function FileDetail({
     "orientation:clockwise_degrees": t("orientationAngle"),
     "orientation:input_sha256": t("ocrInputHash"),
     "orientation:model": t("aiModel"),
-    "orientation:provider": t("ocrProvider"),
     "orientation:recipe": t("ocrRecipe"),
     "orientation:confidence": t("orientationConfidence"),
     "orientation:method": t("orientationMethod"),
@@ -139,13 +138,10 @@ export function FileDetail({
     "file:mtime": t("modified"),
     "desc:text": t("descText"),
     "desc:model": t("aiModel"),
-    "desc:provider": t("ocrProvider"),
     "desc:recipe": t("ocrRecipe"),
     "desc:input_sha256": t("ocrInputHash"),
-    "desc:language": t("descLanguage"),
     "ocr:text": t("ocrText"),
     "ocr:model": t("aiModel"),
-    "ocr:provider": t("ocrProvider"),
     "ocr:recipe": t("ocrRecipe"),
     "ocr:input_sha256": t("ocrInputHash"),
   };
@@ -169,13 +165,6 @@ export function FileDetail({
     if (key === "file:size" && Number.isSafeInteger(Number(value))) {
       return formatBytes(Number(value), prefs);
     }
-    if (
-      (key === "ocr:provider" ||
-        key === "desc:provider" ||
-        key === "orientation:provider") &&
-      value === "openai"
-    )
-      return "OpenAI";
     if (key === "geo:address")
       return value ? t("geoNearby", { address: value }) : t("geoNotFound");
     if (key === "geo:provider" && value === "photon") return "Photon";

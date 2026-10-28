@@ -68,7 +68,6 @@ export const en = {
   descCopyText: "Copy description",
   descTitle: "Description",
   descText: "Description text",
-  descLanguage: "Output language",
   settingLibraryLanguage: "Library language",
   settingLanguageHint:
     "Language for generated descriptions (BCP 47, e.g. zh-CN or en). Changes affect future tasks only; interface language is separate.",
@@ -1036,7 +1035,6 @@ export const zh: Record<MessageKey, string> = {
   descCopyText: "复制描述",
   descTitle: "描述",
   descText: "描述正文",
-  descLanguage: "生成语言",
   settingLibraryLanguage: "资料库语言",
   settingLanguageHint:
     "用于生成描述的语言（BCP 47，例如 zh-CN 或 en）。修改只影响后续任务，与界面语言分开。",

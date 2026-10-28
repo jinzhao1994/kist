@@ -52,8 +52,11 @@ func TestDescriptionMetadataReplayUndoAndIsolation(t *testing.T) {
 			t.Fatal(row)
 		}
 	}
-	if values["ocr:text"] != "original OCR" || values["desc:text"] != p.text || values["desc:language"] != "zh-CN" || p.language != "zh-CN" {
+	if values["ocr:text"] != "original OCR" || values["desc:text"] != p.text || p.language != "zh-CN" {
 		t.Fatal(values)
+	}
+	if _, exists := values["desc:language"]; exists {
+		t.Fatal("output language was duplicated in metadata")
 	}
 	if values["desc:recipe"] != "6" || values["ocr:recipe"] != "4" {
 		t.Fatal("incorrect recipe versions", values)

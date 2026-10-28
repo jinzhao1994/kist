@@ -107,6 +107,15 @@ func TestOrientationSharedInputManualOverrideReplayAndUndo(t *testing.T) {
 	if p.directions != 1 || len(p.inputs) != 2 || p.inputs[0] != image.Pt(40, 80) || p.inputs[1] != image.Pt(40, 80) {
 		t.Fatal("direction not shared", p.directions, p.inputs)
 	}
+	values := metaOf(t, l, id)
+	for kind, model := range map[string]string{"orientation": "test/test", "ocr": "test/image-model", "desc": "test/image-model"} {
+		if values[kind+":model"].Value != model {
+			t.Fatal("model identity lost its provider", kind, values[kind+":model"])
+		}
+		if _, exists := values[kind+":provider"]; exists {
+			t.Fatal("provider was stored separately", kind)
+		}
+	}
 	rows, _ := store.FileMetadata(l.db, id)
 	if degrees, known, manual := imageRotation(rows, file.BlobKey); degrees != 90 || !known || manual {
 		t.Fatal(degrees, known, manual)

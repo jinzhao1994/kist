@@ -283,8 +283,7 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 		facts = []extract.KV{
 			{Key: "orientation:clockwise_degrees", Value: fmt.Sprint(result.Degrees), Type: extract.TypeInt},
 			{Key: "orientation:input_sha256", Value: p.file.BlobKey, Type: extract.TypeText},
-			{Key: "orientation:provider", Value: result.Provider, Type: extract.TypeText},
-			{Key: "orientation:model", Value: result.Model, Type: extract.TypeText},
+			{Key: "orientation:model", Value: result.Provider + "/" + result.Model, Type: extract.TypeText},
 			{Key: "orientation:recipe", Value: fmt.Sprint(ai.OrientationRecipeVersion), Type: extract.TypeInt},
 			{Key: "orientation:confidence", Value: fmt.Sprint(result.Confidence), Type: extract.TypeText},
 			{Key: "orientation:method", Value: result.Method, Type: extract.TypeText},
@@ -311,10 +310,7 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 		if kind == "desc" {
 			recipe = ai.DescriptionRecipeVersion
 		}
-		facts = []extract.KV{{Key: kind + ":hint", Value: "", Type: extract.TypeText}, {Key: kind + ":text", Value: result.Text, Type: extract.TypeText}, {Key: kind + ":provider", Value: result.Provider, Type: extract.TypeText}, {Key: kind + ":model", Value: result.Model, Type: extract.TypeText}, {Key: kind + ":input_sha256", Value: p.file.BlobKey, Type: extract.TypeText}, {Key: kind + ":recipe", Value: fmt.Sprint(recipe), Type: extract.TypeInt}}
-		if kind == "desc" {
-			facts = append(facts, extract.KV{Key: "desc:language", Value: language, Type: extract.TypeText})
-		}
+		facts = []extract.KV{{Key: kind + ":hint", Value: "", Type: extract.TypeText}, {Key: kind + ":text", Value: result.Text, Type: extract.TypeText}, {Key: kind + ":model", Value: result.Provider + "/" + result.Model, Type: extract.TypeText}, {Key: kind + ":input_sha256", Value: p.file.BlobKey, Type: extract.TypeText}, {Key: kind + ":recipe", Value: fmt.Sprint(recipe), Type: extract.TypeInt}}
 	}
 	if err = ctx.Err(); err != nil {
 		return nil, err
