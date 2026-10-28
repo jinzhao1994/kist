@@ -5970,6 +5970,13 @@ for (const variant of [
       group.getByText("92.5", { exact: true }).locator("visible=true"),
     ).toBeVisible();
     await expect(group.getByText("待核对", { exact: true })).toBeVisible();
+    if (variant !== "queued")
+      await group
+        .locator(".metadata-value")
+        .filter({
+          has: page.getByRole("button", { name: "编辑姓名", exact: true }),
+        })
+        .hover();
     if (variant === "edit") {
       await group
         .getByRole("button", { name: "编辑姓名", exact: true })
