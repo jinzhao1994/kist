@@ -27,3 +27,21 @@ project-authored two-slide OpenDocument presentation (16:9, English and Chinese
 text). They contain no personal data, macros or external resources. The real
 converter tests check both slides, searchable text, landscape thumbnail dimensions
 and unchanged originals.
+
+`permissions.pdf` and `password.pdf` are encrypted copies of the synthetic
+`two-pages.pdf` color-page fixture. The former opens without a password, permits
+printing, and restricts copying and modification; the latter requires an opening
+password. They contain no user documents. Generate them with Ghostscript:
+
+```sh
+gs -q -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 \
+  -sOwnerPassword=kist-test-owner -sUserPassword= \
+  -dEncryptionR=3 -dKeyLength=128 -dPermissions=-3900 \
+  -sOutputFile=permissions.pdf two-pages.pdf
+gs -q -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 \
+  -sOwnerPassword=kist-test-owner -sUserPassword=kist-test-open \
+  -dEncryptionR=3 -dKeyLength=128 -dPermissions=-3904 \
+  -sOutputFile=password.pdf two-pages.pdf
+```
+
+Ghostscript is only needed to regenerate these fixtures, not to run the tests.

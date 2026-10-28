@@ -57,12 +57,12 @@ func (r Renderer) Document(ctx context.Context, input, recipe string, maxPages i
 	if err = run(ctx, infoTool, []string{input}, info); err != nil {
 		return out, err
 	}
+	// A PDF can be encrypted only to restrict permissions and still open without
+	// a password. Let the tools decide whether it can be read and rendered;
+	// password-required documents already fail the no-password pdfinfo call.
 	for _, line := range strings.Split(info.String(), "\n") {
 		if value, ok := strings.CutPrefix(line, "Pages:"); ok {
 			out.TotalPages, _ = strconv.Atoi(strings.TrimSpace(value))
-		}
-		if value, ok := strings.CutPrefix(line, "Encrypted:"); ok && strings.HasPrefix(strings.TrimSpace(value), "yes") {
-			return DocumentPDF{}, fail("unsupported", "encrypted PDF is not supported")
 		}
 	}
 	if out.TotalPages < 1 {

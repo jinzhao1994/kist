@@ -62,6 +62,46 @@ func TestDocumentMissingConverters(t *testing.T) {
 	}
 }
 
+func TestDocumentPDFEncryption(t *testing.T) {
+	for _, name := range []string{"pdfinfo", "pdftocairo"} {
+		if _, err := exec.LookPath(name); err != nil {
+			t.Skip("poppler not installed")
+		}
+	}
+	for _, tc := range []struct {
+		name     string
+		readable bool
+	}{{"permissions.pdf", true}, {"password.pdf", false}} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join("testdata", tc.name)
+			before, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			doc, err := (Renderer{}).Document(t.Context(), path, "", 1, 20<<20)
+			if tc.readable {
+				if err != nil || doc.Pages != 1 || doc.TotalPages != 2 {
+					t.Fatalf("readable protected PDF: pages=%d total=%d err=%v", doc.Pages, doc.TotalPages, err)
+				}
+				selected := filepath.Join(t.TempDir(), "selected.pdf")
+				if err := os.WriteFile(selected, doc.Data, 0600); err != nil {
+					t.Fatal(err)
+				}
+				info, err := exec.CommandContext(t.Context(), "pdfinfo", selected).CombinedOutput()
+				if err != nil || !bytes.Contains(info, []byte("Encrypted:       no")) {
+					t.Fatalf("output is not readable without encryption: %s: %v", info, err)
+				}
+			} else if err == nil || len(doc.Data) != 0 {
+				t.Fatal("password-required PDF produced output", err)
+			}
+			after, err := os.ReadFile(path)
+			if err != nil || !bytes.Equal(before, after) {
+				t.Fatal("original PDF changed", err)
+			}
+		})
+	}
+}
+
 func TestRealOfficeDescriptionPages(t *testing.T) {
 	for _, name := range []string{"pdfinfo", "pdftocairo"} {
 		if _, err := exec.LookPath(name); err != nil {
