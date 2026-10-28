@@ -41,6 +41,17 @@ describe("message contract", () => {
     for (const key of Object.keys(en) as (keyof typeof en)[])
       expect(variables(parse(zh[key])), key).toEqual(variables(parse(en[key])));
   });
+  it("formats document page coverage in both languages", () => {
+    expect(
+      translator(prefs)("descPageRange", { pages: "10", total: "28" }),
+    ).toBe("Pages 1–10 of 28");
+    expect(
+      translator({ ...prefs, language: "zh" })("descPageRange", {
+        pages: "10",
+        total: "28",
+      }),
+    ).toBe("第 1–10 页／共 28 页");
+  });
   it("formats plural messages without concatenation", () => {
     expect(translator(prefs)("fileCount", { count: 1 })).toBe("1 file");
     expect(translator(prefs)("fileCount", { count: 2 })).toBe("2 files");

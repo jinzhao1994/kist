@@ -4225,14 +4225,14 @@ for (const scenario of [
     }
     if (scenario === "ai-description") {
       const backfill = settings.getByRole("button", {
-        name: "补全已有图片的描述",
+        name: "补全已有文件的描述",
         exact: true,
       });
       await backfill.scrollIntoViewIfNeeded();
       await expect(backfill).toBeEnabled();
       await expect(
         settings.getByRole("checkbox", {
-          name: "自动描述新增图片",
+          name: "自动描述新增文件",
           exact: true,
         }),
       ).toBeChecked();
@@ -4570,7 +4570,7 @@ for (const scenario of [
     if (scenario === "text-tooltip") {
       await page.route("**/api/v1/files/file-1/desc", (route) =>
         route.fulfill({
-          json: { state: descriptionDone ? "ready" : "missing" },
+          json: { state: descriptionDone ? "ready" : "running" },
         }),
       );
     }
@@ -5700,6 +5700,86 @@ for (const variant of [
           group.getByRole("button", { name: "保存并重新提取", exact: true }),
         ).toBeDisabled();
     }
+    await capture(page, errors, info.title);
+  });
+}
+
+for (const extension of ["pdf", "doc", "docx", "ppt", "pptx", "pdf-result"]) {
+  test(`document-description-${extension}`, async ({ page }, info) => {
+    const errors = await prepare(page);
+    await page.route("**/api/v1/ai", (route) =>
+      route.fulfill({
+        json: {
+          supported: true,
+          connected: true,
+          email: "reader@example.test",
+          pending: false,
+          error: "",
+        },
+      }),
+    );
+    await page.route("**/api/v1/files/file-1", (route) =>
+      route.fulfill({
+        json: {
+          file: {
+            ...files[0],
+            name: `synthetic.${extension === "pdf-result" ? "pdf" : extension}`,
+            kind: "other",
+            media_type: "",
+            extraction_pending: [],
+          },
+          tags: [],
+          extracted: [],
+          metadata:
+            extension === "pdf-result"
+              ? [
+                  {
+                    key: "desc:coverage",
+                    source: "desc",
+                    type: "text",
+                    value: "1-10/28",
+                  },
+                  {
+                    key: "desc:text",
+                    source: "desc",
+                    type: "text",
+                    value: "基于前十页的合成文档描述，用于验证页范围展示。",
+                  },
+                ]
+              : [],
+        },
+      }),
+    );
+    await page.route("**/api/v1/files/file-1/content", (route) =>
+      route.fulfill({
+        contentType: "application/pdf",
+        body: pdfFixture(extension.startsWith("ppt")),
+      }),
+    );
+    await page.route(
+      /\/api\/v1\/files\/file-1\/derived\/(office|slides)_pdf_v1\/content(?:\?.*)?$/,
+      (route) =>
+        route.fulfill({
+          contentType: "application/pdf",
+          body: pdfFixture(extension.startsWith("ppt")),
+        }),
+    );
+    await page.goto("/files?file=file-1");
+    await page.getByRole("button", { name: "文件详情", exact: true }).click();
+    const panel = page.locator(".file-info-panel");
+    await expect(
+      panel.getByRole("button", { name: "生成描述", exact: true }),
+    ).toHaveCount(extension !== "pdf-result" ? 1 : 0);
+    if (extension === "pdf-result")
+      await expect(
+        panel.getByText("第 1–10 页／共 28 页", { exact: true }),
+      ).toBeVisible();
+    await expect(
+      panel.getByRole("heading", { name: "OCR", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      panel.getByRole("heading", { name: "图片方向", exact: true }),
+    ).toHaveCount(0);
     await capture(page, errors, info.title);
   });
 }

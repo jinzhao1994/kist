@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -211,14 +210,6 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 	} else if !force && p.version >= 1 {
 		return p, nil
 	}
-	if kind != "orientation" {
-		if _, known, _ := imageRotation(p.rows); !known {
-			if err := l.ensureImageOrientation(ctx, id, provider, model, p.file.BlobKey); err != nil {
-				return nil, err
-			}
-			return l.prepareImageText(ctx, id, provider, model, p.file.BlobKey, kind, language, force)
-		}
-	}
 	path, ok := l.blobs.LocalPath(blobKey(p.file.BlobKey))
 	if !ok {
 		return nil, ErrNoSuchFile
@@ -228,6 +219,24 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 		return nil, err
 	}
 	defer f.Close()
+	mime, err := extract.DetectMedia(f)
+	if err != nil {
+		return nil, err
+	}
+	if kind == "desc" && !(ocrExtractor{}).Wants(mime) {
+		return l.prepareDocumentDescription(ctx, p, provider, model, path, mime, language, supplement, zone)
+	}
+	if kind != "orientation" {
+		if _, known, _ := imageRotation(p.rows); !known {
+			if err := l.ensureImageOrientation(ctx, id, provider, model, p.file.BlobKey); err != nil {
+				return nil, err
+			}
+			return l.prepareImageText(ctx, id, provider, model, p.file.BlobKey, kind, language, force)
+		}
+	}
+	if _, err = f.Seek(0, io.SeekStart); err != nil {
+		return nil, err
+	}
 	data, err := io.ReadAll(io.LimitReader(f, ai.MaxImageBytes+1))
 	if err != nil {
 		return nil, err
@@ -235,7 +244,7 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 	if len(data) > ai.MaxImageBytes {
 		return nil, errors.New("AI image exceeds 20 MiB")
 	}
-	mime, err := extract.DetectMedia(bytes.NewReader(data))
+	mime, err = extract.DetectMedia(bytes.NewReader(data))
 	if err != nil {
 		return nil, err
 	}
@@ -302,8 +311,11 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 		if err != nil {
 			return nil, err
 		}
-		if kind == "desc" && strings.TrimSpace(result.Text) == "" {
-			return nil, errors.New("description is empty; no result was saved")
+		if kind == "desc" {
+			result.Text, err = boundedDescription(result.Text)
+			if err != nil {
+				return nil, err
+			}
 		}
 		recipe := ai.OCRRecipeVersion
 		if kind == "desc" {
@@ -311,6 +323,11 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 		}
 		facts = []extract.KV{{Key: kind + ":hint", Value: "", Type: extract.TypeText}, {Key: kind + ":text", Value: result.Text, Type: extract.TypeText}, {Key: kind + ":model", Value: result.Provider + "/" + result.Model, Type: extract.TypeText}, {Key: kind + ":recipe", Value: fmt.Sprint(recipe), Type: extract.TypeInt}}
 	}
+	return p.finishAI(ctx, e, facts, zone)
+}
+
+func (p *PreparedOCR) finishAI(ctx context.Context, e extract.Extractor, facts []extract.KV, zone *time.Location) (*PreparedOCR, error) {
+	var err error
 	if err = ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -321,7 +338,7 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 	// AI extraction has no date authority and must not reinterpret capture time.
 	change.CapturedAt = p.file.CapturedAt
 	change.CapturedWas = p.file.CapturedAt
-	p.payload, err = oplog.Marshal(oplog.ExtractMetadataPayload{Extractor: kind, Version: 1, PreviousVersion: p.version, Files: []oplog.FileExtraction{*change}})
+	p.payload, err = oplog.Marshal(oplog.ExtractMetadataPayload{Extractor: p.extractor, Version: 1, PreviousVersion: p.version, Files: []oplog.FileExtraction{*change}})
 	return p, err
 }
 

@@ -70,20 +70,22 @@ export const en = {
   descCopyText: "Copy description",
   descTitle: "Description",
   descText: "Text",
+  descCoverage: "Page coverage",
+  descPageRange: "Pages 1–{pages} of {total}",
   settingLibraryLanguage: "Library language",
   settingLanguageHint:
     "Language for generated descriptions (BCP 47, e.g. zh-CN or en). Changes affect future tasks only; interface language is separate.",
-  descAuto: "Automatically describe new images",
+  descAuto: "Automatically describe new files",
   descAutoHint:
-    "Only images added after enabling this setting are sent for descriptions. Existing images require an explicit backfill.",
+    "Describe supported images, PDF, Word and PowerPoint files added after enabling this setting. Existing files require an explicit backfill.",
   descQueuePaused:
     "Description automatic and bulk tasks paused. Single-file requests can still run.",
   descQueueRunning: "Describing: {name}",
   descQueueIdle: "Description worker ready",
-  descScanning: "Finding images without descriptions…",
-  descBackfill: "Describe existing images without descriptions",
+  descScanning: "Finding files without descriptions…",
+  descBackfill: "Describe existing files without descriptions",
   descBackfillHint:
-    "Send supported images without descriptions to the connected provider. Save results as metadata in the library language. Failures require an explicit retry.",
+    "Describe supported images, PDF, Word and PowerPoint files. Documents use the first 10 pages, up to 20 MiB. Results are saved as metadata in the library language; failures require an explicit retry.",
   descQueued: "Queued for description",
   descExtract: "Generate description",
 
@@ -107,11 +109,11 @@ export const en = {
   ocrQueueCounts: "Queued: {queued} · Failed: {failed}",
   ocrScanning: "Finding images without OCR…",
   ocrBackfill: "Recognize existing images without OCR",
-  ocrRetryFailed: "Retry failed images",
+  ocrRetryFailed: "Retry failed tasks",
   ocrPause: "Pause automatic / bulk tasks",
   ocrResume: "Resume automatic / bulk tasks",
   ocrBackfillStarted:
-    "Backfill requested. Completed and queued images will be skipped.",
+    "Backfill requested. Completed and queued files will be skipped.",
   ocrBackfillHint:
     "Backfill sends supported images without OCR to the connected provider. Failures are not retried automatically. If paused, resume the queue to process requests.",
   ocrQueued: "Queued for OCR",
@@ -120,7 +122,7 @@ export const en = {
   ocrSettings: "AI settings",
   aiConnection: "AI connection",
   aiLocalHint:
-    "Connect ChatGPT to use your plan for image orientation, OCR and descriptions. Images requested manually or by enabled background tasks are sent to OpenAI; results are saved as metadata in the archive.",
+    "Connect ChatGPT to use your plan for image orientation, OCR and descriptions. Images and documents requested manually or by enabled background tasks are sent to OpenAI; results are saved as metadata in the archive.",
   aiConnected: "Connected",
   aiContinue: "Continue with ChatGPT",
   aiOpenSignIn: "Open ChatGPT sign-in",
@@ -1039,19 +1041,21 @@ export const zh: Record<MessageKey, string> = {
   descCopyText: "复制描述",
   descTitle: "描述",
   descText: "正文",
+  descCoverage: "描述页范围",
+  descPageRange: "第 1–{pages} 页／共 {total} 页",
   settingLibraryLanguage: "资料库语言",
   settingLanguageHint:
     "用于生成描述的语言（BCP 47，例如 zh-CN 或 en）。修改只影响后续任务，与界面语言分开。",
-  descAuto: "自动描述新增图片",
+  descAuto: "自动描述新增文件",
   descAutoHint:
-    "仅发送启用后新增的图片生成描述；已有图片需要手动发起查缺补漏。",
+    "支持图片、PDF、Word 和 PPT，仅处理启用后新增的文件；已有文件需手动查缺补漏。",
   descQueuePaused: "描述队列已暂停，已发出的请求仍可能完成。",
   descQueueRunning: "正在描述：{name}",
   descQueueIdle: "描述后台已就绪",
-  descScanning: "正在查找尚无描述的图片…",
-  descBackfill: "补全已有图片的描述",
+  descScanning: "正在查找尚无描述的文件…",
+  descBackfill: "补全已有文件的描述",
   descBackfillHint:
-    "将尚无描述的支持格式图片发送至已连接的服务，按资料库语言生成描述并保存为元数据。失败任务需明确重试。",
+    "支持图片、PDF、Word 和 PPT。文档最多读取前 10 页，发送内容不超过 20 MiB；按资料库语言生成描述并保存为元数据。失败任务需明确重试。",
   descQueued: "已排队等待生成描述",
   descExtract: "生成描述",
 
@@ -1073,10 +1077,10 @@ export const zh: Record<MessageKey, string> = {
   ocrQueueCounts: "排队 {queued} 项 · 失败 {failed} 项",
   ocrScanning: "正在查找尚未识别的图片…",
   ocrBackfill: "补全已有图片的文字识别",
-  ocrRetryFailed: "重试失败图片",
+  ocrRetryFailed: "重试失败任务",
   ocrPause: "暂停自动与批量处理",
   ocrResume: "继续自动与批量处理",
-  ocrBackfillStarted: "已发起查缺补漏，将跳过已完成及已排队的图片。",
+  ocrBackfillStarted: "已发起查缺补漏，将跳过已完成及已排队的文件。",
   ocrBackfillHint:
     "查缺补漏会将尚未识别且受支持的图片发送给已连接的服务商。失败项不会自动重试；队列暂停时，需要点击继续后才开始处理。",
   ocrQueued: "已排队等待 OCR",
@@ -1084,7 +1088,7 @@ export const zh: Record<MessageKey, string> = {
   ocrSettings: "AI 设置",
   aiConnection: "AI 连接",
   aiLocalHint:
-    "连接 ChatGPT 后使用你的套餐判断图片方向、识别文字和描述图片。手动请求或已启用的后台任务会将图片发送到 OpenAI，结果保存为资料库中的元数据。",
+    "连接 ChatGPT 后使用你的套餐判断图片方向、识别文字和生成描述。手动请求或已启用的后台任务会将图片或文档发送到 OpenAI，结果保存为资料库中的元数据。",
   aiConnected: "已连接",
   aiContinue: "使用 ChatGPT 继续",
   aiOpenSignIn: "打开 ChatGPT 登录",
@@ -1938,6 +1942,7 @@ export function initializeLanguage() {
   applyDocumentLanguage(initialPreferences());
 }
 interface Parameters {
+  descPageRange: { pages: string; total: string };
   editMetadata: { field: string };
   removeMetadata: { field: string };
   removeMetadataQuestion: { field: string };

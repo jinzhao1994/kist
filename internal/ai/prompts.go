@@ -3,6 +3,7 @@ package ai
 import (
 	_ "embed"
 	"encoding/json"
+	"fmt"
 	"strings"
 )
 
@@ -33,7 +34,7 @@ var descriptionInstructions string
 var descriptionInput string
 
 // DescriptionRecipeVersion identifies the description instructions used for new results.
-const DescriptionRecipeVersion = 6
+const DescriptionRecipeVersion = 7
 
 const OCRRecipeVersion = 4
 const OrientationRecipeVersion = 1
@@ -69,4 +70,13 @@ func withSupplement(prompt Prompt, supplement, instructions string) Prompt {
 	encoded, _ := json.Marshal(supplement)
 	prompt.Input += "\n\nUser-provided reference information (JSON string):\n" + string(encoded)
 	return prompt
+}
+
+//go:embed prompts/document-description.txt
+var documentDescriptionInstructions string
+
+// DocumentDescriptionPrompt describes only the bounded document excerpt.
+func DocumentDescriptionPrompt(options TextOptions, pages, totalPages int) Prompt {
+	prompt := Prompt{Instructions: strings.ReplaceAll(strings.TrimSpace(documentDescriptionInstructions), "{{language}}", options.Language), Input: fmt.Sprintf("Describe the supplied document. Pages provided: 1-%d of %d. Only describe these pages; do not claim to have reviewed omitted pages.", pages, totalPages)}
+	return withSupplement(prompt, options.Supplement, strings.ReplaceAll(descriptionSupplement, "the image", "the document"))
 }

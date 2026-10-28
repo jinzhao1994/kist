@@ -508,7 +508,7 @@ it("explains canceled tasks in both queue settings and metadata", async () => {
     screen.queryByRole("link", { name: "AI settings" }),
   ).not.toBeInTheDocument();
   expect(
-    screen.getByRole("button", { name: "Retry failed images" }),
+    screen.getByRole("button", { name: "Retry failed tasks" }),
   ).toBeEnabled();
 });
 

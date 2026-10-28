@@ -109,6 +109,8 @@ type Renderer struct {
 	HeifDec     string
 	HeifInfo    string
 	PDFToPPM    string
+	PDFInfo     string
+	PDFToCairo  string
 	LibreOffice string
 }
 

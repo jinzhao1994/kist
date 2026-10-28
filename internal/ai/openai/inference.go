@@ -95,6 +95,15 @@ func (c Client) imageText(ctx context.Context, model string, img ai.Image, promp
 	return c.imageContent(ctx, model, prompt, content)
 }
 
+func (c Client) DescribeDocument(ctx context.Context, model string, document ai.Document, options ai.TextOptions) (ai.TextResult, error) {
+	if len(document.Data) == 0 || len(document.Data) > ai.MaxDocumentBytes || document.Pages < 1 || document.Pages > ai.MaxDocumentPages || document.TotalPages < document.Pages {
+		return ai.TextResult{}, errors.New("document exceeds AI input limits")
+	}
+	prompt := ai.DocumentDescriptionPrompt(options, document.Pages, document.TotalPages)
+	content := []any{map[string]string{"type": "input_text", "text": prompt.Input}, map[string]string{"type": "input_file", "filename": "document.pdf", "file_data": "data:application/pdf;base64," + base64.StdEncoding.EncodeToString(document.Data), "detail": "high"}}
+	return c.imageContent(ctx, model, prompt, content)
+}
+
 func imagePart(img ai.Image) map[string]string {
 	return map[string]string{"type": "input_image", "image_url": "data:" + img.MIME + ";base64," + base64.StdEncoding.EncodeToString(img.Data), "detail": "original"}
 }

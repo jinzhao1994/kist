@@ -245,7 +245,15 @@ func (q *OCRQueue) eligible(j OCRJob) bool {
 	if q.kind == "geo" {
 		return err == nil && (geoExtractor{}).Wants(kind)
 	}
-	return err == nil && (ocrExtractor{}).Wants(kind)
+	if err != nil {
+		return false
+	}
+	if q.kind == "desc" {
+		if _, ok := descriptionDocumentRecipe(j.Name, kind); ok {
+			return true
+		}
+	}
+	return (ocrExtractor{}).Wants(kind)
 }
 func enqueueOCR(s *ocrQueueState, j OCRJob, retry, automatic bool) OCRJob {
 	for i, old := range s.Jobs {
@@ -304,7 +312,10 @@ func (q *OCRQueue) request(ctx context.Context, id domain.FileID, retry, force b
 		}
 	}
 	if !q.eligible(j) {
-		return j, errors.New("AI extraction supports JPEG, PNG and static WebP images")
+		if q.kind == "desc" {
+			return j, errors.New("descriptions support images, PDF, Word and PowerPoint files")
+		}
+		return j, errors.New("AI extraction supports JPEG, PNG, static WebP and still HEIC/HEIF images")
 	}
 	release, err := q.state.Acquire(ctx)
 	if err != nil {

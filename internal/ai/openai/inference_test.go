@@ -177,3 +177,38 @@ func TestHintsReachImageRequestAsReferenceData(t *testing.T) {
 		})
 	}
 }
+
+func TestDocumentDescriptionInlinePDF(t *testing.T) {
+	options := ai.TextOptions{Language: "zh-CN", Supplement: "Example Person"}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+			return
+		}
+		prompt := ai.DocumentDescriptionPrompt(options, 10, 28)
+		if body["instructions"] != prompt.Instructions || body["store"] != false || body["stream"] != true || body["max_output_tokens"] != nil {
+			t.Error("wrong request policy")
+		}
+		content := body["input"].([]any)[0].(map[string]any)["content"].([]any)
+		if content[0].(map[string]any)["text"] != prompt.Input || !strings.Contains(prompt.Input, "Example Person") {
+			t.Error("missing reference data")
+		}
+		file := content[1].(map[string]any)
+		if file["type"] != "input_file" || file["filename"] != "document.pdf" || file["file_data"] != "data:application/pdf;base64,JVBERi0=" || file["detail"] != "high" {
+			t.Error(file)
+		}
+		w.Write([]byte("data: {\"type\":\"response.output_text.done\",\"text\":\"Synthetic description\"}\n\ndata: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\"}}\n"))
+	}))
+	defer server.Close()
+	c := Client{BaseURL: server.URL, Token: "test-token"}
+	result, err := c.DescribeDocument(t.Context(), "test", ai.Document{Data: []byte("%PDF-"), Pages: 10, TotalPages: 28}, options)
+	if err != nil || result.Text != "Synthetic description" {
+		t.Fatal(result, err)
+	}
+	for _, doc := range []ai.Document{{}, {Data: []byte("%PDF-"), Pages: 11, TotalPages: 11}, {Data: []byte("%PDF-"), Pages: 2, TotalPages: 1}} {
+		if _, err := c.DescribeDocument(t.Context(), "test", doc, options); err == nil {
+			t.Fatal("accepted invalid document")
+		}
+	}
+}

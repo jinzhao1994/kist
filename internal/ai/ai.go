@@ -5,6 +5,9 @@ import "context"
 
 const MaxTextBytes = 256 << 10
 const MaxImageBytes = 20 << 20
+const MaxDocumentBytes = 20 << 20
+const MaxDocumentPages = 10
+const MaxDescriptionBytes = 1024
 
 type Model struct {
 	ID   string `json:"id"`
@@ -49,4 +52,15 @@ type Credentials struct {
 	IDToken      string `toml:"id_token,omitempty"`
 	Scope        string `toml:"scope,omitempty"`
 	ExpiresAt    int64  `toml:"expires_at,omitempty"`
+}
+
+// Document contains only the selected PDF pages, not the original source file.
+type Document struct {
+	Data              []byte
+	Pages, TotalPages int
+}
+
+// DocumentDescriber is an optional capability, independent of a provider's transport.
+type DocumentDescriber interface {
+	DescribeDocument(context.Context, string, Document, TextOptions) (TextResult, error)
 }

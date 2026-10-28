@@ -52,3 +52,12 @@ export function supportsImageAI(
       ].includes(file.media_type)
     : /\.(?:jpe?g|png|webp|heic|heif)$/i.test(file.name);
 }
+
+export function supportsDescriptionAI(
+  file: Parameters<typeof mediaProfile>[0],
+) {
+  return (
+    supportsImageAI(file) ||
+    ["pdf", "word", "slides"].includes(mediaProfile(file)?.id || "")
+  );
+}

@@ -1,5 +1,9 @@
 import { expect, it } from "vitest";
-import { mediaProfile } from "./media-profile";
+import {
+  mediaProfile,
+  supportsDescriptionAI,
+  supportsImageAI,
+} from "./media-profile";
 
 it.each([
   ["photo.PNG", "", "", "thumb_512_v1", ""],
@@ -60,5 +64,19 @@ it.each([90, 180, 270] as const)(
     expect(mediaProfile({ name: "clip.mov", image_rotation })?.thumbnail).toBe(
       "video_thumb_512_v2",
     );
+  },
+);
+
+it.each(["scan.pdf", "report.doc", "report.docx", "slides.ppt", "slides.pptx"])(
+  "enables description but not image tasks for %s",
+  (name) => {
+    expect(supportsDescriptionAI({ name })).toBe(true);
+    expect(supportsImageAI({ name })).toBe(false);
+  },
+);
+it.each(["sheet.xls", "sheet.xlsx", "table.csv", "clip.mp4"])(
+  "does not offer descriptions for %s",
+  (name) => {
+    expect(supportsDescriptionAI({ name })).toBe(false);
   },
 );

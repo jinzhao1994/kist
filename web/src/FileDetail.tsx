@@ -8,7 +8,7 @@ import { MetadataGroup } from "./MetadataGroup";
 import { CopyTextPreview } from "./CopyTextPreview";
 import { useClientMode } from "./OfflineEntry";
 import { OCRAction, OCRText } from "./AI";
-import { supportsImageAI } from "./media-profile";
+import { supportsImageAI, supportsDescriptionAI } from "./media-profile";
 import { Button, CopyButton, Stack, Tooltip } from "@mantine/core";
 import type { components } from "./api-schema";
 import type { FileDetail as FileData, Tag } from "./api";
@@ -36,11 +36,12 @@ export function FileDetail({
   const imageTextInput = supportsImageAI(file);
   const canOCR =
     !clientMode && !data.extracted?.includes("ocr") && !ocr && imageTextInput;
+  const descriptionInput = supportsDescriptionAI(file);
   const canDescribe =
     !clientMode &&
     !data.extracted?.includes("desc") &&
     !data.metadata?.some((row) => row.key === "desc:text") &&
-    imageTextInput;
+    descriptionInput;
   const canOrient =
     !clientMode &&
     imageTextInput &&
@@ -136,6 +137,7 @@ export function FileDetail({
     "media:kind": t("mediaKind"),
     "file:mtime": t("modified"),
     "desc:text": t("descText"),
+    "desc:coverage": t("descCoverage"),
     "desc:model": t("aiModel"),
     "desc:recipe": t("ocrRecipe"),
     "ocr:text": t("ocrText"),
@@ -163,6 +165,11 @@ export function FileDetail({
     }
     if (key === "file:size" && Number.isSafeInteger(Number(value))) {
       return formatBytes(Number(value), prefs);
+    }
+    if (key === "desc:coverage") {
+      const range = /^1-(\d+)\/(\d+)$/.exec(value);
+      if (range)
+        return t("descPageRange", { pages: range[1], total: range[2] });
     }
     if (key === "geo:address")
       return value ? t("geoNearby", { address: value }) : t("geoNotFound");
@@ -366,7 +373,12 @@ export function FileDetail({
                             item.key === `${source}:text` &&
                             item.source === "user",
                         )}
-                        canRun={!clientMode && imageTextInput}
+                        canRun={
+                          !clientMode &&
+                          (source === "desc"
+                            ? descriptionInput
+                            : imageTextInput)
+                        }
                       />
                     ) : (
                       <div key={row.key}>
