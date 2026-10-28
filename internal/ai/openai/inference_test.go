@@ -186,7 +186,7 @@ func TestDocumentDescriptionInlinePDF(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		prompt := ai.DocumentDescriptionPrompt(options, 10, 28)
+		prompt := ai.DocumentDescriptionPrompt(options, 200)
 		if body["instructions"] != prompt.Instructions || body["store"] != false || body["stream"] != true || body["max_output_tokens"] != nil {
 			t.Error("wrong request policy")
 		}
@@ -202,11 +202,11 @@ func TestDocumentDescriptionInlinePDF(t *testing.T) {
 	}))
 	defer server.Close()
 	c := Client{BaseURL: server.URL, Token: "test-token"}
-	result, err := c.DescribeDocument(t.Context(), "test", ai.Document{Data: []byte("%PDF-"), Pages: 10, TotalPages: 28}, options)
+	result, err := c.DescribeDocument(t.Context(), "test", ai.Document{Data: []byte("%PDF-"), Pages: 200, TotalPages: 200}, options)
 	if err != nil || result.Text != "Synthetic description" {
 		t.Fatal(result, err)
 	}
-	for _, doc := range []ai.Document{{}, {Data: []byte("%PDF-"), Pages: 11, TotalPages: 11}, {Data: []byte("%PDF-"), Pages: 2, TotalPages: 1}} {
+	for _, doc := range []ai.Document{{}, {Data: []byte("%PDF-"), Pages: 201, TotalPages: 201}, {Data: []byte("%PDF-"), Pages: 2, TotalPages: 1}, {Data: []byte("%PDF-"), Pages: 10, TotalPages: 28}} {
 		if _, err := c.DescribeDocument(t.Context(), "test", doc, options); err == nil {
 			t.Fatal("accepted invalid document")
 		}

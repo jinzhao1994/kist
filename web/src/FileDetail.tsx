@@ -137,7 +137,6 @@ export function FileDetail({
     "media:kind": t("mediaKind"),
     "file:mtime": t("modified"),
     "desc:text": t("descText"),
-    "desc:coverage": t("descCoverage"),
     "desc:model": t("aiModel"),
     "desc:recipe": t("ocrRecipe"),
     "ocr:text": t("ocrText"),
@@ -165,11 +164,6 @@ export function FileDetail({
     }
     if (key === "file:size" && Number.isSafeInteger(Number(value))) {
       return formatBytes(Number(value), prefs);
-    }
-    if (key === "desc:coverage") {
-      const range = /^1-(\d+)\/(\d+)$/.exec(value);
-      if (range)
-        return t("descPageRange", { pages: range[1], total: range[2] });
     }
     if (key === "geo:address")
       return value ? t("geoNearby", { address: value }) : t("geoNotFound");

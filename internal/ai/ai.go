@@ -6,7 +6,7 @@ import "context"
 const MaxTextBytes = 256 << 10
 const MaxImageBytes = 20 << 20
 const MaxDocumentBytes = 20 << 20
-const MaxDocumentPages = 10
+const MaxDocumentPages = 200
 const MaxDescriptionBytes = 1024
 
 type Model struct {
@@ -54,7 +54,7 @@ type Credentials struct {
 	ExpiresAt    int64  `toml:"expires_at,omitempty"`
 }
 
-// Document contains only the selected PDF pages, not the original source file.
+// Document contains all rendered PDF pages, not the original source file.
 type Document struct {
 	Data              []byte
 	Pages, TotalPages int

@@ -75,8 +75,11 @@ func TestDocumentDescriptionMetadataAndProtection(t *testing.T) {
 		t.Fatal(err)
 	}
 	rows := metaOf(t, l, id)
-	if rows["desc:coverage"].Value != "1-2/2" || rows["desc:text"].Value != p.text || rows["desc:model"].Value != "test/document-model" {
+	if rows["desc:text"].Value != p.text || rows["desc:model"].Value != "test/document-model" {
 		t.Fatal(rows)
+	}
+	if _, found := rows["desc:coverage"]; found {
+		t.Fatal("complete document description recorded obsolete page coverage")
 	}
 	if _, found := rows["orientation:clockwise_degrees"]; found {
 		t.Fatal("document was rotated")

@@ -73,8 +73,6 @@ export const en = {
   ocrRecognizing: "Recognizing…",
   orientationChecking: "Checking orientation…",
   descText: "Text",
-  descCoverage: "Page coverage",
-  descPageRange: "Pages 1–{pages} of {total}",
   settingLibraryLanguage: "Library language",
   settingLanguageHint:
     "Language for generated descriptions (BCP 47, e.g. zh-CN or en). Changes affect future tasks only; interface language is separate.",
@@ -88,7 +86,7 @@ export const en = {
   descScanning: "Finding files without descriptions…",
   descBackfill: "Describe existing files without descriptions",
   descBackfillHint:
-    "Describe supported images, PDF, Word and PowerPoint files. Documents use the first 10 pages, up to 20 MiB. Results are saved as metadata in the library language; failures require an explicit retry.",
+    "Describe supported images, PDF, Word and PowerPoint files. Documents are read in full, up to 200 pages and 20 MiB; larger documents are not processed. Results are saved as metadata in the library language; failures require an explicit retry.",
   descQueued: "Queued for description",
   descExtract: "Generate description",
 
@@ -1047,8 +1045,6 @@ export const zh: Record<MessageKey, string> = {
   ocrRecognizing: "正在识别",
   orientationChecking: "正在判断方向",
   descText: "正文",
-  descCoverage: "描述页范围",
-  descPageRange: "第 1–{pages} 页／共 {total} 页",
   settingLibraryLanguage: "资料库语言",
   settingLanguageHint:
     "用于生成描述的语言（BCP 47，例如 zh-CN 或 en）。修改只影响后续任务，与界面语言分开。",
@@ -1061,7 +1057,7 @@ export const zh: Record<MessageKey, string> = {
   descScanning: "正在查找尚无描述的文件…",
   descBackfill: "补全已有文件的描述",
   descBackfillHint:
-    "支持图片、PDF、Word 和 PPT。文档最多读取前 10 页，发送内容不超过 20 MiB；按资料库语言生成描述并保存为元数据。失败任务需明确重试。",
+    "支持图片、PDF、Word 和 PPT。文档完整读取，最多 200 页、20 MiB，超限不处理；按资料库语言生成描述并保存为元数据。失败任务需明确重试。",
   descQueued: "已排队等待生成描述",
   descExtract: "生成描述",
 
@@ -1948,7 +1944,6 @@ export function initializeLanguage() {
   applyDocumentLanguage(initialPreferences());
 }
 interface Parameters {
-  descPageRange: { pages: string; total: string };
   editMetadata: { field: string };
   removeMetadata: { field: string };
   removeMetadataQuestion: { field: string };

@@ -59,7 +59,7 @@ func TestDescriptionMetadataReplayUndoAndIsolation(t *testing.T) {
 	if _, exists := values["desc:language"]; exists {
 		t.Fatal("output language was duplicated in metadata")
 	}
-	if values["desc:recipe"] != "7" || values["ocr:recipe"] != "4" {
+	if values["desc:recipe"] != "8" || values["ocr:recipe"] != "4" {
 		t.Fatal("incorrect recipe versions", values)
 	}
 	afterFile, _, _ := l.File(t.Context(), id)

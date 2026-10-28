@@ -981,6 +981,11 @@ for (const state of [
 ] as const) {
   test(`detail-${state}`, async ({ page }, info) => {
     const errors = await prepare(page, { state });
+    await page.route("**/api/v1/ai", (route) =>
+      route.fulfill({
+        json: { supported: true, connected: true, pending: false, error: "" },
+      }),
+    );
     await page.goto("/files?file=file-1");
     await expect(
       page.getByRole("region", { name: "画廊", exact: true }),
@@ -4224,6 +4229,9 @@ for (const scenario of [
       ).toBeEnabled();
     }
     if (scenario === "ai-description") {
+      await expect(
+        settings.getByText(/文档完整读取，最多 200 页、20 MiB，超限不处理/),
+      ).toBeVisible();
       const backfill = settings.getByRole("button", {
         name: "补全已有文件的描述",
         exact: true,
@@ -5736,16 +5744,10 @@ for (const extension of ["pdf", "doc", "docx", "ppt", "pptx", "pdf-result"]) {
             extension === "pdf-result"
               ? [
                   {
-                    key: "desc:coverage",
-                    source: "desc",
-                    type: "text",
-                    value: "1-10/28",
-                  },
-                  {
                     key: "desc:text",
                     source: "desc",
                     type: "text",
-                    value: "基于前十页的合成文档描述，用于验证页范围展示。",
+                    value: "综合全文的合成文档描述，用于验证描述正文展示。",
                   },
                 ]
               : [],
@@ -5774,7 +5776,9 @@ for (const extension of ["pdf", "doc", "docx", "ppt", "pptx", "pdf-result"]) {
     ).toHaveCount(extension !== "pdf-result" ? 1 : 0);
     if (extension === "pdf-result")
       await expect(
-        panel.getByText("第 1–10 页／共 28 页", { exact: true }),
+        panel.getByText("综合全文的合成文档描述，用于验证描述正文展示。", {
+          exact: true,
+        }),
       ).toBeVisible();
     await expect(
       panel.getByRole("heading", { name: "OCR", exact: true }),

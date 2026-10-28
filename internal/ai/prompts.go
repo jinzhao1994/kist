@@ -34,7 +34,7 @@ var descriptionInstructions string
 var descriptionInput string
 
 // DescriptionRecipeVersion identifies the description instructions used for new results.
-const DescriptionRecipeVersion = 7
+const DescriptionRecipeVersion = 8
 
 const OCRRecipeVersion = 4
 const OrientationRecipeVersion = 1
@@ -75,8 +75,8 @@ func withSupplement(prompt Prompt, supplement, instructions string) Prompt {
 //go:embed prompts/document-description.txt
 var documentDescriptionInstructions string
 
-// DocumentDescriptionPrompt describes only the bounded document excerpt.
-func DocumentDescriptionPrompt(options TextOptions, pages, totalPages int) Prompt {
-	prompt := Prompt{Instructions: strings.ReplaceAll(strings.TrimSpace(documentDescriptionInstructions), "{{language}}", options.Language), Input: fmt.Sprintf("Describe the supplied document. Pages provided: 1-%d of %d. Only describe these pages; do not claim to have reviewed omitted pages.", pages, totalPages)}
+// DocumentDescriptionPrompt describes the complete document within input limits.
+func DocumentDescriptionPrompt(options TextOptions, pages int) Prompt {
+	prompt := Prompt{Instructions: strings.ReplaceAll(strings.TrimSpace(documentDescriptionInstructions), "{{language}}", options.Language), Input: fmt.Sprintf("Describe the complete supplied document (%d pages). Consider the whole document, including its later sections and conclusions.", pages)}
 	return withSupplement(prompt, options.Supplement, strings.ReplaceAll(descriptionSupplement, "the image", "the document"))
 }

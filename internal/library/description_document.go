@@ -66,7 +66,6 @@ func (l *Library) prepareDocumentDescription(ctx context.Context, p *PreparedOCR
 		{Key: "desc:text", Value: result.Text, Type: extract.TypeText},
 		{Key: "desc:model", Value: result.Provider + "/" + result.Model, Type: extract.TypeText},
 		{Key: "desc:recipe", Value: fmt.Sprint(ai.DescriptionRecipeVersion), Type: extract.TypeInt},
-		{Key: "desc:coverage", Value: fmt.Sprintf("1-%d/%d", document.Pages, document.TotalPages), Type: extract.TypeText},
 	}
 	return p.finishAI(ctx, descriptionExtractor{}, facts, zone)
 }

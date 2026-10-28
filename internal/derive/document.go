@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -11,8 +12,8 @@ import (
 	"time"
 )
 
-// DocumentPDF is a bounded, static view of the beginning of a document.
-// Re-rendering pages excludes attachments and content outside the selected range.
+// DocumentPDF is a bounded, static view of an entire document.
+// Re-rendering pages excludes attachments and other non-page content.
 type DocumentPDF struct {
 	Data              []byte
 	Pages, TotalPages int
@@ -68,7 +69,10 @@ func (r Renderer) Document(ctx context.Context, input, recipe string, maxPages i
 	if out.TotalPages < 1 {
 		return DocumentPDF{}, fail("decode_failed", "PDF page count is unavailable")
 	}
-	out.Pages = min(maxPages, out.TotalPages)
+	if out.TotalPages > maxPages {
+		return DocumentPDF{}, fail("limit_exceeded", fmt.Sprintf("document has %d pages; maximum is %d; no pages were sent", out.TotalPages, maxPages))
+	}
+	out.Pages = out.TotalPages
 	renderer, err := tool(r.PDFToCairo, "pdftocairo")
 	if err != nil {
 		return DocumentPDF{}, err
@@ -77,7 +81,7 @@ func (r Renderer) Document(ctx context.Context, input, recipe string, maxPages i
 	bounded := &boundedPDFOutput{writer: &data, remaining: maxBytes}
 	err = run(ctx, renderer, []string{"-pdf", "-f", "1", "-l", strconv.Itoa(out.Pages), input, "-"}, bounded)
 	if bounded.exceeded {
-		return DocumentPDF{}, fail("limit_exceeded", "selected document pages exceed AI input limit")
+		return DocumentPDF{}, fail("limit_exceeded", "complete document exceeds AI input byte limit; no pages were sent")
 	}
 	if err != nil {
 		return DocumentPDF{}, err
