@@ -97,7 +97,7 @@ it("has no action or background request for non-extractable groups", () => {
   expect(fetch).not.toHaveBeenCalled();
 });
 
-it("promotes a queued bulk task without resuming the queue or showing its status", async () => {
+it("keeps one actionable button for a paused bulk task", async () => {
   const writes: string[] = [];
   vi.stubGlobal(
     "fetch",
@@ -106,15 +106,40 @@ it("promotes a queued bulk task without resuming the queue or showing its status
         writes.push(url);
         return Response.json({ state: "queued", manual: true });
       }
-      if (!url.includes("/files/"))
-        throw new Error("Details should not fetch the global queue");
+      if (!url.includes("/files/")) return Response.json({ paused: true });
       return Response.json({ state: "queued", automatic: true });
     }),
   );
   mount("ocr");
   const button = screen.getByRole("button", { name: "Re-extract Test" });
   await waitFor(() => expect(button).toBeEnabled());
+  expect(screen.getAllByRole("button")).toHaveLength(1);
+  expect(button).toHaveTextContent("Re-extract");
+  expect(screen.queryByText("Queued", { exact: true })).not.toBeInTheDocument();
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
   await userEvent.click(button);
   expect(writes).toEqual(["/api/v1/files/file/ocr"]);
   expect(screen.queryByText(/paused/i)).not.toBeInTheDocument();
 });
+
+it.each([
+  ["queued", false, false, "Queued"],
+  ["queued", true, true, "Queued"],
+  ["running", false, true, "Reading metadata…"],
+])(
+  "uses one disabled action for %s (manual=%s, paused=%s)",
+  async (state, manual, paused, label) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        Response.json(url.includes("/files/") ? { state, manual } : { paused }),
+      ),
+    );
+    mount("ocr");
+    const button = screen.getByRole("button", { name: "Re-extract Test" });
+    await waitFor(() => expect(button).toHaveTextContent(label));
+    expect(button).toBeDisabled();
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  },
+);

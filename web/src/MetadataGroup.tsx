@@ -1,4 +1,4 @@
-import { TaskStatus, taskErrorMessage } from "./TaskStatus";
+import { taskErrorMessage } from "./TaskStatus";
 import { HelpTooltip } from "./HelpTooltip";
 import { Button, Text, Group } from "@mantine/core";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -20,8 +20,9 @@ type TaskOptions = {
   fileID: string;
   extractor?: string;
   missing?: boolean;
+  empty?: boolean;
 };
-type TaskControls = { action: ReactNode; status: ReactNode };
+type TaskControls = { action: ReactNode; status: ReactNode; hidden: boolean };
 
 // One display group may have several independently owned extraction tasks.
 export function MetadataGroup({
@@ -40,6 +41,7 @@ export function MetadataGroup({
     title: "",
     ...secondary,
   });
+  if (primary.hidden) return null;
   return (
     <section className="file-metadata-group">
       {task.title && (
@@ -55,12 +57,12 @@ export function MetadataGroup({
             )}
           </Group>
           <Group gap="xs" className="metadata-group-actions">
-            {primary.action}
+            {!task.empty && primary.action}
             {extra.action}
           </Group>
         </div>
       )}
-      {primary.status}
+      {!task.empty && primary.status}
       {extra.status}
       {children}
     </section>
@@ -72,6 +74,7 @@ function useMetadataTask({
   fileID,
   extractor,
   missing = false,
+  empty = false,
 }: TaskOptions): TaskControls {
   const { t } = useI18n();
   const queries = useQueryClient();
@@ -92,10 +95,26 @@ function useMetadataTask({
     retry: false,
     refetchInterval: ai ? 2000 : false,
   });
+  const backgroundQueued =
+    ai && !empty && job.data?.state === "queued" && !job.data.manual;
+  const queue = useQuery({
+    queryKey: [`${extractor}-queue`],
+    queryFn: ({ signal }) =>
+      get<{ paused: boolean }>(
+        extractor === "geo" ? "/geo" : `/ai/${extractor}`,
+        signal,
+      ),
+    enabled: backgroundQueued,
+    retry: false,
+    refetchInterval: backgroundQueued ? 2000 : false,
+  });
   const pending =
     ai && (job.data?.state === "queued" || job.data?.state === "running");
   const waiting =
-    pending && (job.data?.state === "running" || job.data?.manual);
+    pending &&
+    (job.data?.state === "running" ||
+      job.data?.manual ||
+      queue.data?.paused !== true);
   const wasPending = useRef(false);
   useEffect(() => {
     if (wasPending.current && !pending) void queries.invalidateQueries();
@@ -141,6 +160,11 @@ function useMetadataTask({
       (taskErrorMessage(job.data?.error, t) ||
         (job.error && errorMessage(job.error, t))));
   return {
+    hidden:
+      empty &&
+      ai &&
+      (job.isPending ||
+        (!!job.data && job.data.state !== "missing" && !job.data.manual)),
     action: extractor ? (
       <Button
         variant="subtle"
@@ -175,7 +199,6 @@ function useMetadataTask({
             {issue}
           </Text>
         )}
-        {pending && !waiting && <TaskStatus>{t("reextractQueued")}</TaskStatus>}
       </>
     ),
   };

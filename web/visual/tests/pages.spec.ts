@@ -4593,6 +4593,7 @@ for (const scenario of [
         route.fulfill({
           json: {
             state: "failed",
+            manual: true,
             error: "OpenAI did not complete OCR; no result was saved",
           },
         }),
@@ -4786,6 +4787,8 @@ for (const scenario of [
   "text-tooltip",
   "text-refresh",
   "text-paused",
+  "text-queued",
+  "background-queued",
   "ready",
   "unclassified",
   "error",
@@ -4809,6 +4812,7 @@ for (const scenario of [
         route.fulfill({
           json: {
             state: "failed",
+            manual: true,
             error: "Description was interrupted; retry explicitly",
           },
         }),
@@ -4875,11 +4879,15 @@ for (const scenario of [
         });
       });
     }
-    if (scenario === "text-paused") {
+    if (
+      scenario === "text-paused" ||
+      scenario === "text-queued" ||
+      scenario === "background-queued"
+    ) {
       await page.route("**/api/v1/ai/desc", (route) =>
         route.fulfill({
           json: {
-            paused: true,
+            paused: scenario === "text-paused",
             queued: 1,
             failed: 0,
             scanning: false,
@@ -4902,6 +4910,11 @@ for (const scenario of [
     const group = page.locator(".file-metadata-group").filter({
       has: page.getByRole("heading", { name: "描述", exact: true }),
     });
+    if (scenario === "background-queued") {
+      await expect(group).toHaveCount(0);
+      await capture(page, errors, info.title);
+      return;
+    }
     await expect(group).toBeVisible();
     if (scenario.startsWith("text")) {
       await expect(
@@ -4936,12 +4949,28 @@ for (const scenario of [
         exact: true,
       });
       await expect(group.getByText(/已暂停/)).toHaveCount(0);
-      await expect(group.getByRole("status")).toContainText("已排队");
+      await expect(
+        group.locator(".metadata-group-heading").getByRole("button"),
+      ).toHaveCount(1);
+      await expect(group.getByText("已排队", { exact: true })).toHaveCount(0);
+      await expect(group.getByRole("status")).toHaveCount(0);
       await expect(action).toBeEnabled();
       await action.click();
       await expect(action).toBeDisabled();
       await expect(action).toContainText("已排队");
       expect(refreshRequested).toBe(true);
+    }
+    if (scenario === "text-queued") {
+      const action = group.getByRole("button", {
+        name: "重新提取描述",
+        exact: true,
+      });
+      await expect(action).toBeDisabled();
+      await expect(action).toHaveText("已排队");
+      await expect(
+        group.locator(".metadata-group-heading").getByRole("button"),
+      ).toHaveCount(1);
+      await expect(group.getByRole("status")).toHaveCount(0);
     }
     if (scenario === "text-tooltip") {
       await group.locator(".copy-text-preview bdi").hover();

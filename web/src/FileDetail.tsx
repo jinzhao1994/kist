@@ -278,6 +278,10 @@ export function FileDetail({
             <MetadataGroup
               key={`${file.id}/${source}`}
               fileID={file.id}
+              empty={
+                rows.length === 0 &&
+                ["ocr", "desc", "orientation"].includes(source)
+              }
               help={
                 source === "gps" && data.gps ? t("geoCaptureHint") : undefined
               }
@@ -309,7 +313,8 @@ export function FileDetail({
               }
               extractor={
                 !(source === "orientation" && file.image_rotation_manual) &&
-                rows.length &&
+                (rows.length ||
+                  ["ocr", "desc", "orientation"].includes(source)) &&
                 ["exif", "gps", "media", "ocr", "desc", "orientation"].includes(
                   source,
                 ) &&

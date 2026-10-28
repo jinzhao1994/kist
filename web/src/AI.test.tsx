@@ -540,3 +540,91 @@ it("allows single-file OCR without checking or resuming the paused bulk queue", 
   expect(paths.some((path) => path.includes("/ai/ocr"))).toBe(false);
   expect(screen.queryByText(/paused/i)).not.toBeInTheDocument();
 });
+
+it.each(["queued", "running", "failed"])(
+  "does not show empty image metadata groups for background %s tasks",
+  async (state) => {
+    const reads: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (path: string) => {
+        reads.push(path);
+        return defaults(path) || Response.json({ state, manual: false });
+      }),
+    );
+    mount(
+      <FileDetail
+        data={{
+          file: {
+            id: "file",
+            name: "synthetic.png",
+            captured_at: null,
+            folder_id: "folder",
+            blob_key: "blob",
+            created_at: "2026-01-01T00:00:00Z",
+            updated_at: "2026-01-01T00:00:00Z",
+            media_type: "image/png",
+            extraction_pending: [],
+          },
+          metadata: [],
+          tags: [],
+          extracted: [],
+        }}
+        tags={[]}
+      />,
+    );
+    await waitFor(() =>
+      expect(reads).toEqual(
+        expect.arrayContaining([
+          "/api/v1/files/file/ocr",
+          "/api/v1/files/file/desc",
+          "/api/v1/files/file/orientation",
+        ]),
+      ),
+    );
+    expect(
+      screen.queryByRole("heading", { name: "OCR" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Description" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Image orientation" }),
+    ).not.toBeInTheDocument();
+  },
+);
+
+it("keeps a failed empty-group status request stable until explicit retry", async () => {
+  let jobReads = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string) => {
+      if (path.endsWith("/files/file/ocr")) {
+        jobReads++;
+        return jobReads === 1
+          ? Response.json(
+              { code: "internal", message: "Job unavailable" },
+              { status: 502 },
+            )
+          : Response.json({ state: "missing" });
+      }
+      return (
+        defaults(path) || Response.json({ supported: true, connected: true })
+      );
+    }),
+  );
+  mount(
+    <MetadataGroup title="OCR" fileID="file" extractor="ocr" empty>
+      <OCRAction fileID="file" />
+    </MetadataGroup>,
+  );
+  await screen.findByRole("alert");
+  expect(jobReads).toBe(1);
+  await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Extract text (OCR)" }),
+    ).toBeEnabled(),
+  );
+  expect(jobReads).toBe(2);
+});

@@ -532,6 +532,9 @@ export function OCRAction({
     queryKey: [`${kind}-job`, fileID],
     queryFn: ({ signal }) => get<OCRJob>(`/files/${fileID}/${kind}`, signal),
     retry: false,
+    // The containing metadata group already observes this job; remounting must not retry errors.
+    refetchOnMount: false,
+    retryOnMount: false,
     refetchInterval: 2000,
   });
   const [busy, setBusy] = useState(false);
