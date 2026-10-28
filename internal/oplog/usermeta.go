@@ -37,7 +37,9 @@ type KeyChange struct {
 // resolution reads the library's timezone, and configuration is not payload
 // (spec 1.5.2, invariant 3).
 type FileMetadataChange struct {
-	FileID      domain.FileID  `json:"file_id"`
+	FileID domain.FileID `json:"file_id"`
+	// BlobKey optionally binds content-specific edits to the observed file version.
+	BlobKey     string         `json:"blob_key,omitempty"`
 	Keys        []KeyChange    `json:"keys"`
 	CapturedAt  domain.Instant `json:"captured_at,omitempty"`
 	CapturedWas domain.Instant `json:"captured_was,omitempty"`
@@ -67,6 +69,15 @@ func (setMetadata) Apply(tx Tx, payload []byte) error {
 	}
 
 	for _, f := range p.Files {
+		if f.BlobKey != "" {
+			file, found, err := tx.GetFile(f.FileID)
+			if err != nil {
+				return err
+			}
+			if !found || file.BlobKey != f.BlobKey {
+				return fmt.Errorf("content on %s has changed: %w", f.FileID, ErrStaleBefore)
+			}
+		}
 		if len(f.Keys) == 0 {
 			return fmt.Errorf("set_metadata: %s: %w", f.FileID, errEmptyBatch)
 		}
@@ -149,6 +160,7 @@ func (setMetadata) Inverse(payload []byte) (Action, []byte, error) {
 		}
 		inverse.Files[i] = FileMetadataChange{
 			FileID:      f.FileID,
+			BlobKey:     f.BlobKey,
 			Keys:        keys,
 			CapturedAt:  f.CapturedWas,
 			CapturedWas: f.CapturedAt,

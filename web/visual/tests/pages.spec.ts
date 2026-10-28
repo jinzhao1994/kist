@@ -4635,12 +4635,6 @@ for (const scenario of [
                 value: "openai/gpt-6-luna",
               },
               { key: "ocr:recipe", type: "text", source: "ocr", value: "1" },
-              {
-                key: "ocr:input_sha256",
-                type: "text",
-                source: "ocr",
-                value: "sha256:" + "a".repeat(64),
-              },
             ],
           },
         }),
@@ -4662,9 +4656,9 @@ for (const scenario of [
         page.getByText("openai/gpt-6-luna", { exact: true }),
       ).toBeVisible();
       await expect(page.getByText("服务商", { exact: true })).toHaveCount(0);
-      await expect(
-        page.getByText("源文件校验值", { exact: true }),
-      ).toBeVisible();
+      await expect(page.getByText("源文件校验值", { exact: true })).toHaveCount(
+        0,
+      );
       await expect(page.locator(".copy-text-preview")).toContainText(
         "档案收据↵ 姓名：张三↵ ",
       );
@@ -4854,12 +4848,6 @@ for (const scenario of [
                 type: "text",
                 source: "desc",
                 value: "openai/gpt-6-luna",
-              },
-              {
-                key: "desc:input_sha256",
-                type: "text",
-                source: "desc",
-                value: "sha256:" + "a".repeat(64),
               },
               { key: "desc:recipe", type: "int", source: "desc", value: "1" },
             ],
@@ -5075,12 +5063,6 @@ for (const manual of [false, true]) {
               key: "orientation:clockwise_degrees",
               value: "90",
               type: "int",
-              source: manual ? "user" : "orientation",
-            },
-            {
-              key: "orientation:input_sha256",
-              value: file.blob_key,
-              type: "text",
               source: manual ? "user" : "orientation",
             },
             {

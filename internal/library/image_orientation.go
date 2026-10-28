@@ -14,21 +14,25 @@ import (
 	"github.com/jinzhao1994/kist/internal/store"
 )
 
+// imageRotation reads the current content version's orientation. Replacement
+// drops the angle in its payload; no input checksum is part of the result.
 func imageRotation(rows []store.MetadataRow, blob string) (degrees int, known, manual bool) {
-	var angle, hash *store.MetadataRow
+	var angle *store.MetadataRow
 	for i := range rows {
 		r := &rows[i]
 		if r.Tombstone {
 			continue
 		}
+		// Older replacement payloads retained human angles with this binding.
+		// Honor it until an explicit edit or extraction removes the old row.
+		if r.Key == "orientation:input_sha256" && r.Value != blob {
+			return 0, false, false
+		}
 		if r.Key == "orientation:clockwise_degrees" {
 			angle = r
 		}
-		if r.Key == "orientation:input_sha256" {
-			hash = r
-		}
 	}
-	if angle == nil || hash == nil || hash.Value != blob || angle.Type != extract.TypeInt {
+	if angle == nil || angle.Type != extract.TypeInt {
 		return 0, false, false
 	}
 	n, err := strconv.Atoi(angle.Value)
@@ -108,6 +112,13 @@ func (l *Library) ensureImageOrientation(ctx context.Context, id domain.FileID, 
 	}
 	if err == nil {
 		err = l.readTx(ctx, func(tx *store.ViewTx) error {
+			file, found, e := tx.GetFile(id)
+			if e != nil {
+				return e
+			}
+			if !found || file.BlobKey != blob {
+				return ErrOCRChanged
+			}
 			rows, e := store.FileMetadata(tx.Queryer(), id)
 			if e != nil {
 				return e
@@ -146,31 +157,26 @@ func (l *Library) SetImageRotation(ctx context.Context, id domain.FileID, blob s
 		if err != nil {
 			return err
 		}
-		change = oplog.FileMetadataChange{FileID: id, CapturedAt: f.CapturedAt, CapturedWas: f.CapturedAt}
-		keys := []string{"orientation:clockwise_degrees", "orientation:input_sha256"}
-		for _, key := range keys {
-			var before, after *oplog.MetadataState
-			for _, row := range rows {
-				if row.Key == key {
-					before = &oplog.MetadataState{Value: row.Value, Type: row.Type, Source: row.Source, Tombstone: row.Tombstone}
-					break
-				}
-			}
-			if degrees == nil {
-				if before == nil || before.Source != extract.UserSource {
-					continue
-				}
-			} else {
-				value, kind := blob, extract.TypeText
-				if key == keys[0] {
-					value, kind = strconv.Itoa(*degrees), extract.TypeInt
-				}
-				after = &oplog.MetadataState{Value: value, Type: kind, Source: extract.UserSource}
-			}
-			if !reflect.DeepEqual(before, after) {
-				change.Keys = append(change.Keys, oplog.KeyChange{Key: key, Before: before, After: after})
+		change = oplog.FileMetadataChange{FileID: id, BlobKey: blob, CapturedAt: f.CapturedAt, CapturedWas: f.CapturedAt}
+		const key = "orientation:clockwise_degrees"
+		var before, after *oplog.MetadataState
+		for _, row := range rows {
+			if row.Key == key {
+				before = &oplog.MetadataState{Value: row.Value, Type: row.Type, Source: row.Source, Tombstone: row.Tombstone}
+				break
 			}
 		}
+		if degrees == nil {
+			if before == nil || before.Source != extract.UserSource {
+				return nil
+			}
+		} else {
+			after = &oplog.MetadataState{Value: strconv.Itoa(*degrees), Type: extract.TypeInt, Source: extract.UserSource}
+		}
+		if !reflect.DeepEqual(before, after) {
+			change.Keys = append(change.Keys, oplog.KeyChange{Key: key, Before: before, After: after})
+		}
+		removeLegacyOrientationHash(&change, rows)
 		return nil
 	})
 	if err != nil || len(change.Keys) == 0 {
@@ -182,4 +188,15 @@ func (l *Library) SetImageRotation(ctx context.Context, id domain.FileID, blob s
 	}
 	_, err = l.write(ctx, oplog.ActionSetMetadata, raw, oplog.OriginUser, writeOptions{})
 	return err
+}
+
+// removeLegacyOrientationHash retires the old input snapshot on explicit edits.
+// The before state is retained for strict undo, including its original source.
+func removeLegacyOrientationHash(change *oplog.FileMetadataChange, rows []store.MetadataRow) {
+	for _, row := range rows {
+		if row.Key == "orientation:input_sha256" {
+			change.Keys = append(change.Keys, oplog.KeyChange{Key: row.Key, Before: &oplog.MetadataState{Value: row.Value, Type: row.Type, Source: row.Source, Tombstone: row.Tombstone}})
+			return
+		}
+	}
 }

@@ -4,7 +4,7 @@
 
 ## 语义与存储
 
-逻辑提取器为 `desc`，正文保存为 `desc:text`，另存 `desc:model`、`desc:input_sha256`、`desc:recipe`，以及可编辑的 `desc:hint`。2026-10-28 用户确认精简记录：模型字段改为包含服务商前缀（如 `openai/gpt-6-luna`），不再单独保存 `desc:provider` 和 `desc:language`；旧方案与取舍见 [OCR 实施记录](2026-10-25-ocr-mvp.md#精简模型与生成语言记录2026-10-28)。不写文件属性、归档盒描述或 OCR 正文。正文仍是 `text` metadata，最大 16 KiB，超限拒绝而非截断；此前只给 OCR 开放长文本的限制扩展到这一明确用途，其他字段继续保持 1024 字节边界。不引入 blob 引用、查询索引、schema 或新 action。
+逻辑提取器为 `desc`，正文保存为 `desc:text`，另存 `desc:model`、`desc:recipe`，以及可编辑的 `desc:hint`。2026-10-28 用户确认精简记录：模型字段改为包含服务商前缀（如 `openai/gpt-6-luna`），不再单独保存 `desc:provider` 和 `desc:language`；旧方案与取舍见 [OCR 实施记录](2026-10-25-ocr-mvp.md#精简模型与生成语言记录2026-10-28)。不写文件属性、归档盒描述或 OCR 正文。正文仍是 `text` metadata，最大 16 KiB，超限拒绝而非截断；此前只给 OCR 开放长文本的限制扩展到这一明确用途，其他字段继续保持 1024 字节边界。不引入 blob 引用、查询索引、schema 或新 action。
 
 沿用 `extract_metadata` 的来源所有权、墓碑保护、严格撤销、快照、重建与同步。成功结果写入日志；重放不调用模型。描述和 OCR 使用独立提取版本，任一任务失败不覆盖另一任务的结果。生成与提交之间校验源 blob、metadata 和提取版本。
 
@@ -31,3 +31,5 @@
 显式 force 仅绕过完成版本的跳过逻辑，不绕过字段来源所有权、用户墓碑和提交时的冲突检查。重新提取成功才通过 library 追加原有 `extract_metadata` 操作；失败、排队和处理中保留旧值。原 action 的 inverse、targets、内容影响、日志索引、snapshot 和 rebuild 语义不变，不新增 schema 或 action。普通自动任务与补全仍跳过已成功结果。
 
 AI 重提取持久化 force 标志并使用调用方稳定请求 ID 去重。旧结果存在不能视为本次任务成功：崩溃恢复查对应的持久请求回执；无回执的中断不自动重试。队列返回本次刷新状态，即使文件已有成功结果；重复 HTTP 请求不得再次调用模型。失败沿用暂停与显式重试机制，界面保留旧结果并提示到 AI 设置恢复队列。
+
+2026-10-28 按用户确认的输入／输出边界，不再保存 `desc:input_sha256`；它原来仅是来源快照，不用于去重或提交校验。提交时仍校验源 blob 和 metadata，旧方案与方向的内部版本保护见 OCR 实施记录末尾。

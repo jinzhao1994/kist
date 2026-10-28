@@ -143,10 +143,10 @@ func readMediaInfo(q store.Queryer, id domain.FileID) (MediaInfo, error) {
 			out.Kind = row.Value
 		}
 	}
-	for _, row := range rows {
-		if row.Key == "orientation:input_sha256" && !row.Tombstone {
-			out.RotationBlob = row.Value
-		}
+	// The metadata and content identity come from the same database snapshot.
+	// Content replacement clears orientation, including human overrides.
+	if err := q.QueryRow(`SELECT blob_key FROM files WHERE id=?`, id).Scan(&out.RotationBlob); err != nil {
+		return out, err
 	}
 	out.Rotation, _, out.RotationManual = imageRotation(rows, out.RotationBlob)
 	versions, err := store.Extractions(q, id)

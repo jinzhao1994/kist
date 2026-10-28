@@ -50,6 +50,10 @@ func removeMetadataChange(vtx *store.ViewTx, id domain.FileID, key string, zone 
 			CapturedAt:  capturedFrom(withoutKey(rows, key), zone),
 			CapturedWas: file.CapturedAt,
 		}
+		if key == "orientation:clockwise_degrees" {
+			change.BlobKey = file.BlobKey
+			removeLegacyOrientationHash(change, rows)
+		}
 		return nil
 	}()
 	return change, err
@@ -114,11 +118,16 @@ func editMetadataChange(tx *store.ViewTx, id domain.FileID, edit MetadataEdit, z
 		}
 		before := &oplog.MetadataState{Value: row.Value, Type: row.Type, Source: row.Source}
 		rows[i].Value, rows[i].Source = edit.Value, extract.UserSource
-		return &oplog.FileMetadataChange{
+		change := &oplog.FileMetadataChange{
 			FileID:      id,
 			Keys:        []oplog.KeyChange{{Key: row.Key, Before: before, After: &oplog.MetadataState{Value: edit.Value, Type: row.Type, Source: extract.UserSource}}},
 			CapturedWas: file.CapturedAt, CapturedAt: capturedFrom(observations(rows), zone),
-		}, nil
+		}
+		if row.Key == "orientation:clockwise_degrees" {
+			change.BlobKey = file.BlobKey
+			removeLegacyOrientationHash(change, rows)
+		}
+		return change, nil
 	}
 	return nil, ErrNoSuchMetadata
 }

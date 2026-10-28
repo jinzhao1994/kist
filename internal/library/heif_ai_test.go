@@ -110,14 +110,16 @@ func TestHEIFAIQueueAndSourceIdentity(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			found := false
 			for _, row := range rows {
 				if row.Key == kind+":input_sha256" {
-					found = row.Value == f.BlobKey
+					t.Fatal("input checksum was stored in result metadata")
 				}
 			}
-			if !found {
-				t.Fatal("missing original HEIF identity")
+			path, _ := l.blobs.LocalPath(blobKey(f.BlobKey))
+			original, err := os.ReadFile(path)
+			fixture, fixtureErr := os.ReadFile("../derive/testdata/pattern.heic")
+			if err != nil || fixtureErr != nil || !bytes.Equal(original, fixture) {
+				t.Fatal("AI conversion changed the original HEIF", err, fixtureErr)
 			}
 			before, _ := store.Snapshot(l.db)
 			if err = l.Rebuild(t.Context()); err != nil {

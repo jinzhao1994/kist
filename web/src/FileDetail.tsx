@@ -50,7 +50,6 @@ export function FileDetail({
     "geo:address": t("geoAddress"),
     "geo:provider": t("ocrProvider"),
     "orientation:clockwise_degrees": t("orientationAngle"),
-    "orientation:input_sha256": t("ocrInputHash"),
     "orientation:model": t("aiModel"),
     "orientation:recipe": t("ocrRecipe"),
     "orientation:confidence": t("orientationConfidence"),
@@ -139,11 +138,9 @@ export function FileDetail({
     "desc:text": t("descText"),
     "desc:model": t("aiModel"),
     "desc:recipe": t("ocrRecipe"),
-    "desc:input_sha256": t("ocrInputHash"),
     "ocr:text": t("ocrText"),
     "ocr:model": t("aiModel"),
     "ocr:recipe": t("ocrRecipe"),
-    "ocr:input_sha256": t("ocrInputHash"),
   };
   const metadataValue = (key: string, value: string, source: string) => {
     if (key === "orientation:clockwise_degrees") return `${value}°`;
@@ -385,27 +382,6 @@ export function FileDetail({
                                 text={row.value}
                                 copyLabel="descCopyText"
                               />
-                            ) : [
-                                "ocr:input_sha256",
-                                "desc:input_sha256",
-                                "orientation:input_sha256",
-                              ].includes(row.key) ? (
-                              <CopyButton value={row.value}>
-                                {({ copied, copy }) => (
-                                  <button
-                                    type="button"
-                                    className="copy-value copy-value--identifier"
-                                    onClick={copy}
-                                    title={row.value}
-                                    aria-label={t(
-                                      copied ? "copied" : "ocrCopyHash",
-                                    )}
-                                  >
-                                    <bdi>{row.value}</bdi>
-                                    <span>{t(copied ? "copied" : "copy")}</span>
-                                  </button>
-                                )}
-                              </CopyButton>
                             ) : row.key === "file:mtime" ? (
                               <Tooltip
                                 label={row.value}

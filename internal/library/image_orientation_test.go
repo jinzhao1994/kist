@@ -112,6 +112,9 @@ func TestOrientationSharedInputManualOverrideReplayAndUndo(t *testing.T) {
 		if values[kind+":model"].Value != model {
 			t.Fatal("model identity lost its provider", kind, values[kind+":model"])
 		}
+		if _, exists := values[kind+":input_sha256"]; exists {
+			t.Fatal("input checksum was stored in result metadata", kind)
+		}
 		if _, exists := values[kind+":provider"]; exists {
 			t.Fatal("provider was stored separately", kind)
 		}

@@ -139,7 +139,9 @@ func replacementAfter(before domain.EntryContents, file oplog.ImportedFile, reso
 	archived.Metadata = nil
 	userKeys := map[string]bool{}
 	for _, m := range before.Files[0].Metadata {
-		if m.Source == extract.UserSource {
+		// Rotation belongs to the old pixels, even when chosen by a person.
+		// The replacement payload retains the old value in Before for undo.
+		if m.Source == extract.UserSource && m.Key != "orientation:clockwise_degrees" && m.Key != "orientation:input_sha256" {
 			archived.Metadata = append(archived.Metadata, m)
 			userKeys[m.Key] = true
 		}
