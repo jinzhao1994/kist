@@ -1,3 +1,4 @@
+import { TaskStatus, taskErrorMessage } from "./TaskStatus";
 import { HelpTooltip } from "./HelpTooltip";
 import { Button, Text, Group } from "@mantine/core";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -145,7 +146,9 @@ function useMetadataTask({
   });
   const issue =
     error ||
-    (ai && (job.data?.error || (job.error && errorMessage(job.error, t))));
+    (ai &&
+      (taskErrorMessage(job.data?.error, t) ||
+        (job.error && errorMessage(job.error, t))));
   return {
     action: extractor ? (
       <Button
@@ -182,7 +185,15 @@ function useMetadataTask({
           </Text>
         )}
         {ai && queue.data?.paused && (
-          <Text size="sm">
+          <TaskStatus
+            settings={{
+              href:
+                extractor === "geo"
+                  ? "/settings#settings-location"
+                  : "/settings#settings-ai",
+              label: t(extractor === "geo" ? "geoTitle" : "ocrSettings"),
+            }}
+          >
             {t(
               extractor === "geo"
                 ? "geoQueuePaused"
@@ -191,17 +202,8 @@ function useMetadataTask({
                   : extractor === "desc"
                     ? "descQueuePaused"
                     : "ocrQueuePaused",
-            )}{" "}
-            <a
-              href={
-                extractor === "geo"
-                  ? "/settings#settings-location"
-                  : "/settings#settings-ai"
-              }
-            >
-              {t(extractor === "geo" ? "geoTitle" : "ocrSettings")}
-            </a>
-          </Text>
+            )}
+          </TaskStatus>
         )}
       </>
     ),

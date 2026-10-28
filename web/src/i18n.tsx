@@ -26,7 +26,7 @@ export const en = {
   geoEndpoint: "Photon endpoint",
   geoEndpointHint: "Use the public server or your own Photon reverse endpoint.",
   geoExtract: "Look up address",
-  geoQueuePaused: "Location queue paused. Resume it in location settings.",
+  geoQueuePaused: "Location queue paused.",
   geoQueueRunning: "Looking up location: {name}",
   geoQueueIdle: "Location worker ready",
   geoScanning: "Finding images without location results…",
@@ -34,6 +34,7 @@ export const en = {
   geoBackfillHint:
     "Read GPS from supported images and query missing locations. Saved results are reused; images without GPS do not send requests.",
 
+  taskCanceled: "Task canceled. You can retry it.",
   ocrTitle: "OCR",
   orientationTitle: "Image orientation",
   orientationEdit: "Adjust orientation",
@@ -41,7 +42,7 @@ export const en = {
   orientationAutoHint:
     "Only images added after enabling this setting are sent for orientation checks. OCR and descriptions also check missing orientation first. Originals remain unchanged.",
   orientationQueuePaused:
-    "Orientation queue paused. Resume it in AI settings; an in-flight request can still finish.",
+    "Orientation queue paused. Requests already sent may still finish.",
   orientationQueueRunning: "Checking orientation: {name}",
   orientationQueueIdle: "Orientation worker ready",
   orientationScanning: "Finding images without orientation results…",
@@ -75,7 +76,7 @@ export const en = {
   descAutoHint:
     "Only images added after enabling this setting are sent for descriptions. Existing images require an explicit backfill.",
   descQueuePaused:
-    "Description queue paused. Resume it in AI settings; an in-flight request can still finish.",
+    "Description queue paused. Requests already sent may still finish.",
   descQueueRunning: "Describing: {name}",
   descQueueIdle: "Description worker ready",
   descScanning: "Finding images without descriptions…",
@@ -98,8 +99,7 @@ export const en = {
   ocrAuto: "Automatically recognize new images",
   ocrAutoHint:
     "Only images added after enabling this setting are sent for OCR. Existing images require an explicit backfill.",
-  ocrQueuePaused:
-    "OCR queue paused. Resume it in AI settings; an in-flight request can still finish.",
+  ocrQueuePaused: "OCR queue paused. Requests already sent may still finish.",
   ocrQueueRunning: "Recognizing: {name}",
   ocrQueueIdle: "OCR worker ready",
   ocrQueueCounts: "Queued: {queued} · Failed: {failed}",
@@ -996,7 +996,7 @@ export const zh: Record<MessageKey, string> = {
   geoEndpoint: "Photon 接口地址",
   geoEndpointHint: "可使用公共服务或自行部署的 Photon reverse 接口。",
   geoExtract: "查询地址",
-  geoQueuePaused: "地址查询队列已暂停，请在位置设置中恢复。",
+  geoQueuePaused: "地址查询队列已暂停。",
   geoQueueRunning: "正在查询位置：{name}",
   geoQueueIdle: "地址查询队列空闲",
   geoScanning: "正在查找尚未查询位置的图片…",
@@ -1004,14 +1004,14 @@ export const zh: Record<MessageKey, string> = {
   geoBackfillHint:
     "从支持的图片中读取 GPS 并查询缺失的位置，已有结果会复用；没有 GPS 的图片不会发送请求。",
 
+  taskCanceled: "任务已取消，可重试。",
   ocrTitle: "OCR",
   orientationTitle: "图片方向",
   orientationEdit: "调整方向",
   orientationAuto: "自动校正新增图片方向",
   orientationAutoHint:
     "仅发送启用后新增的图片。OCR 和描述也会先补齐缺失的方向结果，原始文件保持不变。",
-  orientationQueuePaused:
-    "方向任务已暂停。请在 AI 设置中恢复；正在进行的请求仍可能完成。",
+  orientationQueuePaused: "方向队列已暂停，已发出的请求仍可能完成。",
   orientationQueueRunning: "正在判断方向：{name}",
   orientationQueueIdle: "方向任务就绪",
   orientationScanning: "正在查找尚未判断方向的图片…",
@@ -1043,8 +1043,7 @@ export const zh: Record<MessageKey, string> = {
   descAuto: "自动描述新增图片",
   descAutoHint:
     "仅发送启用后新增的图片生成描述；已有图片需要手动发起查缺补漏。",
-  descQueuePaused:
-    "描述队列已暂停。可在 AI 设置中继续；已经发出的请求仍可能完成。",
+  descQueuePaused: "描述队列已暂停，已发出的请求仍可能完成。",
   descQueueRunning: "正在描述：{name}",
   descQueueIdle: "描述后台已就绪",
   descScanning: "正在查找尚无描述的图片…",
@@ -1066,8 +1065,7 @@ export const zh: Record<MessageKey, string> = {
     "填写 HTTP 或 SOCKS5 地址；留空使用服务进程的代理环境变量。浏览器登录页沿用浏览器自己的网络设置。",
   ocrAuto: "自动识别新增图片",
   ocrAutoHint: "仅发送启用后新增的图片进行 OCR；已有图片需要手动发起查缺补漏。",
-  ocrQueuePaused:
-    "OCR 队列已暂停，可在 AI 设置中继续；已在途的请求仍可能完成。",
+  ocrQueuePaused: "OCR 队列已暂停，已发出的请求仍可能完成。",
   ocrQueueRunning: "正在识别：{name}",
   ocrQueueIdle: "OCR 后台已就绪",
   ocrQueueCounts: "排队 {queued} 项 · 失败 {failed} 项",

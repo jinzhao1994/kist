@@ -4197,7 +4197,7 @@ for (const scenario of [
               queued: 12,
               failed: 1,
               running: "",
-              error: "OCR was interrupted; retry explicitly",
+              error: "context canceled",
             },
           }),
         );
@@ -4380,7 +4380,7 @@ for (const scenario of [
       scenario === "ai-error"
         ? ["Model service unavailable"]
         : scenario === "ai-paused"
-          ? ["OCR was interrupted"]
+          ? ["任务已取消，可重试。"]
           : [],
     );
   });

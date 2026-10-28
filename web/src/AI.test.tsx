@@ -2,10 +2,11 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
+import { MetadataGroup } from "./MetadataGroup";
 import { ImageRotation } from "./ImageRotation";
 import type { ArchiveFile } from "./api";
 import { FileDetail } from "./FileDetail";
-import { AIConnection, OCRAction, OCRText } from "./AI";
+import { AIConnection, BackgroundTaskQueue, OCRAction, OCRText } from "./AI";
 import { I18nProvider, storageKey } from "./i18n";
 import { ThemeProvider } from "./theme";
 
@@ -465,4 +466,49 @@ it("restores automatic direction with a stable request key after a lost response
     clockwise_degrees: null,
   });
   expect(overrides[0].init.headers).toEqual(overrides[1].init.headers);
+});
+
+it("explains canceled tasks in both queue settings and metadata", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string) =>
+      Response.json(
+        path.endsWith("/ai/ocr")
+          ? {
+              paused: true,
+              scanning: false,
+              queued: 0,
+              failed: 1,
+              running: "",
+              error: "context canceled",
+            }
+          : { state: "failed", error: "context canceled" },
+      ),
+    ),
+  );
+  mount(
+    <>
+      <BackgroundTaskQueue
+        kind="ocr"
+        disabled={false}
+        connected
+        model="gpt-6-luna"
+      />
+      <MetadataGroup title="OCR" fileID="file" extractor="ocr">
+        Existing text
+      </MetadataGroup>
+    </>,
+  );
+  await waitFor(() => expect(screen.getAllByRole("alert")).toHaveLength(2));
+  for (const alert of screen.getAllByRole("alert")) {
+    expect(alert).toHaveTextContent("Task canceled. You can retry it.");
+  }
+  expect(screen.queryByText("context canceled")).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "AI settings" })).toHaveAttribute(
+    "href",
+    "/settings#settings-ai",
+  );
+  expect(
+    screen.getByRole("button", { name: "Retry failed images" }),
+  ).toBeEnabled();
 });

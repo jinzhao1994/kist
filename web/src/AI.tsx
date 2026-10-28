@@ -1,3 +1,4 @@
+import { TaskStatus, taskErrorMessage } from "./TaskStatus";
 import { CopyTextPreview } from "./CopyTextPreview";
 import {
   Alert,
@@ -446,7 +447,7 @@ export function BackgroundTaskQueue({
       )}
       {queue.data && (
         <>
-          <Text size="sm" role="status">
+          <TaskStatus>
             {queue.data.paused
               ? t(taskMessage(kind, "QueuePaused"))
               : queue.data.running
@@ -454,7 +455,7 @@ export function BackgroundTaskQueue({
                     name: queue.data.running,
                   })
                 : t(taskMessage(kind, "QueueIdle"))}
-          </Text>
+          </TaskStatus>
           <Text size="sm" c="dimmed">
             {t("ocrQueueCounts", {
               queued: queue.data.queued,
@@ -468,7 +469,7 @@ export function BackgroundTaskQueue({
           )}
           {queue.data.error && (
             <Text size="sm" role="alert">
-              {queue.data.error}
+              {taskErrorMessage(queue.data.error, t)}
             </Text>
           )}
           <Group>
@@ -556,7 +557,7 @@ export function OCRAction({
   }
   const issue =
     error ||
-    job.data?.error ||
+    taskErrorMessage(job.data?.error, t) ||
     (job.error && errorMessage(job.error, t)) ||
     (settings.error && errorMessage(settings.error, t)) ||
     (status.error && errorMessage(status.error, t)) ||
@@ -578,7 +579,7 @@ export function OCRAction({
         </Text>
       )}
       {queue.data?.paused && (
-        <Text size="sm">{t(taskMessage(kind, "QueuePaused"))}</Text>
+        <TaskStatus>{t(taskMessage(kind, "QueuePaused"))}</TaskStatus>
       )}
       {(!status.data?.connected || !settings.data?.model) && (
         <Text size="sm">{t("ocrConfigureFirst")}</Text>
