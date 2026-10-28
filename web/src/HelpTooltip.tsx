@@ -6,10 +6,12 @@ export function HelpTooltip({
   label,
   children,
   muted = false,
+  inline = false,
 }: {
   label: string;
   children: ReactNode;
   muted?: boolean;
+  inline?: boolean;
 }) {
   return (
     <Tooltip
@@ -27,7 +29,7 @@ export function HelpTooltip({
         type="button"
         variant="subtle"
         color={muted ? "var(--muted)" : "gray"}
-        size="sm"
+        size={inline ? "xs" : "sm"}
         aria-label={label}
       >
         <FloatingTooltip

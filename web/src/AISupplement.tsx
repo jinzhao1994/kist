@@ -6,7 +6,6 @@ import { useI18n } from "./i18n";
 import { MetadataLabel } from "./MetadataLabel";
 import { MetadataValue } from "./MetadataValue";
 import { FullTextTooltip } from "./FullTextTooltip";
-import { HelpTooltip } from "./HelpTooltip";
 import { useWrites, WriteFeedback } from "./mutations";
 
 type Row = NonNullable<FileDetail["metadata"]>[number];
@@ -24,11 +23,11 @@ export function AISupplement(props: Props) {
   const { row } = props;
   return (
     <div>
-      <MetadataLabel metadataKey={row.key} label={t("aiHint")}>
-        <HelpTooltip label={t("aiHint")} muted>
-          {t("aiHintHelp")}
-        </HelpTooltip>
-      </MetadataLabel>
+      <MetadataLabel
+        metadataKey={row.key}
+        label={t("aiHint")}
+        help={t("aiHintHelp")}
+      />
       <dd>
         <MetadataValue
           fileID={props.fileID}

@@ -1,15 +1,16 @@
 import { Group, Tooltip } from "@mantine/core";
 import type { ReactNode } from "react";
 import { FloatingTooltip } from "./FloatingTooltip";
+import { HelpTooltip } from "./HelpTooltip";
 
 export function MetadataLabel({
   metadataKey,
   label,
-  children,
+  help,
 }: {
   metadataKey: string;
   label: string;
-  children?: ReactNode;
+  help?: ReactNode;
 }) {
   const text = (
     <FloatingTooltip
@@ -33,10 +34,12 @@ export function MetadataLabel({
       events={{ hover: false, focus: true, touch: false }}
     >
       <dt tabIndex={0}>
-        {children ? (
+        {help ? (
           <Group gap="xs">
             {text}
-            {children}
+            <HelpTooltip label={label} muted inline>
+              {help}
+            </HelpTooltip>
           </Group>
         ) : (
           text

@@ -5541,6 +5541,12 @@ for (const variant of [
             { key: "ocr:hint", value: hint, source: hintSource, type: "text" },
             { key: "desc:hint", value: "", source: "desc", type: "text" },
             {
+              key: "ocr:model",
+              value: "openai/gpt-6-luna",
+              source: "ocr",
+              type: "text",
+            },
+            {
               key: "ocr:text",
               value: "合成测试文档\n示例姓名",
               source: variant === "manual" ? "user" : "ocr",
@@ -5575,10 +5581,14 @@ for (const variant of [
       await expect(group.getByRole("img", { name: /人工编辑/ })).toHaveCount(0);
     const fieldRows = group.locator(".metadata-list > div");
     const hintBounds = await fieldRows.nth(0).boundingBox();
-    const textBounds = await fieldRows.nth(1).boundingBox();
+    const modelRow = fieldRows.filter({
+      has: page.locator("dt bdi").filter({ hasText: /^模型$/ }),
+    });
+    const modelBounds = await modelRow.boundingBox();
     expect(hintBounds).not.toBeNull();
-    expect(textBounds).not.toBeNull();
-    expect(textBounds!.y - hintBounds!.y - hintBounds!.height).toBeCloseTo(
+    expect(modelBounds).not.toBeNull();
+    expect(hintBounds!.height).toBeCloseTo(modelBounds!.height, 1);
+    expect(modelBounds!.y - hintBounds!.y - hintBounds!.height).toBeCloseTo(
       0,
       0,
     );
