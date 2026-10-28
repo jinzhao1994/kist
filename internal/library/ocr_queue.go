@@ -197,7 +197,7 @@ func (q *OCRQueue) resolve(ctx context.Context, id domain.FileID) (OCRJob, error
 			if e != nil {
 				return e
 			}
-			if _, known, _ := imageRotation(rows, f.BlobKey); known {
+			if _, known, _ := imageRotation(rows); known {
 				j.State = "ready"
 			}
 		} else if versions[q.kind] >= 1 {

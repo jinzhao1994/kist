@@ -148,7 +148,7 @@ func readMediaInfo(q store.Queryer, id domain.FileID) (MediaInfo, error) {
 	if err := q.QueryRow(`SELECT blob_key FROM files WHERE id=?`, id).Scan(&out.RotationBlob); err != nil {
 		return out, err
 	}
-	out.Rotation, _, out.RotationManual = imageRotation(rows, out.RotationBlob)
+	out.Rotation, _, out.RotationManual = imageRotation(rows)
 	versions, err := store.Extractions(q, id)
 	if err != nil {
 		return out, err

@@ -27,7 +27,8 @@ type FileExtraction struct {
 	// Was are the values those same keys held before, plus the values of any
 	// key in Removed. A key absent here did not exist before.
 	Was []extract.KV `json:"was,omitempty"`
-	// Removed are keys this extractor used to produce and no longer does.
+	// Removed carries explicit undo and previously recorded removals. New
+	// extraction runs preserve unreported fields and do not populate it.
 	Removed []string `json:"removed,omitempty"`
 	// CapturedAt is the kernel's re-resolved conclusion (spec 1.5.2), carried
 	// in the same op because it is computed from the rows above.

@@ -10,6 +10,7 @@ import (
 
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/extract"
+	"github.com/jinzhao1994/kist/internal/oplog"
 	"github.com/jinzhao1994/kist/internal/store"
 )
 
@@ -369,4 +370,73 @@ func TestMergedObservationsRespectOwnership(t *testing.T) {
 	if len(got) != 2 || got[0] != stored[0].KV || got[1] != text("exif:Make", "new") {
 		t.Fatalf("merged observations ignored ownership or suppression: %+v", got)
 	}
+}
+
+func TestReextractionRetainsUnreportedFieldsAndCaptureTime(t *testing.T) {
+	l, box := openWithBox(t)
+	ctx := t.Context()
+	file := importOneFile(t, l, box, "synthetic.txt", "synthetic content")
+	e := &fakeExtractor{id: "example", version: 1, ns: []string{"exif", "ocr"}, tags: []extract.KV{
+		text("exif:DateTimeOriginal", "2001:02:03 04:05:06"),
+		text("ocr:input_sha256", "obsolete synthetic value"),
+		text("ocr:text", "old result"),
+	}}
+	extractWith(t, l, e)
+	before, _, _ := l.File(ctx, file.ID)
+	client := newSyncClient(t, l)
+	e.version = 2
+	e.tags = []extract.KV{text("ocr:text", "new result")}
+	result := extractWith(t, l, e)
+	check := func() {
+		t.Helper()
+		rows := metaOf(t, l, file.ID)
+		if rows["ocr:input_sha256"].Value != "obsolete synthetic value" || rows["exif:DateTimeOriginal"].Value != "2001:02:03 04:05:06" || rows["ocr:text"].Value != "new result" {
+			t.Fatal("unreported fields were removed or reported field was not updated", rows)
+		}
+		current, _, err := l.File(ctx, file.ID)
+		if err != nil || current.CapturedAt != before.CapturedAt {
+			t.Fatal("capture time ignored retained observations", current.CapturedAt, before.CapturedAt, err)
+		}
+	}
+	check()
+	row, _, err := store.GetOp(l.db, result.OpIDs[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload, err := oplog.Payload[oplog.ExtractMetadataPayload](row.Payload)
+	if err != nil || len(payload.Files[0].Removed) != 0 || len(payload.Files[0].Set) != 1 || len(payload.Files[0].Was) != 1 {
+		t.Fatal("extraction claimed changes to unreported fields", payload, err)
+	}
+	if _, err := client.Synchronize(ctx, &testSyncPeer{nas: l}); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := client.FileMetadata(ctx, file.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	retained := false
+	for _, row := range rows {
+		if row.Key == "ocr:input_sha256" && row.Value == "obsolete synthetic value" {
+			retained = true
+		}
+	}
+	if !retained {
+		t.Fatal("sync dropped an unreported field")
+	}
+	e.version = 3
+	e.tags = nil
+	empty := extractWith(t, l, e)
+	check()
+	checkRebuilt(t, l)
+	if _, err := l.Undo(ctx, empty.OpIDs[0]); err != nil {
+		t.Fatal(err)
+	}
+	check()
+	if _, err := l.Undo(ctx, result.OpIDs[0]); err != nil {
+		t.Fatal(err)
+	}
+	if rows := metaOf(t, l, file.ID); rows["ocr:text"].Value != "old result" || rows["ocr:input_sha256"].Value != "obsolete synthetic value" {
+		t.Fatal("undo changed unreported fields", rows)
+	}
+	checkRebuilt(t, l)
 }

@@ -52,7 +52,6 @@ func removeMetadataChange(vtx *store.ViewTx, id domain.FileID, key string, zone 
 		}
 		if key == "orientation:clockwise_degrees" {
 			change.BlobKey = file.BlobKey
-			removeLegacyOrientationHash(change, rows)
 		}
 		return nil
 	}()
@@ -125,7 +124,6 @@ func editMetadataChange(tx *store.ViewTx, id domain.FileID, edit MetadataEdit, z
 		}
 		if row.Key == "orientation:clockwise_degrees" {
 			change.BlobKey = file.BlobKey
-			removeLegacyOrientationHash(change, rows)
 		}
 		return change, nil
 	}

@@ -16,17 +16,12 @@ import (
 
 // imageRotation reads the current content version's orientation. Replacement
 // drops the angle in its payload; no input checksum is part of the result.
-func imageRotation(rows []store.MetadataRow, blob string) (degrees int, known, manual bool) {
+func imageRotation(rows []store.MetadataRow) (degrees int, known, manual bool) {
 	var angle *store.MetadataRow
 	for i := range rows {
 		r := &rows[i]
 		if r.Tombstone {
 			continue
-		}
-		// Older replacement payloads retained human angles with this binding.
-		// Honor it until an explicit edit or extraction removes the old row.
-		if r.Key == "orientation:input_sha256" && r.Value != blob {
-			return 0, false, false
 		}
 		if r.Key == "orientation:clockwise_degrees" {
 			angle = r
@@ -123,7 +118,7 @@ func (l *Library) ensureImageOrientation(ctx context.Context, id domain.FileID, 
 			if e != nil {
 				return e
 			}
-			if _, known, _ := imageRotation(rows, blob); !known {
+			if _, known, _ := imageRotation(rows); !known {
 				return errors.New("image orientation metadata is protected; restore automatic orientation before retrying")
 			}
 			return nil
@@ -176,7 +171,6 @@ func (l *Library) SetImageRotation(ctx context.Context, id domain.FileID, blob s
 		if !reflect.DeepEqual(before, after) {
 			change.Keys = append(change.Keys, oplog.KeyChange{Key: key, Before: before, After: after})
 		}
-		removeLegacyOrientationHash(&change, rows)
 		return nil
 	})
 	if err != nil || len(change.Keys) == 0 {
@@ -188,15 +182,4 @@ func (l *Library) SetImageRotation(ctx context.Context, id domain.FileID, blob s
 	}
 	_, err = l.write(ctx, oplog.ActionSetMetadata, raw, oplog.OriginUser, writeOptions{})
 	return err
-}
-
-// removeLegacyOrientationHash retires the old input snapshot on explicit edits.
-// The before state is retained for strict undo, including its original source.
-func removeLegacyOrientationHash(change *oplog.FileMetadataChange, rows []store.MetadataRow) {
-	for _, row := range rows {
-		if row.Key == "orientation:input_sha256" {
-			change.Keys = append(change.Keys, oplog.KeyChange{Key: row.Key, Before: &oplog.MetadataState{Value: row.Value, Type: row.Type, Source: row.Source, Tombstone: row.Tombstone}})
-			return
-		}
-	}
 }

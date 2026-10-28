@@ -5127,6 +5127,9 @@ for (const variant of [
       mobile: variant === "mobile",
       mapFailure: variant === "failure",
     });
+    // Wheel behavior needs a scrollable details panel, even with few fields.
+    if (variant === "wheel")
+      await page.setViewportSize({ width: 1280, height: 560 });
     await page.route("**/api/v1/files/file-1", (route) =>
       route.fulfill({
         json: {
@@ -5185,9 +5188,11 @@ for (const variant of [
     ).toBeVisible();
     if (variant === "wheel") {
       const panel = page.locator("#gallery-details");
-      const before = await panel.evaluate((el) => el.scrollTop);
-      expect(before).toBeGreaterThan(0);
       await group.locator("canvas").hover();
+      await expect
+        .poll(() => panel.evaluate((el) => el.scrollTop))
+        .toBeGreaterThan(0);
+      const before = await panel.evaluate((el) => el.scrollTop);
       await page.mouse.wheel(0, -160);
       await expect
         .poll(() => panel.evaluate((el) => el.scrollTop))
@@ -5300,12 +5305,12 @@ for (const variant of [
     await group
       .locator(".metadata-value")
       .filter({
-        has: group.getByRole("button", { name: "编辑识别文字", exact: true }),
+        has: page.getByRole("button", { name: "编辑识别文字", exact: true }),
       })
       .hover();
     if (variant === "hover") {
       const cell = group.locator(".metadata-value").filter({
-        has: group.getByRole("button", { name: "编辑识别文字", exact: true }),
+        has: page.getByRole("button", { name: "编辑识别文字", exact: true }),
       });
       const value = await cell.locator(".metadata-value-content").boundingBox();
       const bounds = await cell.boundingBox();

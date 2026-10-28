@@ -272,13 +272,8 @@ func (l *Library) diffExtraction(
 	return extractionChange(e, file, found, stored, l.zone()), nil
 }
 
-// extractionChange resolves observed facts against one captured metadata snapshot.
+// extractionChange merges observed facts without deleting unreported fields.
 func extractionChange(e extract.Extractor, file domain.File, found []extract.KV, stored []store.MetadataRow, zone *time.Location) *oplog.FileExtraction {
-	owned := map[string]bool{}
-	for _, ns := range e.Namespaces() {
-		owned[ns] = true
-	}
-
 	was := map[string]extract.KV{}
 	// owner records who wrote each key that already exists. A key belonging to
 	// somebody else is off limits entirely — not merely absent from the before
@@ -294,12 +289,10 @@ func extractionChange(e extract.Extractor, file domain.File, found []extract.KV,
 	}
 
 	change := oplog.FileExtraction{FileID: file.ID}
-	seen := map[string]bool{}
 	for _, kv := range found {
 		if src, taken := owner[kv.Key]; taken && src != e.ID() {
 			continue
 		}
-		seen[kv.Key] = true
 		if old, had := was[kv.Key]; had && old == kv {
 			continue
 		}
@@ -308,13 +301,6 @@ func extractionChange(e extract.Extractor, file domain.File, found []extract.KV,
 			change.Was = append(change.Was, old)
 		}
 	}
-	for key, old := range was {
-		if !seen[key] {
-			change.Removed = append(change.Removed, key)
-			change.Was = append(change.Was, old)
-		}
-	}
-	sort.Strings(change.Removed)
 	sort.Slice(change.Was, func(i, j int) bool { return change.Was[i].Key < change.Was[j].Key })
 
 	// captured_at is recomputed from every row this file has, not just this
@@ -340,9 +326,13 @@ func extractionChange(e extract.Extractor, file domain.File, found []extract.KV,
 func mergedTags(stored []store.MetadataRow, extractor string, found []extract.KV) []extract.KV {
 	out := make([]extract.KV, 0, len(stored)+len(found))
 	protected := make(map[string]bool)
+	reported := make(map[string]bool, len(found))
+	for _, kv := range found {
+		reported[kv.Key] = true
+	}
 	for _, row := range stored {
-		if row.Source == extractor && !row.Tombstone {
-			continue // this extractor replaces its own observations
+		if row.Source == extractor && !row.Tombstone && reported[row.Key] {
+			continue // only a newly reported value replaces the old observation
 		}
 		protected[row.Key] = true
 		if !row.Tombstone {

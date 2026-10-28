@@ -204,7 +204,7 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 		}
 	}
 	if kind == "orientation" {
-		_, known, manual := imageRotation(p.rows, p.file.BlobKey)
+		_, known, manual := imageRotation(p.rows)
 		if manual || known && !force {
 			return p, nil
 		}
@@ -212,7 +212,7 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 		return p, nil
 	}
 	if kind != "orientation" {
-		if _, known, _ := imageRotation(p.rows, p.file.BlobKey); !known {
+		if _, known, _ := imageRotation(p.rows); !known {
 			if err := l.ensureImageOrientation(ctx, id, provider, model, p.file.BlobKey); err != nil {
 				return nil, err
 			}
@@ -288,7 +288,7 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 			{Key: "orientation:method", Value: result.Method, Type: extract.TypeText},
 		}
 	} else {
-		degrees, _, _ := imageRotation(p.rows, p.file.BlobKey)
+		degrees, _, _ := imageRotation(p.rows)
 		input, err = ai.RotateImage(input, degrees)
 		if err != nil {
 			return nil, err

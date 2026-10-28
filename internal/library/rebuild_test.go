@@ -126,7 +126,7 @@ func busyLibrary(t *testing.T) *Library {
 //
 //   - a first extraction, where the before state is empty
 //   - a second at a higher version, where Set and Was are both populated and
-//     one key disappears
+//     one unreported key is retained
 //   - an extraction that is then undone, so the replay has to run the inverse
 //     including its version rollback
 //   - a second extractor's rows alongside the first's, and the import's own
@@ -203,10 +203,12 @@ func seedExtractions(t *testing.T, l *Library) {
 //     from the import that was undone. Undo does not reclaim blobs — that is
 //     GC's job and v0.1 has none (spec 3.9), so an orphan blob costs space and
 //     nothing else
+//   - file_metadata 35: five files, each with two import fields, four seed
+//     fields (including unreported seed:Junk), and one other field or tombstone
 func TestBusyLibraryCoversTheFileTables(t *testing.T) {
 	l := busyLibrary(t)
 	for table, want := range map[string]int{"files": 5, "folders": 5, "blobs": 5, "file_tags": 4,
-		"file_metadata": 30, "file_extractions": 10} {
+		"file_metadata": 35, "file_extractions": 10} {
 		var n int
 		if err := l.db.QueryRow(`SELECT count(*) FROM ` + table).Scan(&n); err != nil {
 			t.Fatal(err)

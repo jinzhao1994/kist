@@ -120,7 +120,7 @@ func TestOrientationSharedInputManualOverrideReplayAndUndo(t *testing.T) {
 		}
 	}
 	rows, _ := store.FileMetadata(l.db, id)
-	if degrees, known, manual := imageRotation(rows, file.BlobKey); degrees != 90 || !known || manual {
+	if degrees, known, manual := imageRotation(rows); degrees != 90 || !known || manual {
 		t.Fatal(degrees, known, manual)
 	}
 	zero := 0
@@ -133,7 +133,7 @@ func TestOrientationSharedInputManualOverrideReplayAndUndo(t *testing.T) {
 		t.Fatal("manual zero overwritten", err)
 	}
 	rows, _ = store.FileMetadata(l.db, id)
-	if degrees, known, manual := imageRotation(rows, file.BlobKey); degrees != 0 || !known || !manual {
+	if degrees, known, manual := imageRotation(rows); degrees != 0 || !known || !manual {
 		t.Fatal(degrees, known, manual)
 	}
 	before, _ := store.Snapshot(l.db)
@@ -152,7 +152,7 @@ func TestOrientationSharedInputManualOverrideReplayAndUndo(t *testing.T) {
 		t.Fatal(err)
 	}
 	rows, _ = store.FileMetadata(l.db, id)
-	if angle, _, manual := imageRotation(rows, file.BlobKey); angle != 90 || manual {
+	if angle, _, manual := imageRotation(rows); angle != 90 || manual {
 		t.Fatal("undo did not restore AI", angle, manual)
 	}
 	current, _ := os.ReadFile(path)
@@ -230,8 +230,7 @@ func TestOrientationQueueNewOnlyBackfillAndOCRFailure(t *testing.T) {
 		t.Fatal("OCR proceeded without orientation", err, p.calls)
 	}
 	rows, _ := store.FileMetadata(l.db, failed)
-	ff, _, _ := l.File(t.Context(), failed)
-	if _, known, _ := imageRotation(rows, ff.BlobKey); known {
+	if _, known, _ := imageRotation(rows); known {
 		t.Fatal("network failure saved as zero")
 	}
 }
