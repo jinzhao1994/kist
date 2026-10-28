@@ -94,7 +94,7 @@ it("queues OCR with the saved model policy and reports request failures", async 
   await userEvent.click(run);
   await screen.findByText(/Queue unavailable/);
   await userEvent.click(run);
-  await screen.findByText("Queued for OCR");
+  await screen.findByRole("button", { name: "Queued" });
   expect(run).toBeDisabled();
   expect(JSON.parse(requests[0].body as string)).toEqual({ retry: false });
   expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
@@ -127,8 +127,12 @@ it("does not run OCR before a default model is saved", async () => {
     "Connect an account and save a default AI model in AI settings first.",
   );
   expect(
-    screen.getByRole("button", { name: "Extract text (OCR)" }),
-  ).toBeDisabled();
+    screen.queryByRole("button", { name: "Extract text (OCR)" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "AI settings" })).toHaveAttribute(
+    "href",
+    "/settings#settings-ai",
+  );
 });
 it("shows model loading and saves shared options without triggering a backfill", async () => {
   let finish!: (response: Response) => void;
@@ -352,7 +356,7 @@ it("queues a description independently of OCR", async () => {
   });
   await waitFor(() => expect(run).toBeEnabled());
   await userEvent.click(run);
-  await screen.findByText("Queued for description");
+  await screen.findByRole("button", { name: "Queued" });
   expect(writes).toEqual(["/api/v1/files/file/desc"]);
 });
 
@@ -613,11 +617,7 @@ it("keeps a failed empty-group status request stable until explicit retry", asyn
       );
     }),
   );
-  mount(
-    <MetadataGroup title="OCR" fileID="file" extractor="ocr" empty>
-      <OCRAction fileID="file" />
-    </MetadataGroup>,
-  );
+  mount(<MetadataGroup title="OCR" fileID="file" extractor="ocr" empty />);
   await screen.findByRole("alert");
   expect(jobReads).toBe(1);
   await userEvent.click(screen.getByRole("button", { name: "Try again" }));
@@ -628,3 +628,35 @@ it("keeps a failed empty-group status request stable until explicit retry", asyn
   );
   expect(jobReads).toBe(2);
 });
+
+it.each([
+  ["desc", "queued", "Queued"],
+  ["desc", "running", "Generating…"],
+  ["ocr", "running", "Recognizing…"],
+  ["orientation", "running", "Checking orientation…"],
+])(
+  "keeps the initial %s %s state in its header",
+  async (kind, state, label) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async (path: string) =>
+          defaults(path) ||
+          Response.json(
+            path.endsWith("/ai")
+              ? { supported: true, connected: true }
+              : { state, manual: true },
+          ),
+      ),
+    );
+    mount(<MetadataGroup title="Task" fileID="file" extractor={kind} empty />);
+    const button = await screen.findByRole("button", { name: label });
+    expect(button).toBeDisabled();
+    expect(button.closest(".metadata-group-heading")).not.toBeNull();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "AI settings" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+  },
+);

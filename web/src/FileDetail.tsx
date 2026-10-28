@@ -7,7 +7,7 @@ import { MetadataValue } from "./MetadataValue";
 import { MetadataGroup } from "./MetadataGroup";
 import { CopyTextPreview } from "./CopyTextPreview";
 import { useClientMode } from "./OfflineEntry";
-import { OCRAction, OCRText } from "./AI";
+import { OCRText } from "./AI";
 import { supportsImageAI, supportsDescriptionAI } from "./media-profile";
 import { Button, CopyButton, Stack, Tooltip } from "@mantine/core";
 import type { components } from "./api-schema";
@@ -345,19 +345,6 @@ export function FileDetail({
                       </Suspense>
                     </div>
                   </>
-                )}
-                {source === "orientation" && canOrient && (
-                  <OCRAction
-                    key={file.id}
-                    fileID={file.id}
-                    kind="orientation"
-                  />
-                )}
-                {source === "ocr" && canOCR && (
-                  <OCRAction key={file.id} fileID={file.id} />
-                )}
-                {source === "desc" && canDescribe && (
-                  <OCRAction key={file.id} fileID={file.id} kind="desc" />
                 )}
                 <dl className="metadata-list">
                   {rows.map((row) =>

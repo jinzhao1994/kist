@@ -4686,8 +4686,9 @@ for (const scenario of [
         name: scenario === "error" ? "重试" : "提取文字（OCR）",
         exact: true,
       });
-      if (scenario === "disconnected") await expect(action).toBeDisabled();
-      else await expect(action).toBeEnabled();
+      if (scenario === "disconnected") {
+        await expect(action).toHaveCount(0);
+      } else await expect(action).toBeEnabled();
       if (scenario === "error")
         await expect(page.getByRole("alert")).toContainText(
           "no result was saved",
@@ -4699,7 +4700,7 @@ for (const scenario of [
             has: page.getByRole("heading", { name: "OCR", exact: true }),
           })
           .getByRole("link", { name: "AI 设置", exact: true }),
-      ).toBeVisible();
+      ).toHaveCount(scenario === "disconnected" ? 1 : 0);
     }
     if (scenario === "text-tooltip") {
       await page.locator(".copy-text-preview bdi").hover();
@@ -4940,8 +4941,9 @@ for (const scenario of [
         name: scenario === "error" ? "重试" : "生成描述",
         exact: true,
       });
-      if (scenario === "disconnected") await expect(action).toBeDisabled();
-      else await expect(action).toBeEnabled();
+      if (scenario === "disconnected") {
+        await expect(action).toHaveCount(0);
+      } else await expect(action).toBeEnabled();
     }
     if (scenario === "text-paused") {
       const action = group.getByRole("button", {
@@ -5780,6 +5782,45 @@ for (const extension of ["pdf", "doc", "docx", "ppt", "pptx", "pdf-result"]) {
     await expect(
       panel.getByRole("heading", { name: "图片方向", exact: true }),
     ).toHaveCount(0);
+    await capture(page, errors, info.title);
+  });
+}
+
+for (const scenario of ["queued", "running", "mobile", "dark"] as const) {
+  test(`description-initial-${scenario}`, async ({ page }, info) => {
+    const errors = await prepare(page, {
+      mobile: scenario === "mobile",
+      mode: scenario === "dark" ? "dark" : "light",
+    });
+    await page.route("**/api/v1/ai", (route) =>
+      route.fulfill({
+        json: { supported: true, connected: true, pending: false, error: "" },
+      }),
+    );
+    await page.route("**/api/v1/files/file-1/desc", (route) =>
+      route.fulfill({
+        json: {
+          state: scenario === "queued" ? "queued" : "running",
+          manual: true,
+        },
+      }),
+    );
+    await page.goto("/files?file=file-1");
+    await page.getByRole("button", { name: "文件详情", exact: true }).click();
+    const group = page.locator(".file-metadata-group").filter({
+      has: page.getByRole("heading", { name: "描述", exact: true }),
+    });
+    const action = group
+      .locator(".metadata-group-heading")
+      .getByRole("button", {
+        name: scenario === "queued" ? "已排队" : "正在生成",
+        exact: true,
+      });
+    await expect(action).toBeDisabled();
+    await expect(group.getByRole("button")).toHaveCount(1);
+    await expect(group.getByRole("status")).toHaveCount(0);
+    await expect(group.getByRole("link")).toHaveCount(0);
+    await action.scrollIntoViewIfNeeded();
     await capture(page, errors, info.title);
   });
 }

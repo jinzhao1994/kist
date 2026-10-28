@@ -1,4 +1,4 @@
-import { TaskStatus, taskErrorMessage } from "./TaskStatus";
+import { TaskStatus, taskErrorMessage, taskRunningMessage } from "./TaskStatus";
 import { CopyTextPreview } from "./CopyTextPreview";
 import {
   Alert,
@@ -9,7 +9,7 @@ import {
   Checkbox,
   PasswordInput,
 } from "@mantine/core";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, result } from "./api";
 import { Select } from "./Select";
@@ -520,9 +520,11 @@ export function BackgroundTaskQueue({
 export function OCRAction({
   fileID,
   kind = "ocr",
+  children,
 }: {
   fileID: string;
   kind?: ImageTask;
+  children?: (controls: { action: ReactNode; status: ReactNode }) => ReactNode;
 }) {
   const { t } = useI18n();
   const queries = useQueryClient();
@@ -566,51 +568,75 @@ export function OCRAction({
     (job.error && errorMessage(job.error, t)) ||
     (settings.error && errorMessage(settings.error, t)) ||
     (status.error && errorMessage(status.error, t));
-  return (
-    <Stack gap="xs">
+  const readFailed = job.isError || settings.isError || status.isError;
+  const loading = job.isPending || settings.isPending || status.isPending;
+  const needsSetup =
+    !loading &&
+    !readFailed &&
+    (!status.data?.connected || !settings.data?.model);
+  const label = t(
+    busy || job.data?.state === "running"
+      ? taskRunningMessage(kind)
+      : waiting
+        ? "reextractQueued"
+        : readFailed || job.data?.state === "failed"
+          ? "retry"
+          : taskMessage(kind, "Extract"),
+  );
+  const action =
+    needsSetup && !pending ? (
+      <Button
+        component="a"
+        href="/settings#settings-ai"
+        variant="subtle"
+        size="compact-xs"
+      >
+        {t("ocrSettings")}
+      </Button>
+    ) : (
+      <Button
+        variant="subtle"
+        size="compact-xs"
+        className="metadata-refresh-action"
+        data-active
+        disabled={
+          busy ||
+          !!waiting ||
+          loading ||
+          (!readFailed && (!status.data?.connected || !settings.data?.model))
+        }
+        onClick={() => {
+          if (readFailed) {
+            void Promise.all([
+              job.isError && job.refetch(),
+              settings.isError && settings.refetch(),
+              status.isError && status.refetch(),
+            ]);
+          } else void request();
+        }}
+      >
+        {label}
+      </Button>
+    );
+  const feedback = (
+    <>
       {issue && (
-        <Text role="alert" size="sm">
+        <Text role="alert" size="xs">
           {issue}
         </Text>
       )}
-      {pending && (
-        <Text role="status" size="sm">
-          {t(
-            job.data?.state === "running"
-              ? "extracting"
-              : taskMessage(kind, "Queued"),
-          )}
-        </Text>
+      {needsSetup && !pending && (
+        <TaskStatus>{t("ocrConfigureFirst")}</TaskStatus>
       )}
-      {(!status.data?.connected || !settings.data?.model) && (
-        <Text size="sm">{t("ocrConfigureFirst")}</Text>
-      )}
-      <Group>
-        <Button
-          disabled={
-            busy ||
-            !!waiting ||
-            !status.data?.connected ||
-            !settings.data?.model ||
-            job.isPending ||
-            job.isError
-          }
-          onClick={() => void request()}
-        >
-          {t(
-            job.data?.state === "failed"
-              ? "retry"
-              : taskMessage(kind, "Extract"),
-          )}
-        </Button>
-        <Button component="a" href="/settings#settings-ai" variant="subtle">
-          {t("ocrSettings")}
-        </Button>
-        {job.isError && (
-          <Button onClick={() => void job.refetch()}>{t("retry")}</Button>
-        )}
-      </Group>
-    </Stack>
+    </>
+  );
+  return children ? (
+    children({ action, status: feedback })
+  ) : (
+    <>
+      {action}
+      {feedback}
+    </>
   );
 }
 export function OCRText({ text }: { text: string }) {

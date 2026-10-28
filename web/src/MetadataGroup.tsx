@@ -1,4 +1,5 @@
-import { taskErrorMessage } from "./TaskStatus";
+import { taskErrorMessage, taskRunningMessage } from "./TaskStatus";
+import { OCRAction } from "./AI";
 import { HelpTooltip } from "./HelpTooltip";
 import { Button, Text, Group } from "@mantine/core";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -31,7 +32,7 @@ export function MetadataGroup({
   help,
   ...task
 }: TaskOptions & {
-  children: ReactNode;
+  children?: ReactNode;
   help?: string;
   secondary?: Omit<TaskOptions, "fileID">;
 }) {
@@ -42,7 +43,7 @@ export function MetadataGroup({
     ...secondary,
   });
   if (primary.hidden) return null;
-  return (
+  const render = (action: ReactNode, status: ReactNode) => (
     <section className="file-metadata-group">
       {task.title && (
         <div className="metadata-group-heading">
@@ -57,16 +58,29 @@ export function MetadataGroup({
             )}
           </Group>
           <Group gap="xs" className="metadata-group-actions">
-            {!task.empty && primary.action}
+            {action}
             {extra.action}
           </Group>
         </div>
       )}
-      {!task.empty && primary.status}
+      {status}
       {extra.status}
       {children}
     </section>
   );
+  if (
+    task.empty &&
+    (task.extractor === "ocr" ||
+      task.extractor === "desc" ||
+      task.extractor === "orientation")
+  ) {
+    return (
+      <OCRAction fileID={task.fileID} kind={task.extractor}>
+        {({ action, status }) => render(action, status)}
+      </OCRAction>
+    );
+  }
+  return render(primary.action, primary.status);
 }
 
 function useMetadataTask({
@@ -181,7 +195,7 @@ function useMetadataTask({
       >
         {t(
           busy || (ai && job.data?.state === "running")
-            ? "extracting"
+            ? taskRunningMessage(extractor)
             : waiting
               ? "reextractQueued"
               : missing

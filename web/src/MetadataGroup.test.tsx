@@ -125,7 +125,7 @@ it("keeps one actionable button for a paused bulk task", async () => {
 it.each([
   ["queued", false, false, "Queued"],
   ["queued", true, true, "Queued"],
-  ["running", false, true, "Reading metadata…"],
+  ["running", false, true, "Recognizing…"],
 ])(
   "uses one disabled action for %s (manual=%s, paused=%s)",
   async (state, manual, paused, label) => {

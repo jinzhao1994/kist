@@ -69,6 +69,9 @@ export const en = {
 
   descCopyText: "Copy description",
   descTitle: "Description",
+  descGenerating: "Generating…",
+  ocrRecognizing: "Recognizing…",
+  orientationChecking: "Checking orientation…",
   descText: "Text",
   descCoverage: "Page coverage",
   descPageRange: "Pages 1–{pages} of {total}",
@@ -1040,6 +1043,9 @@ export const zh: Record<MessageKey, string> = {
 
   descCopyText: "复制描述",
   descTitle: "描述",
+  descGenerating: "正在生成",
+  ocrRecognizing: "正在识别",
+  orientationChecking: "正在判断方向",
   descText: "正文",
   descCoverage: "描述页范围",
   descPageRange: "第 1–{pages} 页／共 {total} 页",
