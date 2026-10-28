@@ -2557,16 +2557,18 @@ main.upload-drag-active {
   font-size: 11px;
 }
 .copy-value span {
+  margin-inline-start: auto;
   flex-shrink: 0;
   color: var(--mantine-primary-color-filled);
 }
 
 .copy-text-preview {
-  display: block;
+  display: flow-root;
   overflow-wrap: anywhere;
 }
 .copy-text-action {
-  display: inline-block;
+  float: inline-end;
+  display: block;
   padding: 0;
   margin-inline-start: 8px;
   border: 0;

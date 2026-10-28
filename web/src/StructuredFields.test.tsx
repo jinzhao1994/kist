@@ -88,6 +88,27 @@ it("displays grouped values, uncertainty and leaf ownership without raw JSON or 
     screen.queryByRole("button", { name: "Edit Holder" }),
   ).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Delete Holder" })).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: "Copy" }),
+  ).not.toBeInTheDocument();
+});
+it("renders a single record as ordinary fields in source order", () => {
+  const fields = [
+    { key: "title", label: "Title", value: "Synthetic event" },
+    { key: "name", label: "Name", value: "Example Person" },
+    { key: "date", label: "Date", value: "2025-06" },
+  ].map((field) => ({ ...field, type: "text", source: "ai" }));
+  const view = mount(JSON.stringify({ version: 1, fields }));
+  expect(screen.queryByRole("heading")).not.toBeInTheDocument();
+  expect(
+    Array.from(
+      view.container.querySelectorAll("dt bdi"),
+      (node) => node.textContent,
+    ),
+  ).toEqual(["Title", "Name", "Date"]);
+  expect(
+    screen.queryByRole("button", { name: "Copy" }),
+  ).not.toBeInTheDocument();
 });
 it("binds a leaf edit to its original whole-document snapshot across background refresh", async () => {
   const fetch = vi.fn(async () => Response.json({ op_id: 1 }));

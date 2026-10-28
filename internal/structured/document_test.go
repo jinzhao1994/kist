@@ -189,9 +189,40 @@ func TestStructuralChangesAndResourceBounds(t *testing.T) {
 func TestEncodeDoesNotMutateInput(t *testing.T) {
 	d := model(t, `[{"key":"z","label":"Z","type":"text","value":"z"},{"key":"a","label":"A","type":"text","value":"a"}]`)
 	original := append([]Field(nil), d.Fields...)
-	encoded(t, d)
+	raw := encoded(t, d)
 	if !reflect.DeepEqual(original, d.Fields) {
 		t.Fatal("encoding mutated input")
+	}
+	roundTrip, err := Parse(raw)
+	if err != nil || !reflect.DeepEqual(original, roundTrip.Fields) {
+		t.Fatal("encoding changed source reading order")
+	}
+}
+
+func TestMergeUsesSourceOrderWithoutLosingOmittedOrHumanFields(t *testing.T) {
+	before := model(t, `[
+ {"key":"number","label":"Number","type":"text","value":"00123"},
+ {"key":"name","label":"Name","type":"text","value":"Original"},
+ {"key":"date","label":"Date","type":"date","value":"2025"}]`)
+	before, err := Edit(before, "/name", "Correct Person", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next := model(t, `[
+ {"key":"date","label":"Date","type":"date","value":"2025-06"},
+ {"key":"name","label":"Name","type":"text","value":"Wrong Person"}]`)
+	merged, err := Merge(before, next)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if merged.Fields[0].Key != "date" || merged.Fields[1].Key != "name" || merged.Fields[2].Key != "number" {
+		t.Fatal("source order or omitted field was lost")
+	}
+	if merged.Fields[1].Value != "Correct Person" || merged.Fields[1].Source != "user" || merged.Fields[2].Value != "00123" {
+		t.Fatal("human or omitted value was overwritten")
+	}
+	if before.Fields[0].Key != "number" {
+		t.Fatal("merge reordered its input snapshot")
 	}
 }
 

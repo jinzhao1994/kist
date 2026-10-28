@@ -89,8 +89,8 @@ export function MetadataValue({
       setCopySpace(0);
       return;
     }
-    // Copy follows the text rather than sitting at the inline end. Compare
-    // its actual position with the toolbar's unshifted position, not its width.
+    // The copy action sits at the end of the final line. Only shift the
+    // first-line toolbar when their actual rectangles overlap.
     const measure = () => {
       const box = content.getBoundingClientRect();
       const target = copy.getBoundingClientRect();

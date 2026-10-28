@@ -10,7 +10,6 @@ import (
 	"io"
 	"math"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -257,7 +256,7 @@ func validateScalar(f Field) error {
 	return nil
 }
 
-// Encode canonicalizes field order so model ordering alone does not churn ops.
+// Encode validates a document while preserving source reading order.
 func Encode(d Document) (string, error) {
 	raw, err := json.Marshal(d)
 	if err != nil {
@@ -267,18 +266,11 @@ func Encode(d Document) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	sortFields(copy.Fields)
 	raw, err = json.Marshal(copy)
 	if err != nil {
 		return "", err
 	}
 	return string(raw), nil
-}
-func sortFields(fields []Field) {
-	sort.Slice(fields, func(i, j int) bool { return fields[i].Key < fields[j].Key })
-	for i := range fields {
-		sortFields(fields[i].Children)
-	}
 }
 
 // Merge retains omitted facts and every human field/tombstone. The result owns
@@ -355,6 +347,23 @@ func mergeFields(old *[]Field, next []Field, parent string) error {
 			*o = n
 		}
 	}
+	ordered := make([]Field, 0, len(*old))
+	seen := make(map[string]bool, len(next))
+	for _, n := range next {
+		for _, o := range *old {
+			if o.Key == n.Key {
+				ordered = append(ordered, o)
+				seen[o.Key] = true
+				break
+			}
+		}
+	}
+	for _, o := range *old {
+		if !seen[o.Key] {
+			ordered = append(ordered, o)
+		}
+	}
+	*old = ordered
 	return nil
 }
 

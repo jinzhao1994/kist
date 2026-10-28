@@ -4703,10 +4703,12 @@ for (const scenario of [
           return {
             lines: bounds.height / lineHeight,
             lastLine: bounds.bottom - action.bottom < lineHeight / 2,
+            rightAligned: Math.abs(bounds.right - action.right) < 1,
           };
         });
       expect(layout.lines).toBeLessThanOrEqual(3.05);
       expect(layout.lastLine).toBe(true);
+      expect(layout.rightAligned).toBe(true);
     } else {
       await expect(
         page.getByRole("button", { name: "编辑补充信息", exact: true }),
@@ -5562,7 +5564,7 @@ for (const variant of [
           );
         });
       await expect.poll(overlapsCopy).toBe(false);
-      if (variant === "hover" || variant === "hover-short") {
+      if (variant === "hover") {
         const toolbar = await cell
           .locator(".metadata-value-transient-actions")
           .boundingBox();
@@ -5870,65 +5872,48 @@ for (const variant of [
       version: 1,
       fields: [
         {
-          key: "document_type",
-          label: "文件类型",
+          key: "title",
+          label: "名称",
           type: "text",
-          value: "合成成绩证书",
+          value: "合成数学考试",
           source: "ai",
         },
         {
-          key: "holder",
-          label: "持有人",
-          type: "object",
-          source: "ai",
-          children: [
-            {
-              key: "name",
-              label: "姓名",
-              type: "text",
-              value: "示例用户",
-              source: "user",
-            },
-          ],
+          key: "name",
+          label: "姓名",
+          type: "text",
+          value: "示例用户",
+          source: "user",
         },
         {
-          key: "results",
-          label: "成绩",
-          type: "array",
+          key: "score",
+          label: "分数",
+          type: "number",
+          value: "92.5",
+          unit: "分",
           source: "ai",
-          children: [
-            {
-              key: "mathematics_final",
-              label: "数学期末",
-              type: "object",
-              source: "ai",
-              children: [
-                {
-                  key: "score",
-                  label: "分数",
-                  type: "number",
-                  value: "92.5",
-                  unit: "分",
-                  source: "ai",
-                },
-                {
-                  key: "graded_on",
-                  label: "评定日期",
-                  type: "date",
-                  value: "2026-01",
-                  source: "ai",
-                },
-                {
-                  key: "examiner",
-                  label: "评定人",
-                  type: "text",
-                  value: "",
-                  uncertain: true,
-                  source: "ai",
-                },
-              ],
-            },
-          ],
+        },
+        {
+          key: "date",
+          label: "日期",
+          type: "date",
+          value: "2026-01",
+          source: "ai",
+        },
+        {
+          key: "location",
+          label: "地点",
+          type: "text",
+          value: "示例考场",
+          source: "ai",
+        },
+        {
+          key: "examiner",
+          label: "评定人",
+          type: "text",
+          value: "",
+          uncertain: true,
+          source: "ai",
         },
       ],
     });
@@ -5970,6 +5955,18 @@ for (const variant of [
       group.getByText("92.5 分", { exact: true }).locator("visible=true"),
     ).toBeVisible();
     await expect(group.getByText("无法辨认", { exact: true })).toBeVisible();
+    await expect(group.getByRole("heading")).toHaveCount(1);
+    await expect(
+      group.getByRole("button", { name: "复制", exact: true }),
+    ).toHaveCount(0);
+    await expect(group.locator(".metadata-field-tree dt bdi")).toHaveText([
+      "名称",
+      "姓名",
+      "分数",
+      "日期",
+      "地点",
+      "评定人",
+    ]);
     if (variant !== "queued")
       await group
         .locator(".metadata-value")

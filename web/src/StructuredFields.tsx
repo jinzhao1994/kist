@@ -1,7 +1,7 @@
 import type { FileDetail } from "./api";
 import { MetadataLabel } from "./MetadataLabel";
 import { MetadataValue } from "./MetadataValue";
-import { CopyTextPreview } from "./CopyTextPreview";
+import { FullTextTooltip } from "./FullTextTooltip";
 import { useI18n } from "./i18n";
 
 type Row = NonNullable<FileDetail["metadata"]>[number];
@@ -114,10 +114,13 @@ export function StructuredFields({
               {control(
                 <>
                   {f.value ? (
-                    <CopyTextPreview
+                    <FullTextTooltip
                       text={[f.value, f.unit].filter(Boolean).join(" ")}
-                      copyLabel="copy"
-                    />
+                    >
+                      <div tabIndex={0}>
+                        <bdi>{[f.value, f.unit].filter(Boolean).join(" ")}</bdi>
+                      </div>
+                    </FullTextTooltip>
                   ) : (
                     <span className="metadata-help">
                       {t("factsUnreadable")}

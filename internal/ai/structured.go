@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const FactsRecipeVersion = 1
+const FactsRecipeVersion = 2
 
 // FactsInput has exactly one source, prepared by the library. It never contains
 // OCR/description output in place of the original visual source.
