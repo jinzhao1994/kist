@@ -5264,6 +5264,9 @@ for (const variant of [
   "dark",
   "error",
   "hover",
+  "hover-short",
+  "hover-single",
+  "hover-single-user",
   "remove-confirm",
   "remove-mobile",
   "remove-dark",
@@ -5277,6 +5280,10 @@ for (const variant of [
     });
     let value = "示例文档\n姓名：测试用户\n日期：2026-01-02";
     let source = "ocr";
+    if (variant.startsWith("hover-single"))
+      value = "这是用于验证复制位置的文本";
+    if (variant === "hover-short") value = "短文字";
+    if (variant === "hover-single-user") source = "user";
     let removed = false;
     let writes = 0;
     await page.route("**/api/v1/files/file-1", (route) =>
@@ -5405,13 +5412,16 @@ for (const variant of [
       );
       return;
     }
-    if (variant === "hover") {
+    if (variant.startsWith("hover")) {
       const cell = group.locator(".metadata-value").filter({
         has: page.getByRole("button", { name: "编辑识别文字", exact: true }),
       });
       const value = await cell.locator(".metadata-value-content").boundingBox();
       const bounds = await cell.boundingBox();
-      expect(value?.width).toBe(bounds?.width);
+      const padding = await cell.evaluate((el) =>
+        parseFloat(getComputedStyle(el).paddingInlineEnd),
+      );
+      expect(value!.width + padding).toBeCloseTo(bounds!.width, 1);
       const action = await cell
         .getByRole("button", { name: "编辑识别文字" })
         .boundingBox();
@@ -5421,6 +5431,45 @@ for (const variant of [
       expect(
         Math.abs(action!.y + action!.height / 2 - bounds!.y - lineHeight / 2),
       ).toBeLessThan(1);
+      const overlapsCopy = () =>
+        cell.evaluate((element) => {
+          const copy = element
+            .querySelector(".copy-text-action")!
+            .getBoundingClientRect();
+          const actions = element
+            .querySelector(".metadata-value-transient-actions")!
+            .getBoundingClientRect();
+          return (
+            copy.left < actions.right &&
+            copy.right > actions.left &&
+            copy.top < actions.bottom &&
+            copy.bottom > actions.top
+          );
+        });
+      await expect.poll(overlapsCopy).toBe(false);
+      if (variant === "hover" || variant === "hover-short") {
+        const toolbar = await cell
+          .locator(".metadata-value-transient-actions")
+          .boundingBox();
+        expect(toolbar!.x + toolbar!.width).toBeCloseTo(
+          value!.x + value!.width,
+          1,
+        );
+      }
+      if (variant.startsWith("hover-single")) {
+        await page
+          .context()
+          .grantPermissions(["clipboard-read", "clipboard-write"]);
+        await cell.locator(".copy-text-action").click();
+        await expect(cell.locator(".copy-text-action")).toHaveText("已复制");
+        await expect.poll(overlapsCopy).toBe(false);
+        expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+          "这是用于验证复制位置的文本",
+        );
+        await expect(cell.locator(".copy-text-action")).toHaveText("复制");
+        await expect.poll(overlapsCopy).toBe(false);
+        await cell.hover();
+      }
       await capture(page, errors, info.title);
       return;
     }

@@ -51,6 +51,12 @@ export function MetadataValue({
   useLayoutEffect(() => {
     const element = root.current;
     if (!element) return;
+    const content = element.querySelector<HTMLElement>(
+      ".metadata-value-content",
+    )!;
+    const actions = element.querySelector<HTMLElement>(
+      ".metadata-value-transient-actions",
+    )!;
     const copy = element.querySelector<HTMLElement>(
       ".copy-value span, .copy-text-action",
     );
@@ -58,23 +64,46 @@ export function MetadataValue({
       setCopySpace(0);
       return;
     }
-    // A floating edit action must not cover a copy action on the first line.
+    // Copy follows the text rather than sitting at the inline end. Compare
+    // its actual position with the toolbar's unshifted position, not its width.
     const measure = () => {
-      const box = element.getBoundingClientRect();
-      const action = copy.getBoundingClientRect();
-      const line = parseFloat(getComputedStyle(element).lineHeight);
+      const box = content.getBoundingClientRect();
+      const target = copy.getBoundingClientRect();
+      const toolbar = actions.getBoundingClientRect();
+      const rtl = getComputedStyle(element).direction === "rtl";
+      const left = rtl ? box.left : box.right - toolbar.width;
+      const right = left + toolbar.width;
+      const gap = 8;
+      const overlaps =
+        target.top < toolbar.bottom &&
+        target.bottom > toolbar.top &&
+        target.left - gap < right &&
+        target.right + gap > left;
       setCopySpace(
-        action.top < box.top + line && action.bottom > box.top
-          ? action.width + 8
+        overlaps
+          ? rtl
+            ? target.right + gap - box.left
+            : box.right - target.left + gap
           : 0,
       );
     };
     const observer = new ResizeObserver(measure);
-    observer.observe(element);
+    observer.observe(content);
     observer.observe(copy);
+    // Clipping and the copied label can move the inline action without
+    // changing either element's size, so size observation alone is insufficient.
+    const mutations = new MutationObserver(measure);
+    mutations.observe(content, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
     measure();
-    return () => observer.disconnect();
-  }, [editing, row.value, t]);
+    return () => {
+      observer.disconnect();
+      mutations.disconnect();
+    };
+  }, [editing, row.value, row.source, t]);
   const editLabel = t("editMetadata", { field: label });
   const close = () => {
     setEditing(undefined);
