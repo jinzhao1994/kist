@@ -5841,7 +5841,7 @@ for (const scenario of ["queued", "running", "mobile", "dark"] as const) {
     const action = group
       .locator(".metadata-group-heading")
       .getByRole("button", {
-        name: scenario === "queued" ? "已排队" : "正在生成",
+        name: scenario === "queued" ? "已排队" : "正在提取",
         exact: true,
       });
     await expect(action).toBeDisabled();

@@ -1,4 +1,4 @@
-import { taskErrorMessage, taskRunningMessage } from "./TaskStatus";
+import { taskErrorMessage } from "./TaskStatus";
 import { OCRAction } from "./AI";
 import { HelpTooltip } from "./HelpTooltip";
 import { Button, Text, Group } from "@mantine/core";
@@ -197,7 +197,7 @@ function useMetadataTask({
       >
         {t(
           busy || (ai && job.data?.state === "running")
-            ? taskRunningMessage(extractor)
+            ? "extracting"
             : waiting
               ? "reextractQueued"
               : missing

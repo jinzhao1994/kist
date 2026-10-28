@@ -631,9 +631,10 @@ it("keeps a failed empty-group status request stable until explicit retry", asyn
 
 it.each([
   ["desc", "queued", "Queued"],
-  ["desc", "running", "Generating…"],
-  ["ocr", "running", "Recognizing…"],
-  ["orientation", "running", "Checking orientation…"],
+  ["desc", "running", "Extracting…"],
+  ["ocr", "running", "Extracting…"],
+  ["facts", "running", "Extracting…"],
+  ["orientation", "running", "Extracting…"],
 ])(
   "keeps the initial %s %s state in its header",
   async (kind, state, label) => {

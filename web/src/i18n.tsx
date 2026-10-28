@@ -10,13 +10,11 @@ import {
 export const en = {
   factsTitle: "Structured information",
   factsExtract: "Extract fields",
-  factsExtracting: "Extracting…",
   factsAuto: "Automatically extract fields from new files",
   factsAutoHint:
     "Only supported images and documents added after enabling this setting. Existing files use backfill below.",
   factsQueuePaused:
     "Structured extraction automatic and bulk tasks paused. Single-file requests can still run.",
-  factsQueueRunning: "Extracting fields: {name}",
   factsQueueIdle: "Structured extraction worker ready",
   factsScanning: "Finding files without structured information…",
   factsBackfill: "Fill missing structured information",
@@ -50,7 +48,6 @@ export const en = {
   geoExtract: "Look up address",
   geoQueuePaused:
     "Location automatic and bulk tasks paused. Single-file requests can still run.",
-  geoQueueRunning: "Looking up location: {name}",
   geoQueueIdle: "Location worker ready",
   geoScanning: "Finding images without location results…",
   geoBackfill: "Fill missing locations",
@@ -66,7 +63,6 @@ export const en = {
     "Only images added after enabling this setting are sent for orientation checks. OCR, descriptions and structured extraction also check missing orientation first. Originals remain unchanged.",
   orientationQueuePaused:
     "Orientation automatic and bulk tasks paused. Single-file requests can still run.",
-  orientationQueueRunning: "Checking orientation: {name}",
   orientationQueueIdle: "Orientation worker ready",
   orientationScanning: "Finding images without orientation results…",
   orientationBackfill: "Check orientation of existing images",
@@ -91,9 +87,6 @@ export const en = {
 
   descCopyText: "Copy description",
   descTitle: "Description",
-  descGenerating: "Generating…",
-  ocrRecognizing: "Recognizing…",
-  orientationChecking: "Checking orientation…",
   descText: "Text",
   settingLibraryLanguage: "Library language",
   settingLanguageHint:
@@ -103,7 +96,6 @@ export const en = {
     "Describe supported images, PDF, Word and PowerPoint files added after enabling this setting. Existing files require an explicit backfill.",
   descQueuePaused:
     "Description automatic and bulk tasks paused. Single-file requests can still run.",
-  descQueueRunning: "Describing: {name}",
   descQueueIdle: "Description worker ready",
   descScanning: "Finding files without descriptions…",
   descBackfill: "Describe existing files without descriptions",
@@ -127,7 +119,6 @@ export const en = {
     "Only images added after enabling this setting are sent for OCR. Existing images require an explicit backfill.",
   ocrQueuePaused:
     "OCR automatic and bulk tasks paused. Single-file requests can still run.",
-  ocrQueueRunning: "Recognizing: {name}",
   ocrQueueIdle: "OCR worker ready",
   ocrQueueCounts: "Queued: {queued} · Failed: {failed}",
   ocrScanning: "Finding images without OCR…",
@@ -943,7 +934,8 @@ export const en = {
   extract: "Read metadata",
   extractionFailed:
     "Some metadata could not be read. Your original files are saved.",
-  extracting: "Reading metadata…",
+  extracting: "Extracting…",
+  extractionQueueRunning: "Extracting: {name}",
   uploadCancelled:
     "Upload cancelled. Check the result before starting a new upload.",
   uploadFailed:
@@ -1009,12 +1001,10 @@ export type MessageKey = keyof typeof en;
 export const zh: Record<MessageKey, string> = {
   factsTitle: "结构化信息",
   factsExtract: "提取字段",
-  factsExtracting: "正在提取",
   factsAuto: "自动提取新增文件的结构化信息",
   factsAutoHint:
     "支持图片、PDF、Word 和 PPT，仅处理启用后新增的文件；已有文件需手动查缺补漏。",
   factsQueuePaused: "结构化自动与批量任务已暂停，单张提取仍可运行。",
-  factsQueueRunning: "正在提取字段：{name}",
   factsQueueIdle: "结构化提取后台已就绪",
   factsScanning: "正在查找尚无结构化信息的文件…",
   factsBackfill: "补全已有文件的结构化信息",
@@ -1043,7 +1033,6 @@ export const zh: Record<MessageKey, string> = {
   geoEndpointHint: "可使用公共服务或自行部署的 Photon reverse 接口。",
   geoExtract: "查询地址",
   geoQueuePaused: "自动与批量查询已暂停，单张手动查询仍可执行。",
-  geoQueueRunning: "正在查询位置：{name}",
   geoQueueIdle: "地址查询队列空闲",
   geoScanning: "正在查找尚未查询位置的图片…",
   geoBackfill: "补全已有图片的位置",
@@ -1058,7 +1047,6 @@ export const zh: Record<MessageKey, string> = {
   orientationAutoHint:
     "仅发送启用后新增的图片。OCR、描述和结构化提取也会先补齐缺失的方向结果，原始文件保持不变。",
   orientationQueuePaused: "方向队列已暂停，已发出的请求仍可能完成。",
-  orientationQueueRunning: "正在判断方向：{name}",
   orientationQueueIdle: "方向任务就绪",
   orientationScanning: "正在查找尚未判断方向的图片…",
   orientationBackfill: "补全已有图片方向",
@@ -1082,9 +1070,6 @@ export const zh: Record<MessageKey, string> = {
 
   descCopyText: "复制描述",
   descTitle: "描述",
-  descGenerating: "正在生成",
-  ocrRecognizing: "正在识别",
-  orientationChecking: "正在判断方向",
   descText: "正文",
   settingLibraryLanguage: "资料库语言",
   settingLanguageHint:
@@ -1093,7 +1078,6 @@ export const zh: Record<MessageKey, string> = {
   descAutoHint:
     "支持图片、PDF、Word 和 PPT，仅处理启用后新增的文件；已有文件需手动查缺补漏。",
   descQueuePaused: "描述队列已暂停，已发出的请求仍可能完成。",
-  descQueueRunning: "正在描述：{name}",
   descQueueIdle: "描述后台已就绪",
   descScanning: "正在查找尚无描述的文件…",
   descBackfill: "补全已有文件的描述",
@@ -1115,7 +1099,6 @@ export const zh: Record<MessageKey, string> = {
   ocrAuto: "自动识别新增图片",
   ocrAutoHint: "仅发送启用后新增的图片进行 OCR；已有图片需要手动发起查缺补漏。",
   ocrQueuePaused: "自动与批量处理已暂停，单张手动提取仍可执行。",
-  ocrQueueRunning: "正在识别：{name}",
   ocrQueueIdle: "OCR 后台已就绪",
   ocrQueueCounts: "排队 {queued} 项 · 失败 {failed} 项",
   ocrScanning: "正在查找尚未识别的图片…",
@@ -1876,7 +1859,8 @@ export const zh: Record<MessageKey, string> = {
   extractionPending: "尚未完整读取元数据。",
   extract: "读取元数据",
   extractionFailed: "部分元数据读取失败，原文件已保存。",
-  extracting: "正在读取元数据…",
+  extracting: "正在提取",
+  extractionQueueRunning: "正在提取：{name}",
   uploadCancelled: "上传已取消。开始新上传前，请核对提交结果。",
   uploadFailed: "上传中断。使用相同文件重试，可安全恢复提交结果。",
   uploadComplete: "文件已保存",
@@ -1985,18 +1969,14 @@ export function initializeLanguage() {
   applyDocumentLanguage(initialPreferences());
 }
 interface Parameters {
-  factsQueueRunning: { name: string };
   editMetadata: { field: string };
   removeMetadata: { field: string };
   removeMetadataQuestion: { field: string };
-  orientationQueueRunning: { name: string };
   orientationDegrees: { degrees: number };
-  descQueueRunning: { name: string };
-  ocrQueueRunning: { name: string };
   reextractGroup: { group: string };
+  extractionQueueRunning: { name: string };
   ocrQueueCounts: { queued: number; failed: number };
   geoNearby: { address: string };
-  geoQueueRunning: { name: string };
   clientSelectLoaded: { count: number };
   clientSelectedCount: { count: number };
   clientBatchProgress: { retained: number; prepared: number; total: number };

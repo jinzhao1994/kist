@@ -1,4 +1,4 @@
-import { TaskStatus, taskErrorMessage, taskRunningMessage } from "./TaskStatus";
+import { TaskStatus, taskErrorMessage } from "./TaskStatus";
 import { CopyTextPreview } from "./CopyTextPreview";
 import {
   Alert,
@@ -461,7 +461,7 @@ export function BackgroundTaskQueue({
             {queue.data.paused
               ? t(taskMessage(kind, "QueuePaused"))
               : queue.data.running
-                ? t(taskMessage(kind, "QueueRunning"), {
+                ? t("extractionQueueRunning", {
                     name: queue.data.running,
                   })
                 : t(taskMessage(kind, "QueueIdle"))}
@@ -585,7 +585,7 @@ export function OCRAction({
     (!status.data?.connected || !settings.data?.model);
   const label = t(
     busy || job.data?.state === "running"
-      ? taskRunningMessage(kind)
+      ? "extracting"
       : waiting
         ? "reextractQueued"
         : readFailed || job.data?.state === "failed"
