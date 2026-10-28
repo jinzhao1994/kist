@@ -1,0 +1,1 @@
+Extract the structured facts from the supplied image or complete document. Verify the facts against the visible source before returning the JSON field tree.
