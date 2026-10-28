@@ -10,6 +10,7 @@ import { createWrite, type FileDetail } from "./api";
 import { InlineValueEdit } from "./InlineValueEdit";
 import { FloatingTooltip } from "./FloatingTooltip";
 import { useI18n } from "./i18n";
+import { ConfirmPopover } from "./ConfirmPopover";
 
 type Row = NonNullable<FileDetail["metadata"]>[number];
 
@@ -32,7 +33,20 @@ export function MetadataValue({
   // Retain the displayed before-state even if background extraction refreshes.
   const [editing, setEditing] = useState<Row>();
   const trigger = useRef<HTMLButtonElement>(null);
+  const removeTrigger = useRef<HTMLButtonElement>(null);
+  const [removing, setRemoving] = useState<{
+    row: Row;
+    fileID: string;
+    blobKey: string;
+    x: number;
+    y: number;
+  }>();
   const root = useRef<HTMLDivElement>(null);
+  const wasRemoving = useRef(false);
+  useLayoutEffect(() => {
+    if (wasRemoving.current && !removing) removeTrigger.current?.focus();
+    wasRemoving.current = !!removing;
+  }, [removing]);
   const [copySpace, setCopySpace] = useState(0);
   useLayoutEffect(() => {
     const element = root.current;
@@ -73,6 +87,7 @@ export function MetadataValue({
       style={{ "--metadata-copy-space": `${copySpace}px` } as CSSProperties}
       data-user={row.source === "user" || undefined}
       data-editing={!!editing || undefined}
+      data-confirming={!!removing || undefined}
     >
       <div className="metadata-value-content">
         {editing ? (
@@ -106,27 +121,59 @@ export function MetadataValue({
         )}
       </div>
       <div className="metadata-value-actions">
-        <ActionIcon
-          ref={trigger}
-          variant="subtle"
-          size="xs"
-          className="metadata-edit-action"
-          aria-label={editLabel}
-          disabled={!!editing}
-          onClick={() => setEditing({ ...row })}
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 20 20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.4"
-            aria-hidden="true"
+        <div className="metadata-value-transient-actions">
+          <ActionIcon
+            ref={trigger}
+            variant="subtle"
+            size="xs"
+            className="metadata-edit-action"
+            aria-label={editLabel}
+            disabled={!!editing || !!removing}
+            onClick={() => setEditing({ ...row })}
           >
-            <path d="m12 4 4 4M3 17l1-5L14 2l4 4L8 16z" />
-          </svg>
-        </ActionIcon>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              aria-hidden="true"
+            >
+              <path d="m12 4 4 4M3 17l1-5L14 2l4 4L8 16z" />
+            </svg>
+          </ActionIcon>
+          <ActionIcon
+            ref={removeTrigger}
+            variant="subtle"
+            size="xs"
+            className="metadata-edit-action"
+            aria-label={t("removeMetadata", { field: label })}
+            disabled={!!editing || !!removing}
+            onClick={(event) => {
+              const rect = event.currentTarget.getBoundingClientRect();
+              setRemoving({
+                row: { ...row },
+                fileID,
+                blobKey,
+                x: event.detail ? event.clientX : rect.left,
+                y: event.detail ? event.clientY : rect.bottom,
+              });
+            }}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              aria-hidden="true"
+            >
+              <path d="M3 5h14M7 5V2h6v3M5 5l1 13h8l1-13M8 8v7m4-7v7" />
+            </svg>
+          </ActionIcon>
+        </div>
         {row.source === "user" && (
           <FloatingTooltip
             label={t("metadataUserEdited")}
@@ -167,6 +214,28 @@ export function MetadataValue({
           </FloatingTooltip>
         )}
       </div>
+      {removing && (
+        <ConfirmPopover
+          anchor={removing}
+          title={t("removeMetadataQuestion", { field: label })}
+          description={t("removeMetadataHint")}
+          confirmLabel={t("confirmRemoveMetadata")}
+          close={() => {
+            setRemoving(undefined);
+          }}
+          write={() =>
+            createWrite("PUT", `/files/${removing.fileID}/metadata`, {
+              blob_key: removing.blobKey,
+              key: removing.row.key,
+              before_value: removing.row.value,
+              before_source: removing.row.source,
+              before_type: removing.row.type,
+              value: "",
+              remove: true,
+            })
+          }
+        />
+      )}
     </div>
   );
 }

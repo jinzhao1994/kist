@@ -88,3 +88,56 @@ it("preserves multiline text and retries the exact operation after a lost respon
   const [, init] = (fetch.mock.calls as unknown as [string, RequestInit][])[0];
   expect(JSON.parse(String(init.body)).value).toBe("One\nTwo");
 });
+
+it("requires a second click to delete and lets Escape or cancel dismiss without writing", async () => {
+  const fetch = vi.fn(async () => Response.json({ op_id: 1 }));
+  vi.stubGlobal("fetch", fetch);
+  mount();
+  const user = userEvent.setup();
+  const trigger = screen.getByRole("button", { name: "Delete Value" });
+  await user.click(trigger);
+  expect(
+    await screen.findByRole("dialog", { name: "Delete “Value”?" }),
+  ).toBeVisible();
+  expect(fetch).not.toHaveBeenCalled();
+  await user.keyboard("{Escape}");
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
+  expect(trigger).toHaveFocus();
+  await user.click(trigger);
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(fetch).not.toHaveBeenCalled();
+  await user.click(trigger);
+  await user.click(screen.getByRole("button", { name: "Confirm deletion" }));
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+  const [, init] = (fetch.mock.calls as unknown as [string, RequestInit][])[0];
+  expect(JSON.parse(String(init.body))).toEqual({
+    key: "exif:Make",
+    before_value: "Camera",
+    before_source: "exif",
+    before_type: "text",
+    blob_key: "sha256:test",
+    value: "",
+    remove: true,
+  });
+});
+
+it("retries deletion with the same idempotency key after a lost response", async () => {
+  const fetch = vi.fn(async () => {
+    if (fetch.mock.calls.length === 1) throw new TypeError("lost");
+    return Response.json({ op_id: 1 });
+  });
+  vi.stubGlobal("fetch", fetch);
+  mount();
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Delete Value" }));
+  await user.click(screen.getByRole("button", { name: "Confirm deletion" }));
+  await screen.findByRole("alert");
+  expect(
+    screen.getByRole("button", { name: "Confirm deletion" }),
+  ).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "Try again" }));
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+  expect(fetch.mock.calls[1]).toEqual(fetch.mock.calls[0]);
+});

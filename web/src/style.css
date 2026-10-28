@@ -3651,8 +3651,13 @@ main.upload-drag-active {
   gap: 4px;
   pointer-events: none;
 }
-.metadata-edit-action {
+.metadata-value-transient-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin-inline-end: var(--metadata-copy-space, 0px);
+}
+.metadata-edit-action {
   opacity: 0;
   pointer-events: none;
   background: color-mix(in srgb, var(--mantine-color-body) 70%, transparent);
@@ -3660,9 +3665,21 @@ main.upload-drag-active {
   backdrop-filter: blur(10px);
 }
 .metadata-value:hover .metadata-edit-action,
+.metadata-value[data-confirming] .metadata-edit-action,
 .metadata-value:focus-within .metadata-edit-action {
   opacity: 1;
   pointer-events: auto;
+}
+.pointer-anchor {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+.confirm-popover {
+  --confirm-popover-width: min(280px, calc(100vw - 24px));
+  padding: var(--mantine-spacing-xs);
+  overflow-wrap: anywhere;
 }
 .metadata-value[data-editing] .metadata-edit-action {
   visibility: hidden;

@@ -5264,14 +5264,21 @@ for (const variant of [
   "dark",
   "error",
   "hover",
+  "remove-confirm",
+  "remove-mobile",
+  "remove-dark",
+  "remove-saved",
+  "remove-error",
 ] as const) {
   test(`metadata-inline-${variant}`, async ({ page }, info) => {
     const errors = await prepare(page, {
-      mobile: variant === "mobile",
-      mode: variant === "dark" ? "dark" : "light",
+      mobile: variant === "mobile" || variant === "remove-mobile",
+      mode: variant === "dark" || variant === "remove-dark" ? "dark" : "light",
     });
     let value = "示例文档\n姓名：测试用户\n日期：2026-01-02";
     let source = "ocr";
+    let removed = false;
+    let writes = 0;
     await page.route("**/api/v1/files/file-1", (route) =>
       route.fulfill({
         json: {
@@ -5285,7 +5292,9 @@ for (const variant of [
               source: "user",
               type: "text",
             },
-            { key: "ocr:text", value, source, type: "text" },
+            ...(!removed
+              ? [{ key: "ocr:text", value, source, type: "text" }]
+              : []),
             {
               key: "desc:text",
               value: "用于验证编辑功能的合成文档。",
@@ -5298,15 +5307,22 @@ for (const variant of [
     );
     await page.route("**/api/v1/files/file-1/metadata", (route) => {
       const body = route.request().postDataJSON();
+      writes++;
       expect(body.before_value).toBe(value);
       expect(body.key).toBe("ocr:text");
-      if (variant === "error")
+      expect(body.before_source).toBe(source);
+      expect(body.before_type).toBe("text");
+      expect(body.blob_key).toBe(files[0].blob_key);
+      if (variant === "error" || variant === "remove-error")
         return route.fulfill({
           status: 409,
           json: { code: "conflict", message: "Changed", class: "conflict" },
         });
-      value = body.value;
-      source = "user";
+      if (body.remove) removed = true;
+      else {
+        value = body.value;
+        source = "user";
+      }
       return route.fulfill({ json: { op_id: 42 } });
     });
     await page.goto("/files?file=file-1");
@@ -5320,6 +5336,64 @@ for (const variant of [
         has: page.getByRole("button", { name: "编辑识别文字", exact: true }),
       })
       .hover();
+    if (variant.startsWith("remove-")) {
+      const trigger = group.getByRole("button", {
+        name: "删除识别文字",
+        exact: true,
+      });
+      await trigger.click();
+      const popup = page.getByRole("dialog", {
+        name: "删除「识别文字」？",
+        exact: true,
+      });
+      await expect(popup).toBeVisible();
+      expect(writes).toBe(0);
+      const cancel = popup.getByRole("button", { name: "取消", exact: true });
+      const confirm = popup.getByRole("button", {
+        name: "确认删除",
+        exact: true,
+      });
+      await expect(cancel).toBeFocused();
+      await cancel.press("Shift+Tab");
+      await expect(confirm).toBeFocused();
+      await confirm.press("Tab");
+      await expect(cancel).toBeFocused();
+      const actionBox = await trigger.boundingBox();
+      const popupBox = await popup.boundingBox();
+      expect(popupBox!.x).toBeGreaterThanOrEqual(0);
+      expect(popupBox!.x + popupBox!.width).toBeLessThanOrEqual(
+        page.viewportSize()!.width,
+      );
+      expect(Math.abs(popupBox!.y - actionBox!.y)).toBeLessThan(180);
+      await page.getByRole("button", { name: "取消", exact: true }).click();
+      await expect(popup).toHaveCount(0);
+      expect(writes).toBe(0);
+      await trigger.click();
+      if (variant === "remove-saved" || variant === "remove-error") {
+        await popup
+          .getByRole("button", { name: "确认删除", exact: true })
+          .click();
+        await expect.poll(() => writes).toBe(1);
+        if (variant === "remove-saved") {
+          await expect(popup).toHaveCount(0);
+          await expect(
+            group.getByRole("button", { name: "复制识别文字", exact: true }),
+          ).toHaveCount(0);
+        } else {
+          await expect(popup.getByRole("alert")).toBeVisible();
+          await expect(
+            popup.getByRole("button", { name: "确认删除", exact: true }),
+          ).toBeDisabled();
+        }
+      }
+      await capture(
+        page,
+        errors,
+        info.title,
+        variant === "remove-error" ? ["归档状态已变化"] : [],
+      );
+      return;
+    }
     if (variant === "hover") {
       const cell = group.locator(".metadata-value").filter({
         has: page.getByRole("button", { name: "编辑识别文字", exact: true }),
@@ -5357,7 +5431,12 @@ for (const variant of [
         ).toHaveCount(0);
       } else await expect(group.getByRole("alert")).toBeVisible();
     }
-    await capture(page, errors, info.title);
+    await capture(
+      page,
+      errors,
+      info.title,
+      variant === "error" ? ["归档状态已变化"] : [],
+    );
   });
 }
 

@@ -66,7 +66,7 @@ func capturedFrom(kvs []extract.KV, zone *time.Location) domain.Instant {
 	return domain.NewInstant(captured.UnixNano)
 }
 
-// MetadataEdit binds an edit to the exact value and content the user saw.
+// MetadataEdit binds an edit or removal to the exact value and content the user saw.
 // Only existing keys are edited; the declared scalar type is preserved.
 type MetadataEdit struct {
 	BlobKey      string `json:"blob_key"`
@@ -75,6 +75,8 @@ type MetadataEdit struct {
 	BeforeSource string `json:"before_source"`
 	BeforeType   string `json:"before_type"`
 	Value        string `json:"value"`
+	// Remove suppresses the key with a user tombstone; Value is ignored.
+	Remove bool `json:"remove,omitempty"`
 }
 
 func editMetadataChange(tx *store.ViewTx, id domain.FileID, edit MetadataEdit, zone *time.Location) (*oplog.FileMetadataChange, error) {
@@ -98,6 +100,9 @@ func editMetadataChange(tx *store.ViewTx, id domain.FileID, edit MetadataEdit, z
 		}
 		if row.Value != edit.BeforeValue || row.Source != edit.BeforeSource || string(row.Type) != edit.BeforeType {
 			return nil, oplog.ErrStaleBefore
+		}
+		if edit.Remove {
+			return removeMetadataChange(tx, id, edit.Key, zone)
 		}
 		kv := extract.KV{Key: row.Key, Value: edit.Value, Type: row.Type}
 		if err := extract.CheckValue(kv); err != nil {

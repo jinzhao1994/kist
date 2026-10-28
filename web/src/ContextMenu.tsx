@@ -74,14 +74,11 @@ export function ContextMenu({
       <Portal>
         <Menu.Target>
           <span
+            className="pointer-anchor"
             aria-hidden="true"
             style={{
-              position: "fixed",
               left: position?.x ?? 0,
               top: position?.y ?? 0,
-              width: 1,
-              height: 1,
-              pointerEvents: "none",
             }}
           />
         </Menu.Target>

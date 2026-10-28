@@ -888,6 +888,11 @@ export const en = {
     "The text was edited by you. You can save hints, but AI will not replace your text.",
   aiHintTooLong: "This hint is too long. Please shorten it before saving.",
   editMetadata: "Edit {field}",
+  removeMetadata: "Delete {field}",
+  removeMetadataQuestion: "Delete “{field}”?",
+  removeMetadataHint:
+    "Extraction will not restore this field. You can undo the deletion in history.",
+  confirmRemoveMetadata: "Confirm deletion",
   metadataUserEdited:
     "Edited by user; automatic extraction will not overwrite this value",
   rename: "Rename",
@@ -1792,6 +1797,10 @@ export const zh: Record<MessageKey, string> = {
   aiHintManual: "正文已由你编辑。可以保存补充信息，AI 不会覆盖人工正文。",
   aiHintTooLong: "补充信息过长，请精简后保存。",
   editMetadata: "编辑{field}",
+  removeMetadata: "删除{field}",
+  removeMetadataQuestion: "删除「{field}」？",
+  removeMetadataHint: "后续提取不会恢复此字段，可在操作历史中撤销。",
+  confirmRemoveMetadata: "确认删除",
   metadataUserEdited: "人工编辑，自动提取不会覆盖此值",
   rename: "重命名",
   tagActions: "{name}的操作",
@@ -1931,6 +1940,8 @@ export function initializeLanguage() {
 }
 interface Parameters {
   editMetadata: { field: string };
+  removeMetadata: { field: string };
+  removeMetadataQuestion: { field: string };
   orientationQueueRunning: { name: string };
   orientationDegrees: { degrees: number };
   descQueueRunning: { name: string };

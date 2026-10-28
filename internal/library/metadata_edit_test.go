@@ -108,4 +108,67 @@ func TestClientMetadataEditSync(t *testing.T) {
 	if got.Value != edit.Value || got.Source != "user" {
 		t.Fatal(got)
 	}
+	edit.BeforeValue, edit.BeforeSource, edit.Remove = got.Value, got.Source, true
+	if err := c.EditMetadata(t.Context(), f.ID, edit); err != nil {
+		t.Fatal(err)
+	}
+	result, err = c.Synchronize(t.Context(), &testSyncPeer{nas: nas})
+	if err != nil || result.Accepted != 1 {
+		t.Fatal(result, err)
+	}
+	if got := metaOf(t, nas, f.ID)[row.Key]; !got.Tombstone || got.Source != "user" {
+		t.Fatal(got)
+	}
+}
+
+func TestMetadataRemovalSnapshotAndUndo(t *testing.T) {
+	l, box := openWithBox(t)
+	f := importOneFile(t, l, box, "test.txt", "synthetic")
+	e := &fakeExtractor{id: "fake", version: 1, ns: []string{"exif"}, tags: []extract.KV{text("exif:DateTimeOriginal", "2020:01:02 12:00:00")}}
+	extractWith(t, l, e)
+	row := metaOf(t, l, f.ID)["exif:DateTimeOriginal"]
+	edit := MetadataEdit{BlobKey: f.BlobKey, Key: row.Key, BeforeValue: row.Value, BeforeSource: row.Source, BeforeType: string(row.Type), Remove: true}
+	for _, mutate := range []func(*MetadataEdit){
+		func(e *MetadataEdit) { e.BlobKey = "changed" },
+		func(e *MetadataEdit) { e.BeforeValue = "changed" },
+		func(e *MetadataEdit) { e.BeforeSource = "user" },
+		func(e *MetadataEdit) { e.BeforeType = "int" },
+	} {
+		stale := edit
+		mutate(&stale)
+		if err := l.EditMetadata(t.Context(), f.ID, stale); !errors.Is(err, oplog.ErrStaleBefore) {
+			t.Fatal(err)
+		}
+	}
+	before, _, _ := l.File(t.Context(), f.ID)
+	if err := l.EditMetadata(t.Context(), f.ID, edit); err != nil {
+		t.Fatal(err)
+	}
+	head, _, _ := l.ops.Last()
+	after, _, _ := l.File(t.Context(), f.ID)
+	if before.CapturedAt == after.CapturedAt {
+		t.Fatal("deletion did not recalculate capture time")
+	}
+	e.version++
+	extractWith(t, l, e)
+	if got := metaOf(t, l, f.ID)[row.Key]; !got.Tombstone || got.Source != "user" {
+		t.Fatal("extraction restored deleted value", got)
+	}
+	snapshot := snapshotOf(t, l)
+	if err := l.Rebuild(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if snapshotOf(t, l) != snapshot {
+		t.Fatal("removal replay drift")
+	}
+	if _, err := l.Undo(t.Context(), head.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got := metaOf(t, l, f.ID)[row.Key]; got != row {
+		t.Fatal("undo did not restore value and source", got)
+	}
+	report, err := l.Verify(t.Context(), VerifyOptions{Deep: true})
+	if err != nil || report.Total() != 0 {
+		t.Fatal(report, err)
+	}
 }

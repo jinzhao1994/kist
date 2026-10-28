@@ -15,9 +15,7 @@ it("retains the last trigger position while closing and updates it on reopening"
   );
   const { rerender } = render(page({ x: 320, y: 240 }));
   const trigger = () =>
-    document.querySelector<HTMLElement>(
-      'span[aria-hidden="true"][style*="position: fixed"]',
-    )!;
+    document.querySelector<HTMLElement>('.pointer-anchor[aria-hidden="true"]')!;
   expect(trigger()).toHaveStyle({ left: "320px", top: "240px" });
   rerender(page(null));
   expect(trigger()).toHaveStyle({ left: "320px", top: "240px" });

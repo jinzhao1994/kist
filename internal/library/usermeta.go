@@ -59,7 +59,7 @@ func (l *Library) resolveCaptured(kvs []extract.KV) domain.Instant {
 	return capturedFrom(kvs, l.zone())
 }
 
-// EditMetadata replaces an existing value with an explicit human override.
+// EditMetadata replaces or suppresses an existing value with an explicit human override.
 func (l *Library) EditMetadata(ctx context.Context, id domain.FileID, edit MetadataEdit) error {
 	var change *oplog.FileMetadataChange
 	err := l.readTx(ctx, func(tx *store.ViewTx) error {

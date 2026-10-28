@@ -51,4 +51,24 @@ func TestMetadataEditHTTP(t *testing.T) {
 	if bad.Code != 400 {
 		t.Fatal(bad.Code, bad.Body)
 	}
+	edit.Remove = true
+	edit.BeforeValue = row.Value
+	raw, _ = json.Marshal(edit)
+	if stale := call(s, "PUT", path, "metadata-remove-stale", string(raw)); stale.Code != 409 {
+		t.Fatal(stale.Code, stale.Body)
+	}
+	edit.BeforeValue = "12"
+	raw, _ = json.Marshal(edit)
+	removed := call(s, "PUT", path, "metadata-remove", string(raw))
+	if removed.Code != 200 {
+		t.Fatal(removed.Code, removed.Body)
+	}
+	if replay := call(s, "PUT", path, "metadata-remove", string(raw)); replay.Code != 200 || replay.Body.String() != removed.Body.String() {
+		t.Fatal(replay.Code, replay.Body)
+	}
+	for _, r := range decodeBody[fileDetail](t, s, "/files/"+f.ID).Metadata {
+		if r.Key == row.Key {
+			t.Fatal("removed key remains visible", r)
+		}
+	}
 }

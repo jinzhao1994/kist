@@ -2044,6 +2044,7 @@ export interface components {
             before_value: string;
             blob_key: string;
             key: string;
+            remove?: boolean;
             value: string;
         };
         MoveTagInputBody: {
