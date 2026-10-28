@@ -4882,6 +4882,9 @@ for (const scenario of [
     await expect(group).toBeVisible();
     if (scenario.startsWith("text")) {
       await expect(
+        group.locator("dt bdi").filter({ hasText: /^正文$/ }),
+      ).toBeVisible();
+      await expect(
         group.getByRole("button", { name: "复制描述", exact: true }),
       ).toBeVisible();
       await expect(group).toContainText("openai/gpt-6-luna");
@@ -5083,6 +5086,12 @@ for (const manual of [false, true]) {
               type: "text",
               source: "orientation",
             },
+            {
+              key: "orientation:confidence",
+              value: "0.94",
+              type: "real",
+              source: "orientation",
+            },
           ],
         },
       }),
@@ -5101,6 +5110,13 @@ for (const manual of [false, true]) {
     const group = page.locator(".file-metadata-group").filter({
       has: page.getByRole("heading", { name: "图片方向", exact: true }),
     });
+    await expect(group.getByText("方式", { exact: true })).toBeVisible();
+    await group.getByText("置信度", { exact: true }).hover();
+    await expect(page.getByRole("tooltip")).toHaveText(
+      "orientation:confidence",
+    );
+    await page.mouse.move(0, 0);
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
     await group.hover();
     await expect(
       group.getByRole("button", { name: "调整方向", exact: true }),

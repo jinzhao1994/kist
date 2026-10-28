@@ -798,11 +798,11 @@ it("groups preview metadata and opens tag selection only on request", async () =
   expect(screen.getAllByRole("heading", { name: "EXIF" })).toHaveLength(1);
   expect(screen.getByRole("heading", { name: "File" })).toBeVisible();
   expect(screen.getByRole("heading", { name: "Media" })).toBeVisible();
-  await user.hover(screen.getByText("Image width"));
+  await user.hover(screen.getByText("Width"));
   expect(await screen.findByRole("tooltip")).toHaveTextContent(
     "exif:ExifImageWidth",
   );
-  await user.unhover(screen.getByText("Image width"));
+  await user.unhover(screen.getByText("Width"));
   await user.hover(screen.getByText("Type"));
   expect(await screen.findByRole("tooltip")).toHaveTextContent("media:kind");
   await user.unhover(screen.getByText("Type"));
