@@ -4006,6 +4006,7 @@ for (const scenario of [
   "ai-empty",
   "ai-paused",
   "ai-description",
+  "ai-facts",
   "service",
   "maps",
   "credentials",
@@ -4249,6 +4250,23 @@ for (const scenario of [
       ).toBeChecked();
       await expect(
         settings.getByText("描述后台已就绪", { exact: true }),
+      ).toBeVisible();
+    }
+    if (scenario === "ai-facts") {
+      await expect(
+        settings.getByRole("checkbox", {
+          name: "自动提取新增文件的结构化信息",
+          exact: true,
+        }),
+      ).not.toBeChecked();
+      const backfill = settings.getByRole("button", {
+        name: "补全已有文件的结构化信息",
+        exact: true,
+      });
+      await backfill.scrollIntoViewIfNeeded();
+      await expect(backfill).toBeEnabled();
+      await expect(
+        settings.getByText("结构化提取后台已就绪", { exact: true }),
       ).toBeVisible();
     }
     if (scenario === "service") {
@@ -5348,6 +5366,9 @@ test("settings-location", async ({ page }, info) => {
   await expect(
     section.getByRole("button", { name: "补全已有图片的位置", exact: true }),
   ).toBeEnabled();
+  await section
+    .getByRole("heading", { name: "拍摄位置", exact: true })
+    .scrollIntoViewIfNeeded();
   await capture(page, errors, info.title);
 });
 

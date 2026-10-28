@@ -63,7 +63,7 @@ export const en = {
   orientationEdit: "Adjust orientation",
   orientationAuto: "Automatically orient new images",
   orientationAutoHint:
-    "Only images added after enabling this setting are sent for orientation checks. OCR and descriptions also check missing orientation first. Originals remain unchanged.",
+    "Only images added after enabling this setting are sent for orientation checks. OCR, descriptions and structured extraction also check missing orientation first. Originals remain unchanged.",
   orientationQueuePaused:
     "Orientation automatic and bulk tasks paused. Single-file requests can still run.",
   orientationQueueRunning: "Checking orientation: {name}",
@@ -87,7 +87,7 @@ export const en = {
   orientationManualHint:
     "This direction is set manually. AI will not overwrite it. Originals remain unchanged.",
   orientationEditHint:
-    "Correction is relative to the camera’s orientation. Saving creates a manual override; future OCR and descriptions use this direction.",
+    "Correction is relative to the camera’s orientation. Saving creates a manual override; future image extraction uses this direction.",
 
   descCopyText: "Copy description",
   descTitle: "Description",
@@ -145,7 +145,7 @@ export const en = {
   ocrSettings: "AI settings",
   aiConnection: "AI connection",
   aiLocalHint:
-    "Connect ChatGPT to use your plan for image orientation, OCR and descriptions. Images and documents requested manually or by enabled background tasks are sent to OpenAI; results are saved as metadata in the archive.",
+    "Connect ChatGPT to use your plan for image orientation, OCR, descriptions and structured extraction. Images and documents requested manually or by enabled background tasks are sent to OpenAI; results are saved as metadata in the archive.",
   aiConnected: "Connected",
   aiContinue: "Continue with ChatGPT",
   aiOpenSignIn: "Open ChatGPT sign-in",
@@ -1012,14 +1012,14 @@ export const zh: Record<MessageKey, string> = {
   factsExtracting: "正在提取",
   factsAuto: "自动提取新增文件的结构化信息",
   factsAutoHint:
-    "仅处理启用后新增的支持图片和文档。已有文件可使用下方的补全按钮。",
+    "支持图片、PDF、Word 和 PPT，仅处理启用后新增的文件；已有文件需手动查缺补漏。",
   factsQueuePaused: "结构化自动与批量任务已暂停，单张提取仍可运行。",
   factsQueueRunning: "正在提取字段：{name}",
   factsQueueIdle: "结构化提取后台已就绪",
   factsScanning: "正在查找尚无结构化信息的文件…",
   factsBackfill: "补全已有文件的结构化信息",
   factsBackfillHint:
-    "将尚无结果的支持图片、PDF、Word 和 PowerPoint 文件发送给已连接的服务。人工修改和删除的字段保持受保护。",
+    "将尚无结果且受支持的图片、PDF、Word 和 PPT 文件发送给已连接的服务。人工修改和删除的字段保持受保护。",
   factsUncertain: "待核对",
   factsUncertainHelp: "模型无法确定此字段，请对照原件核实后使用。",
   factsUnreadable: "无法辨认",
@@ -1056,7 +1056,7 @@ export const zh: Record<MessageKey, string> = {
   orientationEdit: "调整方向",
   orientationAuto: "自动校正新增图片方向",
   orientationAutoHint:
-    "仅发送启用后新增的图片。OCR 和描述也会先补齐缺失的方向结果，原始文件保持不变。",
+    "仅发送启用后新增的图片。OCR、描述和结构化提取也会先补齐缺失的方向结果，原始文件保持不变。",
   orientationQueuePaused: "方向队列已暂停，已发出的请求仍可能完成。",
   orientationQueueRunning: "正在判断方向：{name}",
   orientationQueueIdle: "方向任务就绪",
@@ -1078,7 +1078,7 @@ export const zh: Record<MessageKey, string> = {
   orientationRestoreAuto: "恢复 AI 判断",
   orientationManualHint: "此方向由人工设定，AI 不会覆盖，原始文件保持不变。",
   orientationEditHint:
-    "相对于相机方向进行校正。保存后由人工管理；后续 OCR 和描述使用此方向。",
+    "相对于相机方向进行校正。保存后由人工管理；后续图片提取使用此方向。",
 
   descCopyText: "复制描述",
   descTitle: "描述",
@@ -1131,7 +1131,7 @@ export const zh: Record<MessageKey, string> = {
   ocrSettings: "AI 设置",
   aiConnection: "AI 连接",
   aiLocalHint:
-    "连接 ChatGPT 后使用你的套餐判断图片方向、识别文字和生成描述。手动请求或已启用的后台任务会将图片或文档发送到 OpenAI，结果保存为资料库中的元数据。",
+    "连接 ChatGPT 后使用你的套餐判断图片方向、识别文字、生成描述和提取结构化信息。手动请求或已启用的后台任务会将图片或文档发送到 OpenAI，结果保存为资料库中的元数据。",
   aiConnected: "已连接",
   aiContinue: "使用 ChatGPT 继续",
   aiOpenSignIn: "打开 ChatGPT 登录",
