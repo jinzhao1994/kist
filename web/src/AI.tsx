@@ -178,6 +178,7 @@ type QueueStatus = {
   error?: string;
 };
 type OCRJob = {
+  manual?: boolean;
   state: "missing" | "queued" | "running" | "ready" | "failed";
   error?: string;
 };
@@ -527,7 +528,6 @@ export function OCRAction({
   const queries = useQueryClient();
   const status = useStatus();
   const settings = useAISettings();
-  const queue = useOCRQueue(kind);
   const job = useQuery({
     queryKey: [`${kind}-job`, fileID],
     queryFn: ({ signal }) => get<OCRJob>(`/files/${fileID}/${kind}`, signal),
@@ -540,6 +540,8 @@ export function OCRAction({
     if (job.data?.state === "ready") void queries.invalidateQueries();
   }, [job.data?.state, queries]);
   const pending = job.data?.state === "queued" || job.data?.state === "running";
+  const waiting =
+    pending && (job.data?.state === "running" || job.data?.manual);
   async function request() {
     setBusy(true);
     setError("");
@@ -560,8 +562,7 @@ export function OCRAction({
     taskErrorMessage(job.data?.error, t) ||
     (job.error && errorMessage(job.error, t)) ||
     (settings.error && errorMessage(settings.error, t)) ||
-    (status.error && errorMessage(status.error, t)) ||
-    (queue.error && errorMessage(queue.error, t));
+    (status.error && errorMessage(status.error, t));
   return (
     <Stack gap="xs">
       {issue && (
@@ -578,9 +579,6 @@ export function OCRAction({
           )}
         </Text>
       )}
-      {queue.data?.paused && (
-        <TaskStatus>{t(taskMessage(kind, "QueuePaused"))}</TaskStatus>
-      )}
       {(!status.data?.connected || !settings.data?.model) && (
         <Text size="sm">{t("ocrConfigureFirst")}</Text>
       )}
@@ -588,12 +586,11 @@ export function OCRAction({
         <Button
           disabled={
             busy ||
-            pending ||
+            !!waiting ||
             !status.data?.connected ||
             !settings.data?.model ||
             job.isPending ||
-            job.isError ||
-            queue.data?.paused
+            job.isError
           }
           onClick={() => void request()}
         >

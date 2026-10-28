@@ -1947,6 +1947,7 @@ export interface components {
             error?: string;
             file_id: string;
             force?: boolean;
+            manual?: boolean;
             name: string;
             request_id: string;
             /** @enum {string} */

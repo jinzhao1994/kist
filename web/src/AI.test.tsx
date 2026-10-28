@@ -85,7 +85,7 @@ it("queues OCR with the saved model policy and reports request failures", async 
             { code: "internal", message: "Queue unavailable" },
             { status: 502 },
           )
-        : Response.json({ state: "queued" });
+        : Response.json({ state: "queued", manual: true });
     }),
   );
   mount(<OCRAction fileID="file" />);
@@ -334,7 +334,7 @@ it("queues a description independently of OCR", async () => {
     vi.fn(async (path: string, init?: RequestInit) => {
       if (init?.method === "POST") {
         writes.push(path);
-        return Response.json({ state: "queued" });
+        return Response.json({ state: "queued", manual: true });
       }
       return (
         defaults(path) ||
@@ -369,7 +369,7 @@ it.each([
     vi.fn(async (path: string, init?: RequestInit) => {
       if (init?.method === "POST") {
         writes.push(path);
-        return Response.json({ state: "queued" });
+        return Response.json({ state: "queued", manual: true });
       }
       return (
         defaults(path) ||
@@ -437,7 +437,7 @@ it("restores automatic direction with a stable request key after a lost response
             { status: 502 },
           );
       }
-      return Response.json({ state: "queued" });
+      return Response.json({ state: "queued", manual: true });
     }),
   );
   const file = {
@@ -504,11 +504,39 @@ it("explains canceled tasks in both queue settings and metadata", async () => {
     expect(alert).toHaveTextContent("Task canceled. You can retry it.");
   }
   expect(screen.queryByText("context canceled")).not.toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "AI settings" })).toHaveAttribute(
-    "href",
-    "/settings#settings-ai",
-  );
+  expect(
+    screen.queryByRole("link", { name: "AI settings" }),
+  ).not.toBeInTheDocument();
   expect(
     screen.getByRole("button", { name: "Retry failed images" }),
   ).toBeEnabled();
+});
+
+it("allows single-file OCR without checking or resuming the paused bulk queue", async () => {
+  const paths: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string, init?: RequestInit) => {
+      paths.push(path);
+      if (path.endsWith("/ai/ocr")) return Response.json({ paused: true });
+      if (init?.method === "POST")
+        return Response.json({ state: "queued", manual: true });
+      return (
+        defaults(path) ||
+        Response.json(
+          path.endsWith("/ai")
+            ? { supported: true, connected: true }
+            : { state: "queued", automatic: true },
+        )
+      );
+    }),
+  );
+  mount(<OCRAction fileID="file" />);
+  const button = screen.getByRole("button", { name: "Extract text (OCR)" });
+  await waitFor(() => expect(button).toBeEnabled());
+  await userEvent.click(button);
+  await waitFor(() => expect(button).toBeDisabled());
+  expect(paths).toContain("/api/v1/files/file/ocr");
+  expect(paths.some((path) => path.includes("/ai/ocr"))).toBe(false);
+  expect(screen.queryByText(/paused/i)).not.toBeInTheDocument();
 });

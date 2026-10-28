@@ -4369,7 +4369,7 @@ for (const scenario of [
           page.getByRole("checkbox", { name: "自动识别新增图片" }),
         ).toBeChecked();
         await expect(
-          page.getByRole("button", { name: "继续队列", exact: true }),
+          page.getByRole("button", { name: "继续自动与批量处理", exact: true }),
         ).toBeEnabled();
       }
     }
@@ -4785,6 +4785,7 @@ for (const scenario of [
   "text",
   "text-tooltip",
   "text-refresh",
+  "text-paused",
   "ready",
   "unclassified",
   "error",
@@ -4874,6 +4875,28 @@ for (const scenario of [
         });
       });
     }
+    if (scenario === "text-paused") {
+      await page.route("**/api/v1/ai/desc", (route) =>
+        route.fulfill({
+          json: {
+            paused: true,
+            queued: 1,
+            failed: 0,
+            scanning: false,
+            running: "",
+          },
+        }),
+      );
+      await page.route("**/api/v1/files/file-1/desc", (route) => {
+        if (route.request().method() === "POST") {
+          expect(route.request().postDataJSON().force).toBe(true);
+          refreshRequested = true;
+        }
+        return route.fulfill({
+          json: { state: "queued", manual: refreshRequested },
+        });
+      });
+    }
     await page.goto("/files?file=file-1");
     await page.getByRole("button", { name: "文件详情", exact: true }).click();
     const group = page.locator(".file-metadata-group").filter({
@@ -4906,6 +4929,19 @@ for (const scenario of [
       });
       if (scenario === "disconnected") await expect(action).toBeDisabled();
       else await expect(action).toBeEnabled();
+    }
+    if (scenario === "text-paused") {
+      const action = group.getByRole("button", {
+        name: "重新提取描述",
+        exact: true,
+      });
+      await expect(group.getByText(/已暂停/)).toHaveCount(0);
+      await expect(group.getByRole("status")).toContainText("已排队");
+      await expect(action).toBeEnabled();
+      await action.click();
+      await expect(action).toBeDisabled();
+      await expect(action).toContainText("已排队");
+      expect(refreshRequested).toBe(true);
     }
     if (scenario === "text-tooltip") {
       await group.locator(".copy-text-preview bdi").hover();

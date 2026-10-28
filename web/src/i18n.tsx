@@ -26,7 +26,8 @@ export const en = {
   geoEndpoint: "Photon endpoint",
   geoEndpointHint: "Use the public server or your own Photon reverse endpoint.",
   geoExtract: "Look up address",
-  geoQueuePaused: "Location queue paused.",
+  geoQueuePaused:
+    "Location automatic and bulk tasks paused. Single-file requests can still run.",
   geoQueueRunning: "Looking up location: {name}",
   geoQueueIdle: "Location worker ready",
   geoScanning: "Finding images without location results…",
@@ -42,7 +43,7 @@ export const en = {
   orientationAutoHint:
     "Only images added after enabling this setting are sent for orientation checks. OCR and descriptions also check missing orientation first. Originals remain unchanged.",
   orientationQueuePaused:
-    "Orientation queue paused. Requests already sent may still finish.",
+    "Orientation automatic and bulk tasks paused. Single-file requests can still run.",
   orientationQueueRunning: "Checking orientation: {name}",
   orientationQueueIdle: "Orientation worker ready",
   orientationScanning: "Finding images without orientation results…",
@@ -76,7 +77,7 @@ export const en = {
   descAutoHint:
     "Only images added after enabling this setting are sent for descriptions. Existing images require an explicit backfill.",
   descQueuePaused:
-    "Description queue paused. Requests already sent may still finish.",
+    "Description automatic and bulk tasks paused. Single-file requests can still run.",
   descQueueRunning: "Describing: {name}",
   descQueueIdle: "Description worker ready",
   descScanning: "Finding images without descriptions…",
@@ -99,15 +100,16 @@ export const en = {
   ocrAuto: "Automatically recognize new images",
   ocrAutoHint:
     "Only images added after enabling this setting are sent for OCR. Existing images require an explicit backfill.",
-  ocrQueuePaused: "OCR queue paused. Requests already sent may still finish.",
+  ocrQueuePaused:
+    "OCR automatic and bulk tasks paused. Single-file requests can still run.",
   ocrQueueRunning: "Recognizing: {name}",
   ocrQueueIdle: "OCR worker ready",
   ocrQueueCounts: "Queued: {queued} · Failed: {failed}",
   ocrScanning: "Finding images without OCR…",
   ocrBackfill: "Recognize existing images without OCR",
   ocrRetryFailed: "Retry failed images",
-  ocrPause: "Pause queue",
-  ocrResume: "Resume queue",
+  ocrPause: "Pause automatic / bulk tasks",
+  ocrResume: "Resume automatic / bulk tasks",
   ocrBackfillStarted:
     "Backfill requested. Completed and queued images will be skipped.",
   ocrBackfillHint:
@@ -996,7 +998,7 @@ export const zh: Record<MessageKey, string> = {
   geoEndpoint: "Photon 接口地址",
   geoEndpointHint: "可使用公共服务或自行部署的 Photon reverse 接口。",
   geoExtract: "查询地址",
-  geoQueuePaused: "地址查询队列已暂停。",
+  geoQueuePaused: "自动与批量查询已暂停，单张手动查询仍可执行。",
   geoQueueRunning: "正在查询位置：{name}",
   geoQueueIdle: "地址查询队列空闲",
   geoScanning: "正在查找尚未查询位置的图片…",
@@ -1065,15 +1067,15 @@ export const zh: Record<MessageKey, string> = {
     "填写 HTTP 或 SOCKS5 地址；留空使用服务进程的代理环境变量。浏览器登录页沿用浏览器自己的网络设置。",
   ocrAuto: "自动识别新增图片",
   ocrAutoHint: "仅发送启用后新增的图片进行 OCR；已有图片需要手动发起查缺补漏。",
-  ocrQueuePaused: "OCR 队列已暂停，已发出的请求仍可能完成。",
+  ocrQueuePaused: "自动与批量处理已暂停，单张手动提取仍可执行。",
   ocrQueueRunning: "正在识别：{name}",
   ocrQueueIdle: "OCR 后台已就绪",
   ocrQueueCounts: "排队 {queued} 项 · 失败 {failed} 项",
   ocrScanning: "正在查找尚未识别的图片…",
   ocrBackfill: "补全已有图片的文字识别",
   ocrRetryFailed: "重试失败图片",
-  ocrPause: "暂停队列",
-  ocrResume: "继续队列",
+  ocrPause: "暂停自动与批量处理",
+  ocrResume: "继续自动与批量处理",
   ocrBackfillStarted: "已发起查缺补漏，将跳过已完成及已排队的图片。",
   ocrBackfillHint:
     "查缺补漏会将尚未识别且受支持的图片发送给已连接的服务商。失败项不会自动重试；队列暂停时，需要点击继续后才开始处理。",

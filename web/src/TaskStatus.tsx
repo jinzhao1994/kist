@@ -1,25 +1,11 @@
-import { Anchor, Text } from "@mantine/core";
+import { Text } from "@mantine/core";
 import type { ReactNode } from "react";
 import type { Translate } from "./i18n";
 
-export function TaskStatus({
-  children,
-  settings,
-}: {
-  children: ReactNode;
-  settings?: { href: string; label: string };
-}) {
+export function TaskStatus({ children }: { children: ReactNode }) {
   return (
     <Text size="xs" c="dimmed" role="status">
       {children}
-      {settings && (
-        <>
-          {" "}
-          <Anchor href={settings.href} inherit>
-            {settings.label}
-          </Anchor>
-        </>
-      )}
     </Text>
   );
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/jinzhao1994/kist/internal/ai"
 	"github.com/jinzhao1994/kist/internal/config"
 	"github.com/jinzhao1994/kist/internal/domain"
@@ -205,11 +206,15 @@ func TestOCRQueueWorkerExclusionAndPauseInFlight(t *testing.T) {
 	}
 	requireOCRState(t, q, id, "ready")
 	requireOCRState(t, q, second, "queued")
+	next := &fakeOCR{text: "manual request"}
+	other = queueFor(t, l, next)
 	if err := other.Step(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	if p.calls != 1 {
-		t.Fatal("paused queue continued", p.calls)
+	requireOCRState(t, other, second, "ready")
+	status, err := other.Status(t.Context())
+	if err != nil || !status.Paused || next.calls != 1 {
+		t.Fatalf("status=%+v calls=%d err=%v", status, next.calls, err)
 	}
 }
 
@@ -270,4 +275,159 @@ func TestOCRQueueArchiveCompletionOverridesFailedRuntimeState(t *testing.T) {
 		t.Fatalf("status=%+v calls=%d err=%v", status, p.calls, err)
 	}
 	requireOCRState(t, q, id, "ready")
+}
+
+func TestOCRQueuePausedAllowsOnlyExplicitSingleFileRequests(t *testing.T) {
+	l := openTestLibrary(t)
+	setOCR(t, l, true)
+	automatic, bulk, manual := ocrFile(t, l), ocrFile(t, l), ocrFile(t, l)
+	p := &fakeOCR{text: "single file"}
+	q := queueFor(t, l, p)
+	autoJob, err := q.resolve(t.Context(), automatic)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bulkJob, err := q.resolve(t.Context(), bulk)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := ocrQueueState{Paused: true}
+	enqueueOCR(&s, autoJob, false, true)
+	enqueueOCR(&s, bulkJob, false, false)
+	if err := q.save(s); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := q.Backfill(t.Context(), false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := q.Request(t.Context(), manual, false); err != nil {
+		t.Fatal(err)
+	}
+	// Reload through another queue instance to prove the intent is persisted.
+	q = queueFor(t, l, p)
+	if err := q.Step(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	requireOCRState(t, q, manual, "ready")
+	requireOCRState(t, q, automatic, "queued")
+	requireOCRState(t, q, bulk, "queued")
+	if err := q.Step(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if p.calls != 1 {
+		t.Fatalf("paused bulk work ran: %d", p.calls)
+	}
+	s, err = q.load()
+	if err != nil || !s.Paused || s.Backfill == nil || s.Backfill.After != -1 || s.AutoScan != nil {
+		t.Fatalf("paused scans changed: %+v, %v", s, err)
+	}
+	// A single-file click promotes an existing bulk job without duplicating it.
+	before, err := q.FileStatus(t.Context(), bulk)
+	if err != nil {
+		t.Fatal(err)
+	}
+	promoted, err := q.Request(t.Context(), bulk, false)
+	if err != nil || !promoted.Manual || promoted.RequestID != before.RequestID {
+		t.Fatalf("promotion: %+v, %v", promoted, err)
+	}
+	if err := q.Step(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	requireOCRState(t, q, bulk, "ready")
+	requireOCRState(t, q, automatic, "queued")
+	// Refresh also runs while paused and preserves its idempotency key.
+	key := uuid.NewString()
+	if _, err := q.Reextract(t.Context(), manual, key); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.Step(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := q.Reextract(t.Context(), manual, key); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.Step(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	status, err := q.Status(t.Context())
+	if err != nil || !status.Paused || p.calls != 3 {
+		t.Fatalf("status=%+v calls=%d err=%v", status, p.calls, err)
+	}
+	// Resuming dispatches held background work.
+	if _, err := q.Pause(t.Context(), false); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.Step(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	requireOCRState(t, q, automatic, "ready")
+}
+
+func TestOCRQueuePausedManualFailureRequiresExplicitRetry(t *testing.T) {
+	l := openTestLibrary(t)
+	id := ocrFile(t, l)
+	setOCR(t, l, false)
+	p := &failingOCR{}
+	q := queueFor(t, l, p)
+	if _, err := q.Pause(t.Context(), true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := q.Request(t.Context(), id, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.Step(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.Step(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	requireOCRState(t, q, id, "failed")
+	if p.calls != 1 {
+		t.Fatal("failure was retried automatically")
+	}
+	good := &fakeOCR{text: "retried"}
+	q = queueFor(t, l, good)
+	if _, err := q.Request(t.Context(), id, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.Step(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	requireOCRState(t, q, id, "ready")
+	status, err := q.Status(t.Context())
+	if err != nil || !status.Paused || good.calls != 1 {
+		t.Fatalf("status=%+v calls=%d err=%v", status, good.calls, err)
+	}
+}
+
+func TestOCRQueueBulkRetryDoesNotBypassPause(t *testing.T) {
+	l := openTestLibrary(t)
+	id := ocrFile(t, l)
+	setOCR(t, l, false)
+	good := &fakeOCR{text: "saved"}
+	q := queueFor(t, l, good)
+	if _, err := q.Request(t.Context(), id, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.Step(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	failing := &failingOCR{}
+	q = queueFor(t, l, failing)
+	if _, err := q.Reextract(t.Context(), id, uuid.NewString()); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.Step(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := q.Backfill(t.Context(), true); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.Step(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	job, err := q.FileStatus(t.Context(), id)
+	if err != nil || job.Manual || job.State != "queued" || failing.calls != 1 {
+		t.Fatalf("job=%+v calls=%d err=%v", job, failing.calls, err)
+	}
 }

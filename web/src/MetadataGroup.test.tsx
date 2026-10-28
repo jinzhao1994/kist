@@ -45,10 +45,10 @@ it("retains original text and the same AI request key after a lost response", as
         bodies.push(JSON.parse(String(init.body)));
         if (bodies.length === 1) throw new TypeError("Connection lost");
         state = "queued";
-        return Response.json({ state });
+        return Response.json({ state, manual: true });
       }
       return Response.json(
-        _url.includes("/files/") ? { state } : { paused: false },
+        _url.includes("/files/") ? { state, manual: true } : { paused: true },
       );
     }),
   );
@@ -95,4 +95,26 @@ it("has no action or background request for non-extractable groups", () => {
   mount();
   expect(screen.queryByRole("button")).not.toBeInTheDocument();
   expect(fetch).not.toHaveBeenCalled();
+});
+
+it("promotes a queued bulk task without resuming the queue or showing its status", async () => {
+  const writes: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        writes.push(url);
+        return Response.json({ state: "queued", manual: true });
+      }
+      if (!url.includes("/files/"))
+        throw new Error("Details should not fetch the global queue");
+      return Response.json({ state: "queued", automatic: true });
+    }),
+  );
+  mount("ocr");
+  const button = screen.getByRole("button", { name: "Re-extract Test" });
+  await waitFor(() => expect(button).toBeEnabled());
+  await userEvent.click(button);
+  expect(writes).toEqual(["/api/v1/files/file/ocr"]);
+  expect(screen.queryByText(/paused/i)).not.toBeInTheDocument();
 });

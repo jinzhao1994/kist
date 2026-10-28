@@ -320,3 +320,40 @@ func TestOrientationDependencyFailureCannotBeRetriedByAnotherTask(t *testing.T) 
 		t.Fatal(p.directions, p.calls)
 	}
 }
+
+func TestManualImageTextChecksOrientationWhileBackgroundPaused(t *testing.T) {
+	for _, kind := range []string{"ocr", "desc"} {
+		t.Run(kind, func(t *testing.T) {
+			l := openTestLibrary(t)
+			id := rotationFile(t, l)
+			setOCR(t, l, false)
+			orientation := l.OrientationQueue()
+			if _, err := orientation.Pause(t.Context(), true); err != nil {
+				t.Fatal(err)
+			}
+			p := &uprightProvider{fakeOCR: fakeOCR{text: "synthetic result"}}
+			q := l.imageTextQueue(kind)
+			q.provider = func(context.Context) (ai.Provider, error) { return p, nil }
+			if _, err := q.Pause(t.Context(), true); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := q.Request(t.Context(), id, false); err != nil {
+				t.Fatal(err)
+			}
+			if err := q.Step(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			requireOCRState(t, q, id, "ready")
+			requireOCRState(t, orientation, id, "ready")
+			for _, queue := range []*OCRQueue{q, orientation} {
+				status, err := queue.Status(t.Context())
+				if err != nil || !status.Paused {
+					t.Fatalf("queue resumed: %+v, %v", status, err)
+				}
+			}
+			if p.directions != 1 || p.calls != 1 {
+				t.Fatalf("direction=%d text=%d", p.directions, p.calls)
+			}
+		})
+	}
+}

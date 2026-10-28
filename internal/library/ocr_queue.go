@@ -30,6 +30,7 @@ type OCRJob struct {
 	Error     string        `json:"error,omitempty"`
 	RequestID string        `json:"request_id"`
 	Automatic bool          `json:"automatic"`
+	Manual    bool          `json:"manual,omitempty"`
 	Force     bool          `json:"force,omitempty"`
 }
 type OCRQueueStatus struct {
@@ -57,6 +58,7 @@ type ocrQueueState struct {
 // OCRQueue uses OS locks and reloads state for every operation, including across
 // processes. No archive lock is held while the provider performs inference.
 type aiWorkerContextKey struct{}
+type aiManualContextKey struct{}
 
 type OCRQueue struct {
 	kind          string
@@ -170,6 +172,7 @@ func (q *OCRQueue) Backfill(ctx context.Context, retry bool) (OCRQueueStatus, er
 	if retry {
 		for i := range s.Jobs {
 			if s.Jobs[i].Force && s.Jobs[i].State == "failed" {
+				s.Jobs[i].Manual = false
 				s.Jobs[i].State, s.Jobs[i].Error, s.Jobs[i].RequestID = "queued", "", uuid.NewString()
 			}
 		}
@@ -248,6 +251,10 @@ func enqueueOCR(s *ocrQueueState, j OCRJob, retry, automatic bool) OCRJob {
 	for i, old := range s.Jobs {
 		if old.FileID == j.FileID && old.BlobKey == j.BlobKey {
 			if old.State != "failed" || !retry {
+				if j.Manual {
+					s.Jobs[i].Manual = true
+					old.Manual = true
+				}
 				if !automatic {
 					s.Jobs[i].Automatic = false
 					old.Automatic = false
@@ -290,7 +297,7 @@ func (q *OCRQueue) request(ctx context.Context, id domain.FileID, retry, force b
 	if err != nil || j.State == "ready" && !force {
 		return j, err
 	}
-	j.Force, j.RequestID = force, key
+	j.Force, j.RequestID, j.Manual = force, key, true
 	if force {
 		if _, found, err := q.library.CheckRequest(ctx, q.jobRequest(j)); err != nil || found {
 			return j, err
@@ -420,49 +427,47 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 		kept = append(kept, j)
 	}
 	s.Jobs = kept
-	if s.Paused {
-		err = q.save(s)
-		unlock()
-		return err
-	}
-	if auto {
-		if s.AutoScan != nil && s.AutoScan.After < after {
+	// Pausing holds scans and bulk jobs, but explicit single-file requests still run.
+	if !s.Paused {
+		if auto {
+			if s.AutoScan != nil && s.AutoScan.After < after {
+				s.AutoScan = nil
+			}
+			if s.AutoCursor < after {
+				s.AutoCursor = after
+			}
+			if s.AutoScan == nil && head.OpID > s.AutoCursor {
+				s.AutoScan = &ocrScan{After: s.AutoCursor, Through: head.OpID}
+			}
+		} else {
 			s.AutoScan = nil
 		}
-		if s.AutoCursor < after {
-			s.AutoCursor = after
+		if s.Backfill != nil {
+			done, e := q.scanBatch(ctx, &s, s.Backfill, false)
+			if e != nil {
+				unlock()
+				return e
+			}
+			if done {
+				s.Backfill = nil
+			}
 		}
-		if s.AutoScan == nil && head.OpID > s.AutoCursor {
-			s.AutoScan = &ocrScan{After: s.AutoCursor, Through: head.OpID}
-		}
-	} else {
-		s.AutoScan = nil
-	}
-	if s.Backfill != nil {
-		done, e := q.scanBatch(ctx, &s, s.Backfill, false)
-		if e != nil {
-			unlock()
-			return e
-		}
-		if done {
-			s.Backfill = nil
-		}
-	}
-	if s.AutoScan != nil {
-		done, e := q.scanBatch(ctx, &s, s.AutoScan, true)
-		if e != nil {
-			unlock()
-			return e
-		}
-		if done {
-			s.AutoCursor = s.AutoScan.Through
-			s.AutoScan = nil
+		if s.AutoScan != nil {
+			done, e := q.scanBatch(ctx, &s, s.AutoScan, true)
+			if e != nil {
+				unlock()
+				return e
+			}
+			if done {
+				s.AutoCursor = s.AutoScan.Through
+				s.AutoScan = nil
+			}
 		}
 	}
 	index := -1
 	for i := 0; i < len(s.Jobs); {
 		j := s.Jobs[i]
-		if j.State != "queued" {
+		if j.State != "queued" || s.Paused && !j.Manual {
 			i++
 			continue
 		}
@@ -490,7 +495,7 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	err = q.execute(ctx, job, cfg.AIOptions.Model, cfg.Library.Language)
+	err = q.execute(context.WithValue(ctx, aiManualContextKey{}, job.Manual), job, cfg.AIOptions.Model, cfg.Library.Language)
 	return q.finishJob(job, err)
 }
 

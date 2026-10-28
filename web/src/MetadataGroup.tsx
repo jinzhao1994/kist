@@ -13,7 +13,7 @@ import type { components } from "./api-schema";
 import { useI18n } from "./i18n";
 import { errorMessage } from "./mutations";
 
-type Job = { state: string; error?: string };
+type Job = { state: string; error?: string; manual?: boolean };
 
 type TaskOptions = {
   title: string;
@@ -92,19 +92,10 @@ function useMetadataTask({
     retry: false,
     refetchInterval: ai ? 2000 : false,
   });
-  const queue = useQuery({
-    queryKey: [`${extractor}-queue`],
-    queryFn: ({ signal }) =>
-      get<{ paused: boolean }>(
-        extractor === "geo" ? "/geo" : `/ai/${extractor}`,
-        signal,
-      ),
-    enabled: ai,
-    retry: false,
-    refetchInterval: ai ? 2000 : false,
-  });
   const pending =
     ai && (job.data?.state === "queued" || job.data?.state === "running");
+  const waiting =
+    pending && (job.data?.state === "running" || job.data?.manual);
   const wasPending = useRef(false);
   useEffect(() => {
     if (wasPending.current && !pending) void queries.invalidateQueries();
@@ -156,7 +147,7 @@ function useMetadataTask({
         size="compact-xs"
         className="metadata-refresh-action"
         data-active={missing || busy || pending || !!issue || undefined}
-        disabled={busy || pending || (ai && job.isPending)}
+        disabled={busy || !!waiting || (ai && job.isPending)}
         aria-label={
           extractor === "geo"
             ? t(missing ? "geoExtract" : "geoRefresh")
@@ -167,7 +158,7 @@ function useMetadataTask({
         {t(
           busy || (ai && job.data?.state === "running")
             ? "extracting"
-            : pending
+            : waiting
               ? "reextractQueued"
               : missing
                 ? "geoExtract"
@@ -184,27 +175,7 @@ function useMetadataTask({
             {issue}
           </Text>
         )}
-        {ai && queue.data?.paused && (
-          <TaskStatus
-            settings={{
-              href:
-                extractor === "geo"
-                  ? "/settings#settings-location"
-                  : "/settings#settings-ai",
-              label: t(extractor === "geo" ? "geoTitle" : "ocrSettings"),
-            }}
-          >
-            {t(
-              extractor === "geo"
-                ? "geoQueuePaused"
-                : extractor === "orientation"
-                  ? "orientationQueuePaused"
-                  : extractor === "desc"
-                    ? "descQueuePaused"
-                    : "ocrQueuePaused",
-            )}
-          </TaskStatus>
-        )}
+        {pending && !waiting && <TaskStatus>{t("reextractQueued")}</TaskStatus>}
       </>
     ),
   };

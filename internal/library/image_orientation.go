@@ -70,7 +70,8 @@ func (l *Library) ensureImageOrientation(ctx context.Context, id domain.FileID, 
 		unlock()
 		return err
 	}
-	if state.Paused {
+	manual, _ := ctx.Value(aiManualContextKey{}).(bool)
+	if state.Paused && !manual {
 		unlock()
 		return errors.New("image orientation queue is paused; resume it in AI settings")
 	}
@@ -94,7 +95,7 @@ func (l *Library) ensureImageOrientation(ctx context.Context, id domain.FileID, 
 		state.Jobs = append(state.Jobs, job)
 		index = len(state.Jobs) - 1
 	}
-	job.State, job.Automatic = "running", false
+	job.State, job.Automatic, job.Manual = "running", false, manual
 	state.Jobs[index] = job
 	err = q.save(state)
 	unlock()
