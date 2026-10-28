@@ -890,8 +890,7 @@ export const en = {
   editMetadata: "Edit {field}",
   removeMetadata: "Delete {field}",
   removeMetadataQuestion: "Delete “{field}”?",
-  removeMetadataHint:
-    "Extraction will not restore this field. You can undo the deletion in history.",
+  removeMetadataHint: "Stays deleted. Undo in history.",
   confirmRemoveMetadata: "Confirm deletion",
   metadataUserEdited:
     "Edited by user; automatic extraction will not overwrite this value",
@@ -1799,7 +1798,7 @@ export const zh: Record<MessageKey, string> = {
   editMetadata: "编辑{field}",
   removeMetadata: "删除{field}",
   removeMetadataQuestion: "删除「{field}」？",
-  removeMetadataHint: "后续提取不会恢复此字段，可在操作历史中撤销。",
+  removeMetadataHint: "不会自动恢复，可在历史中撤销。",
   confirmRemoveMetadata: "确认删除",
   metadataUserEdited: "人工编辑，自动提取不会覆盖此值",
   rename: "重命名",

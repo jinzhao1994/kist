@@ -28,7 +28,7 @@ export function ConfirmPopover({
       withinPortal
       trapFocus
       returnFocus={false}
-      position="bottom-start"
+      position="top-end"
       floatingStrategy="fixed"
       offset={8}
       width="var(--confirm-popover-width)"

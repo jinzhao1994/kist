@@ -5365,6 +5365,17 @@ for (const variant of [
         page.viewportSize()!.width,
       );
       expect(Math.abs(popupBox!.y - actionBox!.y)).toBeLessThan(180);
+      await expect(popup).toHaveAttribute("data-position", /^top-/);
+      const hint = popup.getByText("不会自动恢复，可在历史中撤销。", {
+        exact: true,
+      });
+      expect(
+        await hint.evaluate(
+          (element) =>
+            element.getBoundingClientRect().height <=
+            parseFloat(getComputedStyle(element).lineHeight) + 1,
+        ),
+      ).toBe(true);
       await page.getByRole("button", { name: "取消", exact: true }).click();
       await expect(popup).toHaveCount(0);
       expect(writes).toBe(0);
