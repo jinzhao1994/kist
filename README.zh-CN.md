@@ -92,7 +92,7 @@ docker compose -f compose.image.yaml run --rm kist init /library --yes
 docker compose -f compose.image.yaml up -d
 ```
 
-只对新库执行初始化。默认镜像为 `ghcr.io/jinzhao1994/kist:v0.1.0`，在 `.env` 设置 `KIST_IMAGE=jinzhao1994/kist:latest` 可改用 Docker Hub 最新稳定版，固定版本可用 `jinzhao1994/kist:v0.1.2`。群晖优先使用 Docker Hub，以便使用映像更新提示。NAS 局域网访问时，在 `.env` 中设置 `KIST_BIND=NAS的局域网IP` 和 `KIST_ORIGIN=http://NAS的局域网IP:8473`，初始化前可设置 `TZ=Asia/Shanghai`。
+只对新库执行初始化。默认镜像为 `ghcr.io/jinzhao1994/kist:v0.1.0`，在 `.env` 设置 `KIST_IMAGE=jinzhao1994/kist:latest` 可改用 Docker Hub 最新稳定版，固定版本可用 `jinzhao1994/kist:v0.1.2`。群晖优先使用 Docker Hub，以便使用映像更新提示。NAS 局域网访问时，在 `.env` 中设置 `KIST_BIND=NAS的局域网IP` 和 `KIST_ORIGIN=http://NAS的局域网IP:8473`。
 
 如需从源码构建，继续使用原有 Compose 文件：
 
@@ -108,7 +108,7 @@ docker compose up -d
 docker compose exec kist kist --library /library verify --deep
 ```
 
-初始化前设置 `TZ=Asia/Shanghai` 可指定库时区。改用本机其他端口时，同时设置 `KIST_PORT=18473` 和 `KIST_ORIGIN=http://127.0.0.1:18473`。默认只发布宿主机 loopback 端口；远程访问须显式设置 `KIST_BIND` 为宿主机网卡地址，并把 `KIST_ORIGIN` 设置为浏览器使用的可信来源。当前没有登录，只能部署在可信网络或带认证的反向代理后。
+新建资料库默认使用 `Asia/Shanghai`，可在设置中修改资料库时区。改用本机其他端口时，同时设置 `KIST_PORT=18473` 和 `KIST_ORIGIN=http://127.0.0.1:18473`。默认只发布宿主机 loopback 端口；远程访问须显式设置 `KIST_BIND` 为宿主机网卡地址，并把 `KIST_ORIGIN` 设置为浏览器使用的可信来源。当前没有登录，只能部署在可信网络或带认证的反向代理后。
 
 使用现有库时，将命名卷改为宿主机绝对路径，并确保 UID/GID `10001:10001` 有权限访问，或用 `user:` 配置库的现有所有者。必须挂载整个库，不能只挂 `kist.db` 或 `blobs/`。启动不会自动创建库，也不会递归修改文件所有权。
 

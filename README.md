@@ -118,7 +118,8 @@ existing library. CLI operations use the same library, for example:
 docker compose exec kist kist --library /library verify --deep
 ```
 
-Set `TZ=Asia/Shanghai` before initialization to choose the library timezone.
+New libraries default to `Asia/Shanghai`; change the library timezone in Settings
+when needed.
 For a different local port, set both `KIST_PORT=18473` and
 `KIST_ORIGIN=http://127.0.0.1:18473`. Remote access requires explicitly changing
 `KIST_BIND` to the host interface address and setting `KIST_ORIGIN` to the trusted browser origin; use

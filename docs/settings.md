@@ -38,9 +38,12 @@ subsequent cache maintenance. The client service prunes eligible content at
 startup and every hour, including while offline; the prune CLI and API remain
 available for immediate maintenance.
 
-New-format files use UTC if `library.timezone` is omitted. Initialization writes
-the detected IANA zone when available. Changing it affects future interpretation
-of timestamps without a zone; existing recorded operations do not change.
+New libraries, omitted `library.timezone` values in new-format files, and restoring
+the default use `Asia/Shanghai`. Initialization writes this fixed IANA name instead
+of detecting the host timezone. Explicitly saved zones remain unchanged. Changing
+it affects future interpretation of timestamps without a zone; existing recorded
+operations do not change. Legacy version 1 migration retains its original host-zone
+interpretation.
 
 `library.language` controls generated image descriptions, independently of browser language. It defaults to `zh-CN` and accepts BCP 47 tags such as `en` or `zh-Hant`. Changes affect subsequent tasks only; completed descriptions retain their original language.
 

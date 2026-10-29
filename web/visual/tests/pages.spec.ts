@@ -4104,8 +4104,8 @@ for (const scenario of [
               key: "library.timezone",
               kind: "text",
               value: "UTC",
-              default: "UTC",
-              explicit: false,
+              default: "Asia/Shanghai",
+              explicit: true,
               restart: false,
             },
             {

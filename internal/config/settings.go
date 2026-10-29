@@ -64,6 +64,8 @@ func ValidCredentialNote(note string) bool {
 	return utf8.ValidString(note) && utf8.RuneCountInString(note) <= 200
 }
 
+const defaultTimezone = "Asia/Shanghai"
+
 func Defaults(mode string) *Config {
 	listen := "127.0.0.1:8473"
 	if mode == "client" {
@@ -71,7 +73,7 @@ func Defaults(mode string) *Config {
 	}
 	return &Config{Geocoding: Geocoding{Endpoint: geocode.DefaultEndpoint, RequestIntervalSeconds: 2, PauseOnError: true}, Version: CurrentVersion, Mode: mode,
 		Appearance: Appearance{PrimaryColor: "blue"},
-		Library:    Library{Timezone: "UTC", Language: "zh-CN"},
+		Library:    Library{Timezone: defaultTimezone, Language: "zh-CN"},
 		Client:     Client{CacheMaxAge: "180d", CacheMaxBytes: 10 << 30},
 		Server: Server{Listen: listen, AllowedOrigins: []string{}, MaxUploadBytes: 32 << 30, MaxUploadFiles: 1000,
 			MapStyle: "https://tiles.openfreemap.org/styles/liberty", MapTerrainTiles: "https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png", MapTerrainAttribution: `<a href="https://www.mapzen.com/rights/">Mapzen terrain</a>`, MapResourceOrigins: []string{}},
@@ -112,7 +114,7 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("invalid primary color")
 	}
 	if c.Version >= 2 && c.Library.Timezone == "" {
-		return fmt.Errorf("library timezone cannot be empty; omit it to use UTC")
+		return fmt.Errorf("library timezone cannot be empty; omit it to use %s", defaultTimezone)
 	}
 	if _, err := c.Library.Zone(); err != nil {
 		return err

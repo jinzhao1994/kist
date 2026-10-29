@@ -85,7 +85,7 @@ type Library struct {
 	// the same library on a laptop set to UTC must not reorder it.
 	//
 	// Legacy empty values resolve against the machine during migration.
-	// Version 2 defaults to UTC and rejects an explicitly empty zone.
+	// Version 2 uses the fixed default zone and rejects an explicitly empty zone.
 	Timezone string `toml:"timezone,omitempty"`
 }
 
@@ -113,19 +113,14 @@ type Storage struct {
 
 // Default builds the configuration for a fresh library.
 //
-// The timezone is written out rather than left empty, for the same reason 3.5
-// writes the link mode out: an empty value means "whatever this machine says",
-// and this one decides the order the user sees. A library created on a laptop
-// and later opened on a server set to UTC must not reorder itself.
+// The fixed default timezone is written out so the interpretation of unzoned
+// capture times remains pinned when defaults or the host environment change.
 func Default(linkMode blob.LinkMode) *Config {
 	c := Defaults("library")
 	// Enable location lookup for new archives. Decode keeps the legacy false
 	// fallback so opening an existing archive cannot enqueue its old images.
 	c.Geocoding.Automatic = true
 	c.Library.ID = domain.NewID()
-	if zone := localZoneName(); zone != "" {
-		c.Library.Timezone = zone
-	}
 	c.Storage.LinkMode = linkMode
 	return c
 }
@@ -138,7 +133,7 @@ func Default(linkMode blob.LinkMode) *Config {
 // has to come from where the operating system keeps it — $TZ, or what
 // /etc/localtime points at.
 //
-// Initialization uses UTC if no portable IANA name can be detected.
+// Only legacy configurations use this detection during migration.
 func localZoneName() string {
 	if tz := os.Getenv("TZ"); tz != "" {
 		if _, err := time.LoadLocation(tz); err == nil {

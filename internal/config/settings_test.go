@@ -84,7 +84,7 @@ func TestNewConfigDoesNotExpandDefaults(t *testing.T) {
 
 func TestSparseTimezoneIsPortableAndSyntaxErrorsHideSecrets(t *testing.T) {
 	cfg, err := Decode([]byte("version = 2\n"))
-	if err != nil || cfg.Library.Timezone != "UTC" {
+	if err != nil || cfg.Library.Timezone != "Asia/Shanghai" {
 		t.Fatalf("default timezone: %v %v", cfg, err)
 	}
 	_, err = Decode([]byte("[client]\ntoken = secret-that-must-not-be-logged\n"))
@@ -167,5 +167,52 @@ func TestNewArchiveLocationDefaultPreservesExistingChoices(t *testing.T) {
 		if err != nil || old.Geocoding.Automatic {
 			t.Fatal("existing archive was implicitly enabled", err)
 		}
+	}
+}
+
+func TestLibraryTimezoneDefaultsAndResetAreIndependentOfHost(t *testing.T) {
+	t.Setenv("TZ", "America/New_York")
+	if got := Default(blob.LinkCopy).Library.Timezone; got != "Asia/Shanghai" {
+		t.Fatalf("new library timezone = %q", got)
+	}
+	cfg, err := Decode([]byte("version = 2\n"))
+	if err != nil || cfg.Library.Timezone != "Asia/Shanghai" {
+		t.Fatalf("omitted timezone: %+v %v", cfg, err)
+	}
+	path := writeConfig(t, "version = 2\n[library]\ntimezone = 'UTC'\n")
+	cfg, err = Load(path)
+	if err != nil || cfg.Library.Timezone != "UTC" {
+		t.Fatalf("explicit timezone changed: %+v %v", cfg, err)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fields, err := Fields(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, field := range fields {
+		if field.Key == "library.timezone" {
+			found = true
+			if field.Default != "Asia/Shanghai" || field.Value != "UTC" || !field.Explicit {
+				t.Fatalf("timezone field: %+v", field)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("timezone field missing")
+	}
+	if err = Update(path, Revision(raw), map[string]any{"library.timezone": nil}); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err = Load(path)
+	if err != nil || cfg.Library.Timezone != "Asia/Shanghai" {
+		t.Fatalf("reset timezone: %+v %v", cfg, err)
+	}
+	legacy, err := Decode([]byte("version = 1\n"))
+	if err != nil || legacy.Library.Timezone != "America/New_York" {
+		t.Fatalf("legacy timezone migration changed: %+v %v", legacy, err)
 	}
 }
