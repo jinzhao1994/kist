@@ -381,6 +381,7 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	pauseOnError := q.kind != "geo" || cfg.Geocoding.PauseOnError
 	auto, after := cfg.AIOptions.AutoOCR, cfg.AIOptions.AfterOp
 	if q.kind == "geo" {
 		auto, after = cfg.Geocoding.Automatic, cfg.Geocoding.AfterOp
@@ -421,7 +422,9 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 			} else {
 				s.Jobs[i].State = "failed"
 				s.Jobs[i].Error = "Metadata extraction was interrupted; retry explicitly"
-				s.Paused = true
+				if pauseOnError {
+					s.Paused = true
+				}
 				s.Error = s.Jobs[i].Error
 			}
 		}
@@ -506,6 +509,18 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 		unlock()
 		return err
 	}
+	if q.kind == "geo" {
+		cooling, e := q.library.locationCoolingDown(ctx)
+		if e != nil {
+			unlock()
+			return e
+		}
+		if cooling {
+			err = q.save(s)
+			unlock()
+			return err
+		}
+	}
 	s.Jobs[index].State = "running"
 	job := s.Jobs[index]
 	err = q.save(s)
@@ -514,10 +529,13 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 		return err
 	}
 	err = q.execute(context.WithValue(ctx, aiManualContextKey{}, job.Manual), job, cfg.AIOptions.Model, cfg.Library.Language)
-	return q.finishJob(job, err)
+	return q.finishJobWithPolicy(job, err, pauseOnError)
 }
 
 func (q *OCRQueue) finishJob(job OCRJob, err error) error {
+	return q.finishJobWithPolicy(job, err, true)
+}
+func (q *OCRQueue) finishJobWithPolicy(job OCRJob, err error, pauseOnError bool) error {
 	// Use a bounded independent context to record shutdown/cancellation failures.
 	finishCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -538,7 +556,9 @@ func (q *OCRQueue) finishJob(job OCRJob, err error) error {
 			} else {
 				s.Jobs[i].State = "failed"
 				s.Jobs[i].Error = err.Error()
-				s.Paused = true
+				if pauseOnError {
+					s.Paused = true
+				}
 				s.Error = err.Error()
 			}
 			break

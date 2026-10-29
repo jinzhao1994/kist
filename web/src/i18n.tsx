@@ -40,7 +40,13 @@ export const en = {
   geoCaptureHint:
     "The marker is the photo’s GPS position. The circle shows recorded accuracy when available.",
   geoSettingsHint:
-    "Photon receives GPS coordinates only. No account or key is required. Requests run serially, at least 2 seconds apart; errors pause the queue. Opening a map requests tiles from the configured map provider.",
+    "Photon converts a photo’s GPS coordinates into a nearby address. It receives only the coordinates, not the photo or recognized text. No account or API key is required. Requests run one at a time.",
+  geoRequestInterval: "Request interval (seconds)",
+  geoRequestIntervalHint:
+    "Minimum wait after each request. The default is 2 seconds. Rate-limit and temporary-failure cooldowns may be longer.",
+  geoPauseOnError: "Pause background queries on failure",
+  geoPauseOnErrorHint:
+    "Enabled by default. When disabled, failed items stay available for explicit retry and the queue continues with other photos after the service cooldown.",
   geoAuto: "Look up locations of new images automatically",
   geoAutoHint:
     "Only images added after enabling this setting. Existing images use the backfill button below.",
@@ -1028,7 +1034,13 @@ export const zh: Record<MessageKey, string> = {
   geoMap: "拍摄位置地图",
   geoCaptureHint: "标记为照片的 GPS 位置；圆圈表示照片记录的定位误差（如有）。",
   geoSettingsHint:
-    "Photon 仅接收 GPS 经纬度，无需账号或密钥。请求串行执行，至少间隔 2 秒；失败后暂停队列。打开地图会向配置的地图服务请求该区域地图。",
+    "使用 Photon 将照片的 GPS 坐标转换为附近地址。仅发送经纬度，不发送照片或识别文字，无需账号或密钥。查询请求逐个执行。",
+  geoRequestInterval: "请求间隔（秒）",
+  geoRequestIntervalHint:
+    "每次请求结束后的最短等待时间，默认 2 秒。服务限流或暂时不可用时，等待时间可能更长。",
+  geoPauseOnError: "查询失败后暂停后台处理",
+  geoPauseOnErrorHint:
+    "默认开启。关闭后，失败项仍需手动重试；等待服务冷却后继续处理其他照片。",
   geoAuto: "自动查询新增图片的位置",
   geoAutoHint: "仅处理开启后新增的图片，已有图片可通过下方按钮补全。",
   geoEndpoint: "Photon 接口地址",

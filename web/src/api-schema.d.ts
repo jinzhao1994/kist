@@ -2146,6 +2146,9 @@ export interface components {
         LocationSettings: {
             automatic: boolean;
             endpoint: string;
+            pause_on_error: boolean;
+            /** Format: int64 */
+            request_interval_seconds: number;
             revision: string;
         };
         MapProvider: {

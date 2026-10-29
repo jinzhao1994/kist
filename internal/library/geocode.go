@@ -105,6 +105,11 @@ func (l *Library) lookupLocation(ctx context.Context, provider geocode.Provider,
 		return geocode.Result{}, err
 	}
 	defer release()
+	cfg, err := config.Load(l.layout.ConfigPath())
+	if err != nil {
+		return geocode.Result{}, err
+	}
+	interval := time.Duration(cfg.Geocoding.RequestIntervalSeconds) * time.Second
 	db, err := l.runtimeStore()
 	if err != nil {
 		return geocode.Result{}, err
@@ -138,7 +143,7 @@ func (l *Library) lookupLocation(ctx context.Context, provider geocode.Provider,
 		return geocode.Result{}, err
 	}
 	if delay := time.Until(next); delay > 0 {
-		if delay > 2*time.Second {
+		if delay > interval {
 			return geocode.Result{}, &geocode.RetryError{After: delay}
 		}
 		timer := time.NewTimer(delay)
@@ -157,13 +162,15 @@ func (l *Library) lookupLocation(ctx context.Context, provider geocode.Provider,
 		return e
 	}
 	// Reserve before I/O, so a killed process cannot release a burst of requests.
-	if err = save(time.Now().Add(2 * time.Second)); err != nil {
+	if err = save(time.Now().Add(interval)); err != nil {
 		return geocode.Result{}, err
 	}
 	result, callErr := provider.Reverse(ctx, point)
-	delay := 2 * time.Second
+	delay := interval
 	if callErr != nil {
-		delay = time.Minute
+		if delay < time.Minute {
+			delay = time.Minute
+		}
 		var retry *geocode.RetryError
 		if errors.As(callErr, &retry) && retry.After > delay {
 			delay = retry.After
@@ -175,16 +182,37 @@ func (l *Library) lookupLocation(ctx context.Context, provider geocode.Provider,
 	return result, callErr
 }
 
+// locationCoolingDown lets the worker leave queued jobs untouched while the
+// service cooldown is active, including when failures do not pause the queue.
+func (l *Library) locationCoolingDown(ctx context.Context) (bool, error) {
+	db, err := l.runtimeStore()
+	if err != nil {
+		return false, err
+	}
+	var raw string
+	err = db.DB.QueryRowContext(ctx, `SELECT next_at FROM service_limits WHERE service='photon'`).Scan(&raw)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	next, err := time.Parse(time.RFC3339Nano, raw)
+	return next.After(time.Now()), err
+}
+
 type LocationSettings struct {
-	Automatic bool   `json:"automatic"`
-	Endpoint  string `json:"endpoint" maxLength:"2048"`
-	Revision  string `json:"revision"`
+	RequestIntervalSeconds int    `json:"request_interval_seconds" minimum:"0" maximum:"86400"`
+	PauseOnError           bool   `json:"pause_on_error"`
+	Automatic              bool   `json:"automatic"`
+	Endpoint               string `json:"endpoint" maxLength:"2048"`
+	Revision               string `json:"revision"`
 }
 
 func locationSettings(c config.Geocoding) LocationSettings {
 	raw, _ := json.Marshal(c)
 	sum := sha256.Sum256(raw)
-	return LocationSettings{Automatic: c.Automatic, Endpoint: c.Endpoint, Revision: hex.EncodeToString(sum[:])}
+	return LocationSettings{RequestIntervalSeconds: c.RequestIntervalSeconds, PauseOnError: c.PauseOnError, Automatic: c.Automatic, Endpoint: c.Endpoint, Revision: hex.EncodeToString(sum[:])}
 }
 func (l *Library) LocationSettings(ctx context.Context) (LocationSettings, error) {
 	c, err := config.Load(l.layout.ConfigPath())
@@ -214,13 +242,13 @@ func (l *Library) SaveLocationSettings(ctx context.Context, in LocationSettings)
 	if in.Revision == "" || in.Revision != locationSettings(cfg.Geocoding).Revision {
 		return LocationSettings{}, config.ErrChanged
 	}
-	next := config.Geocoding{Automatic: in.Automatic, Endpoint: in.Endpoint, AfterOp: cfg.Geocoding.AfterOp}
+	next := config.Geocoding{RequestIntervalSeconds: in.RequestIntervalSeconds, PauseOnError: in.PauseOnError, Automatic: in.Automatic, Endpoint: in.Endpoint, AfterOp: cfg.Geocoding.AfterOp}
 	if next.Automatic && !cfg.Geocoding.Automatic {
 		next.AfterOp, err = store.MaxOpID(l.db)
 		if err != nil {
 			return LocationSettings{}, err
 		}
 	}
-	err = config.Update(l.layout.ConfigPath(), "", map[string]any{"geocoding.automatic": next.Automatic, "geocoding.endpoint": next.Endpoint, "geocoding.after_op": next.AfterOp})
+	err = config.Update(l.layout.ConfigPath(), "", map[string]any{"geocoding.request_interval_seconds": next.RequestIntervalSeconds, "geocoding.pause_on_error": next.PauseOnError, "geocoding.automatic": next.Automatic, "geocoding.endpoint": next.Endpoint, "geocoding.after_op": next.AfterOp})
 	return locationSettings(next), err
 }

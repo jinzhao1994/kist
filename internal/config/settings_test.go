@@ -52,7 +52,7 @@ func TestSparseDefaultsAndResetPreserveComments(t *testing.T) {
 
 func TestConfigRejectsInvalidUpdatesWithoutChangingFile(t *testing.T) {
 	path := writeConfig(t, "version = 2\n")
-	for key, value := range map[string]any{"appearance.primary_color": "invalid", "server.listen": "0.0.0.0:8473", "client.cache_max_age": "-1h", "server.max_upload_files": 0, "unknown": true} {
+	for key, value := range map[string]any{"appearance.primary_color": "invalid", "server.listen": "0.0.0.0:8473", "client.cache_max_age": "-1h", "server.max_upload_files": 0, "unknown": true, "geocoding.request_interval_seconds": -1} {
 		raw, _ := os.ReadFile(path)
 		if err := Update(path, Revision(raw), map[string]any{key: value}); err == nil {
 			t.Fatalf("accepted %s", key)

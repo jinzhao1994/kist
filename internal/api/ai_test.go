@@ -172,3 +172,50 @@ func TestManualImageRotationHTTPContract(t *testing.T) {
 		}
 	}
 }
+
+func TestLocationPolicyHTTPRoundTrip(t *testing.T) {
+	s, _ := testServer(t)
+	call := func(method, body string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(method, "http://localhost:8473"+Prefix+"/geo/settings", strings.NewReader(body))
+		r.RemoteAddr = "127.0.0.1:1234"
+		r.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		s.ServeHTTP(w, r)
+		return w
+	}
+	var data map[string]any
+	read := func() {
+		t.Helper()
+		w := call("GET", "")
+		if w.Code != 200 {
+			t.Fatal(w.Code, w.Body.String())
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &data); err != nil {
+			t.Fatal(err)
+		}
+	}
+	read()
+	if data["request_interval_seconds"] != float64(2) || data["pause_on_error"] != true {
+		t.Fatal("incorrect defaults", data)
+	}
+	data["request_interval_seconds"] = 0
+	data["pause_on_error"] = false
+	raw, _ := json.Marshal(data)
+	w := call("PUT", string(raw))
+	if w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	read()
+	if data["request_interval_seconds"] != float64(0) || data["pause_on_error"] != false {
+		t.Fatal("explicit zero/false replaced by defaults", data)
+	}
+	data["request_interval_seconds"] = -1
+	raw, _ = json.Marshal(data)
+	if w = call("PUT", string(raw)); w.Code < 400 {
+		t.Fatal("accepted negative interval")
+	}
+	read()
+	if data["request_interval_seconds"] != float64(0) {
+		t.Fatal("invalid settings were persisted")
+	}
+}

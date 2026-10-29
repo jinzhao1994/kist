@@ -3,6 +3,7 @@ package library
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -154,5 +155,121 @@ func TestLocationCooldownSurvivesClientReplacement(t *testing.T) {
 	var retry *geocode.RetryError
 	if !errors.As(err, &retry) || retry.After < 2*time.Minute || len(replacement.called) != 0 {
 		t.Fatal("retry ignored persisted cooldown", err, replacement.called)
+	}
+}
+
+func TestLocationFailurePolicyAndCooldown(t *testing.T) {
+	for _, pause := range []bool{true, false} {
+		t.Run(fmt.Sprint(pause), func(t *testing.T) {
+			calls := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls++
+				if calls == 1 {
+					w.WriteHeader(http.StatusServiceUnavailable)
+					return
+				}
+				_, _ = w.Write([]byte(`{"type":"FeatureCollection","features":[{"properties":{"type":"street","name":"Test Road"}}]}`))
+			}))
+			defer server.Close()
+			l := openTestLibrary(t)
+			first, second := ocrFile(t, l), ocrFile(t, l)
+			extractWith(t, l, &fakeExtractor{id: "exif", ns: []string{"gps", "exif"}, version: 1, tags: []extract.KV{{Key: "gps:Latitude", Value: "12", Type: extract.TypeReal}, {Key: "gps:Longitude", Value: "34", Type: extract.TypeReal}}})
+			settings, err := l.LocationSettings(t.Context())
+			if err != nil {
+				t.Fatal(err)
+			}
+			settings.Automatic = false
+			settings.Endpoint = server.URL
+			settings.RequestIntervalSeconds = 0
+			settings.PauseOnError = pause
+			saved, err := l.SaveLocationSettings(t.Context(), settings)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if saved.RequestIntervalSeconds != 0 || saved.PauseOnError != pause {
+				t.Fatal("policy not saved")
+			}
+			q := l.LocationQueue()
+			if _, err = q.Request(t.Context(), first, false); err != nil {
+				t.Fatal(err)
+			}
+			if _, err = q.Request(t.Context(), second, false); err != nil {
+				t.Fatal(err)
+			}
+			if err = q.Step(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			status, err := q.Status(t.Context())
+			if err != nil || status.Paused != pause {
+				t.Fatal("unexpected pause policy", err, status)
+			}
+			requireOCRState(t, q, first, "failed")
+			if err = q.Step(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			requireOCRState(t, q, second, "queued")
+			if calls != 1 {
+				t.Fatal("cooldown did not protect the next item")
+			}
+			db, err := l.runtimeStore()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err = db.DB.Exec(`UPDATE service_limits SET next_at=? WHERE service='photon'`, time.Now().Add(-time.Second).Format(time.RFC3339Nano)); err != nil {
+				t.Fatal(err)
+			}
+			if pause {
+				if _, err = q.Pause(t.Context(), false); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err = q.Step(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			requireOCRState(t, q, second, "ready")
+			requireOCRState(t, q, first, "failed")
+			if calls != 2 {
+				t.Fatal("failed item was retried or next item did not run", calls)
+			}
+		})
+	}
+}
+
+func TestLocationConfiguredInterval(t *testing.T) {
+	l := openTestLibrary(t)
+	settings, err := l.LocationSettings(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settings.RequestIntervalSeconds != 2 || !settings.PauseOnError {
+		t.Fatal("unexpected defaults", settings)
+	}
+	settings.RequestIntervalSeconds = 7
+	if _, err = l.SaveLocationSettings(t.Context(), settings); err != nil {
+		t.Fatal(err)
+	}
+	p := &recordingGeocoder{}
+	if _, err = l.lookupLocation(t.Context(), p, geocode.Point{}); err != nil {
+		t.Fatal(err)
+	}
+	db, err := l.runtimeStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var raw string
+	if err = db.DB.QueryRow(`SELECT next_at FROM service_limits WHERE service='photon'`).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	next, err := time.Parse(time.RFC3339Nano, raw)
+	if err != nil || time.Until(next) < 6*time.Second {
+		t.Fatal("configured interval was ignored", err)
+	}
+	settings, err = l.LocationSettings(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings.RequestIntervalSeconds = -1
+	if _, err = l.SaveLocationSettings(t.Context(), settings); err == nil {
+		t.Fatal("accepted negative interval")
 	}
 }

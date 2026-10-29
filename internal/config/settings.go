@@ -69,7 +69,7 @@ func Defaults(mode string) *Config {
 	if mode == "client" {
 		listen = "127.0.0.1:8474"
 	}
-	return &Config{Geocoding: Geocoding{Endpoint: geocode.DefaultEndpoint}, Version: CurrentVersion, Mode: mode,
+	return &Config{Geocoding: Geocoding{Endpoint: geocode.DefaultEndpoint, RequestIntervalSeconds: 2, PauseOnError: true}, Version: CurrentVersion, Mode: mode,
 		Appearance: Appearance{PrimaryColor: "blue"},
 		Library:    Library{Timezone: "UTC", Language: "zh-CN"},
 		Client:     Client{CacheMaxAge: "180d", CacheMaxBytes: 10 << 30},
@@ -89,6 +89,9 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("invalid library language")
 	}
 
+	if c.Geocoding.RequestIntervalSeconds < 0 || c.Geocoding.RequestIntervalSeconds > 86400 {
+		return fmt.Errorf("location request interval must be between 0 and 86400 seconds")
+	}
 	if c.Geocoding.AfterOp < 0 || len(c.Geocoding.Endpoint) > 2048 {
 		return fmt.Errorf("invalid geocoding settings")
 	}

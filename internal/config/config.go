@@ -31,9 +31,11 @@ type AIOptions struct {
 }
 
 type Geocoding struct {
-	Automatic bool   `toml:"automatic" json:"automatic"`
-	Endpoint  string `toml:"endpoint" json:"endpoint"`
-	AfterOp   int64  `toml:"after_op" json:"after_op"`
+	RequestIntervalSeconds int    `toml:"request_interval_seconds" json:"request_interval_seconds"`
+	PauseOnError           bool   `toml:"pause_on_error" json:"pause_on_error"`
+	Automatic              bool   `toml:"automatic" json:"automatic"`
+	Endpoint               string `toml:"endpoint" json:"endpoint"`
+	AfterOp                int64  `toml:"after_op" json:"after_op"`
 }
 
 type Config struct {

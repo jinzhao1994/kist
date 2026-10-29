@@ -191,6 +191,8 @@ async function prepare(page: Page, options: Options = {}) {
         json: {
           automatic: true,
           endpoint: "https://photon.komoot.io/reverse",
+          request_interval_seconds: 2,
+          pause_on_error: true,
           revision: "visual",
         },
       });
@@ -5375,6 +5377,27 @@ test("settings-location", async ({ page }, info) => {
     section.getByRole("button", { name: "补全已有图片的位置", exact: true }),
   ).toBeEnabled();
   await expect(
+    section.getByRole("textbox", { name: "请求间隔（秒）", exact: true }),
+  ).toHaveValue("2");
+  await expect(
+    section.getByRole("checkbox", {
+      name: "查询失败后暂停后台处理",
+      exact: true,
+    }),
+  ).toBeChecked();
+  await expect(section.getByText("请求串行执行", { exact: false })).toHaveCount(
+    0,
+  );
+  const sectionHelp = section.getByRole("button", {
+    name: "拍摄位置",
+    exact: true,
+  });
+  await sectionHelp.hover();
+  await expect(page.getByRole("tooltip")).toContainText("仅发送经纬度");
+  await page.mouse.move(5, 5);
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+
+  await expect(
     section.getByRole("heading", { name: "后台处理", exact: true }),
   ).toBeVisible();
   await expect(
@@ -5391,6 +5414,7 @@ test("settings-location", async ({ page }, info) => {
   const iconBox = await toggleHelp.boundingBox();
   const labelBox = await section
     .locator(".setting-checkbox label")
+    .first()
     .boundingBox();
   expect(iconBox).not.toBeNull();
   expect(labelBox).not.toBeNull();
