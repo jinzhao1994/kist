@@ -102,7 +102,7 @@ it("reveals local settings together, reuses requests and does not wait for remot
   await waitFor(() => expect(reads).toContain("/ai/settings"));
   expect(reads).toContain("/geo/settings");
   expect(
-    screen.queryByRole("heading", { name: "Location", level: 2 }),
+    screen.queryByRole("heading", { name: "GPS", level: 2 }),
   ).not.toBeInTheDocument();
   await waitFor(() =>
     expect(client.getQueryData(["sync-credentials"])).toEqual([]),
@@ -114,7 +114,7 @@ it("reveals local settings together, reuses requests and does not wait for remot
   });
   releaseLocation(Response.json(location));
   expect(
-    await screen.findByRole("heading", { name: "Location", level: 2 }),
+    await screen.findByRole("heading", { name: "GPS", level: 2 }),
   ).toBeVisible();
   expect(
     screen.getByLabelText("Photon endpoint", { selector: "input" }),
@@ -160,7 +160,7 @@ it("reveals local settings together, reuses requests and does not wait for remot
     .getByRole("rowheader", { name: /^OCR/ })
     .closest("tr")!;
   const geo = within(background)
-    .getByRole("rowheader", { name: /^Location/ })
+    .getByRole("rowheader", { name: /^GPS/ })
     .closest("tr")!;
   const ocrPause = within(ocr).getByRole("button", {
     name: "Pause",
@@ -185,9 +185,7 @@ it("reveals local settings together, reuses requests and does not wait for remot
   );
   expect(geoPause).toBeDisabled();
   expect(ocrPause).toBeEnabled();
-  await user.click(
-    screen.getByRole("button", { name: "Reload location settings" }),
-  );
+  await user.click(screen.getByRole("button", { name: "Reload GPS settings" }));
   await waitFor(() => expect(geoPause).toBeEnabled());
   await user.click(ocrPause);
   expect(
@@ -276,9 +274,9 @@ it("keeps task commands scoped to their row and distinguishes backfill from retr
       </ThemeProvider>
     </QueryClientProvider>,
   );
-  const row = (
-    await screen.findByRole("rowheader", { name: /^Location/ })
-  ).closest("tr")!;
+  const row = (await screen.findByRole("rowheader", { name: /^GPS/ })).closest(
+    "tr",
+  )!;
   await waitFor(() =>
     expect(within(row).getByRole("status")).toHaveTextContent(/^Paused$/),
   );

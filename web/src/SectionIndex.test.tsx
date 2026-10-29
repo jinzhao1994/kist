@@ -59,9 +59,9 @@ it("follows late layout changes until the user scrolls and resumes on index navi
   const view = render(
     <ThemeProvider env="test">
       <I18nProvider>
-        <SectionIndex items={[{ id: "settings-location", label: "Location" }]}>
+        <SectionIndex items={[{ id: "settings-location", label: "GPS" }]}>
           <section>Loading AI settings</section>
-          <section id="settings-location">Location settings</section>
+          <section id="settings-location">GPS settings</section>
         </SectionIndex>
       </I18nProvider>
     </ThemeProvider>,
@@ -79,7 +79,7 @@ it("follows late layout changes until the user scrolls and resumes on index navi
     await new Promise(requestAnimationFrame);
   });
   expect(scroll).toHaveBeenCalledTimes(2);
-  fireEvent.click(view.getByRole("link", { name: "Location" }));
+  fireEvent.click(view.getByRole("link", { name: "GPS" }));
   await waitFor(() => expect(scroll).toHaveBeenCalledTimes(3));
   act(() => resized!());
   await waitFor(() => expect(scroll).toHaveBeenCalledTimes(4));

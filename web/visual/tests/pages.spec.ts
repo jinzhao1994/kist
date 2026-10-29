@@ -5433,7 +5433,7 @@ for (const anchor of ["location", "background-tasks"] as const) {
     }
     const section = page.locator("#settings-location");
     await expect(
-      section.getByRole("checkbox", { name: "自动查询新增图片的位置" }),
+      section.getByRole("checkbox", { name: "自动查询新增文件的位置" }),
     ).toBeChecked();
     await expect(
       section.getByRole("button", { name: "暂停处理", exact: true }),
@@ -5443,7 +5443,7 @@ for (const anchor of ["location", "background-tasks"] as const) {
     ).toHaveCount(0);
 
     await expect(
-      section.getByRole("button", { name: "补全已有图片的位置", exact: true }),
+      section.getByRole("button", { name: "补全已有文件的位置", exact: true }),
     ).toHaveCount(0);
     await expect(
       section.getByRole("textbox", { name: "请求间隔（秒）", exact: true }),
@@ -5458,13 +5458,13 @@ for (const anchor of ["location", "background-tasks"] as const) {
       section.getByText("请求串行执行", { exact: false }),
     ).toHaveCount(0);
     const sectionHelp = section.getByRole("button", {
-      name: "位置",
+      name: "GPS",
       exact: true,
     });
     await sectionHelp.hover();
     await expect(page.getByRole("tooltip")).toContainText("仅发送经纬度");
     await expect(page.getByRole("tooltip")).toContainText(
-      "没有 GPS 的照片会跳过",
+      "没有 GPS 的文件会跳过",
     );
     await page.mouse.move(5, 5);
     await expect(page.getByRole("tooltip")).toHaveCount(0);
@@ -5478,7 +5478,7 @@ for (const anchor of ["location", "background-tasks"] as const) {
       exact: true,
     });
     const toggleHelp = section.getByRole("button", {
-      name: "自动查询新增图片的位置",
+      name: "自动查询新增文件的位置",
       exact: true,
     });
     const iconBox = await toggleHelp.boundingBox();
@@ -5504,7 +5504,7 @@ for (const anchor of ["location", "background-tasks"] as const) {
       section.getByRole("textbox", { name: "Photon 接口地址", exact: true }),
     ).toHaveValue("https://photon.komoot.io/reverse");
     await expect(
-      section.getByRole("heading", { name: "位置", exact: true }),
+      section.getByRole("heading", { name: "GPS", exact: true }),
     ).toBeInViewport();
     await capture(page, errors, info.title);
   });

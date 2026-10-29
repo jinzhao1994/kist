@@ -54,7 +54,7 @@ it("edits endpoint policy together without starting a lookup", async () => {
       </I18nProvider>
     </QueryClientProvider>,
   );
-  expect(screen.getByRole("heading", { name: "Location" })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "GPS" })).toBeVisible();
   const input = await screen.findByRole("textbox", {
     name: "Request interval (seconds)",
   });
@@ -66,14 +66,12 @@ it("edits endpoint policy together without starting a lookup", async () => {
   const user = userEvent.setup();
   await user.clear(input);
   expect(
-    screen.getByRole("button", { name: "Save location settings" }),
+    screen.getByRole("button", { name: "Save GPS settings" }),
   ).toBeDisabled();
   await user.type(input, "5");
   await user.click(pause);
   expect(writes).toHaveLength(0);
-  await user.click(
-    screen.getByRole("button", { name: "Save location settings" }),
-  );
+  await user.click(screen.getByRole("button", { name: "Save GPS settings" }));
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0]).toMatchObject({
     request_interval_seconds: 5,
