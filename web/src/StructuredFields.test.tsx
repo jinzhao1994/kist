@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -150,6 +150,41 @@ it("confirms subtree deletion with its stable path", async () => {
     before_value: data,
     remove: true,
   });
+});
+it("displays matching labels and deletes only the selected field path", async () => {
+  const fetch = vi.fn(async () => Response.json({ op_id: 1 }));
+  vi.stubGlobal("fetch", fetch);
+  const fields = [
+    { key: "number", value: "00456" },
+    { key: "document_number", value: "00123" },
+  ].map((field) => ({
+    ...field,
+    label: "Number",
+    type: "text",
+    source: "ai",
+  }));
+  const value = JSON.stringify({ version: 1, fields });
+  const view = mount(value);
+  expect(view.container.querySelectorAll("dt bdi")).toHaveLength(2);
+  expect(screen.getAllByRole("button", { name: "Delete Number" })).toHaveLength(
+    2,
+  );
+  const oldRow = screen.getByText("00123", { selector: "bdi" }).closest("dl")!;
+  const user = userEvent.setup();
+  await user.click(
+    within(oldRow).getByRole("button", { name: "Delete Number" }),
+  );
+  expect(fetch).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "Confirm deletion" }));
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+  const [, init] = (fetch.mock.calls as unknown as [string, RequestInit][])[0];
+  expect(JSON.parse(String(init.body))).toMatchObject({
+    key: "facts:data",
+    path: "/document_number",
+    before_value: value,
+    remove: true,
+  });
+  expect(screen.getByText("00456", { selector: "bdi" })).toBeVisible();
 });
 it("keeps unsupported document formats out of the editable interface", () => {
   mount('{"version":999,"fields":[]}');

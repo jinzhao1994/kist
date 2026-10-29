@@ -155,13 +155,8 @@ func TestArrayIdentitySurvivesReordering(t *testing.T) {
 
 func TestStructuralChangesAndResourceBounds(t *testing.T) {
 	d := model(t, `[{"key":"name","label":"Name","type":"text","value":"A"}]`)
-	for _, next := range []Document{
-		model(t, `[{"key":"name","label":"Name","type":"object"}]`),
-		model(t, `[{"key":"holder_name","label":"Name","type":"text","value":"B"}]`),
-	} {
-		if _, err := Merge(d, next); err == nil {
-			t.Fatal("accepted ambiguous structural change")
-		}
+	if _, err := Merge(d, model(t, `[{"key":"name","label":"Name","type":"object"}]`)); err == nil {
+		t.Fatal("accepted a type change at the same field path")
 	}
 	children := `{"key":"leaf","label":"Leaf","type":"text","value":"x"}`
 	for range MaxDepth {
@@ -183,6 +178,34 @@ func TestStructuralChangesAndResourceBounds(t *testing.T) {
 	duplicate := `{"key":"name","label":"Name","type":"text","value":"B"}`
 	if _, err := ParseModel(`{"fields":[` + duplicate + `,` + duplicate + `]}`); err == nil {
 		t.Fatal("accepted duplicate semantic keys")
+	}
+}
+
+func TestMergeTreatsMatchingLabelsAsIndependentFields(t *testing.T) {
+	for _, source := range []string{"ai", "user", "deleted"} {
+		t.Run(source, func(t *testing.T) {
+			before := model(t, `[{"key":"document_number","label":"Number","type":"text","value":"00123"}]`)
+			if source != "ai" {
+				before.Fields[0].Source = "user"
+				before.Fields[0].Deleted = source == "deleted"
+			}
+			next := model(t, `[{"key":"number","label":"Number","type":"text","value":"00456"}]`)
+			merged, err := Merge(before, next)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(merged.Fields) != 2 || !reflect.DeepEqual(merged.Fields[0], next.Fields[0]) || !reflect.DeepEqual(merged.Fields[1], before.Fields[0]) {
+				t.Fatal("new field was conflated with the old field or old ownership changed")
+			}
+			again, err := Merge(merged, next)
+			if err != nil || !reflect.DeepEqual(merged, again) {
+				t.Fatal("repeating the same keys created duplicate fields", err)
+			}
+			removed, err := Edit(merged, "/number", "", true)
+			if err != nil || !removed.Fields[0].Deleted || !reflect.DeepEqual(removed.Fields[1], before.Fields[0]) {
+				t.Fatal("deleting one label affected another field", err)
+			}
+		})
 	}
 }
 

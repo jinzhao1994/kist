@@ -64,10 +64,26 @@ func TestFactsHumanFieldsMergeUndoRebuildAndSync(t *testing.T) {
 		t.Fatal(err)
 	}
 	p.text = strings.Replace(syntheticFacts, `"value":"28"`, `"value":"29"`, 1)
+	// A different key with the same label is an independent observation; it
+	// must not rename or resurrect the user's suppressed document_number.
+	p.text = strings.Replace(p.text, `"key":"document_number"`, `"key":"number"`, 1)
 	saveFacts(t, l, id, p, "facts-second", true)
 	r := metaOf(t, l, id)["facts:data"]
 	if r.Source != "facts" || !strings.Contains(r.Value, `"value":"Correct Person"`) || !strings.Contains(r.Value, `"deleted":true`) || !strings.Contains(r.Value, `"value":"29"`) {
 		t.Fatal("lost per-field protection", r)
+	}
+	merged, err := structured.Parse(r.Value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	numbers := map[string]structured.Field{}
+	for _, f := range merged.Fields {
+		if f.Label == "Number" {
+			numbers[f.Key] = f
+		}
+	}
+	if len(numbers) != 2 || numbers["number"].Source != "ai" || numbers["number"].Deleted || !numbers["document_number"].Deleted || numbers["document_number"].Source != "user" {
+		t.Fatal("matching labels lost their independent identity")
 	}
 	if strings.Contains(p.options.Outline, "Correct Person") || strings.Contains(p.options.Outline, "001234") {
 		t.Fatal("outline included previous values")

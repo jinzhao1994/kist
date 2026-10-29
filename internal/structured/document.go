@@ -323,11 +323,8 @@ func mergeFields(old *[]Field, next []Field, parent string) error {
 			}
 		}
 		if index < 0 {
-			for _, o := range *old {
-				if strings.EqualFold(o.Label, n.Label) {
-					return invalid(path, "ambiguous renamed field; reuse its existing key")
-				}
-			}
+			// Labels are presentation text, not identity. A new key is a new
+			// field even when its label matches an existing or suppressed field.
 			raw, _ := json.Marshal(n)
 			var copy Field
 			_ = json.Unmarshal(raw, &copy)
