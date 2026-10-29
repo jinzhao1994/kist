@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"path/filepath"
 
 	"github.com/jinzhao1994/kist/internal/journal"
 	"github.com/jinzhao1994/kist/internal/oplog"
@@ -43,8 +42,7 @@ func (c *Client) catalogStatusLocked() (ClientCatalogStatus, error) {
 	if found {
 		status.Downloaded = last.ID
 	}
-	var transfer SyncBoundary
-	err = readClientJSON(filepath.Join(c.root, "catalog-transfer.json"), &transfer)
+	transfer, err := c.readBoundary("catalog-transfer")
 	if err == nil {
 		status.Transfer = &transfer
 	} else if !errors.Is(err, os.ErrNotExist) {
@@ -133,7 +131,7 @@ func (c *Client) receiveCatalogPage(ctx context.Context, page SyncCatalogPage, a
 			return ErrSyncConflict
 		}
 	}
-	if err := writeClientJSON(filepath.Join(c.root, "catalog-transfer.json"), page.Boundary); err != nil {
+	if err := c.writeBoundary("catalog-transfer", page.Boundary); err != nil {
 		return err
 	}
 	for _, line := range lines {
@@ -150,7 +148,7 @@ func (c *Client) receiveCatalogPage(ctx context.Context, page SyncCatalogPage, a
 	if !page.Done {
 		return nil
 	}
-	if err := writeClientJSON(filepath.Join(c.root, "catalog-head.json"), page.Boundary); err != nil {
+	if err := c.writeBoundary("catalog-head", page.Boundary); err != nil {
 		return err
 	}
 	_, err = c.rebuildLocked(ctx)

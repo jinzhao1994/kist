@@ -45,7 +45,7 @@ func (c *Client) originalSize(ctx context.Context, key string) (int64, error) {
 
 func (c *Client) cacheRecord(key string) (cachedOriginal, error) {
 	var record cachedOriginal
-	err := readClientJSON(c.cachePath(key, ".json"), &record)
+	err := func() error { var e error; record, e = c.readCacheObject(key); return e }()
 	if err != nil {
 		return record, err
 	}
@@ -64,7 +64,7 @@ func (c *Client) saveCacheRecord(ctx context.Context, record cachedOriginal) err
 		return err
 	}
 	defer release()
-	return writeClientJSON(c.cachePath(record.Key, ".json"), record)
+	return c.writeCacheObject(record)
 }
 
 func verifyCachedFile(ctx context.Context, file io.ReadSeeker, key string, size int64) error {
@@ -129,13 +129,17 @@ func (c *Client) cacheContent(ctx context.Context, key string, size int64, sourc
 			// An explicit retry discards invalid bytes and their obsolete
 			// reservation before admitting the trusted descriptor's size.
 			// A rebuilt orphan may only have known its damaged byte length.
-			for _, extension := range []string{".data", ".json"} {
+			for _, extension := range []string{".data"} {
 				if err := os.Remove(c.cachePath(key, extension)); err != nil && !errors.Is(err, os.ErrNotExist) {
 					release()
 					return err
 				}
 			}
 			if err := syncClientDir(filepath.Join(c.root, "cache", "objects")); err != nil {
+				release()
+				return err
+			}
+			if err := c.deleteCacheObject(key); err != nil {
 				release()
 				return err
 			}
@@ -162,7 +166,7 @@ func (c *Client) cacheContent(ctx context.Context, key string, size int64, sourc
 		return ErrCacheQuota
 	}
 	record.AccessedAt = time.Now().UTC()
-	err = writeClientJSON(c.cachePath(key, ".json"), record)
+	err = c.writeCacheObject(record)
 	release()
 	if err != nil {
 		return err
@@ -312,7 +316,7 @@ func (c *Client) openCachedLeased(ctx context.Context, key string, release func(
 		return nil, err
 	}
 	record.AccessedAt = time.Now().UTC()
-	err = writeClientJSON(c.cachePath(key, ".json"), record)
+	err = c.writeCacheObject(record)
 	unlock()
 	if err != nil {
 		return nil, err
@@ -353,7 +357,7 @@ func (r *cachedReader) Close() error {
 		record, err := r.client.cacheRecord(r.key)
 		if err == nil {
 			record.AccessedAt = time.Now().UTC()
-			err = writeClientJSON(r.client.cachePath(r.key, ".json"), record)
+			err = r.client.writeCacheObject(record)
 		}
 		r.err = errors.Join(r.err, err)
 	})

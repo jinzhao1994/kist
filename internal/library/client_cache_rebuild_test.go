@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -24,7 +23,7 @@ func TestClientCacheRebuildPreservesPinsAndProtectedOriginals(t *testing.T) {
 	if err := c.SetOfflineOriginals(t.Context(), "trip", []string{f.BlobKey}); err != nil {
 		t.Fatal(err)
 	}
-	pinsBefore, err := os.ReadFile(filepath.Join(c.root, "cache-pins.json"))
+	pinsBefore, err := cachePinsBytes(c)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +35,7 @@ func TestClientCacheRebuildPreservesPinsAndProtectedOriginals(t *testing.T) {
 	if err := c.Stage(t.Context(), p); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Remove(c.cachePath(f.BlobKey, ".json")); err != nil {
+	if err := c.deleteCacheObject(f.BlobKey); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := c.CacheStatus(t.Context()); !errors.Is(err, ErrCacheMetadata) {
@@ -55,14 +54,14 @@ func TestClientCacheRebuildPreservesPinsAndProtectedOriginals(t *testing.T) {
 	if err != nil || result.Skipped != 1 || result.Verified != 0 {
 		t.Fatalf("rebuilt leased object: %+v %v", result, err)
 	}
-	if err := os.WriteFile(c.cachePath(f.BlobKey, ".json"), []byte("{broken index"), 0600); err != nil {
+	if err := damageCacheObject(c, f.BlobKey); err != nil {
 		t.Fatal(err)
 	}
 	result, err = c.RebuildCache(t.Context())
 	if err != nil || result.Verified != 1 {
 		t.Fatalf("damaged index recovery=%+v %v", result, err)
 	}
-	pinsAfter, err := os.ReadFile(filepath.Join(c.root, "cache-pins.json"))
+	pinsAfter, err := cachePinsBytes(c)
 	if err != nil || string(pinsBefore) != string(pinsAfter) {
 		t.Fatal("cache rebuild changed offline selections")
 	}
@@ -156,7 +155,7 @@ func TestClientCacheRebuildRetainsOnlyConfirmedPartialBytes(t *testing.T) {
 		t.Fatal(err)
 	}
 	record.Version = 2
-	if err := writeClientJSON(c.cachePath(f.BlobKey, ".json"), record); err != nil {
+	if err := c.writeCacheObject(record); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := c.RebuildCache(t.Context()); !errors.Is(err, ErrSyncVersion) {

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"path/filepath"
 	"strings"
 
 	"github.com/jinzhao1994/kist/internal/config"
@@ -62,22 +61,19 @@ func (s *Server) buildRuntime(opt Options) (*runtimeSettings, error) {
 		}
 		r.origins[u.Scheme+"://"+u.Host] = true
 	}
-	var uploadPath string
+	var stagingStore func(bool, int64, int) (*staging.Store, error)
 	if s.library != nil {
-		uploadPath = filepath.Join(s.library.Layout().Root, "uploads")
+		stagingStore = s.library.UploadStaging
 	} else {
-		uploadPath = s.client.UploadStagingPath()
+		stagingStore = s.client.UploadStaging
 	}
-	r.uploads, err = staging.New(uploadPath, r.maxUploadBytes, r.maxUploadFiles)
+	r.uploads, err = stagingStore(false, r.maxUploadBytes, r.maxUploadFiles)
 	if err != nil {
 		return nil, err
 	}
-	{
-		syncPath := filepath.Join(filepath.Dir(uploadPath), "sync-uploads")
-		r.syncUploads, err = staging.New(syncPath, r.maxUploadBytes, 1)
-		if err != nil {
-			return nil, err
-		}
+	r.syncUploads, err = stagingStore(true, r.maxUploadBytes, 1)
+	if err != nil {
+		return nil, err
 	}
 	if opt.ServiceSettings != nil {
 		raw, _ := json.Marshal(opt.ServiceSettings)

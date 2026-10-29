@@ -182,6 +182,28 @@ func (s *Server) queueRoutes(prefix string, queues map[string]*library.OCRQueue)
 			v, err := q.FileStatus(ctx, domain.FileID{ID: id})
 			return response(v, err)
 		})
+		huma.Get(s.contract, Prefix+"/files/{id}/"+kind+"/attempts", func(ctx context.Context, in *struct {
+			ID     string `path:"id"`
+			Before int64  `query:"before" minimum:"0"`
+		}) (*output[[]library.ExtractionAttempt], error) {
+			id, err := parseID(in.ID)
+			if err != nil {
+				return nil, err
+			}
+			v, err := q.Attempts(ctx, domain.FileID{ID: id}, in.Before)
+			return response(v, err)
+		})
+		huma.Get(s.contract, Prefix+"/files/{id}/"+kind+"/attempts/{request_id}", func(ctx context.Context, in *struct {
+			ID        string `path:"id"`
+			RequestID string `path:"request_id"`
+		}) (*output[library.ExtractionAttemptDetail], error) {
+			id, err := parseID(in.ID)
+			if err != nil {
+				return nil, err
+			}
+			v, err := q.Attempt(ctx, domain.FileID{ID: id}, in.RequestID)
+			return response(v, err)
+		})
 		huma.Post(s.contract, Prefix+"/files/{id}/"+kind, func(ctx context.Context, in *struct {
 			ID   string `path:"id"`
 			Body struct {

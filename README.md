@@ -318,12 +318,13 @@ rsync -a ~/kist/blobs/ /Volumes/Archive/kist/blobs/
 ```
 
 For a complete library backup, stop all writers (including imports and repairs),
-keep them stopped throughout the copy, and copy `kist.toml`, `ops/`, and `blobs/`
-to a new backup directory. A live copy is not a consistent backup, even when
+keep them stopped throughout the copy, and copy the entire instance directory
+to a new backup directory. This includes local `runtime.db` state and staging. A live copy is not a consistent backup, even when
 blobs are copied first. Keep the previous backup until the new copy completes.
 On a separate restored copy, run `kist rebuild`, `kist relink`,
 `kist verify --deep`, and `kist scrub` before using it. The blob-only copy above
-is a repair source, not a backup of the library's history.
+is a repair source, not a backup of the library's history. For archive-only recovery
+and the runtime storage upgrade boundary, see [operations](docs/operations.md).
 
 
 kist never writes to a remote, and never trusts one: content fetched from it is

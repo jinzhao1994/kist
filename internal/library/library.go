@@ -21,6 +21,7 @@ import (
 // write to one (invariant 2). api and cmd hold one of these; neither can reach
 // store's write side, because the write path is unexported.
 type Library struct {
+	runtime  runtimeHandle
 	layout   Layout
 	settings atomic.Pointer[loadedSettings]
 	db       *sql.DB
@@ -150,7 +151,7 @@ func (l *Library) Close() error {
 	if l.db == nil {
 		return nil
 	}
-	return l.db.Close()
+	return joinClose(l.db.Close(), &l.runtime)
 }
 
 // Layout exposes where things live, for commands that print paths.

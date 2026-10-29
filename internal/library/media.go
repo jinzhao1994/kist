@@ -3,13 +3,10 @@ package library
 import (
 	"context"
 	"crypto/rand"
-	"encoding/json"
+	"database/sql"
 	"errors"
-	"io"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
 	"time"
 
 	"github.com/jinzhao1994/kist/internal/blob"
@@ -71,24 +68,17 @@ func (m *Media) paths(j MediaJob) (state, content string, err error) {
 }
 
 func (m *Media) read(j MediaJob) (MediaJob, error) {
-	path, content, err := m.paths(j)
+	_, content, err := m.paths(j)
 	if err != nil {
 		return j, err
 	}
-	f, err := os.Open(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return j, nil
-	}
+	db, err := m.database()
 	if err != nil {
 		return j, err
 	}
-	defer f.Close()
-	var got MediaJob
-	err = json.NewDecoder(io.LimitReader(f, 16<<10)).Decode(&got)
-	// These records are expendable. A damaged record can be requested again;
-	// do not let it redirect a renderer or poison unrelated jobs.
-	if err != nil || got.BlobKey != j.BlobKey || got.Recipe != j.Recipe {
-		return j, nil
+	got, err := readMedia(db, "media", j)
+	if err != nil {
+		return j, err
 	}
 	switch got.State {
 	case "queued", "running", "ready", "blocked", "failed", "cancelled":
@@ -108,29 +98,18 @@ func (m *Media) read(j MediaJob) (MediaJob, error) {
 }
 
 func (m *Media) save(j MediaJob) error {
-	path, _, err := m.paths(j)
+	_, out, err := m.paths(j)
 	if err != nil {
 		return err
 	}
-	if err = os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err = os.MkdirAll(filepath.Dir(out), 0755); err != nil {
 		return err
 	}
-	f, err := os.CreateTemp(filepath.Dir(path), ".state-*")
+	db, err := m.database()
 	if err != nil {
 		return err
 	}
-	defer os.Remove(f.Name())
-	if err = json.NewEncoder(f).Encode(j); err == nil {
-		err = f.Sync()
-	}
-	closeErr := f.Close()
-	if err != nil {
-		return err
-	}
-	if closeErr != nil {
-		return closeErr
-	}
-	return os.Rename(f.Name(), path)
+	return db.Transaction(context.Background(), func(tx *sql.Tx) error { return saveMediaTx(tx, "media", j) })
 }
 
 // Status rereads disk, including outputs removed since the last request.
@@ -277,72 +256,15 @@ func (m *Media) claim(ctx context.Context) (MediaJob, bool, error) {
 		return MediaJob{}, false, err
 	}
 	defer release()
-	var pending []MediaJob
-	root := m.library.layout.Derived()
-	err = filepath.WalkDir(root, func(path string, d os.DirEntry, e error) error {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		if errors.Is(e, os.ErrNotExist) {
-			return nil
-		}
-		if e != nil {
-			return e
-		}
-		// The worker lock proves no other renderer can own temporary files.
-		// Only remove our names inside a validated blob directory; never walk
-		// or remove arbitrary caller-provided paths from a state record.
-		if strings.HasPrefix(d.Name(), ".render-") || strings.HasPrefix(d.Name(), ".heif-") {
-			rel, e := filepath.Rel(root, filepath.Dir(path))
-			parts := strings.Split(filepath.ToSlash(rel), "/")
-			if e == nil && len(parts) == 4 {
-				key, e := blob.ParseKey("sha256:" + parts[3])
-				if e == nil && filepath.Join(root, key.RelPath()) == filepath.Dir(path) {
-					if e = os.RemoveAll(path); e != nil {
-						return e
-					}
-					if d.IsDir() {
-						return filepath.SkipDir
-					}
-					return nil
-				}
-			}
-		}
-		if d.IsDir() || !strings.HasSuffix(d.Name(), ".json") {
-			return nil
-		}
-		// Derive identity from the path, not the untrusted state payload.
-		rel, e := filepath.Rel(root, filepath.Dir(path))
-		if e != nil {
-			return e
-		}
-		parts := strings.Split(filepath.ToSlash(rel), "/")
-		if len(parts) != 4 || parts[0] != "sha256" {
-			return nil
-		}
-		j := MediaJob{BlobKey: "sha256:" + parts[3], Recipe: strings.TrimSuffix(d.Name(), ".json"), State: "missing"}
-		expected, _, e := m.paths(j)
-		if e != nil || expected != path {
-			return nil
-		}
-		j, e = m.read(j)
-		if e != nil {
-			return e
-		}
-		if j.State == "queued" || j.State == "running" || (j.State == "blocked" && time.Since(j.UpdatedAt) >= 30*time.Second) {
-			pending = append(pending, j)
-		}
-		return nil
-	})
-	if err != nil || len(pending) == 0 {
+	db, err := m.database()
+	if err != nil {
 		return MediaJob{}, false, err
 	}
-	sort.Slice(pending, func(i, j int) bool { return pending[i].UpdatedAt.Before(pending[j].UpdatedAt) })
-	j := pending[0]
-	j.State = "running"
-	j.UpdatedAt = time.Now().UTC()
-	err = m.save(j)
-	return j, err == nil, err
+	j, ok, err := claimMedia(db, "media", false)
+	if err == nil && ok {
+		err = m.cleanJobTemps(j)
+	}
+	return j, ok && err == nil, err
 }
 
 func (m *Media) generate(ctx context.Context, j MediaJob) error {

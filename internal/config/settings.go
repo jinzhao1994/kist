@@ -79,6 +79,9 @@ func Defaults(mode string) *Config {
 }
 
 func (c *Config) Validate() error {
+	if c.RuntimeStorage < 0 || c.RuntimeStorage > 1 {
+		return fmt.Errorf("unsupported runtime storage version")
+	}
 	if len(c.Library.Language) > 64 || c.Library.Language == "" {
 		return fmt.Errorf("library language must be a BCP 47 language tag")
 	}

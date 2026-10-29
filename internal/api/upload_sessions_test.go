@@ -12,9 +12,11 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/jinzhao1994/kist/internal/domain"
 	"github.com/jinzhao1994/kist/internal/library"
+	"github.com/jinzhao1994/kist/internal/runtimestore"
 	staging "github.com/jinzhao1994/kist/internal/upload"
 	"github.com/jinzhao1994/kist/internal/wire"
 )
@@ -296,11 +298,12 @@ func TestResumableExpiredSessionCanBeDiscarded(t *testing.T) {
 	_, state, _ := sessionFixture(t, s, l, "data")
 	id := state.Session.ID
 	state.Session.Expires = state.Session.Expires.Add(-2 * staging.IdleTTL)
-	raw, err := json.Marshal(state.Session)
+	db, err := runtimestore.Open(filepath.Join(l.Layout().Root, "runtime.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(l.Layout().Root, "uploads", id, "state.json"), raw, 0600); err != nil {
+	defer db.Close()
+	if _, err = db.DB.Exec(`UPDATE upload_sessions SET expires=? WHERE namespace='uploads' AND id=?`, state.Session.Expires.Format(time.RFC3339Nano), id); err != nil {
 		t.Fatal(err)
 	}
 	assertAPIError(t, call(s, "POST", sessionURL(id)+"/resume", "", "{}"), 409, "upload_session_expired")

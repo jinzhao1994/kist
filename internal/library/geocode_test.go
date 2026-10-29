@@ -2,12 +2,9 @@ package library
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -124,15 +121,19 @@ func TestLocationRatePersistsAcrossWorkersAndCancellation(t *testing.T) {
 	if len(p.called) != 2 {
 		t.Fatal("cancelled request reached provider")
 	}
-	path := filepath.Join(l.layout.Derived(), "geo", "rate.json")
-	raw, err := os.ReadFile(path)
+	db, err := l.runtimeStore()
 	if err != nil {
 		t.Fatal(err)
 	}
-	var next time.Time
-	if json.Unmarshal(raw, &next) != nil || !next.After(time.Now()) {
-		t.Fatal("rate not persisted")
+	var value string
+	if err = db.DB.QueryRow(`SELECT next_at FROM service_limits WHERE service='photon'`).Scan(&value); err != nil {
+		t.Fatal(err)
 	}
+	next, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil || !next.After(time.Now()) {
+		t.Fatal("rate not persisted", err)
+	}
+
 }
 
 func TestLocationCooldownSurvivesClientReplacement(t *testing.T) {

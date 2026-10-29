@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -292,6 +293,10 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 		if err != nil {
 			return nil, err
 		}
+		raw, _ := json.Marshal(result)
+		if err = captureModelResult(ctx, kind, ai.TextResult{Text: string(raw), Provider: result.Provider, Model: result.Model}); err != nil {
+			return nil, err
+		}
 		facts = []extract.KV{
 			{Key: "orientation:clockwise_degrees", Value: fmt.Sprint(result.Degrees), Type: extract.TypeInt},
 			{Key: "orientation:model", Value: result.Provider + "/" + result.Model, Type: extract.TypeText},
@@ -315,6 +320,9 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 			result, err = provider.OCR(ctx, model, input, ai.TextOptions{Supplement: supplement})
 		}
 		if err != nil {
+			return nil, err
+		}
+		if err = captureModelResult(ctx, kind, result); err != nil {
 			return nil, err
 		}
 		if kind == "desc" {

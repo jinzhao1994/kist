@@ -125,7 +125,7 @@ func (c *Client) RenderWorkspace(ctx context.Context, request ClientRenderReques
 		return result, err
 	}
 	var record cacheWorkspaceRecord
-	err = readClientJSON(filepath.Join(c.workspaceRoot(), request.WorkspaceID+".json"), &record)
+	err = func() error { var e error; record, e = c.readWorkspace(request.WorkspaceID); return e }()
 	if err == nil && (record.Version != 1 || record.ID != request.WorkspaceID || record.Budget <= 0 || record.CreatedAt.IsZero()) {
 		err = ErrCacheMetadata
 	}

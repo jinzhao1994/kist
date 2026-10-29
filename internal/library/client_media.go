@@ -3,14 +3,12 @@ package library
 import (
 	"context"
 	"crypto/rand"
-	"encoding/json"
+	"database/sql"
 	"errors"
 	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
 	"time"
 
 	"github.com/jinzhao1994/kist/internal/blob"
@@ -59,41 +57,24 @@ func (m *ClientMedia) path(j MediaJob) (string, error) {
 }
 
 func (m *ClientMedia) read(j MediaJob) (MediaJob, error) {
-	path, err := m.path(j)
+	if _, err := m.path(j); err != nil {
+		return j, err
+	}
+	db, err := m.database()
 	if err != nil {
 		return j, err
 	}
-	f, err := os.Open(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return j, nil
-	}
-	if err != nil {
-		return j, err
-	}
-	defer f.Close()
-	var got MediaJob
-	// Queue records are disposable and cannot redirect a download. A truncated
-	// or mismatched record is requested again without blocking unrelated work.
-	err = json.NewDecoder(io.LimitReader(f, 16<<10)).Decode(&got)
-	if err != nil || got.BlobKey != j.BlobKey || got.Recipe != j.Recipe || got.Generation == "" || got.UpdatedAt.IsZero() {
-		return j, nil
-	}
-	switch got.State {
-	case "queued", "running", "ready", "blocked", "failed", "cancelled":
-		return got, nil
-	}
-	return j, nil
+	return readMedia(db, "client-media", j)
 }
-
 func (m *ClientMedia) save(j MediaJob) error {
-	path, err := m.path(j)
+	if _, err := m.path(j); err != nil {
+		return err
+	}
+	db, err := m.database()
 	if err != nil {
 		return err
 	}
-	if err = os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		return err
-	}
-	return writeClientJSON(path, j)
+	return db.Transaction(context.Background(), func(tx *sql.Tx) error { return saveMediaTx(tx, "client-media", j) })
 }
 
 // cached checks availability without hashing a potentially large video on each
@@ -259,45 +240,11 @@ func (m *ClientMedia) claim(ctx context.Context) (MediaJob, bool, error) {
 		return MediaJob{}, false, err
 	}
 	defer unlock()
-	root := filepath.Join(m.client.root, "cache", "media-jobs")
-	entries, err := os.ReadDir(root)
-	if errors.Is(err, os.ErrNotExist) {
-		return MediaJob{}, false, nil
-	}
+	db, err := m.database()
 	if err != nil {
 		return MediaJob{}, false, err
 	}
-	var pending []MediaJob
-	for _, entry := range entries {
-		if !strings.HasSuffix(entry.Name(), ".json") {
-			continue
-		}
-		parts := strings.SplitN(strings.TrimSuffix(entry.Name(), ".json"), ".", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		j := MediaJob{BlobKey: "sha256:" + parts[0], Recipe: parts[1], State: "missing"}
-		path, e := m.path(j)
-		if e != nil || path != filepath.Join(root, entry.Name()) {
-			continue
-		}
-		j, e = m.read(j)
-		if e != nil {
-			return j, false, e
-		}
-		if j.State == "running" || j.State == "queued" && time.Since(j.UpdatedAt) >= time.Second || j.State == "blocked" && j.Reason == "dependency_missing" && time.Since(j.UpdatedAt) >= 30*time.Second {
-			pending = append(pending, j)
-		}
-	}
-	if len(pending) == 0 {
-		return MediaJob{}, false, nil
-	}
-	sort.Slice(pending, func(i, j int) bool { return pending[i].UpdatedAt.Before(pending[j].UpdatedAt) })
-	j := pending[0]
-	j.State = "running"
-	j.UpdatedAt = time.Now().UTC()
-	err = m.save(j)
-	return j, err == nil, err
+	return claimMedia(db, "client-media", true)
 }
 
 func (m *ClientMedia) work(ctx context.Context) error {

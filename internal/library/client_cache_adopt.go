@@ -136,7 +136,7 @@ func (c *Client) AdoptConfirmedOriginals(ctx context.Context) error {
 		// The source was already fsynced, so its full offset is durable.
 		// A crash between the rename and completion leaves recoverable cache bytes,
 		// never a false ready claim. The NAS retains the authoritative original.
-		if err := writeClientJSON(c.cachePath(string(key), ".json"), record); err != nil {
+		if err := c.writeCacheObject(record); err != nil {
 			return err
 		}
 		destination := c.cachePath(string(key), ".data")
@@ -157,7 +157,7 @@ func (c *Client) AdoptConfirmedOriginals(ctx context.Context) error {
 			return err
 		}
 		record.Offset, record.Complete = size, true
-		return writeClientJSON(c.cachePath(string(key), ".json"), record)
+		return c.writeCacheObject(record)
 	})
 	if err != nil {
 		return err

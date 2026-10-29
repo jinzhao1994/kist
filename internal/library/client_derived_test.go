@@ -141,7 +141,7 @@ func TestClientDerivedCacheRebuildAndSupersededOutput(t *testing.T) {
 		t.Fatal(second, err)
 	}
 	for _, key := range []string{first.ContentKey, second.ContentKey} {
-		if err := os.Remove(c.cachePath(key, ".json")); err != nil {
+		if err := c.deleteCacheObject(key); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -212,14 +212,14 @@ func TestClientDerivedRebuildWithoutMapping(t *testing.T) {
 				t.Fatal(err)
 			}
 			if mode == "damaged-mapping" {
-				if err = os.WriteFile(mapping, []byte("{broken mapping"), 0600); err != nil {
+				if err = damageDerivedRecord(c, mapping); err != nil {
 					t.Fatal(err)
 				}
-			} else if err = os.Remove(mapping); err != nil {
+			} else if err = c.deleteDerivedRecord(mapping); err != nil {
 				t.Fatal(err)
 			}
 			if mode != "mapping" {
-				if err = os.Remove(c.cachePath(output.ContentKey, ".json")); err != nil {
+				if err = c.deleteCacheObject(output.ContentKey); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -300,30 +300,30 @@ func TestClientDerivedRebuildPreservesFutureVersions(t *testing.T) {
 			}
 			path := mapping
 			if kind == "mapping" {
-				err = writeClientJSON(path, cachedDerived{Version: 2, Descriptor: output})
+				err = c.writeDerivedRecord(cachedDerived{Version: 2, Descriptor: output})
 			} else {
-				if err = os.Remove(mapping); err != nil {
+				if err = c.deleteDerivedRecord(mapping); err != nil {
 					t.Fatal(err)
 				}
 				path = c.cachePath(output.ContentKey, ".json")
 				var record cachedOriginal
-				if err = readClientJSON(path, &record); err != nil {
+				if err = func() error { var e error; record, e = c.readCacheObject(output.ContentKey); return e }(); err != nil {
 					t.Fatal(err)
 				}
 				record.Version = 2
-				err = writeClientJSON(path, record)
+				err = c.writeCacheObject(record)
 			}
 			if err != nil {
 				t.Fatal(err)
 			}
-			before, err := os.ReadFile(path)
+			before, err := testCacheRecordBytes(c, path)
 			if err != nil {
 				t.Fatal(err)
 			}
 			if _, err = c.RebuildCache(ctx); !errors.Is(err, ErrSyncVersion) {
 				t.Fatal(err)
 			}
-			after, err := os.ReadFile(path)
+			after, err := testCacheRecordBytes(c, path)
 			if err != nil || string(after) != string(before) {
 				t.Fatal("future metadata overwritten", err)
 			}

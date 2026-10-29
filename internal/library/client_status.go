@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"slices"
 	"time"
 )
 
@@ -54,25 +53,9 @@ func (c *Client) Status(ctx context.Context) (ClientStatus, error) {
 		return status, err
 	}
 	status.BlockedID = view.BlockedID
-	state, err := c.queue.read(ctx)
+	status.Pending, err = c.pendingStatuses(ctx, view)
 	if err != nil {
 		return status, err
-	}
-	status.Pending = []ClientPendingStatus{}
-	entries := slices.Clone(state.entries)
-	slices.SortStableFunc(entries, comparePending)
-	for _, entry := range entries {
-		if !entry.active() {
-			continue
-		}
-		item := ClientPendingStatus{ID: entry.Proposal.ID, Sequence: entry.Sequence, OccurredAt: entry.Proposal.OccurredAt, Action: entry.Proposal.Action, AwaitingRoot: entry.Upstream != nil || entry.Forwarded != nil, AwaitingReceipt: entry.Sending, Conflict: entry.Conflict}
-		if entry.Proposal.Undo != nil {
-			item.Action = "undo"
-		}
-		if item.ID == view.BlockedID && view.Conflict != nil && item.Conflict == "" {
-			item.Conflict = view.Conflict.Error()
-		}
-		status.Pending = append(status.Pending, item)
 	}
 
 	return status, nil

@@ -3,6 +3,7 @@ package library
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -104,14 +105,36 @@ func (l *Library) lookupLocation(ctx context.Context, provider geocode.Provider,
 		return geocode.Result{}, err
 	}
 	defer release()
+	db, err := l.runtimeStore()
+	if err != nil {
+		return geocode.Result{}, err
+	}
 	path := filepath.Join(l.layout.Derived(), "geo", "rate.json")
-	var next time.Time
-	raw, err := os.ReadFile(path)
-	if err == nil {
-		if json.Unmarshal(raw, &next) != nil {
-			return geocode.Result{}, errors.New("location rate state is unreadable")
+	err = db.Import(ctx, "geocode-rate", func(tx *sql.Tx) error {
+		raw, e := os.ReadFile(path)
+		if errors.Is(e, os.ErrNotExist) {
+			return nil
 		}
-	} else if !errors.Is(err, os.ErrNotExist) {
+		if e != nil {
+			return e
+		}
+		var next time.Time
+		if e = json.Unmarshal(raw, &next); e != nil {
+			return e
+		}
+		_, e = tx.Exec(`INSERT INTO service_limits VALUES('photon',?)`, next.Format(time.RFC3339Nano))
+		return e
+	})
+	if err != nil {
+		return geocode.Result{}, err
+	}
+	var next time.Time
+	var value string
+	err = db.DB.QueryRowContext(ctx, `SELECT next_at FROM service_limits WHERE service='photon'`).Scan(&value)
+	if err == nil {
+		next, err = time.Parse(time.RFC3339Nano, value)
+	}
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return geocode.Result{}, err
 	}
 	if delay := time.Until(next); delay > 0 {
@@ -126,10 +149,13 @@ func (l *Library) lookupLocation(ctx context.Context, provider geocode.Provider,
 		case <-timer.C:
 		}
 	}
-	if err = os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		return geocode.Result{}, err
+	save := func(next time.Time) error {
+		// Persist cooldown even if the network request was cancelled.
+		saveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		_, e := db.DB.ExecContext(saveCtx, `INSERT INTO service_limits VALUES('photon',?) ON CONFLICT(service) DO UPDATE SET next_at=excluded.next_at`, next.Format(time.RFC3339Nano))
+		return e
 	}
-	save := func(next time.Time) error { raw, _ := json.Marshal(next); return config.WriteAtomic(path, raw) }
 	// Reserve before I/O, so a killed process cannot release a burst of requests.
 	if err = save(time.Now().Add(2 * time.Second)); err != nil {
 		return geocode.Result{}, err

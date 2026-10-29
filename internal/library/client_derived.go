@@ -42,7 +42,7 @@ func (c *Client) derivedRecord(original, recipe string) (SyncDerived, error) {
 		return SyncDerived{}, err
 	}
 	var record cachedDerived
-	if err := readClientJSON(path, &record); err != nil {
+	if err := func() error { var e error; record, e = c.loadDerivedRecord(path); return e }(); err != nil {
 		return SyncDerived{}, err
 	}
 	if record.Version != 1 {
@@ -134,7 +134,7 @@ func (c *Client) saveDerivedLocked(path string, descriptor SyncDerived) error {
 	if err == nil {
 		outputs := map[string]int64{}
 		var old cachedDerived
-		readErr := readClientJSON(path, &old)
+		readErr := func() error { var e error; old, e = c.loadDerivedRecord(path); return e }()
 		if readErr == nil {
 			if old.Version != 1 || ValidateSyncDerived(old.Descriptor, original, recipe) != nil {
 				err = ErrCacheMetadata
@@ -158,7 +158,7 @@ func (c *Client) saveDerivedLocked(path string, descriptor SyncDerived) error {
 			if descriptor.Job.State != "ready" && readErr == nil && old.Descriptor.Job.State == "ready" {
 				stored = old.Descriptor
 			}
-			err = writeClientJSON(path, cachedDerived{Version: 1, Descriptor: stored, Outputs: outputs})
+			err = c.writeDerivedRecord(cachedDerived{Version: 1, Descriptor: stored, Outputs: outputs})
 		}
 	}
 	return err
@@ -214,30 +214,19 @@ func (c *Client) derivedRecordsLocked() ([]SyncDerived, map[string]int64, error)
 // explicitly rebuilding the cache. Future versions and I/O failures are not
 // corruption and must never be removed. Output bytes remain untouched.
 func (c *Client) scanDerivedRecordsLocked(repair bool) ([]SyncDerived, map[string]int64, error) {
-	root := filepath.Join(c.root, "cache", "derived")
-	files, err := os.ReadDir(root)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil, nil, nil
-	}
+	paths, err := c.derivedRecordPaths()
 	if err != nil {
 		return nil, nil, err
 	}
 	var records []SyncDerived
 	facts := map[string]int64{}
-	for _, file := range files {
-		if !strings.HasSuffix(file.Name(), ".json") {
-			continue
-		}
-		path := filepath.Join(root, file.Name())
+	for _, path := range paths {
 		record, err := c.readDerivedRecord(path)
 		if err != nil {
 			if !repair || !errors.Is(err, ErrCacheMetadata) {
 				return nil, nil, err
 			}
-			if err := os.Remove(path); err != nil {
-				return nil, nil, err
-			}
-			if err := syncClientDir(root); err != nil {
+			if err := c.deleteDerivedRecord(path); err != nil {
 				return nil, nil, err
 			}
 			continue
@@ -262,7 +251,7 @@ func (c *Client) scanDerivedRecordsLocked(repair bool) ([]SyncDerived, map[strin
 
 func (c *Client) readDerivedRecord(path string) (cachedDerived, error) {
 	var record cachedDerived
-	if err := readClientJSON(path, &record); err != nil {
+	if err := func() error { var e error; record, e = c.loadDerivedRecord(path); return e }(); err != nil {
 		var syntax *json.SyntaxError
 		var value *json.UnmarshalTypeError
 		if errors.As(err, &syntax) || errors.As(err, &value) {
@@ -274,10 +263,10 @@ func (c *Client) readDerivedRecord(path string) (cachedDerived, error) {
 		return record, ErrSyncVersion
 	}
 	descriptor := record.Descriptor
-	if err := ValidateSyncDerived(descriptor, descriptor.Job.BlobKey, descriptor.Job.Recipe); err != nil {
+	if err := validateCachedDerived(record); err != nil {
 		return record, ErrCacheMetadata
 	}
-	expected, err := c.derivedPath(descriptor.Job.BlobKey, descriptor.Job.Recipe)
+	expected, err := c.legacyDerivedPath(descriptor.Job.BlobKey, descriptor.Job.Recipe)
 	if err != nil || expected != path {
 		return record, ErrCacheMetadata
 	}

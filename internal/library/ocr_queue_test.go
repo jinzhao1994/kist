@@ -3,6 +3,7 @@ package library
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -235,7 +236,8 @@ func TestOCRQueueSkipsStaleInputBeforeProvider(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.Jobs[0].BlobKey = "superseded-input"
+	s.Jobs[0].BlobKey = "sha256:" + strings.Repeat("f", 64)
+	s.Jobs[0].RequestID = uuid.NewString()
 	if err = q.save(s); err != nil {
 		t.Fatal(err)
 	}

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/jinzhao1994/kist/internal/journal"
 )
@@ -19,8 +18,6 @@ type clientViewStamp struct {
 	PendingID     int64  `json:"pending_id"`
 	PendingDigest string `json:"pending_digest"`
 }
-
-func (c *Client) viewStampPath() string { return filepath.Join(c.root, "client-view.json") }
 
 // journalPrefixDigest validates every record and fingerprints the entire prefix,
 // not just the final record (journal checksums are not a hash chain).
@@ -82,8 +79,11 @@ func (c *Client) refreshViewLocked(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	var saved clientViewStamp
-	if readClientJSON(c.viewStampPath(), &saved) == nil && saved == current {
+	saved, stampErr := c.readViewStamp()
+	if stampErr != nil && !errors.Is(stampErr, os.ErrNotExist) {
+		return stampErr
+	}
+	if stampErr == nil && saved == current {
 		return nil
 	}
 	_, err = c.rebuildLocked(ctx)
@@ -91,8 +91,10 @@ func (c *Client) refreshViewLocked(ctx context.Context) error {
 }
 
 func (c *Client) invalidateViewStamp() error {
-	if err := os.Remove(c.viewStampPath()); err != nil && !errors.Is(err, os.ErrNotExist) {
+	db, err := c.syncDatabase()
+	if err != nil {
 		return err
 	}
-	return syncClientDir(c.root)
+	_, err = db.DB.Exec(`DELETE FROM view_stamps WHERE name='client'`)
+	return err
 }

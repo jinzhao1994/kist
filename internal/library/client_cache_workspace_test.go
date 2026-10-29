@@ -86,8 +86,11 @@ func TestClientCacheWorkspaceRecoversAbandonedAndDamagedReservations(t *testing.
 	if err = os.WriteFile(filepath.Join(w.path(), "temporary"), []byte("scratch"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	record := filepath.Join(c.workspaceRoot(), w.record.ID+".json")
-	if err = os.WriteFile(record, []byte("truncated"), 0600); err != nil {
+	db, err := c.cacheDatabase()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.DB.Exec(`UPDATE cache_workspaces SET budget=-1 WHERE id=?`, w.record.ID); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = c.CacheStatus(ctx); !errors.Is(err, ErrCacheMetadata) {
@@ -102,7 +105,7 @@ func TestClientCacheWorkspaceRecoversAbandonedAndDamagedReservations(t *testing.
 	if _, err = os.Stat(w.path()); !errors.Is(err, os.ErrNotExist) {
 		t.Fatal(err)
 	}
-	if _, err = os.Stat(record); !errors.Is(err, os.ErrNotExist) {
+	if _, err = c.readWorkspace(w.record.ID); !errors.Is(err, os.ErrNotExist) {
 		t.Fatal(err)
 	}
 	usage, err := c.CacheStatus(ctx)

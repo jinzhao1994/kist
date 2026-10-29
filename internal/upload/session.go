@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -103,6 +104,7 @@ func (s State) validReceipt() bool {
 // Store is safe to reopen in another process. Limits apply to new sessions;
 // lowering a limit does not make an existing record unreadable.
 type Store struct {
+	db       *sql.DB
 	path     string
 	maxBytes int64
 	maxFiles int
@@ -112,7 +114,10 @@ type Store struct {
 	writeAt func(*os.File, []byte, int64) (int, error)
 }
 
-func New(path string, maxBytes int64, maxFiles int) (*Store, error) {
+func New(path string, maxBytes int64, maxFiles int, db *sql.DB) (*Store, error) {
+	if db == nil {
+		return nil, problem("missing_state_store")
+	}
 	if maxBytes <= 0 || maxBytes > (1<<63-1)/2 || maxFiles <= 0 {
 		return nil, problem("invalid_limits")
 	}
@@ -125,7 +130,11 @@ func New(path string, maxBytes int64, maxFiles int) (*Store, error) {
 	if err := syncDirectory(filepath.Dir(path)); err != nil {
 		return nil, err
 	}
-	return &Store{path: path, maxBytes: maxBytes, maxFiles: maxFiles, now: time.Now}, nil
+	s := &Store{db: db, path: path, maxBytes: maxBytes, maxFiles: maxFiles, now: time.Now}
+	if err := s.migrate(); err != nil {
+		return nil, err
+	}
+	return s, nil
 }
 
 // ID binds a client-generated creation key to a filesystem-safe identifier.
@@ -232,12 +241,7 @@ func (s *Store) Create(ctx context.Context, key string, manifest Manifest) (Stat
 	if total > s.maxBytes || len(manifest.Files) > s.maxFiles {
 		return zero, problem("invalid_manifest")
 	}
-	entries, err := root.Open(".")
-	if err != nil {
-		return zero, err
-	}
-	names, err := entries.Readdirnames(-1)
-	entries.Close()
+	names, err := s.stateIDs()
 	if err != nil {
 		return zero, err
 	}
@@ -247,7 +251,7 @@ func (s *Store) Create(ctx context.Context, key string, manifest Manifest) (Stat
 		if !validDigest(name) {
 			continue
 		}
-		record, err := readState(root, name+"/state.json")
+		record, err := s.readState(name)
 		// Unknown or damaged records cannot safely be counted as zero bytes.
 		if err != nil {
 			return zero, err
@@ -369,7 +373,7 @@ func (s *Store) load(root *os.Root, id string) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	state, err := readState(dir, "state.json")
+	state, err := s.readState(id)
 	if err == nil && state.ID != id {
 		err = problem("corrupt")
 	}
@@ -402,11 +406,15 @@ func readState(root *os.Root, name string) (State, error) {
 	if err := decoder.Decode(&state); err != nil {
 		return state, problem("corrupt")
 	}
-	if state.Version != Version {
-		return state, problem("unsupported_version")
-	}
 	if err := decoder.Decode(new(any)); err != io.EOF {
 		return state, problem("corrupt")
+	}
+	return validateState(state)
+}
+
+func validateState(state State) (State, error) {
+	if state.Version != Version {
+		return state, problem("unsupported_version")
 	}
 	if _, err := manifestBytes(state.Manifest); err != nil {
 		return state, problem("corrupt")
@@ -448,33 +456,13 @@ func (s *Session) save() error {
 	if len(raw) > maxRecordBytes {
 		return problem("invalid_manifest")
 	}
-	// Leftovers from a killed writer are never progress records.
-	if err := s.root.Remove("state.next"); err != nil && !os.IsNotExist(err) {
-		return err
-	}
-	f, err := s.root.OpenFile("state.next", os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
-	if err != nil {
-		return err
-	}
-	defer s.root.Remove("state.next")
-	_, err = f.Write(raw)
-	if err == nil {
-		err = f.Sync()
-	}
-	closeErr := f.Close()
-	if err != nil {
-		return err
-	}
-	if closeErr != nil {
-		return closeErr
-	}
 	if err := s.store.checkpoint("before_progress"); err != nil {
 		return err
 	}
-	if err := replacePath(s.root, "state.next", "state.json"); err != nil {
+	if err := syncDirectory(s.root.Name()); err != nil {
 		return err
 	}
-	if err := syncDirectory(s.root.Name()); err != nil {
+	if err := s.store.saveState(s.state); err != nil {
 		return err
 	}
 	return s.store.checkpoint("after_progress")
@@ -745,6 +733,19 @@ func (s *Store) sweep(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	ids, err := s.stateIDs()
+	if err != nil {
+		return err
+	}
+	seen := map[string]bool{}
+	for _, name := range names {
+		seen[name] = true
+	}
+	for _, id := range ids {
+		if !seen[id] {
+			names = append(names, id)
+		}
+	}
 	for _, name := range names {
 		id := strings.TrimPrefix(name, "discard-")
 		if !validDigest(id) {
@@ -768,6 +769,9 @@ func (s *Store) sweep(ctx context.Context) error {
 		err = func() error {
 			defer release()
 			if name != id {
+				if err := s.deleteState(id); err != nil {
+					return err
+				}
 				if err := root.RemoveAll(name); err != nil {
 					return err
 				}
@@ -777,7 +781,7 @@ func (s *Store) sweep(ctx context.Context) error {
 			if err != nil {
 				var p *Problem
 				if errors.As(err, &p) && p.Kind == "not_found" {
-					return nil
+					return s.deleteState(id)
 				}
 				return err
 			}
@@ -796,6 +800,9 @@ func (s *Store) sweep(ctx context.Context) error {
 				return err
 			}
 			if err := syncDirectory(s.path); err != nil {
+				return err
+			}
+			if err := s.deleteState(id); err != nil {
 				return err
 			}
 			if err := s.checkpoint("after_discard"); err != nil {

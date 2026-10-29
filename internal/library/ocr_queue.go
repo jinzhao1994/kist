@@ -1,13 +1,11 @@
 package library
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
-	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -47,6 +45,7 @@ type ocrScan struct {
 	Retry          bool
 }
 type ocrQueueState struct {
+	completed  []string
 	Paused     bool
 	Error      string
 	AutoCursor int64
@@ -80,35 +79,6 @@ func (l *Library) imageTextQueue(kind string) *OCRQueue {
 func (q *OCRQueue) path() string {
 	return filepath.Join(q.library.layout.Derived(), q.kind, "queue.json")
 }
-func (q *OCRQueue) load() (ocrQueueState, error) {
-	var s ocrQueueState
-	f, err := os.Open(q.path())
-	if errors.Is(err, os.ErrNotExist) {
-		return s, nil
-	}
-	if err != nil {
-		return s, err
-	}
-	defer f.Close()
-	err = json.NewDecoder(io.LimitReader(f, 32<<20)).Decode(&s)
-	if err != nil {
-		return s, errors.New("Metadata task queue state is unreadable")
-	}
-	return s, nil
-}
-func (q *OCRQueue) save(s ocrQueueState) error {
-	if err := os.MkdirAll(filepath.Dir(q.path()), 0700); err != nil {
-		return err
-	}
-	raw, err := json.Marshal(s)
-	if err != nil {
-		return err
-	}
-	if old, err := os.ReadFile(q.path()); err == nil && bytes.Equal(old, raw) {
-		return nil
-	}
-	return config.WriteAtomic(q.path(), raw)
-}
 func queueStatus(s ocrQueueState) OCRQueueStatus {
 	out := OCRQueueStatus{Paused: s.Paused, Scanning: s.Backfill != nil || s.AutoScan != nil, Error: s.Error}
 	for _, j := range s.Jobs {
@@ -129,8 +99,36 @@ func (q *OCRQueue) Status(ctx context.Context) (OCRQueueStatus, error) {
 		return OCRQueueStatus{}, err
 	}
 	defer release()
-	s, err := q.load()
-	return queueStatus(s), err
+	db, err := q.database()
+	if err != nil {
+		return OCRQueueStatus{}, err
+	}
+	var out OCRQueueStatus
+	err = db.DB.QueryRowContext(ctx, `SELECT paused,error,auto_after IS NOT NULL OR backfill_after IS NOT NULL FROM queue_controls WHERE kind=?`, q.kind).Scan(&out.Paused, &out.Error, &out.Scanning)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return out, err
+	}
+	rows, err := db.DB.QueryContext(ctx, `SELECT state,count(*),min(name) FROM background_jobs WHERE kind=? GROUP BY state`, q.kind)
+	if err != nil {
+		return out, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var state, name string
+		var count int
+		if err = rows.Scan(&state, &count, &name); err != nil {
+			return out, err
+		}
+		switch state {
+		case "queued":
+			out.Queued = count
+		case "failed":
+			out.Failed = count
+		case "running":
+			out.Running = name
+		}
+	}
+	return out, rows.Err()
 }
 func (q *OCRQueue) Pause(ctx context.Context, paused bool) (OCRQueueStatus, error) {
 	release, err := q.state.Acquire(ctx)
@@ -222,14 +220,17 @@ func (q *OCRQueue) FileStatus(ctx context.Context, id domain.FileID) (OCRJob, er
 		return j, err
 	}
 	defer release()
-	s, err := q.load()
+	db, err := q.database()
 	if err != nil {
 		return j, err
 	}
-	for _, old := range s.Jobs {
-		if old.FileID == id && old.BlobKey == j.BlobKey && (old.Force || j.State != "ready") {
-			return old, nil
-		}
+	old, err := scanOCRJob(db.DB.QueryRowContext(ctx, `SELECT file_id,blob_key,name,state,error,request_id,automatic,manual,force
+	 FROM background_jobs WHERE kind=? AND job_key=?`, q.kind, id.String()+"/"+j.BlobKey))
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return j, err
+	}
+	if err == nil && (old.Force || j.State != "ready") {
+		return old, nil
 	}
 	return j, nil
 }
@@ -405,7 +406,7 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 	for i := range s.Jobs {
 		if s.Jobs[i].State == "running" {
 			current, e := q.resolve(ctx, s.Jobs[i].FileID)
-			completed := e == nil && current.State == "ready" && !s.Jobs[i].Force
+			completed := e == nil && current.BlobKey == s.Jobs[i].BlobKey && current.State == "ready" && !s.Jobs[i].Force
 			if s.Jobs[i].Force {
 				_, found, err := q.library.CheckRequest(ctx, q.jobRequest(s.Jobs[i]))
 				if err != nil {
@@ -416,6 +417,7 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 			}
 			if completed {
 				s.Jobs[i].State = "ready"
+				s.completed = append(s.completed, s.Jobs[i].RequestID)
 			} else {
 				s.Jobs[i].State = "failed"
 				s.Jobs[i].Error = "Metadata extraction was interrupted; retry explicitly"
@@ -531,6 +533,7 @@ func (q *OCRQueue) finishJob(job OCRJob, err error) error {
 	for i, j := range s.Jobs {
 		if j.RequestID == job.RequestID {
 			if err == nil {
+				s.completed = append(s.completed, j.RequestID)
 				s.Jobs = append(s.Jobs[:i], s.Jobs[i+1:]...)
 			} else {
 				s.Jobs[i].State = "failed"
@@ -544,6 +547,10 @@ func (q *OCRQueue) finishJob(job OCRJob, err error) error {
 	return q.save(s)
 }
 func (q *OCRQueue) execute(ctx context.Context, j OCRJob, model, language string) error {
+	ctx = q.attemptContext(ctx, j)
+	if err := q.selectAttemptModel(j, model); err != nil {
+		return err
+	}
 	if q.kind != "geo" && model == "" {
 		return errors.New("choose an AI model in Settings first")
 	}
@@ -591,6 +598,12 @@ func (q *OCRQueue) execute(ctx context.Context, j OCRJob, model, language string
 	}
 	prepared, err := q.library.prepareImageText(ctx, j.FileID, provider, model, j.BlobKey, q.kind, language, j.Force)
 	if err != nil {
+		var failure *modelResponseError
+		if errors.As(err, &failure) {
+			if recordErr := q.recordFailedModelResponse(j, failure); recordErr != nil {
+				return errors.Join(err, recordErr)
+			}
+		}
 		return err
 	}
 	_, err = q.library.ExecuteRequest(ctx, request, prepared.Commit)

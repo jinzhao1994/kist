@@ -54,8 +54,10 @@ instructions. For prebuilt images and NAS deployment, see [Docker deployment](do
 
 1. Stop every writer, including `serve`, CLI imports, extraction, and repair.
    Keep them stopped for the entire copy.
-2. Copy `kist.toml`, `ops/`, and `blobs/` into a **new** backup directory.
-   Retain your previous backup until the new copy is complete.
+2. Copy the entire instance directory into a **new** backup directory. This
+   preserves `runtime.db` (and any remaining WAL/SHM files), local choices and
+   execution history, upload staging, and client pending content as well as the
+   archive. Retain your previous backup until the new copy is complete.
 3. Restore these into a separate directory and verify the restored copy:
 
 ```sh
@@ -67,7 +69,8 @@ kist --library /absolute/path/to/restored scrub
 
 All four commands must succeed before switching to the restored library.
 `ops/` and `blobs/` are authoritative. `kist.toml` preserves local settings;
-`kist.db`, `boxes/` and `derived/` can be regenerated. A blob-only copy can
+`kist.db`, `boxes/` and rendered previews can be regenerated. `runtime.db`
+cannot be reconstructed from archive operations. A blob-only copy can
 repair file content but cannot restore names, tags or history.
 
 For Docker, stop the service and any one-off containers that write the volume
@@ -75,6 +78,16 @@ before copying it. Back up the whole named volume if that is easier. Do not
 use `docker compose down -v`: it deletes the library volume. Mount the restored
 library with an owner accessible to the configured container user (default
 UID/GID `10001:10001`). Never initialize over a backup or existing library.
+
+An archive-only backup of `kist.toml`, `ops/` and `blobs/` remains sufficient to
+recover archived content and history, but loses local jobs, model responses,
+retention choices and transfer progress. To intentionally start fresh local state,
+restore only those three items into a **new directory**, run the archive checks
+above, and remove the `runtime_storage` setting from that restored configuration
+before starting `serve`. Do not copy legacy runtime JSON into this fresh instance.
+Do not clear this setting or delete `runtime.db` to bypass errors in an existing
+instance. Client backups must also preserve `pending/` and unconfirmed original
+content; an archive-only backup is not a client recovery procedure.
 
 ## Upgrade or roll back
 
@@ -97,6 +110,31 @@ restore the pre-upgrade backup into a separate directory and run the previous
 version against it. Retain the newer library separately: writes after the
 backup are not present in the restored copy. Do not edit or truncate journals
 in an attempt to make a newer library readable by an older binary.
+
+## Runtime storage upgrade
+
+Stop every old service and CLI writer before first opening the upgraded instance.
+Local state is imported into `runtime.db` under the existing subsystem locks; each
+subsystem commits its data and import marker together. The old JSON files remain
+unchanged as pre-upgrade backups. They are not updated or reused after import.
+Malformed legacy state stops that import without marking it complete.
+
+The `runtime_storage = 1` configuration marker prevents older binaries from
+opening the migrated instance and prevents silent recreation of a missing runtime
+database. Restore a matching local-state backup if the database is missing or
+corrupt. `rebuild`, snapshots and `verify --deep` apply to archive views, not this
+local database. Rolling back requires the stopped pre-upgrade instance backup.
+
+Extraction attempts retain model text locally, including rejected structured
+output (up to 8 MiB per attempt, with truncation and original-size indicators).
+Treat instance backups as private. Execution lists omit the text; use
+`GET /api/v1/files/{id}/{kind}/attempts` for the latest 100 records and
+`?before=<sequence>` for older records, then
+`GET /api/v1/files/{id}/{kind}/attempts/{request_id}` for explicit details.
+Supported extraction kinds are `ocr`, `desc`, `facts`, `orientation` and `geo`.
+History is not automatically pruned or synchronized. Orientation currently records
+the provider's parsed orientation result; requests that failed before a result
+have no model output. Existing legacy queues cannot supply past model responses.
 
 ## Troubleshooting
 

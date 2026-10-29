@@ -3,18 +3,20 @@ package upload
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
 	"syscall"
 	"testing"
 	"time"
 
 	"github.com/jinzhao1994/kist/internal/lockfile"
+	"github.com/jinzhao1994/kist/internal/runtimestore"
 )
 
 func digest(b []byte) string { return fmt.Sprintf("%x", sha256.Sum256(b)) }
@@ -23,7 +25,7 @@ func manifest(data []byte) Manifest {
 }
 func newStore(t *testing.T, path string, limit int64) *Store {
 	t.Helper()
-	s, err := New(path, limit, 1000)
+	s, err := New(path, limit, 1000, testDB(t, path))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +133,7 @@ func TestCrashHelper(t *testing.T) {
 	if os.Getenv("KIST_UPLOAD_CRASH_HELPER") != "1" {
 		return
 	}
-	s, err := New(os.Getenv("KIST_UPLOAD_CRASH_ROOT"), 100, 1000)
+	s, err := New(os.Getenv("KIST_UPLOAD_CRASH_ROOT"), 100, 1000, testDB(t, os.Getenv("KIST_UPLOAD_CRASH_ROOT")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -312,7 +314,7 @@ func TestQuotaExpiryCancelAndBusyCleanup(t *testing.T) {
 		if err := other.Sweep(t.Context()); err != nil {
 			return err
 		}
-		if _, err := os.Stat(filepath.Join(path, a.ID, "state.json")); err != nil {
+		if _, err := s.readState(a.ID); err != nil {
 			return err
 		}
 		return v.Cancel()
@@ -376,15 +378,11 @@ func TestUnknownRecordAndSymlinkAreNotRecoveredAsEmpty(t *testing.T) {
 					t.Skip("symlinks unavailable:", err)
 				}
 			} else {
-				raw, err := os.ReadFile(record)
-				if err != nil {
-					t.Fatal(err)
-				}
-				text := strings.Replace(string(raw), `"version":1`, `"version":99`, 1)
+				query := `UPDATE upload_sessions SET version=99 WHERE namespace=? AND id=?`
 				if mode == "json" {
-					text = "{"
+					query = `UPDATE upload_sessions SET manifest='{' WHERE namespace=? AND id=?`
 				}
-				if err := os.WriteFile(record, []byte(text), 0600); err != nil {
+				if _, err := s.db.Exec(query, s.namespace(), a.ID); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -568,7 +566,7 @@ func TestCreateRetryAfterLimitsShrink(t *testing.T) {
 	second.Path = "second.bin"
 	m.Files = append(m.Files, second)
 	first := create(t, original, "accepted", m)
-	smaller, err := New(path, 2, 1)
+	smaller, err := New(path, 2, 1, testDB(t, path))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -578,4 +576,55 @@ func TestCreateRetryAfterLimitsShrink(t *testing.T) {
 	}
 	_, err = smaller.Create(t.Context(), "new", m)
 	checkKind(t, err, "invalid_manifest")
+}
+
+func testDB(t *testing.T, path string) *sql.DB {
+	t.Helper()
+	if err := os.MkdirAll(path, 0700); err != nil {
+		t.Fatal(err)
+	}
+	db, err := runtimestore.Open(filepath.Join(path, "runtime-test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	return db.DB
+}
+
+func TestLegacySessionMigrationResumesWithoutReimport(t *testing.T) {
+	path := t.TempDir()
+	id := ID("legacy")
+	dir := filepath.Join(path, id)
+	if err := os.Mkdir(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	state := State{Version: 1, ID: id, Manifest: manifest([]byte("abcdef")), Offsets: []int64{3}, Expires: time.Now().UTC().Add(IdleTTL)}
+	raw, err := json.Marshal(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy := filepath.Join(dir, "state.json")
+	if err = os.WriteFile(legacy, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(filepath.Join(dir, "0"), []byte("abcXX"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	s := newStore(t, path, 100)
+	if got := progress(t, s, id); got.Offsets[0] != 3 {
+		t.Fatal("migration lost offset")
+	}
+	if err = appendBlock(s, t.Context(), id, 3, []byte("def")); err != nil {
+		t.Fatal(err)
+	}
+	other := newStore(t, path, 100)
+	if got := progress(t, other, id); got.Offsets[0] != 6 {
+		t.Fatal("legacy offset revived")
+	}
+	if after, err := os.ReadFile(legacy); err != nil || string(after) != string(raw) {
+		t.Fatal("legacy backup rewritten", err)
+	}
+	if got, err := os.ReadFile(filepath.Join(dir, "0")); err != nil || string(got) != "abcdef" {
+		t.Fatal("unconfirmed bytes retained", err)
+	}
 }

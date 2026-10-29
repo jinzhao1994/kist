@@ -72,7 +72,7 @@ func (c *Client) newCacheWorkspace(ctx context.Context, budget int64) (*cacheWor
 		return nil, err
 	}
 	w := &cacheWorkspace{client: c, record: record, release: lease}
-	if err = writeClientJSON(filepath.Join(root, record.ID+".json"), record); err == nil {
+	if err = c.writeWorkspace(record); err == nil {
 		err = os.Mkdir(w.path(), 0700)
 	}
 	if err == nil {
@@ -118,7 +118,7 @@ func (c *Client) removeWorkspaceLocked(id string) error {
 	if err := os.RemoveAll(filepath.Join(c.workspaceRoot(), id)); err != nil {
 		return err
 	}
-	if err := os.Remove(filepath.Join(c.workspaceRoot(), id+".json")); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err := c.deleteWorkspace(id); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	return syncClientDir(c.workspaceRoot())
@@ -166,10 +166,17 @@ func (c *Client) workspaceEntriesLocked() ([]cacheEntry, error) {
 	if err != nil {
 		return nil, err
 	}
+	storedIDs, err := c.workspaceIDs()
+	if err != nil {
+		return nil, err
+	}
 	ids := map[string]bool{}
+	for _, id := range storedIDs {
+		ids[id] = true
+	}
 	for _, file := range files {
 		name := file.Name()
-		if strings.HasPrefix(name, ".client-") {
+		if strings.HasPrefix(name, ".client-") || strings.HasSuffix(name, ".json") {
 			continue
 		}
 		id := strings.TrimSuffix(name, ".json")
@@ -197,7 +204,7 @@ func (c *Client) workspaceEntriesLocked() ([]cacheEntry, error) {
 			continue
 		}
 		var record cacheWorkspaceRecord
-		if err = readClientJSON(filepath.Join(root, id+".json"), &record); err != nil {
+		if err = func() error { var e error; record, e = c.readWorkspace(id); return e }(); err != nil {
 			return nil, ErrCacheMetadata
 		}
 		if record.Version != 1 {

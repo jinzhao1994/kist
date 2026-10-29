@@ -23,13 +23,13 @@ func TestClientViewFreshnessSkipsReplayAndRecoversMissingStamp(t *testing.T) {
 	if size, err := c.originalSize(ctx, file.BlobKey); err != nil || size != 8 {
 		t.Fatalf("size: %d %v", size, err)
 	}
-	if err := os.Remove(c.viewStampPath()); err != nil {
+	if err := c.invalidateViewStamp(); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err := c.File(ctx, file.ID); err == nil {
 		t.Fatal("missing stamp must force replay")
 	}
-	if _, err := os.Stat(c.viewStampPath()); !os.IsNotExist(err) {
+	if _, err := c.readViewStamp(); !os.IsNotExist(err) {
 		t.Fatalf("failed replay published stamp: %v", err)
 	}
 	if _, err := c.db.Exec(`DROP TRIGGER reject_replay`); err != nil {
@@ -39,7 +39,7 @@ func TestClientViewFreshnessSkipsReplayAndRecoversMissingStamp(t *testing.T) {
 		t.Fatalf("recovery: %v %v", found, err)
 	}
 	// A malformed disposable stamp must also recover from the journals.
-	if err := os.WriteFile(c.viewStampPath(), []byte("broken"), 0600); err != nil {
+	if err := c.writeViewStamp(clientViewStamp{Version: 999}); err != nil {
 		t.Fatal(err)
 	}
 	if _, found, err := c.File(ctx, file.ID); err != nil || !found {

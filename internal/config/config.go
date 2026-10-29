@@ -37,18 +37,19 @@ type Geocoding struct {
 }
 
 type Config struct {
-	Geocoding  Geocoding      `toml:"geocoding"`
-	AIOptions  AIOptions      `toml:"ai_options" json:"-"`
-	AI         ai.Credentials `toml:"ai" json:"-"`
-	Version    int            `toml:"version"`
-	Mode       string         `toml:"mode,omitempty"`
-	Appearance Appearance     `toml:"appearance"`
-	Client     Client         `toml:"client"`
-	Server     Server         `toml:"server"`
-	Sync       Sync           `toml:"sync"`
-	Library    Library        `toml:"library"`
-	Storage    Storage        `toml:"storage"`
-	Remotes    []Remote       `toml:"remote"`
+	RuntimeStorage int            `toml:"runtime_storage,omitempty"`
+	Geocoding      Geocoding      `toml:"geocoding"`
+	AIOptions      AIOptions      `toml:"ai_options" json:"-"`
+	AI             ai.Credentials `toml:"ai" json:"-"`
+	Version        int            `toml:"version"`
+	Mode           string         `toml:"mode,omitempty"`
+	Appearance     Appearance     `toml:"appearance"`
+	Client         Client         `toml:"client"`
+	Server         Server         `toml:"server"`
+	Sync           Sync           `toml:"sync"`
+	Library        Library        `toml:"library"`
+	Storage        Storage        `toml:"storage"`
+	Remotes        []Remote       `toml:"remote"`
 }
 
 // Remote is somewhere else the same blobs live: another directory, a mounted

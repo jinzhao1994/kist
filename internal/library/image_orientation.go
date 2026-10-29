@@ -102,7 +102,10 @@ func (l *Library) ensureImageOrientation(ctx context.Context, id domain.FileID, 
 	if err != nil {
 		return err
 	}
-	prepared, err := l.prepareImageText(ctx, id, provider, model, blob, "orientation", "", job.Force)
+	if err := q.selectAttemptModel(job, model); err != nil {
+		return errors.Join(err, q.finishJob(job, err))
+	}
+	prepared, err := l.prepareImageText(q.attemptContext(ctx, job), id, provider, model, blob, "orientation", "", job.Force)
 	if err == nil {
 		_, err = l.ExecuteRequest(ctx, q.jobRequest(job), prepared.Commit)
 	}

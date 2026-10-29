@@ -126,7 +126,7 @@ func TestProjectionKnowsOnlyDomain(t *testing.T) {
 // trace in the log — which would make "every operation can be undone" false in
 // a way no test elsewhere would notice.
 func TestCommandsCannotWriteDirectly(t *testing.T) {
-	forbid(t, "cmd/kist", []string{"internal/store", "internal/oplog"},
+	forbid(t, "cmd/kist", []string{"internal/store", "internal/oplog", "internal/runtimestore"},
 		"library is the only write entry point — invariant 2. Every write is one\n"+
 			"transaction that appends an op and applies it; reaching store directly\n"+
 			"would change state without leaving a trace in the log.")
@@ -248,7 +248,7 @@ func TestErrCodesDoesNotLeakIntoTheKernel(t *testing.T) {
 }
 
 func TestAPICannotWriteDirectly(t *testing.T) {
-	forbid(t, "internal/api", []string{"internal/store", "internal/oplog"},
+	forbid(t, "internal/api", []string{"internal/store", "internal/oplog", "internal/runtimestore"},
 		"The HTTP API must write through library, preserving journal ordering and request deduplication.")
 }
 
@@ -269,5 +269,11 @@ func TestUploadStagingCannotReachArchive(t *testing.T) {
 		if imp != "internal/domain" && imp != "internal/lockfile" {
 			t.Errorf("upload staging must not reach archive state: %s", imp)
 		}
+	}
+}
+
+func TestRuntimeStorageDoesNotReachArchive(t *testing.T) {
+	if got := imports(t, "internal/runtimestore"); len(got) != 0 {
+		t.Fatalf("runtime storage must not access archive packages: %v", got)
 	}
 }

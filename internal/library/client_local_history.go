@@ -128,7 +128,7 @@ func (c *Client) withLocalHistory(ctx context.Context, fn func(pendingState, cli
 	if err != nil {
 		return err
 	}
-	state, err := c.queue.read(ctx)
+	state, err := c.readPendingProjection()
 	if err != nil {
 		return err
 	}

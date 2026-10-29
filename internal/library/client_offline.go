@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"slices"
 
 	"github.com/jinzhao1994/kist/internal/blob"
@@ -118,7 +117,7 @@ func (c *Client) SetOfflineSelection(ctx context.Context, owner string, selectio
 		pins.Selections[owner] = selection
 		pins.Owners[owner] = keys
 	}
-	return writeClientJSON(filepath.Join(c.root, "cache-pins.json"), pins)
+	return c.writeCachePins(pins)
 }
 
 // OfflineSelections returns durable retention intent without requiring a network
@@ -258,7 +257,7 @@ func (c *Client) cacheEvictionLock(ctx context.Context) (func(), error) {
 		}
 	}
 	if changed {
-		if err := writeClientJSON(filepath.Join(c.root, "cache-pins.json"), pins); err != nil {
+		if err := c.writeCachePins(pins); err != nil {
 			done()
 			return nil, err
 		}

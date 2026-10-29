@@ -76,10 +76,17 @@ func (c *Client) RebuildCache(ctx context.Context) (ClientCacheRebuildResult, er
 	if err != nil {
 		return result, err
 	}
+	records, err := c.cacheObjectRecords()
+	if err != nil {
+		return result, err
+	}
 	keys := []string{}
+	for _, r := range records {
+		keys = append(keys, r.Key)
+	}
 	for _, file := range files {
 		ext := filepath.Ext(file.Name())
-		if ext != ".json" && ext != ".data" {
+		if ext != ".data" {
 			continue
 		}
 		key := "sha256:" + strings.TrimSuffix(file.Name(), ext)
@@ -128,7 +135,7 @@ func (c *Client) RebuildCache(ctx context.Context) (ClientCacheRebuildResult, er
 
 func (c *Client) rebuildCachedOriginal(ctx context.Context, key string, size int64) (string, error) {
 	var old cachedOriginal
-	err := readClientJSON(c.cachePath(key, ".json"), &old)
+	err := func() error { var e error; old, e = c.readCacheObject(key); return e }()
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		var syntax *json.SyntaxError
 		var value *json.UnmarshalTypeError
@@ -151,7 +158,7 @@ func (c *Client) rebuildCachedOriginal(ctx context.Context, key string, size int
 			return "", err
 		}
 		defer release()
-		if err := os.Remove(c.cachePath(key, ".json")); err != nil && !errors.Is(err, os.ErrNotExist) {
+		if err := c.deleteCacheObject(key); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return "", err
 		}
 		return "missing", syncClientDir(filepath.Join(c.root, "cache", "objects"))

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/jinzhao1994/kist/internal/blob"
@@ -104,7 +103,7 @@ func (c *Client) offlineSelectionSnapshot(ctx context.Context, owner string) (Cl
 		keys = append(keys, original.Key)
 	}
 	pins.Owners[owner] = keys
-	if err := writeClientJSON(filepath.Join(c.root, "cache-pins.json"), pins); err != nil {
+	if err := c.writeCachePins(pins); err != nil {
 		return status, err
 	}
 	status.Missing = []string{}

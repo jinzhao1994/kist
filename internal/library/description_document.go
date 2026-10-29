@@ -57,6 +57,9 @@ func (l *Library) prepareDocumentDescription(ctx context.Context, p *PreparedOCR
 	if err != nil {
 		return nil, err
 	}
+	if err = captureModelResult(ctx, "desc", result); err != nil {
+		return nil, err
+	}
 	result.Text, err = boundedDescription(result.Text)
 	if err != nil {
 		return nil, err

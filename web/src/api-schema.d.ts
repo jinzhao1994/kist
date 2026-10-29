@@ -626,6 +626,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/files/{id}/desc/attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List API v1 files by ID desc attempts */
+        get: operations["list-api-v1-files-by-id-desc-attempts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{id}/desc/attempts/{request_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 files by ID desc attempts by request ID */
+        get: operations["get-api-v1-files-by-id-desc-attempts-by-request-id"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/files/{id}/extractions/{extractor}": {
         parameters: {
             query?: never;
@@ -661,6 +695,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/files/{id}/facts/attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List API v1 files by ID facts attempts */
+        get: operations["list-api-v1-files-by-id-facts-attempts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{id}/facts/attempts/{request_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 files by ID facts attempts by request ID */
+        get: operations["get-api-v1-files-by-id-facts-attempts-by-request-id"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/files/{id}/geo": {
         parameters: {
             query?: never;
@@ -673,6 +741,40 @@ export interface paths {
         put?: never;
         /** Post API v1 files by ID geo */
         post: operations["post-api-v1-files-by-id-geo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{id}/geo/attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List API v1 files by ID geo attempts */
+        get: operations["list-api-v1-files-by-id-geo-attempts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{id}/geo/attempts/{request_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 files by ID geo attempts by request ID */
+        get: operations["get-api-v1-files-by-id-geo-attempts-by-request-id"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -731,6 +833,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/files/{id}/ocr/attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List API v1 files by ID ocr attempts */
+        get: operations["list-api-v1-files-by-id-ocr-attempts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{id}/ocr/attempts/{request_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 files by ID ocr attempts by request ID */
+        get: operations["get-api-v1-files-by-id-ocr-attempts-by-request-id"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/files/{id}/orientation": {
         parameters: {
             query?: never;
@@ -743,6 +879,40 @@ export interface paths {
         put?: never;
         /** Post API v1 files by ID orientation */
         post: operations["post-api-v1-files-by-id-orientation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{id}/orientation/attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List API v1 files by ID orientation attempts */
+        get: operations["list-api-v1-files-by-id-orientation-attempts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{id}/orientation/attempts/{request_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 files by ID orientation attempts by request ID */
+        get: operations["get-api-v1-files-by-id-orientation-attempts-by-request-id"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1713,6 +1883,41 @@ export interface components {
             reverted_by?: number;
             /** Format: int64 */
             upload_offset?: number;
+        };
+        ExtractionAttempt: {
+            blob_key: string;
+            error?: string;
+            file_id: string;
+            finished_at: string;
+            kind: string;
+            model?: string;
+            /** Format: int64 */
+            output_bytes: number;
+            provider?: string;
+            request_id: string;
+            /** Format: int64 */
+            sequence: number;
+            started_at: string;
+            state: string;
+            truncated: boolean;
+        };
+        ExtractionAttemptDetail: {
+            blob_key: string;
+            error?: string;
+            file_id: string;
+            finished_at: string;
+            kind: string;
+            model?: string;
+            /** Format: int64 */
+            output_bytes: number;
+            output_text: string;
+            provider?: string;
+            request_id: string;
+            /** Format: int64 */
+            sequence: number;
+            started_at: string;
+            state: string;
+            truncated: boolean;
         };
         ExtractionInputBody: {
             force?: boolean;
@@ -4108,6 +4313,71 @@ export interface operations {
             };
         };
     };
+    "list-api-v1-files-by-id-desc-attempts": {
+        parameters: {
+            query?: {
+                before?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtractionAttempt"][] | null;
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-files-by-id-desc-attempts-by-request-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtractionAttemptDetail"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
     "post-api-v1-files-by-id-extractions-by-extractor": {
         parameters: {
             query?: never;
@@ -4212,6 +4482,71 @@ export interface operations {
             };
         };
     };
+    "list-api-v1-files-by-id-facts-attempts": {
+        parameters: {
+            query?: {
+                before?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtractionAttempt"][] | null;
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-files-by-id-facts-attempts-by-request-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtractionAttemptDetail"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
     "get-api-v1-files-by-id-geo": {
         parameters: {
             query?: never;
@@ -4265,6 +4600,71 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OCRJob"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "list-api-v1-files-by-id-geo-attempts": {
+        parameters: {
+            query?: {
+                before?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtractionAttempt"][] | null;
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-files-by-id-geo-attempts-by-request-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtractionAttemptDetail"];
                 };
             };
             /** @description Error */
@@ -4418,6 +4818,71 @@ export interface operations {
             };
         };
     };
+    "list-api-v1-files-by-id-ocr-attempts": {
+        parameters: {
+            query?: {
+                before?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtractionAttempt"][] | null;
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-files-by-id-ocr-attempts-by-request-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtractionAttemptDetail"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
     "get-api-v1-files-by-id-orientation": {
         parameters: {
             query?: never;
@@ -4471,6 +4936,71 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OCRJob"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "list-api-v1-files-by-id-orientation-attempts": {
+        parameters: {
+            query?: {
+                before?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtractionAttempt"][] | null;
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-files-by-id-orientation-attempts-by-request-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtractionAttemptDetail"];
                 };
             };
             /** @description Error */

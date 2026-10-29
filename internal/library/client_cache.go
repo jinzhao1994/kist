@@ -3,7 +3,6 @@ package library
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -91,8 +90,7 @@ func (c *Client) cacheLock(ctx context.Context) (func(), error) {
 }
 
 func (c *Client) cachePinsLocked() (cachePins, map[string]bool, error) {
-	pins := cachePins{Version: 1, Owners: map[string][]string{}}
-	err := readClientJSON(filepath.Join(c.root, "cache-pins.json"), &pins)
+	pins, err := c.readCachePins()
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return pins, nil, err
 	}
@@ -171,27 +169,19 @@ func (c *Client) SetOfflineOriginals(ctx context.Context, owner string, keys []s
 		pins.Owners[owner] = keys
 	}
 	delete(pins.Selections, owner)
-	return writeClientJSON(filepath.Join(c.root, "cache-pins.json"), pins)
+	return c.writeCachePins(pins)
 }
 
 func (c *Client) cacheEntriesLocked() ([]cacheEntry, error) {
-	files, err := os.ReadDir(filepath.Join(c.root, "cache", "objects"))
+	records, err := c.cacheObjectRecords()
 	if err != nil {
 		return nil, err
 	}
 	entries := []cacheEntry{}
-	known := map[string]bool{}
-	for _, file := range files {
-		if !strings.HasSuffix(file.Name(), ".json") {
-			continue
-		}
-		key := "sha256:" + strings.TrimSuffix(file.Name(), ".json")
+	for _, record := range records {
+		key := record.Key
 		if _, err := blob.ParseKey(key); err != nil {
 			return nil, ErrCacheMetadata
-		}
-		var record cachedOriginal
-		if err := readClientJSON(c.cachePath(key, ".json"), &record); err != nil {
-			return nil, fmt.Errorf("%w: %v", ErrCacheMetadata, err)
 		}
 		if record.Version != 1 {
 			return nil, ErrSyncVersion
@@ -209,8 +199,17 @@ func (c *Client) cacheEntriesLocked() ([]cacheEntry, error) {
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return nil, err
 		}
-		known[key] = true
 		entries = append(entries, entry)
+	}
+	// Bytes without an index still consume space. Require explicit cache repair
+	// instead of silently treating orphaned content as free capacity.
+	known := map[string]bool{}
+	for _, record := range records {
+		known[record.Key] = true
+	}
+	files, err := os.ReadDir(filepath.Join(c.root, "cache", "objects"))
+	if err != nil {
+		return nil, err
 	}
 	for _, file := range files {
 		if strings.HasSuffix(file.Name(), ".data") && !known["sha256:"+strings.TrimSuffix(file.Name(), ".data")] {
@@ -333,7 +332,7 @@ func (c *Client) pruneCacheLocked(ctx context.Context, reserve int64, skip strin
 		}
 		err = os.Remove(c.cachePath(entry.Key, ".data"))
 		if err == nil || errors.Is(err, os.ErrNotExist) {
-			err = os.Remove(c.cachePath(entry.Key, ".json"))
+			err = c.deleteCacheObject(entry.Key)
 		}
 		unlock()
 		if err != nil {

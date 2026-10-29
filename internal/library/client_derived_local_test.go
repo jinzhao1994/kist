@@ -95,7 +95,7 @@ func TestClientLocalPreviewQueueWithoutNAS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = os.Remove(c.cachePath(d.ContentKey, ".json")); err != nil {
+	if err = c.deleteCacheObject(d.ContentKey); err != nil {
 		t.Fatal(err)
 	}
 	rebuilt, err := c.RebuildCache(ctx)

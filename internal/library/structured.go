@@ -38,7 +38,7 @@ func (l *Library) prepareDocumentFacts(ctx context.Context, p *PreparedOCR, prov
 	return p.prepareFacts(ctx, provider, model, ai.FactsInput{Document: &input}, language, supplement, zone)
 }
 
-func (p *PreparedOCR) prepareFacts(ctx context.Context, provider ai.Provider, model string, input ai.FactsInput, language, supplement string, zone *time.Location) (*PreparedOCR, error) {
+func (p *PreparedOCR) prepareFacts(ctx context.Context, provider ai.Provider, model string, input ai.FactsInput, language, supplement string, zone *time.Location) (_ *PreparedOCR, err error) {
 	structurer, ok := provider.(ai.Structurer)
 	if !ok {
 		return nil, errors.New("the selected provider does not support structured extraction")
@@ -57,6 +57,14 @@ func (p *PreparedOCR) prepareFacts(ctx context.Context, provider ai.Provider, mo
 	if err != nil {
 		return nil, err
 	}
+	if err = captureModelResult(ctx, "facts", result); err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			err = &modelResponseError{cause: err, result: result}
+		}
+	}()
 	next, err := structured.ParseModel(result.Text)
 	if err != nil {
 		return nil, fmt.Errorf("invalid structured extraction: %w", err)

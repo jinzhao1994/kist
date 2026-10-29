@@ -47,6 +47,7 @@ func (s ClientSettings) validate() error {
 // Client is a partial-content replica with a separate durable pending journal.
 // The derived database is never opened through the NAS Library.Open path.
 type Client struct {
+	runtime    runtimeHandle
 	root       string
 	db         *sql.DB
 	lock       *lockfile.Locker
@@ -138,13 +139,13 @@ func OpenClient(ctx context.Context, root string) (*Client, error) {
 		_, err = c.rebuildLocked(ctx)
 	}
 	if err != nil {
-		c.db.Close()
+		c.Close()
 		return nil, err
 	}
 	return c, nil
 }
 
-func (c *Client) Close() error { return c.db.Close() }
+func (c *Client) Close() error { return joinClose(c.db.Close(), &c.runtime) }
 
 func (c *Client) settings() (ClientSettings, error) {
 	cfg, err := config.Load(filepath.Join(c.root, "kist.toml"))
@@ -163,8 +164,7 @@ func (c *Client) boundary() (SyncBoundary, bool, error) {
 	if err != nil {
 		return SyncBoundary{}, false, err
 	}
-	var head SyncBoundary
-	err = readClientJSON(filepath.Join(c.root, "catalog-head.json"), &head)
+	head, err := c.readBoundary("catalog-head")
 	if errors.Is(err, os.ErrNotExist) {
 		return SyncBoundary{LibraryID: settings.LibraryID}, false, nil
 	}
@@ -198,7 +198,7 @@ func (c *Client) rebuildLocked(ctx context.Context) (clientOverlay, error) {
 	}
 	result, err := rebuildClientPrefixInto(ctx, c.db, c.catalog, pending, head.OpID, head.Sum)
 	if err == nil {
-		err = writeClientJSON(c.viewStampPath(), stamp)
+		err = c.publishClientView(stamp, pending)
 	}
 	return result, err
 }
@@ -395,31 +395,4 @@ func readClientJSON(path string, value any) error {
 		return err
 	}
 	return json.Unmarshal(b, value)
-}
-
-func writeClientJSON(path string, value any) error {
-	b, err := json.MarshalIndent(value, "", "  ")
-	if err != nil {
-		return err
-	}
-	f, err := os.CreateTemp(filepath.Dir(path), ".client-*")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(f.Name())
-	if _, err := f.Write(append(b, '\n')); err != nil {
-		f.Close()
-		return err
-	}
-	if err := f.Sync(); err != nil {
-		f.Close()
-		return err
-	}
-	if err := f.Close(); err != nil {
-		return err
-	}
-	if err := os.Rename(f.Name(), path); err != nil {
-		return err
-	}
-	return syncClientDir(filepath.Dir(path))
 }

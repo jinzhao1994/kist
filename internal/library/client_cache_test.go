@@ -22,7 +22,7 @@ func seedCachedOriginal(t *testing.T, c *Client, content string, accessed time.T
 	if err := os.WriteFile(c.cachePath(key, ".data"), []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := writeClientJSON(c.cachePath(key, ".json"), cachedOriginal{Version: 1, Key: key, Size: int64(len(content)), Offset: int64(len(content)), Complete: true, AccessedAt: accessed}); err != nil {
+	if err := c.writeCacheObject(cachedOriginal{Version: 1, Key: key, Size: int64(len(content)), Offset: int64(len(content)), Complete: true, AccessedAt: accessed}); err != nil {
 		t.Fatal(err)
 	}
 	return key
@@ -134,7 +134,7 @@ func TestClientCacheAdmissionCountsPartialReservations(t *testing.T) {
 		release()
 		t.Fatal(err)
 	}
-	if err := writeClientJSON(c.cachePath(key, ".json"), cachedOriginal{Version: 1, Key: key, Size: 10, Offset: 4, AccessedAt: time.Now().UTC()}); err != nil {
+	if err := c.writeCacheObject(cachedOriginal{Version: 1, Key: key, Size: 10, Offset: 4, AccessedAt: time.Now().UTC()}); err != nil {
 		release()
 		t.Fatal(err)
 	}

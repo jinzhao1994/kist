@@ -87,7 +87,7 @@ func (c *Client) publishDerived(ctx context.Context, w *cacheWorkspace, original
 		return d, err
 	}
 	record := cachedOriginal{Version: 1, Key: d.ContentKey, Size: result.Bytes, Offset: result.Bytes, AccessedAt: time.Now().UTC()}
-	if err = writeClientJSON(c.cachePath(d.ContentKey, ".json"), record); err != nil {
+	if err = c.writeCacheObject(record); err != nil {
 		return d, err
 	}
 	// Windows does not replace an existing destination on rename. The exclusive
@@ -105,7 +105,7 @@ func (c *Client) publishDerived(ctx context.Context, w *cacheWorkspace, original
 		return d, err
 	}
 	record.Complete = true
-	if err = writeClientJSON(c.cachePath(d.ContentKey, ".json"), record); err != nil {
+	if err = c.writeCacheObject(record); err != nil {
 		return d, err
 	}
 	// Drop the scratch reservation in the same cache critical section as output

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"os"
 	"testing"
 	"time"
 
@@ -156,7 +155,7 @@ func TestClientMediaCancelStopsTransferAndPreservesNewRequest(t *testing.T) {
 	}
 }
 
-func TestClientMediaDamagedQueueCanBeRequestedAgain(t *testing.T) {
+func TestClientMediaMissingQueueCanBeRequestedAgain(t *testing.T) {
 	nas, id, _ := mediaFixture(t)
 	c := newSyncClient(t, nas)
 	m := c.Media(func(context.Context) (DerivedSource, error) { t.Fatal("unexpected network"); return nil, nil })
@@ -164,11 +163,11 @@ func TestClientMediaDamagedQueueCanBeRequestedAgain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	path, err := m.path(j)
+	db, err := m.database()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = os.WriteFile(path, []byte(`{"state":`), 0600); err != nil {
+	if _, err = db.DB.Exec(`DELETE FROM background_jobs WHERE kind='client-media' AND job_key=?`, j.BlobKey+"/"+j.Recipe); err != nil {
 		t.Fatal(err)
 	}
 	next, err := m.Request(t.Context(), id, derive.Thumbnail, false)
