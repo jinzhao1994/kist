@@ -1,4 +1,10 @@
 import {
+  SettingsCheckbox,
+  SettingsFieldHeading,
+  SettingsHint,
+  SettingsTask,
+} from "./SettingsFields";
+import {
   TaskError,
   TaskStatus,
   taskPollInterval,
@@ -11,10 +17,9 @@ import {
   Group,
   Stack,
   Text,
-  Checkbox,
   PasswordInput,
 } from "@mantine/core";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, result } from "./api";
 import { Select } from "./Select";
@@ -112,9 +117,7 @@ export function AIConnection({
     >
       <h2 id="settings-ai-title">{t("aiConnection")}</h2>
       <Stack>
-        <Text size="sm" c="dimmed">
-          {t("aiLocalHint")}
-        </Text>
+        <SettingsHint>{t("aiLocalHint")}</SettingsHint>
         {(error || query.error || status?.error) && (
           <Alert role="alert" color="red">
             {error ||
@@ -220,6 +223,7 @@ function AISettings({
 }) {
   const { t } = useI18n();
   const query = useAISettings();
+  const proxyID = useId();
   const queries = useQueryClient();
   const models = useQuery({
     queryKey: ["ai-models"],
@@ -271,7 +275,7 @@ function AISettings({
   if (draft?.model && !modelOptions.some((m) => m.value === draft.model))
     modelOptions.unshift({ value: draft.model, label: draft.model });
   return (
-    <Stack>
+    <div className="settings-blocks">
       {query.isPending && (
         <Text role="status" size="sm">
           {t("loading")}
@@ -291,7 +295,7 @@ function AISettings({
         </Text>
       )}
       {draft && (
-        <>
+        <div className="settings-fields">
           <Select
             label={t("aiModel")}
             value={draft.model}
@@ -328,40 +332,46 @@ function AISettings({
               {t("aiUseLuna")}
             </Button>
           )}
-          <PasswordInput
-            label={t("aiProxy")}
-            description={t("aiProxyHint")}
-            value={draft.proxy_url}
-            onChange={(e) => edit({ proxy_url: e.currentTarget.value })}
-            disabled={disabled || busy}
-            autoComplete="off"
-          />
-          <Checkbox
+          <div>
+            <SettingsFieldHeading
+              label={t("aiProxy")}
+              htmlFor={proxyID}
+              help={t("aiProxyHint")}
+            />
+            <PasswordInput
+              id={proxyID}
+              value={draft.proxy_url}
+              onChange={(e) => edit({ proxy_url: e.currentTarget.value })}
+              disabled={disabled || busy}
+              autoComplete="off"
+            />
+          </div>
+          <SettingsCheckbox
             label={t("orientationAuto")}
-            description={t("orientationAutoHint")}
+            help={t("orientationAutoHint")}
             checked={!!draft.auto_orientation}
             onChange={(e) =>
               edit({ auto_orientation: e.currentTarget.checked })
             }
             disabled={disabled || busy}
           />
-          <Checkbox
+          <SettingsCheckbox
             label={t("ocrAuto")}
-            description={t("ocrAutoHint")}
+            help={t("ocrAutoHint")}
             checked={draft.auto_ocr}
             onChange={(e) => edit({ auto_ocr: e.currentTarget.checked })}
             disabled={disabled || busy}
           />
-          <Checkbox
+          <SettingsCheckbox
             label={t("descAuto")}
-            description={t("descAutoHint")}
+            help={t("descAutoHint")}
             checked={!!draft.auto_desc}
             onChange={(e) => edit({ auto_desc: e.currentTarget.checked })}
             disabled={disabled || busy}
           />
-          <Checkbox
+          <SettingsCheckbox
             label={t("factsAuto")}
-            description={t("factsAutoHint")}
+            help={t("factsAutoHint")}
             checked={!!draft.auto_facts}
             onChange={(e) => edit({ auto_facts: e.currentTarget.checked })}
             disabled={disabled || busy}
@@ -394,7 +404,7 @@ function AISettings({
               {t("aiReloadSettings")}
             </Button>
           </Group>
-        </>
+        </div>
       )}
       {(["orientation", "ocr", "desc", "facts"] as const).map((kind) => (
         <BackgroundTaskQueue
@@ -405,7 +415,7 @@ function AISettings({
           model={query.data?.model}
         />
       ))}
-    </Stack>
+    </div>
   );
 }
 export function BackgroundTaskQueue({
@@ -440,13 +450,12 @@ export function BackgroundTaskQueue({
     }
   }
   return (
-    <Stack>
-      <Text fw={600}>{t(taskMessage(kind, "Title"))}</Text>
-      {error && (
-        <Text role="alert" size="sm">
-          {error}
-        </Text>
+    <SettingsTask
+      title={t(
+        kind === "geo" ? "backgroundProcessing" : taskMessage(kind, "Title"),
       )}
+    >
+      {error && <TaskError>{error}</TaskError>}
       {notice && (
         <Text role="status" size="sm">
           {notice}
@@ -454,38 +463,36 @@ export function BackgroundTaskQueue({
       )}
       {queue.error && (
         <Group>
-          <Text role="alert" size="sm">
-            {errorMessage(queue.error, t)}
-          </Text>
+          <TaskError>{errorMessage(queue.error, t)}</TaskError>
           <Button onClick={() => void queue.refetch()}>{t("retry")}</Button>
         </Group>
       )}
       {queue.data && (
         <>
-          <TaskStatus>
-            {queue.data.paused
-              ? t(taskMessage(kind, "QueuePaused"))
-              : queue.data.running
-                ? t("extractionQueueRunning", {
-                    name: queue.data.running,
-                  })
-                : t(taskMessage(kind, "QueueIdle"))}
-          </TaskStatus>
-          <Text size="sm" c="dimmed">
-            {t("ocrQueueCounts", {
-              queued: queue.data.queued,
-              failed: queue.data.failed,
-            })}
-          </Text>
+          <div className="settings-task-status">
+            <Text className="settings-hint" role="status">
+              {queue.data.paused
+                ? t(taskMessage(kind, "QueuePaused"))
+                : queue.data.running
+                  ? t("extractionQueueRunning", {
+                      name: queue.data.running,
+                    })
+                  : t(taskMessage(kind, "QueueIdle"))}
+            </Text>
+            <SettingsHint>
+              {t("ocrQueueCounts", {
+                queued: queue.data.queued,
+                failed: queue.data.failed,
+              })}
+            </SettingsHint>
+          </div>
           {queue.data.scanning && (
             <Text role="status" size="sm">
               {t(taskMessage(kind, "Scanning"))}
             </Text>
           )}
           {queue.data.error && (
-            <Text size="sm" role="alert">
-              {taskErrorMessage(queue.data.error, t)}
-            </Text>
+            <TaskError>{taskErrorMessage(queue.data.error, t)}</TaskError>
           )}
           <Group>
             <Button
@@ -523,12 +530,10 @@ export function BackgroundTaskQueue({
               {t(queue.data.paused ? "ocrResume" : "ocrPause")}
             </Button>
           </Group>
-          <Text size="sm" c="dimmed">
-            {t(taskMessage(kind, "BackfillHint"))}
-          </Text>
+          <SettingsHint>{t(taskMessage(kind, "BackfillHint"))}</SettingsHint>
         </>
       )}
-    </Stack>
+    </SettingsTask>
   );
 }
 export function OCRAction({

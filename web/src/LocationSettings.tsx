@@ -1,13 +1,10 @@
 import {
-  Alert,
-  Button,
-  Checkbox,
-  Group,
-  Stack,
-  Text,
-  TextInput,
-} from "@mantine/core";
-import { useEffect, useState } from "react";
+  SettingsCheckbox,
+  SettingsFieldHeading,
+  SettingsHint,
+} from "./SettingsFields";
+import { Alert, Button, Group, Text, TextInput } from "@mantine/core";
+import { useEffect, useId, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, result } from "./api";
 import type { components } from "./api-schema";
@@ -18,6 +15,7 @@ import { errorMessage } from "./mutations";
 type Settings = components["schemas"]["LocationSettings"];
 export function LocationSettings({ disabled = false }: { disabled?: boolean }) {
   const { t } = useI18n();
+  const endpointID = useId();
   const queries = useQueryClient();
   const query = useQuery({
     queryKey: ["location-settings"],
@@ -59,10 +57,8 @@ export function LocationSettings({ disabled = false }: { disabled?: boolean }) {
       aria-labelledby="settings-location-title"
     >
       <h2 id="settings-location-title">{t("geoTitle")}</h2>
-      <Stack>
-        <Text size="sm" c="dimmed">
-          {t("geoSettingsHint")}
-        </Text>
+      <div className="settings-blocks">
+        <SettingsHint>{t("geoSettingsHint")}</SettingsHint>
         {(error || query.error) && (
           <Alert role="alert" color="red">
             {error || (query.error && errorMessage(query.error, t))}
@@ -70,10 +66,10 @@ export function LocationSettings({ disabled = false }: { disabled?: boolean }) {
         )}
         {query.isPending && <Text role="status">{t("mapLoading")}</Text>}
         {draft && (
-          <>
-            <Checkbox
+          <div className="settings-fields">
+            <SettingsCheckbox
               label={t("geoAuto")}
-              description={t("geoAutoHint")}
+              help={t("geoAutoHint")}
               checked={draft.automatic}
               disabled={disabled || busy}
               onChange={(e) => {
@@ -81,44 +77,50 @@ export function LocationSettings({ disabled = false }: { disabled?: boolean }) {
                 setDirty(true);
               }}
             />
-            <TextInput
-              label={t("geoEndpoint")}
-              description={t("geoEndpointHint")}
-              value={draft.endpoint}
-              disabled={disabled || busy}
-              onChange={(e) => {
-                setDraft({ ...draft, endpoint: e.currentTarget.value });
-                setDirty(true);
-              }}
-            />
-          </>
+            <div>
+              <SettingsFieldHeading
+                htmlFor={endpointID}
+                label={t("geoEndpoint")}
+                help={t("geoEndpointHint")}
+              />
+              <TextInput
+                id={endpointID}
+                value={draft.endpoint}
+                disabled={disabled || busy}
+                onChange={(e) => {
+                  setDraft({ ...draft, endpoint: e.currentTarget.value });
+                  setDirty(true);
+                }}
+              />
+            </div>
+            <Group>
+              <Button
+                disabled={!dirty || disabled || busy}
+                loading={busy}
+                onClick={() => void save()}
+              >
+                {t("geoSaveSettings")}
+              </Button>
+              <Button
+                disabled={busy || disabled}
+                onClick={() => {
+                  setDirty(false);
+                  setError("");
+                  void query.refetch();
+                }}
+              >
+                {t("geoReloadSettings")}
+              </Button>
+            </Group>
+          </div>
         )}
-        <Group>
-          <Button
-            disabled={!dirty || disabled || busy}
-            loading={busy}
-            onClick={() => void save()}
-          >
-            {t("geoSaveSettings")}
-          </Button>
-          <Button
-            disabled={busy || disabled}
-            onClick={() => {
-              setDirty(false);
-              setError("");
-              void query.refetch();
-            }}
-          >
-            {t("geoReloadSettings")}
-          </Button>
-        </Group>
         <BackgroundTaskQueue
           kind="geo"
           disabled={disabled || busy || dirty}
           connected={!!query.data}
           model="photon"
         />
-      </Stack>
+      </div>
     </section>
   );
 }

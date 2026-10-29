@@ -28,6 +28,7 @@ export const en = {
   factsInvalid:
     "Cannot display this structured result. The saved data has been preserved.",
 
+  backgroundProcessing: "Background processing",
   geoTitle: "Capture location",
   geoRefresh: "Update address",
   geoSaveSettings: "Save location settings",
@@ -1016,6 +1017,7 @@ export const zh: Record<MessageKey, string> = {
   factsEmpty: "暂无可显示的结构化字段",
   factsInvalid: "无法显示此结构化结果，已保存的数据保持不变。",
 
+  backgroundProcessing: "后台处理",
   geoTitle: "拍摄位置",
   geoRefresh: "更新地址",
   geoSaveSettings: "保存位置设置",

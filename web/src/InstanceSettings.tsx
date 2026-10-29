@@ -1,3 +1,4 @@
+import { SettingsFieldHeading } from "./SettingsFields";
 import { LocationSettings } from "./LocationSettings";
 import { StorageUsageValues } from "./StorageUsageValues";
 import { AIConnection } from "./AI";
@@ -467,15 +468,13 @@ function SettingInput(props: {
                   : undefined;
   return (
     <>
-      <Group className="setting-field-heading" gap="xs" mb={4}>
-        <Input.Label htmlFor={id}>{label}</Input.Label>
-        {hint && <HelpTooltip label={label}>{hint}</HelpTooltip>}
+      <SettingsFieldHeading label={label} htmlFor={id} help={hint}>
         {field.restart && (
           <Text size="xs" c="dimmed">
             {t("settingRestart")}
           </Text>
         )}
-      </Group>
+      </SettingsFieldHeading>
       <SettingControl {...props} id={id} />
     </>
   );

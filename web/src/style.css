@@ -3481,6 +3481,46 @@ main.upload-drag-active {
     0 1rem 0 var(--mantine-color-body);
 }
 
+/* Shared field and worker hierarchy for instance, AI and location settings. */
+.setting-field-heading,
+.setting-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}
+.setting-field-heading {
+  margin-block-end: 4px;
+}
+.settings-fields,
+.settings-blocks,
+.settings-task {
+  display: flex;
+  flex-direction: column;
+}
+.settings-fields {
+  gap: var(--mantine-spacing-lg);
+}
+.settings-blocks {
+  gap: var(--mantine-spacing-xl);
+}
+.settings-task {
+  gap: var(--mantine-spacing-md);
+}
+.settings-task > h3 {
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 500;
+  margin: 0;
+}
+.settings-hint {
+  font-size: var(--mantine-font-size-sm);
+  color: var(--mantine-color-dimmed);
+}
+.settings-task-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mantine-spacing-xs) var(--mantine-spacing-lg);
+}
+
 .setting-field-heading > .mantine-InputWrapper-label,
 .setting-field-heading > .mantine-Text-root {
   margin-block: 0;

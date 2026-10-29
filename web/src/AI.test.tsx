@@ -182,7 +182,7 @@ it("shows model loading and saves shared options without triggering a backfill",
     }),
   );
   await userEvent.type(
-    screen.getByLabelText("AI proxy address"),
+    screen.getByLabelText("AI proxy address", { selector: "input" }),
     "http://127.0.0.1:7890",
   );
   await userEvent.click(
