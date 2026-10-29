@@ -5377,11 +5377,21 @@ for (const anchor of ["location", "background-tasks"] as const) {
     if (anchor === "background-tasks") {
       const tasks = page.locator("#settings-background-tasks");
       await expect(tasks.getByRole("rowheader")).toHaveCount(5);
+      await expect(tasks.locator(".task-table-state").first()).toBeVisible();
       const actions = tasks.locator(".table-row-actions").first();
+      const rowHelp = tasks.locator(".table-row-help").first();
       await page.mouse.move(5, 5);
       await expect(actions).toHaveCSS("opacity", "0");
+      await expect(rowHelp).toHaveCSS("opacity", "0");
       await tasks.getByRole("row").nth(1).hover();
       await expect(actions).toHaveCSS("opacity", "1");
+      await expect(rowHelp).toHaveCSS("opacity", "1");
+      await expect(
+        actions.getByRole("button", { name: "重试", exact: true }),
+      ).toBeDisabled();
+      await expect(
+        actions.getByRole("button", { name: "重试", exact: true }),
+      ).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
       await expect(
         actions.getByRole("button", { name: "暂停", exact: true }),
       ).toBeEnabled();

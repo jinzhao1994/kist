@@ -3743,19 +3743,22 @@ main.upload-drag-active {
   white-space: nowrap;
 }
 @media (hover: hover) and (pointer: fine) {
-  .table-row-actions {
+  .table-row-actions,
+  .table-row-help {
     opacity: 0;
     pointer-events: none;
   }
   tr:hover .table-row-actions,
   tr:focus-within .table-row-actions,
+  tr:hover .table-row-help,
+  tr:focus-within .table-row-help,
   .table-row-actions[data-busy] {
     opacity: 1;
     pointer-events: auto;
   }
 }
 .task-table {
-  table-layout: fixed;
+  table-layout: auto;
 }
 .settings-table--compact td,
 .settings-table--compact th[scope="row"] {
@@ -3764,8 +3767,14 @@ main.upload-drag-active {
 .settings-table--compact th[scope="row"] {
   font-weight: 400;
 }
-.table-row-actions > .mantine-Button-root {
-  font-weight: 500;
+.table-row-help {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.table-action-link:disabled {
+  color: var(--mantine-color-dimmed);
+  cursor: default;
+  text-decoration: none;
 }
 .task-table th[scope="row"] {
   color: var(--mantine-color-text);
@@ -3776,21 +3785,25 @@ main.upload-drag-active {
 }
 .task-table-kind {
   inline-size: 10rem;
+  min-inline-size: 10rem;
 }
 .task-table-count {
   inline-size: 5rem;
+  min-inline-size: 5rem;
   text-align: end;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 .task-table-actions {
-  inline-size: 14rem;
+  inline-size: 1%;
+  white-space: nowrap;
 }
 .task-table-feedback {
+  inline-size: 0;
+  min-inline-size: 100%;
   display: flex;
   align-items: center;
   gap: var(--mantine-spacing-xs);
-  min-inline-size: 0;
 }
 .task-table-state,
 .task-table-message {

@@ -1,4 +1,4 @@
-import { Button, Group, Table, Text } from "@mantine/core";
+import { Anchor, Group, Table, Text } from "@mantine/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { FullTextTooltip } from "./FullTextTooltip";
@@ -159,13 +159,15 @@ function BackgroundTaskRow({
       <Table.Th scope="row">
         <div className="setting-field-heading">
           {title}
-          <HelpTooltip label={title} inline>
-            {t(
-              kind === "geo"
-                ? "geoSettingsHint"
-                : (`${kind}BackfillHint` as MessageKey),
-            )}
-          </HelpTooltip>
+          <span className="table-row-help">
+            <HelpTooltip label={title} inline>
+              {t(
+                kind === "geo"
+                  ? "geoSettingsHint"
+                  : (`${kind}BackfillHint` as MessageKey),
+              )}
+            </HelpTooltip>
+          </span>
         </div>
       </Table.Th>
       <Table.Td>
@@ -194,13 +196,15 @@ function BackgroundTaskRow({
             </FullTextTooltip>
           )}
           {queue.error && (
-            <Button
-              variant="subtle"
-              size="compact-xs"
+            <Anchor
+              component="button"
+              type="button"
+              size="xs"
+              className="table-action-link"
               onClick={() => void queue.refetch()}
             >
               {t("retry")}
-            </Button>
+            </Anchor>
           )}
         </div>
       </Table.Td>
@@ -208,25 +212,29 @@ function BackgroundTaskRow({
       <Table.Td className="task-table-count">{data?.failed ?? "—"}</Table.Td>
       <Table.Td>
         <Group
-          gap="xs"
+          gap="md"
           wrap="nowrap"
           justify="flex-end"
           className="table-row-actions"
           data-busy={busy || undefined}
         >
-          <Button
-            variant="subtle"
-            size="compact-xs"
+          <Anchor
+            component="button"
+            type="button"
+            size="xs"
+            className="table-action-link"
             disabled={
               !data || disabled || busy || !model || !connected || data.scanning
             }
             onClick={() => void command("backfill", { retry: false })}
           >
             {t("backgroundTaskBackfill")}
-          </Button>
-          <Button
-            variant="subtle"
-            size="compact-xs"
+          </Anchor>
+          <Anchor
+            component="button"
+            type="button"
+            size="xs"
+            className="table-action-link"
             disabled={
               !data ||
               disabled ||
@@ -238,15 +246,17 @@ function BackgroundTaskRow({
             onClick={() => void command("backfill", { retry: true })}
           >
             {t("backgroundTaskRetry")}
-          </Button>
-          <Button
-            variant="subtle"
-            size="compact-xs"
+          </Anchor>
+          <Anchor
+            component="button"
+            type="button"
+            size="xs"
+            className="table-action-link"
             disabled={!data || disabled || busy}
             onClick={() => void command("pause", { paused: !data?.paused })}
           >
             {t(data?.paused ? "backgroundTaskResume" : "backgroundTaskPause")}
-          </Button>
+          </Anchor>
         </Group>
       </Table.Td>
     </Table.Tr>
