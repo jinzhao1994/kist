@@ -74,7 +74,7 @@ export const en = {
   geoScanning: "Finding images without location results…",
   geoBackfill: "Fill missing locations",
 
-  taskCanceled: "Task canceled. You can retry it.",
+  taskCanceled: "Task canceled.",
   ocrTitle: "OCR",
   orientationTitle: "Image orientation",
   orientationEdit: "Adjust orientation",
@@ -1079,7 +1079,7 @@ export const zh: Record<MessageKey, string> = {
   geoScanning: "正在查找尚未查询位置的图片…",
   geoBackfill: "补全已有图片的位置",
 
-  taskCanceled: "任务已取消，可重试。",
+  taskCanceled: "任务已取消。",
   ocrTitle: "OCR",
   orientationTitle: "图片方向",
   orientationEdit: "调整方向",

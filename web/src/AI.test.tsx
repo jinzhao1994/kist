@@ -507,7 +507,7 @@ it("explains canceled tasks in both queue settings and metadata", async () => {
   );
   await waitFor(() => expect(screen.getAllByRole("alert")).toHaveLength(2));
   for (const alert of screen.getAllByRole("alert")) {
-    expect(alert).toHaveTextContent("Task canceled. You can retry it.");
+    expect(alert).toHaveTextContent("Task canceled.");
   }
   expect(screen.queryByText("context canceled")).not.toBeInTheDocument();
   expect(

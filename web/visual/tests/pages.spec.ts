@@ -4411,7 +4411,7 @@ for (const scenario of [
       scenario === "ai-error"
         ? ["Model service unavailable"]
         : scenario === "ai-paused"
-          ? ["上次失败：任务已取消，可重试。"]
+          ? ["上次失败：任务已取消。"]
           : [],
     );
   });
@@ -5373,10 +5373,34 @@ for (const anchor of ["location", "background-tasks"] as const) {
     await page.route("**/api/v1/settings/credentials", (route) =>
       route.fulfill({ json: [] }),
     );
+    if (anchor === "background-tasks")
+      await page.route("**/api/v1/ai/ocr", (route) =>
+        route.fulfill({
+          json: {
+            paused: true,
+            scanning: true,
+            queued: 1,
+            failed: 0,
+            running: "",
+            error: "context canceled",
+          },
+        }),
+      );
     await page.goto(`/settings#settings-${anchor}`);
     if (anchor === "background-tasks") {
       const tasks = page.locator("#settings-background-tasks");
       await expect(tasks.getByRole("rowheader")).toHaveCount(5);
+      const ocr = tasks
+        .getByRole("row")
+        .filter({ has: tasks.getByRole("rowheader", { name: /^OCR/ }) });
+      await expect(ocr.getByRole("status")).toHaveText("已暂停");
+      await expect(ocr.getByRole("alert")).toHaveCount(0);
+      await expect(
+        ocr.getByRole("button", { name: "重试", exact: true }),
+      ).toBeDisabled();
+      await expect(
+        ocr.getByRole("button", { name: "继续", exact: true }),
+      ).toBeEnabled();
       await expect(tasks.locator(".task-table-state").first()).toBeVisible();
       const actions = tasks.locator(".table-row-actions").first();
       const rowHelp = tasks.locator(".table-row-help").first();

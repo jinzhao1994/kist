@@ -138,12 +138,16 @@ function BackgroundTaskRow({
   }
   const data = queue.data;
   const title = t(`${kind}Title` as MessageKey);
+  // A canceled attempt can already be queued again. Keep queue-wide failures
+  // (such as configuration errors) visible even without failed file jobs.
+  const queueError =
+    data?.error === "context canceled" && !data.failed ? "" : data?.error;
   const issue =
     error ||
     (queue.error && errorMessage(queue.error, t)) ||
-    ((data?.paused || !!data?.failed) && data?.error
+    ((data?.paused || !!data?.failed) && queueError
       ? t("backgroundTaskLastFailure", {
-          error: taskErrorMessage(data.error, t)!,
+          error: taskErrorMessage(queueError, t)!,
         })
       : "");
   const status = !data

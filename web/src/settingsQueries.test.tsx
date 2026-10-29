@@ -283,9 +283,9 @@ it("keeps task commands scoped to their row and distinguishes backfill from retr
     expect(within(row).getByRole("status")).toHaveTextContent(/^Paused$/),
   );
   expect(within(row).queryByText("Scan pending")).not.toBeInTheDocument();
-  expect(within(row).getByRole("alert")).toHaveTextContent(
-    "Last failure: Task canceled. You can retry it.",
-  );
+  expect(within(row).queryByRole("alert")).not.toBeInTheDocument();
+  expect(within(row).getByRole("button", { name: "Retry" })).toBeDisabled();
+  expect(within(row).getByRole("button", { name: "Resume" })).toBeEnabled();
   const user = userEvent.setup();
   await user.click(within(row).getByRole("button", { name: "Resume" }));
   const fill = within(row).getByRole("button", { name: "Fill missing" });
