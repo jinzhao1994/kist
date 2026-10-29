@@ -387,6 +387,7 @@ function AISettings({
           disabled={disabled || busy || dirty}
           connected={connected}
           model={query.data?.model}
+          hint={t(taskMessage(kind, "BackfillHint"))}
         />
       ))}
     </div>
@@ -397,11 +398,13 @@ export function BackgroundTaskQueue({
   disabled,
   connected,
   model,
+  hint,
 }: {
   kind: MetadataTask;
   disabled: boolean;
   connected: boolean;
   model?: string;
+  hint?: ReactNode;
 }) {
   const { t } = useI18n();
   const queue = useOCRQueue(kind);
@@ -504,7 +507,7 @@ export function BackgroundTaskQueue({
               {t(queue.data.paused ? "ocrResume" : "ocrPause")}
             </Button>
           </Group>
-          <SettingsHint>{t(taskMessage(kind, "BackfillHint"))}</SettingsHint>
+          {hint && <SettingsHint>{hint}</SettingsHint>}
         </>
       )}
     </SettingsTask>

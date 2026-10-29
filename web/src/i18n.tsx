@@ -29,18 +29,18 @@ export const en = {
     "Cannot display this structured result. The saved data has been preserved.",
 
   backgroundProcessing: "Background processing",
-  geoTitle: "Capture location",
+  geoTitle: "Photo location",
   geoRefresh: "Update address",
   geoSaveSettings: "Save location settings",
   geoReloadSettings: "Reload location settings",
   geoAddress: "Location",
   geoNearby: "Near {address}",
   geoNotFound: "No nearby street or neighborhood found",
-  geoMap: "Capture location map",
+  geoMap: "Photo location map",
   geoCaptureHint:
     "The marker is the photo’s GPS position. The circle shows recorded accuracy when available.",
   geoSettingsHint:
-    "Photon converts a photo’s GPS coordinates into a nearby address. It receives only the coordinates, not the photo or recognized text. No account or API key is required. Requests run one at a time.",
+    "Use the photo’s recorded GPS coordinates to look up a nearby address, rather than an address written in the image. Photon receives only coordinates and needs no account or API key. Requests run one at a time. Filling missing locations reuses saved results and skips photos without GPS.",
   geoRequestInterval: "Request interval (seconds)",
   geoRequestIntervalHint:
     "Minimum wait after each request. The default is 2 seconds. Rate-limit and temporary-failure cooldowns may be longer.",
@@ -58,8 +58,6 @@ export const en = {
   geoQueueIdle: "Location worker ready",
   geoScanning: "Finding images without location results…",
   geoBackfill: "Fill missing locations",
-  geoBackfillHint:
-    "Read GPS from supported images and query missing locations. Saved results are reused; images without GPS do not send requests.",
 
   taskCanceled: "Task canceled. You can retry it.",
   ocrTitle: "OCR",
@@ -131,8 +129,8 @@ export const en = {
   ocrScanning: "Finding images without OCR…",
   ocrBackfill: "Recognize existing images without OCR",
   ocrRetryFailed: "Retry failed tasks",
-  ocrPause: "Pause automatic / bulk tasks",
-  ocrResume: "Resume automatic / bulk tasks",
+  ocrPause: "Pause processing",
+  ocrResume: "Continue processing",
   ocrBackfillStarted:
     "Backfill requested. Completed and queued files will be skipped.",
   ocrBackfillHint:
@@ -1024,17 +1022,17 @@ export const zh: Record<MessageKey, string> = {
   factsInvalid: "无法显示此结构化结果，已保存的数据保持不变。",
 
   backgroundProcessing: "后台处理",
-  geoTitle: "拍摄位置",
+  geoTitle: "照片位置",
   geoRefresh: "更新地址",
   geoSaveSettings: "保存位置设置",
   geoReloadSettings: "重新加载位置设置",
   geoAddress: "位置",
   geoNearby: "{address}附近",
   geoNotFound: "未找到附近街道或片区",
-  geoMap: "拍摄位置地图",
+  geoMap: "照片位置地图",
   geoCaptureHint: "标记为照片的 GPS 位置；圆圈表示照片记录的定位误差（如有）。",
   geoSettingsHint:
-    "使用 Photon 将照片的 GPS 坐标转换为附近地址。仅发送经纬度，不发送照片或识别文字，无需账号或密钥。查询请求逐个执行。",
+    "根据照片记录的 GPS 坐标查询附近地址，不是识别图片文字中的地址。使用 Photon，仅发送经纬度，无需账号或密钥，请求逐个执行。补全已有照片时会复用已保存的结果，没有 GPS 的照片会跳过。",
   geoRequestInterval: "请求间隔（秒）",
   geoRequestIntervalHint:
     "每次请求结束后的最短等待时间，默认 2 秒。服务限流或暂时不可用时，等待时间可能更长。",
@@ -1050,8 +1048,6 @@ export const zh: Record<MessageKey, string> = {
   geoQueueIdle: "地址查询队列空闲",
   geoScanning: "正在查找尚未查询位置的图片…",
   geoBackfill: "补全已有图片的位置",
-  geoBackfillHint:
-    "从支持的图片中读取 GPS 并查询缺失的位置，已有结果会复用；没有 GPS 的图片不会发送请求。",
 
   taskCanceled: "任务已取消，可重试。",
   ocrTitle: "OCR",
@@ -1118,8 +1114,8 @@ export const zh: Record<MessageKey, string> = {
   ocrScanning: "正在查找尚未识别的图片…",
   ocrBackfill: "补全已有图片的文字识别",
   ocrRetryFailed: "重试失败任务",
-  ocrPause: "暂停自动与批量处理",
-  ocrResume: "继续自动与批量处理",
+  ocrPause: "暂停处理",
+  ocrResume: "继续处理",
   ocrBackfillStarted: "已发起查缺补漏，将跳过已完成及已排队的文件。",
   ocrBackfillHint:
     "查缺补漏会将尚未识别且受支持的图片发送给已连接的服务商。失败项不会自动重试；队列暂停时，需要点击继续后才开始处理。",

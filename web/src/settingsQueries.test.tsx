@@ -96,7 +96,7 @@ it("reveals local settings together, reuses requests and does not wait for remot
   await waitFor(() => expect(reads).toContain("/ai/settings"));
   expect(reads).toContain("/geo/settings");
   expect(
-    screen.queryByRole("heading", { name: "Capture location" }),
+    screen.queryByRole("heading", { name: "Photo location" }),
   ).not.toBeInTheDocument();
   await waitFor(() =>
     expect(client.getQueryData(["sync-credentials"])).toEqual([]),
@@ -108,7 +108,7 @@ it("reveals local settings together, reuses requests and does not wait for remot
   });
   releaseLocation(Response.json(location));
   expect(
-    await screen.findByRole("heading", { name: "Capture location" }),
+    await screen.findByRole("heading", { name: "Photo location" }),
   ).toBeVisible();
   expect(
     screen.getByLabelText("Photon endpoint", { selector: "input" }),

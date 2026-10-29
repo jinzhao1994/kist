@@ -4400,7 +4400,7 @@ for (const scenario of [
           page.getByRole("checkbox", { name: "自动识别新增图片" }),
         ).toBeChecked();
         await expect(
-          page.getByRole("button", { name: "继续自动与批量处理", exact: true }),
+          page.getByRole("button", { name: "继续处理", exact: true }),
         ).toBeEnabled();
       }
     }
@@ -5374,6 +5374,13 @@ test("settings-location", async ({ page }, info) => {
     section.getByRole("checkbox", { name: "自动查询新增图片的位置" }),
   ).toBeChecked();
   await expect(
+    section.getByRole("button", { name: "暂停处理", exact: true }),
+  ).toBeEnabled();
+  await expect(
+    section.getByText("从支持的图片中读取 GPS", { exact: false }),
+  ).toHaveCount(0);
+
+  await expect(
     section.getByRole("button", { name: "补全已有图片的位置", exact: true }),
   ).toBeEnabled();
   await expect(
@@ -5389,11 +5396,14 @@ test("settings-location", async ({ page }, info) => {
     0,
   );
   const sectionHelp = section.getByRole("button", {
-    name: "拍摄位置",
+    name: "照片位置",
     exact: true,
   });
   await sectionHelp.hover();
   await expect(page.getByRole("tooltip")).toContainText("仅发送经纬度");
+  await expect(page.getByRole("tooltip")).toContainText(
+    "没有 GPS 的照片会跳过",
+  );
   await page.mouse.move(5, 5);
   await expect(page.getByRole("tooltip")).toHaveCount(0);
 
@@ -5434,7 +5444,7 @@ test("settings-location", async ({ page }, info) => {
     section.getByRole("textbox", { name: "Photon 接口地址", exact: true }),
   ).toHaveValue("https://photon.komoot.io/reverse");
   await expect(
-    section.getByRole("heading", { name: "拍摄位置", exact: true }),
+    section.getByRole("heading", { name: "照片位置", exact: true }),
   ).toBeInViewport();
   await capture(page, errors, info.title);
 });
