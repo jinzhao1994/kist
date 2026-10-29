@@ -1,5 +1,5 @@
 import { Checkbox, Input, Text, type CheckboxProps } from "@mantine/core";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { HelpTooltip } from "./HelpTooltip";
 
 export function SettingsFieldHeading({
@@ -55,4 +55,15 @@ export function SettingsTask({
       {children}
     </section>
   );
+}
+
+// Keep controls in a separate task section aware of unsaved configuration.
+export function useSettingsPending(
+  pending: boolean,
+  onChange?: (pending: boolean) => void,
+) {
+  useEffect(() => {
+    onChange?.(pending);
+  }, [pending, onChange]);
+  useEffect(() => () => onChange?.(false), [onChange]);
 }

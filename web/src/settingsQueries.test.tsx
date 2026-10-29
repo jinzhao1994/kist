@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, expect, it, vi } from "vitest";
 import { loadSettingsPage } from "./settingsQueries";
@@ -50,10 +51,15 @@ it("reveals local settings together, reuses requests and does not wait for remot
     releaseModels!: (response: Response) => void,
     releaseStorage!: (response: Response) => void;
   const reads: string[] = [];
+  const writes: string[] = [];
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (url: string) => {
+    vi.fn(async (url: string, init?: RequestInit) => {
       const path = url.replace("/api/v1", "");
+      if (init?.method === "POST") {
+        writes.push(path);
+        return Response.json({ ...queue, paused: true });
+      }
       reads.push(path);
       if (path === "/geo/settings")
         return new Promise<Response>((r) => {
@@ -96,7 +102,7 @@ it("reveals local settings together, reuses requests and does not wait for remot
   await waitFor(() => expect(reads).toContain("/ai/settings"));
   expect(reads).toContain("/geo/settings");
   expect(
-    screen.queryByRole("heading", { name: "Photo location" }),
+    screen.queryByRole("heading", { name: "Photo location", level: 2 }),
   ).not.toBeInTheDocument();
   await waitFor(() =>
     expect(client.getQueryData(["sync-credentials"])).toEqual([]),
@@ -108,7 +114,7 @@ it("reveals local settings together, reuses requests and does not wait for remot
   });
   releaseLocation(Response.json(location));
   expect(
-    await screen.findByRole("heading", { name: "Photo location" }),
+    await screen.findByRole("heading", { name: "Photo location", level: 2 }),
   ).toBeVisible();
   expect(
     screen.getByLabelText("Photon endpoint", { selector: "input" }),
@@ -130,6 +136,52 @@ it("reveals local settings together, reuses requests and does not wait for remot
   expect(
     view.container.querySelector(".storage-usage-values"),
   ).toHaveTextContent("—");
+  releaseModels(Response.json([]));
+  const background = screen.getByRole("region", { name: "Background tasks" });
+  expect(within(background).getAllByRole("heading", { level: 3 })).toHaveLength(
+    5,
+  );
+  for (const id of ["settings-ai", "settings-location"])
+    expect(view.container.querySelector(`#${id} .settings-task`)).toBeNull();
+  const ocr = within(background)
+    .getByRole("heading", { name: "OCR" })
+    .closest("section")!;
+  const geo = within(background)
+    .getByRole("heading", { name: "Photo location" })
+    .closest("section")!;
+  const ocrPause = within(ocr).getByRole("button", {
+    name: "Pause processing",
+  });
+  const geoPause = within(geo).getByRole("button", {
+    name: "Pause processing",
+  });
+  expect(ocrPause).toBeEnabled();
+  expect(geoPause).toBeEnabled();
+  const user = userEvent.setup();
+  await user.type(
+    screen.getByLabelText("AI proxy address", { selector: "input" }),
+    "http://localhost:7890",
+  );
+  expect(ocrPause).toBeDisabled();
+  expect(geoPause).toBeEnabled();
+  await user.click(screen.getByRole("button", { name: "Reload AI settings" }));
+  await waitFor(() => expect(ocrPause).toBeEnabled());
+  await user.type(
+    screen.getByRole("textbox", { name: "Request interval (seconds)" }),
+    "0",
+  );
+  expect(geoPause).toBeDisabled();
+  expect(ocrPause).toBeEnabled();
+  await user.click(
+    screen.getByRole("button", { name: "Reload location settings" }),
+  );
+  await waitFor(() => expect(geoPause).toBeEnabled());
+  await user.click(ocrPause);
+  expect(
+    await within(ocr).findByRole("button", { name: "Continue processing" }),
+  ).toBeEnabled();
+  expect(geoPause).toHaveTextContent("Pause processing");
+  expect(writes).toEqual(["/ai/ocr/pause"]);
   releaseStorage(
     Response.json({
       originals_bytes: 10,
@@ -137,7 +189,6 @@ it("reveals local settings together, reuses requests and does not wait for remot
       previews_bytes: 30,
     }),
   );
-  releaseModels(Response.json([]));
   view.unmount();
   client.clear();
 });

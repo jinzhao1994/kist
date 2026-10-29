@@ -1,6 +1,10 @@
 import { settingsQueries } from "./settingsQueries";
 import { HelpTooltip } from "./HelpTooltip";
-import { SettingsCheckbox, SettingsFieldHeading } from "./SettingsFields";
+import {
+  SettingsCheckbox,
+  SettingsFieldHeading,
+  useSettingsPending,
+} from "./SettingsFields";
 import {
   Alert,
   Button,
@@ -13,7 +17,6 @@ import { useEffect, useId, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { result } from "./api";
 import type { components } from "./api-schema";
-import { BackgroundTaskQueue } from "./AI";
 import { useI18n } from "./i18n";
 import { errorMessage } from "./mutations";
 
@@ -21,7 +24,13 @@ type Settings = components["schemas"]["LocationSettings"];
 type Draft = Omit<Settings, "request_interval_seconds"> & {
   request_interval_seconds: number | string;
 };
-export function LocationSettings({ disabled = false }: { disabled?: boolean }) {
+export function LocationSettings({
+  disabled = false,
+  onPendingChange,
+}: {
+  disabled?: boolean;
+  onPendingChange?: (pending: boolean) => void;
+}) {
   const { t } = useI18n();
   const endpointID = useId();
   const intervalID = useId();
@@ -33,6 +42,7 @@ export function LocationSettings({ disabled = false }: { disabled?: boolean }) {
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  useSettingsPending(disabled || busy || dirty, onPendingChange);
   useEffect(() => {
     if (!dirty && query.data) setDraft(query.data);
   }, [query.data, dirty]);
@@ -161,12 +171,6 @@ export function LocationSettings({ disabled = false }: { disabled?: boolean }) {
             </Group>
           </div>
         )}
-        <BackgroundTaskQueue
-          kind="geo"
-          disabled={disabled || busy || dirty}
-          connected={!!query.data}
-          model="photon"
-        />
       </div>
     </section>
   );

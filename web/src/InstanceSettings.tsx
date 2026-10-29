@@ -1,3 +1,4 @@
+import { BackgroundTasks } from "./BackgroundTasks";
 import { loadSettingsPage, settingsQueries } from "./settingsQueries";
 import { SettingsFieldHeading } from "./SettingsFields";
 import { LocationSettings } from "./LocationSettings";
@@ -86,6 +87,8 @@ export function InstanceSettings() {
   });
   const [snapshot, setSnapshot] = useState<SettingsData>();
   const [changes, setChanges] = useState<Record<string, unknown>>({});
+  const [aiPending, setAIPending] = useState(false);
+  const [locationPending, setLocationPending] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -217,6 +220,10 @@ export function InstanceSettings() {
                   ? [
                       { id: "settings-ai", label: t("aiConnection") },
                       { id: "settings-location", label: t("geoTitle") },
+                      {
+                        id: "settings-background-tasks",
+                        label: t("backgroundTasks"),
+                      },
                     ]
                   : []),
               ]}
@@ -374,6 +381,7 @@ export function InstanceSettings() {
               </section>
               {snapshot.mode === "library" && (
                 <AIConnection
+                  onPendingChange={setAIPending}
                   disabled={busy || Object.keys(changes).length > 0}
                   onChanged={async () => {
                     if (Object.keys(changes).length === 0)
@@ -383,7 +391,15 @@ export function InstanceSettings() {
               )}
               {snapshot.mode === "library" && (
                 <LocationSettings
+                  onPendingChange={setLocationPending}
                   disabled={busy || Object.keys(changes).length > 0}
+                />
+              )}
+              {snapshot.mode === "library" && (
+                <BackgroundTasks
+                  disabled={busy || Object.keys(changes).length > 0}
+                  aiPending={aiPending}
+                  locationPending={locationPending}
                 />
               )}
             </SectionIndex>

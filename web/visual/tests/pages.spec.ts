@@ -4404,6 +4404,10 @@ for (const scenario of [
         ).toBeEnabled();
       }
     }
+    if (["ai-description", "ai-facts", "ai-paused"].includes(scenario))
+      await settings
+        .getByRole("link", { name: "后台任务", exact: true })
+        .click();
     await capture(
       page,
       errors,
@@ -5343,111 +5347,132 @@ for (const variant of [
   });
 }
 
-test("settings-location", async ({ page }, info) => {
-  const errors = await prepare(page);
-  await page.route("**/api/v1/settings", (route) =>
-    route.fulfill({
-      json: {
-        revision: "visual",
-        mode: "library",
-        id: "instance",
-        library_id: "library",
-        credential_configured: false,
-        fields: [],
-        effective: {},
-        overrides: [],
-        restart_required: [],
-      },
-    }),
-  );
-  await page.route("**/api/v1/settings/storage", (route) =>
-    route.fulfill({
-      json: { originals_bytes: 1024, metadata_bytes: 512, previews_bytes: 256 },
-    }),
-  );
-  await page.route("**/api/v1/settings/credentials", (route) =>
-    route.fulfill({ json: [] }),
-  );
-  await page.goto("/settings#settings-location");
-  const section = page.locator("#settings-location");
-  await expect(
-    section.getByRole("checkbox", { name: "自动查询新增图片的位置" }),
-  ).toBeChecked();
-  await expect(
-    section.getByRole("button", { name: "暂停处理", exact: true }),
-  ).toBeEnabled();
-  await expect(
-    section.getByText("从支持的图片中读取 GPS", { exact: false }),
-  ).toHaveCount(0);
+for (const anchor of ["location", "background-tasks"] as const) {
+  test(`settings-${anchor}`, async ({ page }, info) => {
+    const errors = await prepare(page);
+    await page.route("**/api/v1/settings", (route) =>
+      route.fulfill({
+        json: {
+          revision: "visual",
+          mode: "library",
+          id: "instance",
+          library_id: "library",
+          credential_configured: false,
+          fields: [],
+          effective: {},
+          overrides: [],
+          restart_required: [],
+        },
+      }),
+    );
+    await page.route("**/api/v1/settings/storage", (route) =>
+      route.fulfill({
+        json: {
+          originals_bytes: 1024,
+          metadata_bytes: 512,
+          previews_bytes: 256,
+        },
+      }),
+    );
+    await page.route("**/api/v1/settings/credentials", (route) =>
+      route.fulfill({ json: [] }),
+    );
+    await page.goto(`/settings#settings-${anchor}`);
+    if (anchor === "background-tasks") {
+      const tasks = page.locator("#settings-background-tasks");
+      await expect(tasks.getByRole("heading", { level: 3 })).toHaveCount(5);
+      await expect(
+        tasks.getByRole("button", { name: "暂停处理", exact: true }),
+      ).toHaveCount(5);
+      await expect(
+        tasks.getByRole("heading", { name: "后台任务", exact: true }),
+      ).toBeInViewport();
+      await tasks
+        .getByRole("button", { name: "后台任务", exact: true })
+        .hover();
+      await expect(page.getByRole("tooltip")).toContainText("共用调度器");
+      await page.mouse.move(5, 5);
+      await capture(page, errors, info.title);
+      return;
+    }
+    const section = page.locator("#settings-location");
+    await expect(
+      section.getByRole("checkbox", { name: "自动查询新增图片的位置" }),
+    ).toBeChecked();
+    await expect(
+      section.getByRole("button", { name: "暂停处理", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      section.getByText("从支持的图片中读取 GPS", { exact: false }),
+    ).toHaveCount(0);
 
-  await expect(
-    section.getByRole("button", { name: "补全已有图片的位置", exact: true }),
-  ).toBeEnabled();
-  await expect(
-    section.getByRole("textbox", { name: "请求间隔（秒）", exact: true }),
-  ).toHaveValue("2");
-  await expect(
-    section.getByRole("checkbox", {
-      name: "查询失败后暂停后台处理",
+    await expect(
+      section.getByRole("button", { name: "补全已有图片的位置", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      section.getByRole("textbox", { name: "请求间隔（秒）", exact: true }),
+    ).toHaveValue("2");
+    await expect(
+      section.getByRole("checkbox", {
+        name: "查询失败后暂停后台处理",
+        exact: true,
+      }),
+    ).toBeChecked();
+    await expect(
+      section.getByText("请求串行执行", { exact: false }),
+    ).toHaveCount(0);
+    const sectionHelp = section.getByRole("button", {
+      name: "照片位置",
       exact: true,
-    }),
-  ).toBeChecked();
-  await expect(section.getByText("请求串行执行", { exact: false })).toHaveCount(
-    0,
-  );
-  const sectionHelp = section.getByRole("button", {
-    name: "照片位置",
-    exact: true,
-  });
-  await sectionHelp.hover();
-  await expect(page.getByRole("tooltip")).toContainText("仅发送经纬度");
-  await expect(page.getByRole("tooltip")).toContainText(
-    "没有 GPS 的照片会跳过",
-  );
-  await page.mouse.move(5, 5);
-  await expect(page.getByRole("tooltip")).toHaveCount(0);
+    });
+    await sectionHelp.hover();
+    await expect(page.getByRole("tooltip")).toContainText("仅发送经纬度");
+    await expect(page.getByRole("tooltip")).toContainText(
+      "没有 GPS 的照片会跳过",
+    );
+    await page.mouse.move(5, 5);
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
 
-  await expect(
-    section.getByRole("heading", { name: "后台处理", exact: true }),
-  ).toBeVisible();
-  await expect(
-    section.getByRole("textbox", { name: "Photon 接口地址", exact: true }),
-  ).toHaveValue("https://photon.komoot.io/reverse");
-  const help = section.getByRole("button", {
-    name: "Photon 接口地址",
-    exact: true,
+    await expect(section.getByRole("heading", { level: 3 })).toHaveCount(0);
+    await expect(
+      section.getByRole("textbox", { name: "Photon 接口地址", exact: true }),
+    ).toHaveValue("https://photon.komoot.io/reverse");
+    const help = section.getByRole("button", {
+      name: "Photon 接口地址",
+      exact: true,
+    });
+    const toggleHelp = section.getByRole("button", {
+      name: "自动查询新增图片的位置",
+      exact: true,
+    });
+    const iconBox = await toggleHelp.boundingBox();
+    const labelBox = await section
+      .locator(".setting-checkbox label")
+      .first()
+      .boundingBox();
+    expect(iconBox).not.toBeNull();
+    expect(labelBox).not.toBeNull();
+    expect(
+      Math.abs(
+        iconBox!.y + iconBox!.height / 2 - labelBox!.y - labelBox!.height / 2,
+      ),
+    ).toBeLessThan(1);
+    await expect(help).toHaveCSS("color", "rgb(134, 142, 150)");
+    await help.hover();
+    await expect(help).toHaveCSS("color", "rgb(134, 142, 150)");
+    await expect(page.getByRole("tooltip")).toContainText("可使用公共服务");
+    await page.mouse.move(5, 5);
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
+    await page.reload();
+    await expect(
+      section.getByRole("textbox", { name: "Photon 接口地址", exact: true }),
+    ).toHaveValue("https://photon.komoot.io/reverse");
+    await expect(
+      section.getByRole("heading", { name: "照片位置", exact: true }),
+    ).toBeInViewport();
+    await capture(page, errors, info.title);
   });
-  const toggleHelp = section.getByRole("button", {
-    name: "自动查询新增图片的位置",
-    exact: true,
-  });
-  const iconBox = await toggleHelp.boundingBox();
-  const labelBox = await section
-    .locator(".setting-checkbox label")
-    .first()
-    .boundingBox();
-  expect(iconBox).not.toBeNull();
-  expect(labelBox).not.toBeNull();
-  expect(
-    Math.abs(
-      iconBox!.y + iconBox!.height / 2 - labelBox!.y - labelBox!.height / 2,
-    ),
-  ).toBeLessThan(1);
-  await expect(help).toHaveCSS("color", "rgb(134, 142, 150)");
-  await help.hover();
-  await expect(help).toHaveCSS("color", "rgb(134, 142, 150)");
-  await expect(page.getByRole("tooltip")).toContainText("可使用公共服务");
-  await page.mouse.move(5, 5);
-  await expect(page.getByRole("tooltip")).toHaveCount(0);
-  await page.reload();
-  await expect(
-    section.getByRole("textbox", { name: "Photon 接口地址", exact: true }),
-  ).toHaveValue("https://photon.komoot.io/reverse");
-  await expect(
-    section.getByRole("heading", { name: "照片位置", exact: true }),
-  ).toBeInViewport();
-  await capture(page, errors, info.title);
-});
+}
 
 for (const variant of [
   "edit",

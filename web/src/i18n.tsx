@@ -28,7 +28,9 @@ export const en = {
   factsInvalid:
     "Cannot display this structured result. The saved data has been preserved.",
 
-  backgroundProcessing: "Background processing",
+  backgroundTasks: "Background tasks",
+  backgroundTasksHint:
+    "Tasks share one scheduler and run one at a time. Each type can be paused or retried separately. Pausing does not cancel the request already in progress.",
   geoTitle: "Photo location",
   geoRefresh: "Update address",
   geoSaveSettings: "Save location settings",
@@ -1021,7 +1023,9 @@ export const zh: Record<MessageKey, string> = {
   factsEmpty: "暂无可显示的结构化字段",
   factsInvalid: "无法显示此结构化结果，已保存的数据保持不变。",
 
-  backgroundProcessing: "后台处理",
+  backgroundTasks: "后台任务",
+  backgroundTasksHint:
+    "后台任务共用调度器，依次执行。各类任务可以分别暂停或重试；暂停不会取消已经开始的请求。",
   geoTitle: "照片位置",
   geoRefresh: "更新地址",
   geoSaveSettings: "保存位置设置",

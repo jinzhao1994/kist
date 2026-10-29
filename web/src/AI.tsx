@@ -8,6 +8,7 @@ import {
   SettingsFieldHeading,
   SettingsHint,
   SettingsTask,
+  useSettingsPending,
 } from "./SettingsFields";
 import {
   TaskError,
@@ -54,7 +55,12 @@ function useStatus() {
 export function AIConnection({
   disabled = false,
   onChanged,
-}: { disabled?: boolean; onChanged?: () => Promise<void> } = {}) {
+  onPendingChange,
+}: {
+  disabled?: boolean;
+  onChanged?: () => Promise<void>;
+  onPendingChange?: (pending: boolean) => void;
+} = {}) {
   const { t } = useI18n();
   const query = useStatus();
   const queries = useQueryClient();
@@ -159,6 +165,7 @@ export function AIConnection({
             connected={status.connected}
             disabled={disabled || busy}
             onChanged={onChanged}
+            onPendingChange={onPendingChange}
           />
         )}
       </Stack>
@@ -190,10 +197,12 @@ function AISettings({
   connected,
   disabled,
   onChanged,
+  onPendingChange,
 }: {
   connected: boolean;
   disabled: boolean;
   onChanged?: () => Promise<void>;
+  onPendingChange?: (pending: boolean) => void;
 }) {
   const { t } = useI18n();
   const query = useAISettings();
@@ -210,6 +219,7 @@ function AISettings({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  useSettingsPending(disabled || busy || dirty, onPendingChange);
   useEffect(() => {
     if (query.data && !dirty) setDraft(query.data);
   }, [query.data, dirty]);
@@ -380,16 +390,6 @@ function AISettings({
           </Group>
         </div>
       )}
-      {(["orientation", "ocr", "desc", "facts"] as const).map((kind) => (
-        <BackgroundTaskQueue
-          key={kind}
-          kind={kind}
-          disabled={disabled || busy || dirty}
-          connected={connected}
-          model={query.data?.model}
-          hint={t(taskMessage(kind, "BackfillHint"))}
-        />
-      ))}
     </div>
   );
 }
@@ -427,11 +427,7 @@ export function BackgroundTaskQueue({
     }
   }
   return (
-    <SettingsTask
-      title={t(
-        kind === "geo" ? "backgroundProcessing" : taskMessage(kind, "Title"),
-      )}
-    >
+    <SettingsTask title={t(taskMessage(kind, "Title"))}>
       {error && <TaskError>{error}</TaskError>}
       {notice && (
         <Text role="status" size="sm">
