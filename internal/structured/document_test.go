@@ -186,6 +186,37 @@ func TestStructuralChangesAndResourceBounds(t *testing.T) {
 	}
 }
 
+func TestFieldKeyErrorsIdentifyPositionsWithoutValues(t *testing.T) {
+	for _, tc := range []struct {
+		name, fields, want string
+	}{
+		{"invalid", `[{"key":"PRIVATE-123","label":"Private label","type":"text","value":"Sensitive value"}]`, "invalid structured facts at /: invalid field key at sibling position 1"},
+		{"duplicate", `[{"key":"number","label":"Primary number","type":"text","value":"PRIVATE-123"},{"key":"name","label":"Name","type":"text","value":"Sensitive value"},{"key":"number","label":"File number","type":"text","value":"PRIVATE-456"}]`, "invalid structured facts at /: repeated field key at sibling positions 1 and 3"},
+		{"nested", `[{"key":"record","label":"Record","type":"object","children":[{"key":"date","label":"Start","type":"date","value":"2031-05-03"},{"key":"date","label":"End","type":"date","value":"2031-05-05"}]}]`, "invalid structured facts at /record: repeated field key at sibling positions 1 and 2"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ParseModel(`{"fields":` + tc.fields + `}`)
+			if err == nil || err.Error() != tc.want {
+				t.Fatalf("got %v, want %s", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestDistinctFactRolesAndRecordScopes(t *testing.T) {
+	d := model(t, `[
+ {"key":"number","label":"Number","type":"text","value":"00123"},
+ {"key":"file_number","label":"File number","type":"text","value":"00456"},
+ {"key":"date","label":"Start date","type":"date","value":"2031-05-03"},
+ {"key":"end_date","label":"End date","type":"date","value":"2031-05-05"},
+ {"key":"related","label":"Related record","type":"object","children":[
+   {"key":"number","label":"Number","type":"text","value":"00789"}]}]`)
+	roundTrip, err := Parse(encoded(t, d))
+	if err != nil || !reflect.DeepEqual(d, roundTrip) {
+		t.Fatal("distinct identifiers, date endpoints or scoped keys were lost", err)
+	}
+}
+
 func TestEncodeDoesNotMutateInput(t *testing.T) {
 	d := model(t, `[{"key":"z","label":"Z","type":"text","value":"z"},{"key":"a","label":"A","type":"text","value":"a"}]`)
 	original := append([]Field(nil), d.Fields...)

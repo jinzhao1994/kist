@@ -150,7 +150,7 @@ func validate(fields []Field, parent string, depth int, count *int, model, array
 	if depth > MaxDepth {
 		return invalid(parent, "nesting limit")
 	}
-	seen := map[string]bool{}
+	seen := map[string]int{}
 	for i := range fields {
 		f := &fields[i]
 		path := strings.TrimSuffix(parent, "/") + "/" + f.Key
@@ -158,10 +158,13 @@ func validate(fields []Field, parent string, depth int, count *int, model, array
 		if *count > MaxNodes {
 			return invalid(parent, "field count limit")
 		}
-		if !keyPattern.MatchString(f.Key) || seen[f.Key] {
-			return invalid(parent, "invalid or repeated field key")
+		if !keyPattern.MatchString(f.Key) {
+			return invalid(parent, fmt.Sprintf("invalid field key at sibling position %d", i+1))
 		}
-		seen[f.Key] = true
+		if first, exists := seen[f.Key]; exists {
+			return invalid(parent, fmt.Sprintf("repeated field key at sibling positions %d and %d", first+1, i+1))
+		}
+		seen[f.Key] = i
 		if len(f.Label) == 0 || len(f.Label) > 256 || strings.TrimSpace(f.Label) != f.Label || strings.ContainsAny(f.Label, "\x00\n\r") {
 			return invalid(path, "invalid label")
 		}

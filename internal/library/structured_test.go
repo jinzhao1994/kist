@@ -129,6 +129,15 @@ func TestFactsRejectsInvalidOutputAndStaleInference(t *testing.T) {
 			t.Fatal("invalid output changed library")
 		}
 	}
+	// Related pages must not overwrite each other's distinct identifiers.
+	p.text = `{"fields":[{"key":"number","label":"Number","type":"text","value":"00123"},{"key":"number","label":"File number","type":"text","value":"00456"}]}`
+	before := snapshotOf(t, l)
+	if _, err := l.prepareImageText(t.Context(), id, p, "test", "", "facts", "en", true); err == nil || !strings.Contains(err.Error(), "sibling positions 1 and 2") {
+		t.Fatal("duplicate identifiers were not identified", err)
+	}
+	if snapshotOf(t, l) != before {
+		t.Fatal("duplicate identifiers partially changed metadata")
+	}
 	p.text = syntheticFacts
 	prepared, err := l.prepareImageText(t.Context(), id, p, "test", "", "facts", "en", true)
 	if err != nil {
