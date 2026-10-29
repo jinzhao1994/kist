@@ -207,7 +207,7 @@ function BackgroundTaskRow({
               component="button"
               type="button"
               size="xs"
-              className="table-action-link"
+              className="text-action-link"
               onClick={() => void queue.refetch()}
             >
               {t("retry")}
@@ -229,7 +229,7 @@ function BackgroundTaskRow({
             component="button"
             type="button"
             size="xs"
-            className="table-action-link"
+            className="text-action-link"
             disabled={
               !data || disabled || busy || !model || !connected || data.scanning
             }
@@ -241,7 +241,7 @@ function BackgroundTaskRow({
             component="button"
             type="button"
             size="xs"
-            className="table-action-link"
+            className="text-action-link"
             disabled={
               !data ||
               disabled ||
@@ -258,7 +258,7 @@ function BackgroundTaskRow({
             component="button"
             type="button"
             size="xs"
-            className="table-action-link"
+            className="text-action-link"
             disabled={!data || disabled || busy}
             onClick={() => void command("pause", { paused: !data?.paused })}
           >

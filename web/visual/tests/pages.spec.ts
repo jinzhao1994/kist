@@ -4266,6 +4266,56 @@ for (const scenario of [
     }
     if (scenario === "service") {
       await settings.getByRole("link", { name: "服务", exact: true }).click();
+      const origins = settings.getByRole("textbox", {
+        name: "允许使用的访问网址",
+        exact: true,
+      });
+      const field = settings
+        .locator(".setting-field")
+        .filter({
+          has: page.getByRole("textbox", {
+            name: "允许使用的访问网址",
+            exact: true,
+          }),
+        });
+      const reset = field.getByRole("button", {
+        name: "恢复默认",
+        exact: true,
+      });
+      await expect(reset).toBeEnabled();
+      await expect(field.locator(".setting-field-footer")).toHaveCount(0);
+      const defaultField = settings.locator(".setting-field").filter({
+        has: page.getByRole("textbox", {
+          name: "单次上传体积上限",
+          exact: true,
+        }),
+      });
+      await expect(
+        defaultField.getByRole("button", { name: "恢复默认", exact: true }),
+      ).toHaveCount(0);
+      await page.mouse.move(0, 0);
+      await expect(field.locator(".setting-field-action")).toHaveCSS(
+        "opacity",
+        "0",
+      );
+      await origins.hover();
+      await expect(field.locator(".setting-field-action")).toHaveCSS(
+        "opacity",
+        "1",
+      );
+      const labelBox = await field
+        .locator(".setting-field-heading label")
+        .boundingBox();
+      const resetBox = await reset.boundingBox();
+      expect(
+        Math.abs(
+          labelBox!.y +
+            labelBox!.height / 2 -
+            resetBox!.y -
+            resetBox!.height / 2,
+        ),
+      ).toBeLessThan(1);
+
       await expect(
         settings.getByRole("heading", { name: "设置", exact: true }),
       ).toBeInViewport();

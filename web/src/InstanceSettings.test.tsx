@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
@@ -143,9 +143,15 @@ it("does not save on open; resetting removes the explicit value using the loaded
   mount();
   expect(await screen.findByRole("radio", { name: "Green" })).toBeChecked();
   expect(writes).toEqual([]);
-  await user.click(
-    screen.getAllByRole("button", { name: "Restore default" })[0],
+  const reset = screen.getByRole("button", { name: "Restore default" });
+  expect(reset.closest(".setting-field-heading")).toHaveTextContent(
+    "Primary color",
   );
+  expect(document.querySelectorAll(".setting-field-footer")).toHaveLength(0);
+  await user.click(reset);
+  expect(
+    screen.queryByRole("button", { name: "Restore default" }),
+  ).not.toBeInTheDocument();
   expect(screen.getByRole("radio", { name: "Blue" })).toBeChecked();
   await user.click(screen.getByRole("button", { name: "Save" }));
   await waitFor(() =>
@@ -215,4 +221,26 @@ it("shows an empty credential row without a table and can open and cancel creati
   await user.click(screen.getByRole("button", { name: "Cancel" }));
   expect(screen.getByText("No access credentials yet")).toBeVisible();
   expect(screen.queryByRole("table")).not.toBeInTheDocument();
+});
+
+it("offers a heading reset only after a default field is edited", async () => {
+  const user = userEvent.setup();
+  mount();
+  const input = await screen.findByRole("textbox", {
+    name: "Maximum upload size",
+  });
+  const field = input.closest<HTMLElement>(".setting-field")!;
+  expect(
+    within(field).queryByRole("button", { name: "Restore default" }),
+  ).not.toBeInTheDocument();
+  await user.clear(input);
+  await user.type(input, "16 GiB");
+  const reset = within(field).getByRole("button", { name: "Restore default" });
+  expect(reset.closest(".setting-field-heading")).toBeInTheDocument();
+  await user.click(reset);
+  expect(input).toHaveValue("32 GiB");
+  expect(
+    within(field).queryByRole("button", { name: "Restore default" }),
+  ).not.toBeInTheDocument();
+  expect(writes).toEqual([]);
 });

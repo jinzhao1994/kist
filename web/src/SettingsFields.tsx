@@ -7,17 +7,20 @@ export function SettingsFieldHeading({
   help,
   htmlFor,
   children,
+  action,
 }: {
   label: string;
   help?: string;
   htmlFor?: string;
   children?: ReactNode;
+  action?: ReactNode;
 }) {
   return (
     <div className="setting-field-heading">
       <Input.Label htmlFor={htmlFor}>{label}</Input.Label>
       {help && <HelpTooltip label={label}>{help}</HelpTooltip>}
       {children}
+      {action && <div className="setting-field-action">{action}</div>}
     </div>
   );
 }

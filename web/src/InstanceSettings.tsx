@@ -9,6 +9,7 @@ import { HelpTooltip } from "./HelpTooltip";
 import { SectionIndex } from "./SectionIndex";
 import {
   Alert,
+  Anchor,
   Button,
   Checkbox,
   ColorSwatch,
@@ -24,7 +25,14 @@ import {
   Textarea,
   TextInput,
 } from "@mantine/core";
-import { useEffect, useRef, useState, useId, type CSSProperties } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useId,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { useElementSize } from "@mantine/hooks";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { APIError, result } from "./api";
@@ -189,11 +197,29 @@ export function InstanceSettings() {
                 : field.value;
               const overridden = (snapshot.overrides || []).includes(field.key);
               return (
-                <div key={field.key} className="instance-setting">
+                <div key={field.key} className="setting-field">
                   <SettingInput
                     field={field}
                     value={value}
                     disabled={busy}
+                    action={
+                      (changed
+                        ? changes[field.key] !== null
+                        : field.explicit) && (
+                        <Anchor
+                          component="button"
+                          type="button"
+                          size="xs"
+                          className="text-action-link"
+                          disabled={busy}
+                          onClick={() =>
+                            setChanges((old) => ({ ...old, [field.key]: null }))
+                          }
+                        >
+                          {t("settingReset")}
+                        </Anchor>
+                      )
+                    }
                     change={(value) =>
                       setChanges((old) => ({
                         ...old,
@@ -201,40 +227,16 @@ export function InstanceSettings() {
                       }))
                     }
                   />
-                  <Group
-                    className="setting-field-footer"
-                    wrap="nowrap"
-                    justify={overridden ? "space-between" : "flex-end"}
-                    gap="xs"
-                    mt="xs"
-                  >
-                    {overridden && (
+                  {overridden && (
+                    <div className="setting-field-footer">
                       <Text size="sm" c="var(--mantine-primary-color-filled)">
                         {t("settingOverride")}{" "}
                         {typeof snapshot.effective[field.key] === "string"
                           ? String(snapshot.effective[field.key])
                           : JSON.stringify(snapshot.effective[field.key])}
                       </Text>
-                    )}
-                    <Button
-                      size="compact-xs"
-                      variant="subtle"
-                      disabled={
-                        busy ||
-                        (changed
-                          ? changes[field.key] === null
-                          : !field.explicit)
-                      }
-                      onClick={() =>
-                        setChanges((old) => ({
-                          ...old,
-                          [field.key]: null,
-                        }))
-                      }
-                    >
-                      {t("settingReset")}
-                    </Button>
-                  </Group>
+                    </div>
+                  )}
                   {!overridden &&
                     (snapshot.restart_required || []).includes(field.key) && (
                       <Text size="sm" c="dimmed">
@@ -450,6 +452,7 @@ function SettingInput(props: {
   value: unknown;
   disabled: boolean;
   change: (value: unknown) => void;
+  action?: ReactNode;
 }) {
   const { t } = useI18n();
   const id = useId();
@@ -473,7 +476,12 @@ function SettingInput(props: {
                   : undefined;
   return (
     <>
-      <SettingsFieldHeading label={label} htmlFor={id} help={hint}>
+      <SettingsFieldHeading
+        label={label}
+        htmlFor={id}
+        help={hint}
+        action={props.action}
+      >
         {field.restart && (
           <Text size="xs" c="dimmed">
             {t("settingRestart")}

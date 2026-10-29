@@ -3386,7 +3386,7 @@ main.upload-drag-active {
   display: grid;
   gap: var(--mantine-spacing-md);
 }
-.instance-setting {
+.setting-field {
   min-inline-size: 0;
 }
 .setting-secret {
@@ -3513,18 +3513,29 @@ main.upload-drag-active {
   line-height: 1.5rem;
 }
 
+.setting-field-action {
+  display: flex;
+  margin-inline-start: auto;
+  flex-shrink: 0;
+}
+@media (hover: hover) and (pointer: fine) {
+  .setting-field-action {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .setting-field:hover .setting-field-action,
+  .setting-field:focus-within .setting-field-action {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+.setting-field-footer {
+  margin-block-start: var(--mantine-spacing-xs);
+}
 .setting-field-footer > .mantine-Text-root {
   min-inline-size: 0;
   overflow-wrap: anywhere;
 }
-.setting-field-footer > .mantine-Button-root {
-  flex-shrink: 0;
-}
-
-.setting-field-footer > .mantine-Button-root:disabled {
-  background: transparent;
-}
-
 .storage-usage-values {
   display: flex;
   flex-wrap: wrap;
@@ -3771,7 +3782,7 @@ main.upload-drag-active {
   display: inline-flex;
   flex-shrink: 0;
 }
-.table-action-link:disabled {
+.text-action-link:disabled {
   color: var(--mantine-color-dimmed);
   cursor: default;
   text-decoration: none;
