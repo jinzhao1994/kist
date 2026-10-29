@@ -117,6 +117,9 @@ type Storage struct {
 // and later opened on a server set to UTC must not reorder itself.
 func Default(linkMode blob.LinkMode) *Config {
 	c := Defaults("library")
+	// Enable location lookup for new archives. Decode keeps the legacy false
+	// fallback so opening an existing archive cannot enqueue its old images.
+	c.Geocoding.Automatic = true
 	c.Library.ID = domain.NewID()
 	if zone := localZoneName(); zone != "" {
 		c.Library.Timezone = zone

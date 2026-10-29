@@ -37,7 +37,7 @@ export function MetadataLabel({
         {help ? (
           <Group gap="xs">
             {text}
-            <HelpTooltip label={label} muted inline>
+            <HelpTooltip label={label} inline>
               {help}
             </HelpTooltip>
           </Group>

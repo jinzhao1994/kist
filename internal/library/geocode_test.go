@@ -15,11 +15,18 @@ import (
 
 func TestLocationQueueActivationAndBackfillWithoutAI(t *testing.T) {
 	l := openTestLibrary(t)
-	old := ocrFile(t, l)
 	settings, err := l.LocationSettings(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
+	if !settings.Automatic {
+		t.Fatal("new libraries must enable location lookup")
+	}
+	settings.Automatic = false
+	if settings, err = l.SaveLocationSettings(t.Context(), settings); err != nil {
+		t.Fatal(err)
+	}
+	old := ocrFile(t, l)
 	settings.Automatic = true
 	if _, err = l.SaveLocationSettings(t.Context(), settings); err != nil {
 		t.Fatal(err)

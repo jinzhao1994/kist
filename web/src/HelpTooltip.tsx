@@ -5,12 +5,10 @@ import type { ReactNode } from "react";
 export function HelpTooltip({
   label,
   children,
-  muted = false,
   inline = false,
 }: {
   label: string;
   children: ReactNode;
-  muted?: boolean;
   inline?: boolean;
 }) {
   return (
@@ -28,7 +26,8 @@ export function HelpTooltip({
       <ActionIcon
         type="button"
         variant="subtle"
-        color={muted ? "var(--muted)" : "gray"}
+        color="var(--muted)"
+        autoContrast={false}
         size={inline ? "xs" : "sm"}
         aria-label={label}
       >

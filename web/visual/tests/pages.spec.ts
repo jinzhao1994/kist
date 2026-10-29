@@ -189,7 +189,7 @@ async function prepare(page: Page, options: Options = {}) {
     if (path === "/geo/settings")
       return route.fulfill({
         json: {
-          automatic: false,
+          automatic: true,
           endpoint: "https://photon.komoot.io/reverse",
           revision: "visual",
         },
@@ -5370,7 +5370,7 @@ test("settings-location", async ({ page }, info) => {
   const section = page.locator("#settings-location");
   await expect(
     section.getByRole("checkbox", { name: "自动查询新增图片的位置" }),
-  ).not.toBeChecked();
+  ).toBeChecked();
   await expect(
     section.getByRole("button", { name: "补全已有图片的位置", exact: true }),
   ).toBeEnabled();
@@ -5384,7 +5384,24 @@ test("settings-location", async ({ page }, info) => {
     name: "Photon 接口地址",
     exact: true,
   });
+  const toggleHelp = section.getByRole("button", {
+    name: "自动查询新增图片的位置",
+    exact: true,
+  });
+  const iconBox = await toggleHelp.boundingBox();
+  const labelBox = await section
+    .locator(".setting-checkbox label")
+    .boundingBox();
+  expect(iconBox).not.toBeNull();
+  expect(labelBox).not.toBeNull();
+  expect(
+    Math.abs(
+      iconBox!.y + iconBox!.height / 2 - labelBox!.y - labelBox!.height / 2,
+    ),
+  ).toBeLessThan(1);
+  await expect(help).toHaveCSS("color", "rgb(134, 142, 150)");
   await help.hover();
+  await expect(help).toHaveCSS("color", "rgb(134, 142, 150)");
   await expect(page.getByRole("tooltip")).toContainText("可使用公共服务");
   await page.mouse.move(5, 5);
   await expect(page.getByRole("tooltip")).toHaveCount(0);

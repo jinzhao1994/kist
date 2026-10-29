@@ -51,11 +51,7 @@ export function MetadataGroup({
             <h4>
               <bdi>{task.title}</bdi>
             </h4>
-            {help && (
-              <HelpTooltip label={task.title} muted>
-                {help}
-              </HelpTooltip>
-            )}
+            {help && <HelpTooltip label={task.title}>{help}</HelpTooltip>}
           </Group>
           <Group gap="xs" className="metadata-group-actions">
             {action}

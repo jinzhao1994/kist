@@ -148,3 +148,24 @@ func TestLibraryLanguageDefaultsAndValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestNewArchiveLocationDefaultPreservesExistingChoices(t *testing.T) {
+	c := Default(blob.LinkCopy)
+	if !c.Geocoding.Automatic {
+		t.Fatal("new archive location lookup is disabled")
+	}
+	path := filepath.Join(t.TempDir(), "kist.toml")
+	if err := Save(path, c); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := Load(path)
+	if err != nil || !loaded.Geocoding.Automatic {
+		t.Fatal("new archive lost its location default", err)
+	}
+	for _, raw := range []string{"version = 2\n", "version = 2\n[geocoding]\nautomatic = false\n"} {
+		old, err := Decode([]byte(raw))
+		if err != nil || old.Geocoding.Automatic {
+			t.Fatal("existing archive was implicitly enabled", err)
+		}
+	}
+}
