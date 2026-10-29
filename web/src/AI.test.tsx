@@ -202,6 +202,74 @@ it("shows model loading and saves shared options without triggering a backfill",
     },
   });
 });
+it("resets AI model, proxy and boolean options without starting extraction", async () => {
+  const settingDefaults = {
+    model: "",
+    proxy_url: "",
+    auto_ocr: false,
+    auto_desc: false,
+    auto_orientation: false,
+    auto_facts: false,
+  };
+  const writes: Record<string, unknown>[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string, init?: RequestInit) => {
+      if (path.endsWith("/ai/settings")) {
+        if (init?.method === "PUT") {
+          writes.push(JSON.parse(String(init.body)));
+          return Response.json({
+            ...settingDefaults,
+            defaults: settingDefaults,
+            revision: "two",
+          });
+        }
+        return Response.json({
+          model: "gpt-6-luna",
+          proxy_url: "http://127.0.0.1:7890",
+          auto_ocr: true,
+          auto_desc: true,
+          auto_orientation: true,
+          auto_facts: true,
+          defaults: settingDefaults,
+          revision: "one",
+        });
+      }
+      expect(init?.method).toBeUndefined();
+      return (
+        defaults(path) || Response.json({ supported: true, connected: true })
+      );
+    }),
+  );
+  mount(<AIConnection />);
+  await screen.findByRole("checkbox", {
+    name: "Automatically recognize new images",
+  });
+  const resets = screen.getAllByRole("button", { name: "Restore default" });
+  expect(resets).toHaveLength(6);
+  for (const reset of resets) await userEvent.click(reset);
+  expect(writes).toHaveLength(0);
+  for (const checkbox of screen.getAllByRole("checkbox"))
+    expect(checkbox).not.toBeChecked();
+  expect(
+    screen.getByLabelText("AI proxy address", { selector: "input" }),
+  ).toHaveValue("");
+  await userEvent.click(
+    screen.getByRole("button", { name: "Save AI settings" }),
+  );
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]).toMatchObject({ ...settingDefaults, revision: "one" });
+  expect(writes[0].defaults).toBeUndefined();
+  expect(writes[0].reset).toEqual([
+    "model",
+    "proxy_url",
+    "auto_orientation",
+    "auto_ocr",
+    "auto_desc",
+    "auto_facts",
+  ]);
+});
+
 it("compacts OCR for display but copies the complete original text", async () => {
   const user = userEvent.setup();
   const copy = vi.spyOn(navigator.clipboard, "writeText");

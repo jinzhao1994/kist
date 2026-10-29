@@ -1,6 +1,6 @@
 import { BackgroundTasks } from "./BackgroundTasks";
 import { loadSettingsPage, settingsQueries } from "./settingsQueries";
-import { SettingsFieldHeading } from "./SettingsFields";
+import { SettingsFieldHeading, SettingsReset } from "./SettingsFields";
 import { LocationSettings } from "./LocationSettings";
 import { StorageUsageValues } from "./StorageUsageValues";
 import { AIConnection } from "./AI";
@@ -9,7 +9,6 @@ import { HelpTooltip } from "./HelpTooltip";
 import { SectionIndex } from "./SectionIndex";
 import {
   Alert,
-  Anchor,
   Button,
   Checkbox,
   ColorSwatch,
@@ -203,23 +202,17 @@ export function InstanceSettings() {
                     value={value}
                     disabled={busy}
                     action={
-                      <Anchor
-                        component="button"
-                        type="button"
-                        size="xs"
-                        className="text-action-link"
+                      <SettingsReset
                         disabled={
                           busy ||
                           (changed
                             ? changes[field.key] === null
                             : !field.explicit)
                         }
-                        onClick={() =>
+                        onReset={() =>
                           setChanges((old) => ({ ...old, [field.key]: null }))
                         }
-                      >
-                        {t("settingReset")}
-                      </Anchor>
+                      />
                     }
                     change={(value) =>
                       setChanges((old) => ({

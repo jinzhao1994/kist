@@ -66,12 +66,20 @@ func ValidCredentialNote(note string) bool {
 
 const defaultTimezone = "Asia/Shanghai"
 
+// DefaultGeocoding returns the defaults offered for new and reset settings.
+func DefaultGeocoding() Geocoding {
+	return Geocoding{Automatic: true, Endpoint: geocode.DefaultEndpoint, RequestIntervalSeconds: 2, PauseOnError: true}
+}
+
 func Defaults(mode string) *Config {
 	listen := "127.0.0.1:8473"
 	if mode == "client" {
 		listen = "127.0.0.1:8474"
 	}
-	return &Config{Geocoding: Geocoding{Endpoint: geocode.DefaultEndpoint, RequestIntervalSeconds: 2, PauseOnError: true}, Version: CurrentVersion, Mode: mode,
+	legacyGeo := DefaultGeocoding()
+	// Missing automatic flags predate opt-in location lookup.
+	legacyGeo.Automatic = false
+	return &Config{Geocoding: legacyGeo, Version: CurrentVersion, Mode: mode,
 		Appearance: Appearance{PrimaryColor: "blue"},
 		Library:    Library{Timezone: defaultTimezone, Language: "zh-CN"},
 		Client:     Client{CacheMaxAge: "180d", CacheMaxBytes: 10 << 30},

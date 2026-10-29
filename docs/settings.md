@@ -11,6 +11,13 @@ explicit option when you save. A typical initialized library needs only its
 version, mode, identity, time zone and chosen projection mode. Keep the generated
 identity; do not copy a client identity to another independent client.
 
+GPS and AI settings also offer per-field resets, including checkboxes. Resetting
+changes the draft until you save. GPS automatic lookup resets to on, pause on
+failure to on, and the interval to 2 seconds; AI automatic extraction resets to
+off. For compatibility, a missing GPS automatic flag in an older configuration
+still means off. Resetting that flag explicitly saves on and only covers files
+added afterward, without backfilling existing files.
+
 Settings are grouped into Appearance, Storage, Service, Maps, Connection
 (clients), and Access credentials (both libraries and clients). Storage includes client cache age and size
 limits, or the library's capture-time fallback zone and projection mode. Service

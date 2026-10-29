@@ -2,6 +2,7 @@ import { settingsQueries, type MetadataTask } from "./settingsQueries";
 import {
   SettingsCheckbox,
   SettingsFieldHeading,
+  SettingsReset,
   SettingsHint,
   useSettingsPending,
 } from "./SettingsFields";
@@ -195,6 +196,7 @@ function AISettings({
   const { t } = useI18n();
   const query = useAISettings();
   const proxyID = useId();
+  const modelID = useId();
   const queries = useQueryClient();
   const models = useQuery({
     queryKey: ["ai-models"],
@@ -213,8 +215,42 @@ function AISettings({
   }, [query.data, dirty]);
   function edit(change: Partial<AISettingsData>) {
     setDirty(true);
-    setDraft((old) => (old ? { ...old, ...change } : old));
+    setDraft((old) =>
+      old
+        ? {
+            ...old,
+            ...change,
+            reset: (old.reset || []).filter(
+              (key) => !Object.hasOwn(change, key),
+            ),
+          }
+        : old,
+    );
     setNotice("");
+  }
+  function resetAction(key: keyof NonNullable<AISettingsData["defaults"]>) {
+    const value = query.data?.defaults?.[key];
+    return (
+      <SettingsReset
+        disabled={
+          disabled || busy || value === undefined || draft?.[key] === value
+        }
+        onReset={() => {
+          if (value === undefined) return;
+          setDraft((old) =>
+            old
+              ? {
+                  ...old,
+                  [key]: value,
+                  reset: [...new Set([...(old.reset || []), key])],
+                }
+              : old,
+          );
+          setDirty(true);
+          setNotice("");
+        }}
+      />
+    );
   }
   async function perform(fn: () => Promise<void>) {
     setBusy(true);
@@ -231,7 +267,15 @@ function AISettings({
   async function save() {
     if (!draft) return;
     await perform(async () => {
-      const value = await post<AISettingsData>("/ai/settings", draft, "PUT");
+      const value = await post<AISettingsData>(
+        "/ai/settings",
+        {
+          ...draft,
+          defaults: undefined,
+          reset: draft.reset?.length ? draft.reset : undefined,
+        },
+        "PUT",
+      );
       queries.setQueryData(["ai-settings"], value);
       setDirty(false);
       setDraft(value);
@@ -268,16 +312,24 @@ function AISettings({
       )}
       {draft && (
         <div className="settings-fields">
-          <Select
-            label={t("aiModel")}
-            value={draft.model}
-            onValueChange={(model) => edit({ model })}
-            options={[
-              { value: "", label: t("aiChooseModel"), special: true },
-              ...modelOptions,
-            ]}
-            disabled={disabled || busy || models.isFetching || !connected}
-          />
+          <div className="setting-field">
+            <SettingsFieldHeading
+              label={t("aiModel")}
+              htmlFor={modelID}
+              action={resetAction("model")}
+            />
+            <Select
+              id={modelID}
+              aria-label={t("aiModel")}
+              value={draft.model}
+              onValueChange={(model) => edit({ model })}
+              options={[
+                { value: "", label: t("aiChooseModel"), special: true },
+                ...modelOptions,
+              ]}
+              disabled={disabled || busy || models.isFetching || !connected}
+            />
+          </div>
           {models.isFetching && (
             <Text role="status" size="sm">
               {t("aiModelsLoading")}
@@ -304,9 +356,10 @@ function AISettings({
               {t("aiUseLuna")}
             </Button>
           )}
-          <div>
+          <div className="setting-field">
             <SettingsFieldHeading
               label={t("aiProxy")}
+              action={resetAction("proxy_url")}
               htmlFor={proxyID}
               help={t("aiProxyHint")}
             />
@@ -320,6 +373,7 @@ function AISettings({
           </div>
           <SettingsCheckbox
             label={t("orientationAuto")}
+            action={resetAction("auto_orientation")}
             help={t("orientationAutoHint")}
             checked={!!draft.auto_orientation}
             onChange={(e) =>
@@ -329,6 +383,7 @@ function AISettings({
           />
           <SettingsCheckbox
             label={t("ocrAuto")}
+            action={resetAction("auto_ocr")}
             help={t("ocrAutoHint")}
             checked={draft.auto_ocr}
             onChange={(e) => edit({ auto_ocr: e.currentTarget.checked })}
@@ -336,6 +391,7 @@ function AISettings({
           />
           <SettingsCheckbox
             label={t("descAuto")}
+            action={resetAction("auto_desc")}
             help={t("descAutoHint")}
             checked={!!draft.auto_desc}
             onChange={(e) => edit({ auto_desc: e.currentTarget.checked })}
@@ -343,6 +399,7 @@ function AISettings({
           />
           <SettingsCheckbox
             label={t("factsAuto")}
+            action={resetAction("auto_facts")}
             help={t("factsAutoHint")}
             checked={!!draft.auto_facts}
             onChange={(e) => edit({ auto_facts: e.currentTarget.checked })}

@@ -1,5 +1,12 @@
-import { Checkbox, Input, Text, type CheckboxProps } from "@mantine/core";
+import {
+  Anchor,
+  Checkbox,
+  Input,
+  Text,
+  type CheckboxProps,
+} from "@mantine/core";
 import { useEffect, type ReactNode } from "react";
+import { useI18n } from "./i18n";
 import { HelpTooltip } from "./HelpTooltip";
 
 export function SettingsFieldHeading({
@@ -28,15 +35,18 @@ export function SettingsFieldHeading({
 export function SettingsCheckbox({
   label,
   help,
+  action,
   ...props
 }: Omit<CheckboxProps, "label" | "description"> & {
   label: string;
   help: string;
+  action?: ReactNode;
 }) {
   return (
-    <div className="setting-checkbox">
+    <div className="setting-checkbox setting-field">
       <Checkbox {...props} label={label} />
       <HelpTooltip label={label}>{help}</HelpTooltip>
+      {action && <div className="setting-field-action">{action}</div>}
     </div>
   );
 }
@@ -54,4 +64,26 @@ export function useSettingsPending(
     onChange?.(pending);
   }, [pending, onChange]);
   useEffect(() => () => onChange?.(false), [onChange]);
+}
+
+export function SettingsReset({
+  disabled,
+  onReset,
+}: {
+  disabled: boolean;
+  onReset: () => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <Anchor
+      component="button"
+      type="button"
+      size="xs"
+      className="text-action-link"
+      disabled={disabled}
+      onClick={onReset}
+    >
+      {t("settingReset")}
+    </Anchor>
+  );
 }

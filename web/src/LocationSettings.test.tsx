@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, expect, it, vi } from "vitest";
@@ -9,6 +9,93 @@ import { ThemeProvider } from "./theme";
 afterEach(() => {
   vi.unstubAllGlobals();
   localStorage.clear();
+});
+
+it("resets every GPS field in the draft and saves reset intent only on demand", async () => {
+  localStorage.setItem(storageKey, JSON.stringify({ language: "en" }));
+  const defaults = {
+    automatic: true,
+    endpoint: "https://photon.komoot.io/reverse",
+    request_interval_seconds: 2,
+    pause_on_error: true,
+  };
+  const saved = {
+    automatic: false,
+    endpoint: "https://example.test/reverse",
+    request_interval_seconds: 9,
+    pause_on_error: false,
+    defaults,
+    revision: "one",
+  };
+  const writes: Record<string, unknown>[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      expect(url).toBe("/api/v1/geo/settings");
+      if (init?.method === "PUT") {
+        writes.push(JSON.parse(String(init.body)));
+        return Response.json({ ...defaults, defaults, revision: "two" });
+      }
+      return Response.json(saved);
+    }),
+  );
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const view = render(
+    <QueryClientProvider client={client}>
+      <I18nProvider>
+        <ThemeProvider env="test">
+          <LocationSettings />
+        </ThemeProvider>
+      </I18nProvider>
+    </QueryClientProvider>,
+  );
+  await screen.findByRole("textbox", { name: "Photon endpoint" });
+  const resets = screen.getAllByRole("button", { name: "Restore default" });
+  expect(resets).toHaveLength(4);
+  const user = userEvent.setup();
+  for (const reset of resets) await user.click(reset);
+  expect(writes).toHaveLength(0);
+  expect(
+    screen.getByRole("checkbox", {
+      name: "Look up locations of new files automatically",
+    }),
+  ).toBeChecked();
+  expect(
+    screen.getByRole("checkbox", {
+      name: "Pause background queries on failure",
+    }),
+  ).toBeChecked();
+  expect(screen.getByRole("textbox", { name: "Photon endpoint" })).toHaveValue(
+    defaults.endpoint,
+  );
+  expect(
+    screen.getByRole("textbox", { name: "Request interval (seconds)" }),
+  ).toHaveValue("2");
+  for (const reset of resets) expect(reset).toBeDisabled();
+  // An explicit edit supersedes an earlier reset of the same field.
+  const interval = screen.getByRole("textbox", {
+    name: "Request interval (seconds)",
+  });
+  await user.clear(interval);
+  await user.type(interval, "5");
+  expect(
+    within(interval.closest(".setting-field") as HTMLElement).getByRole(
+      "button",
+      { name: "Restore default" },
+    ),
+  ).toBeEnabled();
+  await user.click(screen.getByRole("button", { name: "Save GPS settings" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]).toEqual({
+    ...defaults,
+    request_interval_seconds: 5,
+    revision: "one",
+    reset: ["automatic", "endpoint", "pause_on_error"],
+  });
+  view.unmount();
+  client.clear();
 });
 it("edits endpoint policy together without starting a lookup", async () => {
   localStorage.setItem(

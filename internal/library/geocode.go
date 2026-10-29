@@ -201,18 +201,34 @@ func (l *Library) locationCoolingDown(ctx context.Context) (bool, error) {
 	return next.After(time.Now()), err
 }
 
-type LocationSettings struct {
-	RequestIntervalSeconds int    `json:"request_interval_seconds" minimum:"0" maximum:"86400"`
+// LocationSettingDefaults exposes only editable defaults, never scan boundaries.
+type LocationSettingDefaults struct {
+	RequestIntervalSeconds int    `json:"request_interval_seconds"`
 	PauseOnError           bool   `json:"pause_on_error"`
 	Automatic              bool   `json:"automatic"`
-	Endpoint               string `json:"endpoint" maxLength:"2048"`
-	Revision               string `json:"revision"`
+	Endpoint               string `json:"endpoint"`
+}
+
+func locationSettingDefaults() LocationSettingDefaults {
+	d := config.DefaultGeocoding()
+	return LocationSettingDefaults{RequestIntervalSeconds: d.RequestIntervalSeconds, PauseOnError: d.PauseOnError, Automatic: d.Automatic, Endpoint: d.Endpoint}
+}
+
+type LocationSettings struct {
+	Defaults               *LocationSettingDefaults `json:"defaults,omitempty"`
+	Reset                  []string                 `json:"reset,omitempty" maxItems:"4"`
+	RequestIntervalSeconds int                      `json:"request_interval_seconds" minimum:"0" maximum:"86400"`
+	PauseOnError           bool                     `json:"pause_on_error"`
+	Automatic              bool                     `json:"automatic"`
+	Endpoint               string                   `json:"endpoint" maxLength:"2048"`
+	Revision               string                   `json:"revision"`
 }
 
 func locationSettings(c config.Geocoding) LocationSettings {
 	raw, _ := json.Marshal(c)
 	sum := sha256.Sum256(raw)
-	return LocationSettings{RequestIntervalSeconds: c.RequestIntervalSeconds, PauseOnError: c.PauseOnError, Automatic: c.Automatic, Endpoint: c.Endpoint, Revision: hex.EncodeToString(sum[:])}
+	defaults := locationSettingDefaults()
+	return LocationSettings{Defaults: &defaults, RequestIntervalSeconds: c.RequestIntervalSeconds, PauseOnError: c.PauseOnError, Automatic: c.Automatic, Endpoint: c.Endpoint, Revision: hex.EncodeToString(sum[:])}
 }
 func (l *Library) LocationSettings(ctx context.Context) (LocationSettings, error) {
 	c, err := config.Load(l.layout.ConfigPath())
@@ -242,6 +258,10 @@ func (l *Library) SaveLocationSettings(ctx context.Context, in LocationSettings)
 	if in.Revision == "" || in.Revision != locationSettings(cfg.Geocoding).Revision {
 		return LocationSettings{}, config.ErrChanged
 	}
+	in, err = resetSettings(in, locationSettingDefaults(), in.Reset)
+	if err != nil {
+		return LocationSettings{}, err
+	}
 	next := config.Geocoding{RequestIntervalSeconds: in.RequestIntervalSeconds, PauseOnError: in.PauseOnError, Automatic: in.Automatic, Endpoint: in.Endpoint, AfterOp: cfg.Geocoding.AfterOp}
 	if next.Automatic && !cfg.Geocoding.Automatic {
 		next.AfterOp, err = store.MaxOpID(l.db)
@@ -249,6 +269,14 @@ func (l *Library) SaveLocationSettings(ctx context.Context, in LocationSettings)
 			return LocationSettings{}, err
 		}
 	}
-	err = config.Update(l.layout.ConfigPath(), "", map[string]any{"geocoding.request_interval_seconds": next.RequestIntervalSeconds, "geocoding.pause_on_error": next.PauseOnError, "geocoding.automatic": next.Automatic, "geocoding.endpoint": next.Endpoint, "geocoding.after_op": next.AfterOp})
+	changes := map[string]any{"geocoding.request_interval_seconds": next.RequestIntervalSeconds, "geocoding.pause_on_error": next.PauseOnError, "geocoding.automatic": next.Automatic, "geocoding.endpoint": next.Endpoint, "geocoding.after_op": next.AfterOp}
+	for _, key := range in.Reset {
+		// Missing legacy flags resolve to false; a reset to the new opt-in default
+		// must remain explicit and retain its freshly computed activation boundary.
+		if key != "automatic" {
+			changes["geocoding."+key] = nil
+		}
+	}
+	err = config.Update(l.layout.ConfigPath(), "", changes)
 	return locationSettings(next), err
 }

@@ -1766,6 +1766,14 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AIOptions: {
+            auto_desc: boolean;
+            auto_facts: boolean;
+            auto_ocr: boolean;
+            auto_orientation: boolean;
+            model: string;
+            proxy_url: string;
+        };
         AIStatus: {
             connected: boolean;
             email: string;
@@ -2143,12 +2151,21 @@ export interface components {
             upload_chunk_bytes?: number;
             version: string;
         };
-        LocationSettings: {
+        LocationSettingDefaults: {
             automatic: boolean;
             endpoint: string;
             pause_on_error: boolean;
             /** Format: int64 */
             request_interval_seconds: number;
+        };
+        LocationSettings: {
+            automatic: boolean;
+            defaults?: components["schemas"]["LocationSettingDefaults"];
+            endpoint: string;
+            pause_on_error: boolean;
+            /** Format: int64 */
+            request_interval_seconds: number;
+            reset?: string[] | null;
             revision: string;
         };
         MapProvider: {
@@ -2246,8 +2263,10 @@ export interface components {
             auto_facts: boolean;
             auto_ocr: boolean;
             auto_orientation: boolean;
+            defaults?: components["schemas"]["AIOptions"];
             model: string;
             proxy_url: string;
+            reset?: string[] | null;
             revision: string;
         };
         "OutputStruct { Revoked bool \"json:\\\"revoked\\\"\" }Body": {

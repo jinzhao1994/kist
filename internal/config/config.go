@@ -119,7 +119,7 @@ func Default(linkMode blob.LinkMode) *Config {
 	c := Defaults("library")
 	// Enable location lookup for new archives. Decode keeps the legacy false
 	// fallback so opening an existing archive cannot enqueue its old images.
-	c.Geocoding.Automatic = true
+	c.Geocoding = DefaultGeocoding()
 	c.Library.ID = domain.NewID()
 	c.Storage.LinkMode = linkMode
 	return c

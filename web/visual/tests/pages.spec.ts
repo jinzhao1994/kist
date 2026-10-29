@@ -2,6 +2,21 @@ import { test, expect, type Page } from "@playwright/test";
 import { colors, type Appearance } from "../../src/theme";
 import type { ArchiveFile, Box, MediaJob, Tag } from "../../src/api";
 
+const gpsSettingDefaults = {
+  automatic: true,
+  endpoint: "https://photon.komoot.io/reverse",
+  request_interval_seconds: 2,
+  pause_on_error: true,
+};
+const aiSettingDefaults = {
+  model: "",
+  proxy_url: "",
+  auto_ocr: false,
+  auto_desc: false,
+  auto_facts: false,
+  auto_orientation: false,
+};
+
 // A real, deterministic two-page PDF exercises rendering, text and navigation.
 function pdfFixture(slides = false) {
   const box = slides ? "800 450" : "600 800";
@@ -189,6 +204,7 @@ async function prepare(page: Page, options: Options = {}) {
     if (path === "/geo/settings")
       return route.fulfill({
         json: {
+          defaults: gpsSettingDefaults,
           automatic: true,
           endpoint: "https://photon.komoot.io/reverse",
           request_interval_seconds: 2,
@@ -199,6 +215,7 @@ async function prepare(page: Page, options: Options = {}) {
     if (path === "/ai/settings")
       return route.fulfill({
         json: {
+          defaults: aiSettingDefaults,
           model: "gpt-6-luna",
           auto_ocr: false,
           auto_desc: false,
@@ -4175,6 +4192,7 @@ for (const scenario of [
       await page.route("**/api/v1/ai/settings", (route) =>
         route.fulfill({
           json: {
+            defaults: aiSettingDefaults,
             model: "gpt-6-luna",
             auto_ocr: scenario === "ai-paused",
             auto_desc: scenario === "ai-description",
@@ -5485,6 +5503,28 @@ for (const anchor of ["location", "background-tasks"] as const) {
       return;
     }
     const section = page.locator("#settings-location");
+    const autoField = section.locator(".setting-field").filter({
+      has: page.getByRole("checkbox", {
+        name: "自动查询新增文件的位置",
+        exact: true,
+      }),
+    });
+    await expect(
+      section.getByRole("button", { name: "恢复默认", exact: true }),
+    ).toHaveCount(4);
+    await autoField.hover();
+    await expect(autoField.locator(".setting-field-action")).toHaveCSS(
+      "opacity",
+      "1",
+    );
+    await expect(
+      autoField.getByRole("button", { name: "恢复默认", exact: true }),
+    ).toBeDisabled();
+    await autoField.getByRole("checkbox").uncheck();
+    await autoField
+      .getByRole("button", { name: "恢复默认", exact: true })
+      .click();
+    await expect(autoField.getByRole("checkbox")).toBeChecked();
     await expect(
       section.getByRole("checkbox", { name: "自动查询新增文件的位置" }),
     ).toBeChecked();
