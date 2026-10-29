@@ -34,14 +34,16 @@ export const en = {
   backgroundTaskFailed: "Failed",
   backgroundTaskIdle: "Idle",
   backgroundTaskPaused: "Paused",
-  backgroundTaskScanning: "Finding missing items…",
+  backgroundTaskScanning: "Scan pending",
+  backgroundTaskWaiting: "Waiting to run",
+  backgroundTaskLastFailure: "Last failure: {error}",
   backgroundTaskBackfill: "Fill missing",
   backgroundTaskRetry: "Retry",
   backgroundTaskPause: "Pause",
   backgroundTaskResume: "Resume",
   backgroundTasks: "Background tasks",
   backgroundTasksHint:
-    "Tasks share one scheduler and run one at a time. Each type can be paused or retried separately. Pausing does not cancel the request already in progress or block manual extraction. Fill missing skips completed and queued files; retry queues failed tasks.",
+    "The metadata tasks listed here share one scheduler and run one at a time. Thumbnails, previews and transcoding use a separate background worker. Basic metadata is extracted on request and checked before these tasks. Each type can be paused or retried separately. Pausing does not cancel the request already in progress or block manual extraction. Fill missing skips completed and queued files; retry queues failed tasks.",
   geoTitle: "Location",
   geoRefresh: "Update address",
   geoSaveSettings: "Save location settings",
@@ -1040,14 +1042,16 @@ export const zh: Record<MessageKey, string> = {
   backgroundTaskFailed: "失败",
   backgroundTaskIdle: "空闲",
   backgroundTaskPaused: "已暂停",
-  backgroundTaskScanning: "正在查找缺失项…",
+  backgroundTaskScanning: "待查缺补漏",
+  backgroundTaskWaiting: "等待处理",
+  backgroundTaskLastFailure: "上次失败：{error}",
   backgroundTaskBackfill: "补全",
   backgroundTaskRetry: "重试",
   backgroundTaskPause: "暂停",
   backgroundTaskResume: "继续",
   backgroundTasks: "后台任务",
   backgroundTasksHint:
-    "后台任务共用调度器，依次执行。各类任务可以分别暂停或重试；暂停不会取消已经开始的请求，也不阻止手动提取。补全会跳过已完成和已排队的文件；重试会将失败任务重新排队。",
+    "此处列出的元数据任务共用调度器，依次执行。缩略图、预览与转码使用独立后台执行器；普通元数据按请求提取，这些任务执行前也会补齐。各类任务可以分别暂停或重试；暂停不会取消已经开始的请求，也不阻止手动提取。补全会跳过已完成和已排队的文件；重试会将失败任务重新排队。",
   geoTitle: "位置",
   geoRefresh: "更新地址",
   geoSaveSettings: "保存位置设置",
@@ -2012,6 +2016,7 @@ interface Parameters {
   reextractGroup: { group: string };
   extractionQueueRunning: { name: string };
   ocrQueueCounts: { queued: number; failed: number };
+  backgroundTaskLastFailure: { error: string };
   geoNearby: { address: string };
   clientSelectLoaded: { count: number };
   clientSelectedCount: { count: number };

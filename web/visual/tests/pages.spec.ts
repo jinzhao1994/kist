@@ -4411,7 +4411,7 @@ for (const scenario of [
       scenario === "ai-error"
         ? ["Model service unavailable"]
         : scenario === "ai-paused"
-          ? ["任务已取消，可重试。"]
+          ? ["上次失败：任务已取消，可重试。"]
           : [],
     );
   });
@@ -5402,6 +5402,7 @@ for (const anchor of ["location", "background-tasks"] as const) {
         .getByRole("button", { name: "后台任务", exact: true })
         .hover();
       await expect(page.getByRole("tooltip")).toContainText("共用调度器");
+      await expect(page.getByRole("tooltip")).toContainText("独立后台执行器");
       await page.mouse.move(5, 5);
       await capture(page, errors, info.title);
       return;

@@ -252,7 +252,14 @@ it("keeps task commands scoped to their row and distinguishes backfill from retr
       if (path === "/ai")
         return Response.json({ supported: false, connected: false });
       if (path === "/geo/settings") return Response.json(location);
-      if (path === "/geo") return Response.json({ ...queue, failed: 2 });
+      if (path === "/geo")
+        return Response.json({
+          ...queue,
+          paused: true,
+          scanning: true,
+          queued: 1,
+          error: "context canceled",
+        });
       throw new Error(`Unexpected request: ${path}`);
     }),
   );
@@ -272,10 +279,21 @@ it("keeps task commands scoped to their row and distinguishes backfill from retr
   const row = (
     await screen.findByRole("rowheader", { name: /^Location/ })
   ).closest("tr")!;
+  await waitFor(() =>
+    expect(within(row).getByRole("status")).toHaveTextContent(/^Paused$/),
+  );
+  expect(within(row).queryByText("Scan pending")).not.toBeInTheDocument();
+  expect(within(row).getByRole("alert")).toHaveTextContent(
+    "Last failure: Task canceled. You can retry it.",
+  );
   const user = userEvent.setup();
+  await user.click(within(row).getByRole("button", { name: "Resume" }));
   const fill = within(row).getByRole("button", { name: "Fill missing" });
   await waitFor(() => expect(fill).toBeEnabled());
   await user.click(fill);
+  await waitFor(() => expect(fill).toBeEnabled());
+  expect(within(row).queryByText(/Backfill requested/)).not.toBeInTheDocument();
+  expect(within(row).getByRole("status")).toHaveTextContent(/^Idle$/);
   const retry = within(row).getByRole("button", { name: "Retry" });
   await waitFor(() => expect(retry).toBeEnabled());
   await user.click(retry);
@@ -283,6 +301,7 @@ it("keeps task commands scoped to their row and distinguishes backfill from retr
   await waitFor(() => expect(pause).toBeEnabled());
   await user.click(pause);
   expect(writes).toEqual([
+    { path: "/geo/pause", body: { paused: false } },
     { path: "/geo/backfill", body: { retry: false } },
     { path: "/geo/backfill", body: { retry: true } },
     { path: "/geo/pause", body: { paused: true } },

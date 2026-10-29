@@ -118,11 +118,9 @@ function BackgroundTaskRow({
   const queries = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   async function command(action: "pause" | "backfill", body: unknown) {
     setBusy(true);
     setError("");
-    setNotice("");
     try {
       const value = await result<QueueStatus>(
         await fetch(`/api/v1${queuePath(kind)}/${action}`, {
@@ -132,7 +130,6 @@ function BackgroundTaskRow({
         }),
       );
       queries.setQueryData([`${kind}-queue`], value);
-      if (action === "backfill") setNotice(t("ocrBackfillStarted"));
     } catch (e) {
       setError(errorMessage(e, t));
     } finally {
@@ -144,16 +141,22 @@ function BackgroundTaskRow({
   const issue =
     error ||
     (queue.error && errorMessage(queue.error, t)) ||
-    taskErrorMessage(data?.error, t);
+    ((data?.paused || !!data?.failed) && data?.error
+      ? t("backgroundTaskLastFailure", {
+          error: taskErrorMessage(data.error, t)!,
+        })
+      : "");
   const status = !data
     ? t("loading")
     : data.running
       ? t("extractionQueueRunning", { name: data.running })
-      : data.scanning
-        ? t("backgroundTaskScanning")
-        : data.paused
-          ? t("backgroundTaskPaused")
-          : t("backgroundTaskIdle");
+      : data.paused
+        ? t("backgroundTaskPaused")
+        : data.scanning
+          ? t("backgroundTaskScanning")
+          : data.queued
+            ? t("backgroundTaskWaiting")
+            : t("backgroundTaskIdle");
   return (
     <Table.Tr>
       <Table.Th scope="row">
@@ -182,16 +185,16 @@ function BackgroundTaskRow({
               {status}
             </Text>
           </FullTextTooltip>
-          {(issue || notice) && (
-            <FullTextTooltip text={issue || notice}>
+          {issue && (
+            <FullTextTooltip text={issue}>
               <Text
                 size="xs"
-                c={issue ? "red" : "dimmed"}
-                role={issue ? "alert" : "status"}
+                c="red"
+                role="alert"
                 tabIndex={0}
                 className="task-table-message"
               >
-                {issue || notice}
+                {issue}
               </Text>
             </FullTextTooltip>
           )}
