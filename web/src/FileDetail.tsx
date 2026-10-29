@@ -360,110 +360,119 @@ export function FileDetail({
                     </div>
                   </>
                 )}
-                <dl className="metadata-list">
-                  {rows.map((row) =>
-                    row.key === "facts:data" ? null : row.key === "ocr:hint" ||
-                      row.key === "desc:hint" ||
-                      row.key === "facts:hint" ? (
-                      <AISupplement
-                        key={`${file.id}/${file.blob_key}/${row.key}`}
-                        fileID={file.id}
-                        blobKey={file.blob_key}
-                        kind={
-                          row.key === "ocr:hint"
-                            ? "ocr"
-                            : row.key === "facts:hint"
-                              ? "facts"
-                              : "desc"
-                        }
-                        row={row}
-                        manual={rows.some(
-                          (item) =>
-                            item.key === `${source}:text` &&
-                            item.source === "user",
-                        )}
-                        canRun={
-                          !clientMode &&
-                          (source === "desc" || source === "facts"
-                            ? descriptionInput
-                            : imageTextInput)
-                        }
-                      />
-                    ) : (
-                      <div key={row.key}>
-                        <MetadataLabel
-                          metadataKey={row.key}
-                          label={metadataLabel(row.key)}
+                <div>
+                  <dl className="metadata-list">
+                    {rows.map((row) =>
+                      row.key === "facts:data" ? null : row.key ===
+                          "ocr:hint" ||
+                        row.key === "desc:hint" ||
+                        row.key === "facts:hint" ? (
+                        <AISupplement
+                          key={`${file.id}/${file.blob_key}/${row.key}`}
+                          fileID={file.id}
+                          blobKey={file.blob_key}
+                          kind={
+                            row.key === "ocr:hint"
+                              ? "ocr"
+                              : row.key === "facts:hint"
+                                ? "facts"
+                                : "desc"
+                          }
+                          row={row}
+                          manual={rows.some(
+                            (item) =>
+                              item.key === `${source}:text` &&
+                              item.source === "user",
+                          )}
+                          canRun={
+                            !clientMode &&
+                            (source === "desc" || source === "facts"
+                              ? descriptionInput
+                              : imageTextInput)
+                          }
                         />
-                        <dd>
-                          <MetadataValue
-                            key={`${file.id}/${file.blob_key}/${row.key}`}
-                            fileID={file.id}
-                            blobKey={file.blob_key}
-                            row={row}
+                      ) : (
+                        <div key={row.key}>
+                          <MetadataLabel
+                            metadataKey={row.key}
                             label={metadataLabel(row.key)}
-                          >
-                            {row.key === "ocr:text" ? (
-                              <OCRText text={row.value} />
-                            ) : row.key === "desc:text" ? (
-                              <CopyTextPreview
-                                text={row.value}
-                                copyLabel="descCopyText"
-                              />
-                            ) : row.key === "file:mtime" ? (
-                              <Tooltip
-                                label={row.value}
-                                position="bottom-end"
-                                offset={6}
-                                classNames={{ tooltip: "metadata-tooltip" }}
-                                openDelay={0}
-                                transitionProps={{ duration: 0 }}
-                                events={{
-                                  hover: false,
-                                  focus: true,
-                                  touch: false,
-                                }}
-                              >
-                                <bdi tabIndex={0}>
-                                  <FloatingTooltip
-                                    label={row.value}
-                                    position="bottom-start"
-                                    offset={16}
-                                    role="tooltip"
-                                    classNames={{ tooltip: "metadata-tooltip" }}
-                                  >
-                                    <span>
-                                      {metadataValue(
-                                        row.key,
-                                        row.value,
-                                        row.source,
-                                      )}
-                                    </span>
-                                  </FloatingTooltip>
+                          />
+                          <dd>
+                            <MetadataValue
+                              key={`${file.id}/${file.blob_key}/${row.key}`}
+                              fileID={file.id}
+                              blobKey={file.blob_key}
+                              row={row}
+                              label={metadataLabel(row.key)}
+                            >
+                              {row.key === "ocr:text" ? (
+                                <OCRText text={row.value} />
+                              ) : row.key === "desc:text" ? (
+                                <CopyTextPreview
+                                  text={row.value}
+                                  copyLabel="descCopyText"
+                                />
+                              ) : row.key === "file:mtime" ? (
+                                <Tooltip
+                                  label={row.value}
+                                  position="bottom-end"
+                                  offset={6}
+                                  classNames={{ tooltip: "metadata-tooltip" }}
+                                  openDelay={0}
+                                  transitionProps={{ duration: 0 }}
+                                  events={{
+                                    hover: false,
+                                    focus: true,
+                                    touch: false,
+                                  }}
+                                >
+                                  <bdi tabIndex={0}>
+                                    <FloatingTooltip
+                                      label={row.value}
+                                      position="bottom-start"
+                                      offset={16}
+                                      role="tooltip"
+                                      classNames={{
+                                        tooltip: "metadata-tooltip",
+                                      }}
+                                    >
+                                      <span>
+                                        {metadataValue(
+                                          row.key,
+                                          row.value,
+                                          row.source,
+                                        )}
+                                      </span>
+                                    </FloatingTooltip>
+                                  </bdi>
+                                </Tooltip>
+                              ) : (
+                                <bdi>
+                                  {metadataValue(
+                                    row.key,
+                                    row.value,
+                                    row.source,
+                                  )}
                                 </bdi>
-                              </Tooltip>
-                            ) : (
-                              <bdi>
-                                {metadataValue(row.key, row.value, row.source)}
-                              </bdi>
-                            )}
-                          </MetadataValue>
-                        </dd>
-                      </div>
-                    ),
-                  )}
-                </dl>
-                {source === "facts" &&
-                  rows
-                    .filter((row) => row.key === "facts:data")
-                    .map((row) => (
-                      <StructuredFields
-                        key={`${file.id}/${file.blob_key}/${row.key}`}
-                        fileID={file.id}
-                        blobKey={file.blob_key}
-                        row={row}
-                      />
-                    ))}
+                              )}
+                            </MetadataValue>
+                          </dd>
+                        </div>
+                      ),
+                    )}
+                  </dl>
+                  {source === "facts" &&
+                    rows
+                      .filter((row) => row.key === "facts:data")
+                      .map((row) => (
+                        <StructuredFields
+                          key={`${file.id}/${file.blob_key}/${row.key}`}
+                          fileID={file.id}
+                          blobKey={file.blob_key}
+                          row={row}
+                        />
+                      ))}
+                </div>
                 {source === "gps" &&
                   !data.gps &&
                   rows.some((row) => row.key.startsWith("geo:")) && (

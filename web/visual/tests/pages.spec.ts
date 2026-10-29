@@ -5955,6 +5955,20 @@ for (const variant of [
       group.getByText("92.5 分", { exact: true }).locator("visible=true"),
     ).toBeVisible();
     await expect(group.getByText("无法辨认", { exact: true })).toBeVisible();
+    const contextRow = await group
+      .locator(".metadata-list")
+      .first()
+      .locator(":scope > div")
+      .last()
+      .boundingBox();
+    const firstField = await group
+      .locator(".metadata-field-tree .metadata-list > div")
+      .first()
+      .boundingBox();
+    expect(firstField!.y - contextRow!.y - contextRow!.height).toBeCloseTo(
+      0,
+      1,
+    );
     await expect(group.getByRole("heading")).toHaveCount(1);
     await expect(
       group.getByRole("button", { name: "复制", exact: true }),
