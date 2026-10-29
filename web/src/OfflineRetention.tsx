@@ -1,3 +1,4 @@
+import { clientQueries } from "./clientQueries";
 import { EmptyHint } from "./EmptyHint";
 import { Anchor, Button, Group, Stack, Table, Text } from "@mantine/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -20,9 +21,7 @@ type Props = {
 export function OfflineRetention({ active, busy, run }: Props) {
   const { t } = useI18n();
   const selections = useQuery({
-    queryKey: ["client", "offline"],
-    queryFn: ({ signal }) =>
-      get<Record<string, Selection>>("/client/offline", signal),
+    ...clientQueries.offline,
     enabled: active,
   });
   return (

@@ -1,3 +1,4 @@
+import { loadSettingsPage, settingsQueries } from "./settingsQueries";
 import { SettingsFieldHeading } from "./SettingsFields";
 import { LocationSettings } from "./LocationSettings";
 import { StorageUsageValues } from "./StorageUsageValues";
@@ -25,7 +26,7 @@ import {
 import { useEffect, useRef, useState, useId, type CSSProperties } from "react";
 import { useElementSize } from "@mantine/hooks";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { APIError, get, result } from "./api";
+import { APIError, result } from "./api";
 import type { components } from "./api-schema";
 import { useI18n, formatInstant, type MessageKey } from "./i18n";
 import { errorMessage } from "./mutations";
@@ -81,7 +82,7 @@ export function InstanceSettings() {
   const queries = useQueryClient();
   const query = useQuery({
     queryKey: ["instance-settings"],
-    queryFn: ({ signal }) => get<SettingsData>("/settings", signal),
+    queryFn: ({ signal }) => loadSettingsPage(queries, signal),
   });
   const [snapshot, setSnapshot] = useState<SettingsData>();
   const [changes, setChanges] = useState<Record<string, unknown>>({});
@@ -115,7 +116,7 @@ export function InstanceSettings() {
     }
   }
   const reload = async (signal?: AbortSignal) => {
-    const value = await get<SettingsData>("/settings", signal);
+    const value = await loadSettingsPage(queries, signal, true);
     setSnapshot(value);
     setChanges({});
     queries.setQueryData(["instance-settings"], value);
@@ -395,13 +396,11 @@ export function InstanceSettings() {
 function StorageUsage() {
   const { t } = useI18n();
   const usage = useQuery({
-    queryKey: ["instance-storage-usage"],
-    queryFn: ({ signal }) =>
-      get<components["schemas"]["StorageUsage"]>("/settings/storage", signal),
+    ...settingsQueries.storage,
     refetchOnWindowFocus: false,
   });
   return (
-    <section aria-label={t("settingStorageUsage")}>
+    <section aria-label={t("settingStorageUsage")} aria-busy={usage.isFetching}>
       <Group gap="xs" mb="sm">
         <Text size="sm" fw={500}>
           {t("settingStorageUsage")}
@@ -418,25 +417,18 @@ function StorageUsage() {
           {t("refresh")}
         </Button>
       </Group>
-      {usage.isPending && (
-        <Text size="sm" c="dimmed" role="status">
-          {t("loading")}
-        </Text>
-      )}
       {usage.error && (
         <Text size="sm" c="red" role="alert">
           {errorMessage(usage.error, t)}
         </Text>
       )}
-      {usage.data && (
-        <StorageUsageValues
-          items={[
-            ["settingOriginalsUsage", usage.data.originals_bytes],
-            ["settingMetadataUsage", usage.data.metadata_bytes],
-            ["settingPreviewsUsage", usage.data.previews_bytes],
-          ]}
-        />
-      )}
+      <StorageUsageValues
+        items={[
+          ["settingOriginalsUsage", usage.data?.originals_bytes],
+          ["settingMetadataUsage", usage.data?.metadata_bytes],
+          ["settingPreviewsUsage", usage.data?.previews_bytes],
+        ]}
+      />
     </section>
   );
 }
@@ -715,12 +707,7 @@ function Credentials({
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<{ id: string; note: string }>();
   const query = useQuery({
-    queryKey: ["sync-credentials"],
-    queryFn: ({ signal }) =>
-      get<components["schemas"]["SyncCredential"][]>(
-        "/settings/credentials",
-        signal,
-      ),
+    ...settingsQueries.credentials,
   });
   return (
     <Stack gap="md">

@@ -1,4 +1,9 @@
 import {
+  settingsQueries,
+  queuePath,
+  type MetadataTask,
+} from "./settingsQueries";
+import {
   SettingsCheckbox,
   SettingsFieldHeading,
   SettingsHint,
@@ -26,13 +31,6 @@ import { Select } from "./Select";
 import { useI18n, type MessageKey } from "./i18n";
 import { errorMessage } from "./mutations";
 
-type Status = {
-  supported: boolean;
-  connected: boolean;
-  email: string;
-  pending: boolean;
-  error: string;
-};
 type Model = { id: string; name: string };
 async function post<T>(
   path: string,
@@ -49,9 +47,7 @@ async function post<T>(
 }
 function useStatus() {
   return useQuery({
-    queryKey: ["ai-connection"],
-    queryFn: ({ signal }) => get<Status>("/ai", signal),
-    retry: false,
+    ...settingsQueries.connection,
     refetchInterval: (query) => (query.state.data?.pending ? 1000 : false),
   });
 }
@@ -169,23 +165,8 @@ export function AIConnection({
     </section>
   );
 }
-type AISettingsData = {
-  model: string;
-  auto_ocr: boolean;
-  auto_desc: boolean;
-  auto_facts: boolean;
-  auto_orientation: boolean;
-  proxy_url: string;
-  revision: string;
-};
-type QueueStatus = {
-  paused: boolean;
-  scanning: boolean;
-  queued: number;
-  failed: number;
-  running: string;
-  error?: string;
-};
+type AISettingsData = NonNullable<ReturnType<typeof useAISettings>["data"]>;
+type QueueStatus = NonNullable<ReturnType<typeof useOCRQueue>["data"]>;
 type OCRJob = {
   manual?: boolean;
   state: "missing" | "queued" | "running" | "ready" | "failed";
@@ -193,22 +174,15 @@ type OCRJob = {
 };
 function useAISettings() {
   return useQuery({
-    queryKey: ["ai-settings"],
-    queryFn: ({ signal }) => get<AISettingsData>("/ai/settings", signal),
-    retry: false,
+    ...settingsQueries.ai,
   });
 }
-export type ImageTask = "ocr" | "desc" | "orientation" | "facts";
-type MetadataTask = ImageTask | "geo";
-const queuePath = (kind: MetadataTask) =>
-  kind === "geo" ? "/geo" : `/ai/${kind}`;
+export type ImageTask = Exclude<MetadataTask, "geo">;
 const taskMessage = (kind: MetadataTask, suffix: string) =>
   `${kind}${suffix}` as MessageKey;
 function useOCRQueue(kind: MetadataTask = "ocr") {
   return useQuery({
-    queryKey: [`${kind}-queue`],
-    queryFn: ({ signal }) => get<QueueStatus>(queuePath(kind), signal),
-    retry: false,
+    ...settingsQueries.queue(kind),
     refetchInterval: 2000,
   });
 }

@@ -1,3 +1,4 @@
+import { clientQueries } from "./clientQueries";
 import { EmptyHint } from "./EmptyHint";
 import { Button, Group, Stack, Text, UnstyledButton } from "@mantine/core";
 import { useEffect, useState } from "react";
@@ -10,7 +11,6 @@ import { errorMessage, useWrites, WriteFeedback } from "./mutations";
 
 type Entry = components["schemas"]["ClientLocalHistoryEntry"];
 type Detail = components["schemas"]["ClientLocalHistoryDetail"];
-type Page = { entries: Entry[]; before?: string };
 export function stateLabel(state: Entry["state"], t: Translate) {
   const labels = {
     pending: "clientHistoryPending",
@@ -43,14 +43,7 @@ export function LocalHistory({
     onLocked(writes.busy || writes.locked);
   }, [writes.busy, writes.locked, onLocked]);
   const list = useInfiniteQuery({
-    queryKey: ["client", "history"],
-    initialPageParam: "",
-    queryFn: ({ pageParam, signal }) =>
-      get<Page>(
-        `/client/history?limit=25&before=${encodeURIComponent(pageParam)}`,
-        signal,
-      ),
-    getNextPageParam: (page) => page.before || undefined,
+    ...clientQueries.history,
     enabled: active && !initialSelected,
   });
   const detail = useQuery({

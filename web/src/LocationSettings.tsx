@@ -1,3 +1,4 @@
+import { settingsQueries } from "./settingsQueries";
 import { HelpTooltip } from "./HelpTooltip";
 import { SettingsCheckbox, SettingsFieldHeading } from "./SettingsFields";
 import {
@@ -10,7 +11,7 @@ import {
 } from "@mantine/core";
 import { useEffect, useId, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { get, result } from "./api";
+import { result } from "./api";
 import type { components } from "./api-schema";
 import { BackgroundTaskQueue } from "./AI";
 import { useI18n } from "./i18n";
@@ -26,9 +27,7 @@ export function LocationSettings({ disabled = false }: { disabled?: boolean }) {
   const intervalID = useId();
   const queries = useQueryClient();
   const query = useQuery({
-    queryKey: ["location-settings"],
-    queryFn: ({ signal }) => get<Settings>("/geo/settings", signal),
-    retry: false,
+    ...settingsQueries.location,
   });
   const [draft, setDraft] = useState<Draft>();
   const [dirty, setDirty] = useState(false);

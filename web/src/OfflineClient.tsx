@@ -1,3 +1,4 @@
+import { clientQueries, loadClientPage } from "./clientQueries";
 import { StorageUsageValues } from "./StorageUsageValues";
 import { HelpTooltip } from "./HelpTooltip";
 import {
@@ -30,15 +31,13 @@ export function OfflineClient({ openSettings }: { openSettings: () => void }) {
   const queries = useQueryClient();
   const status = useQuery({
     queryKey: ["client", "status"],
-    queryFn: ({ signal }) => offlineClient.status(signal),
+    queryFn: ({ signal }) => loadClientPage(queries, signal),
   });
   const cache = useQuery({
-    queryKey: ["client", "cache"],
-    queryFn: ({ signal }) => offlineClient.cache(signal),
+    ...clientQueries.cache,
   });
   const storage = useQuery({
-    queryKey: ["client", "storage"],
-    queryFn: ({ signal }) => offlineClient.storage(signal),
+    ...clientQueries.storage,
   });
   const [busy, setBusy] = useState(false);
   const [historyLocked, setHistoryLocked] = useState(false);
