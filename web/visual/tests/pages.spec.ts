@@ -5429,9 +5429,13 @@ test("settings-location", async ({ page }, info) => {
   await expect(page.getByRole("tooltip")).toContainText("可使用公共服务");
   await page.mouse.move(5, 5);
   await expect(page.getByRole("tooltip")).toHaveCount(0);
-  await section
-    .getByRole("heading", { name: "拍摄位置", exact: true })
-    .scrollIntoViewIfNeeded();
+  await page.reload();
+  await expect(
+    section.getByRole("textbox", { name: "Photon 接口地址", exact: true }),
+  ).toHaveValue("https://photon.komoot.io/reverse");
+  await expect(
+    section.getByRole("heading", { name: "拍摄位置", exact: true }),
+  ).toBeInViewport();
   await capture(page, errors, info.title);
 });
 

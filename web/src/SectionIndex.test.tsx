@@ -1,5 +1,5 @@
-import { render, waitFor } from "@testing-library/react";
-import { expect, it, vi } from "vitest";
+import { act, fireEvent, render, waitFor } from "@testing-library/react";
+import { afterEach, expect, it, vi } from "vitest";
 import { SectionIndex } from "./SectionIndex";
 import { ThemeProvider } from "./theme";
 import { I18nProvider } from "./i18n";
@@ -33,4 +33,56 @@ it("waits for the sticky header measurement before restoring the fragment", asyn
   await new Promise(requestAnimationFrame);
   expect(scroll).toHaveBeenCalledTimes(1);
   window.history.replaceState(null, "", "/");
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  window.history.replaceState(null, "", "/");
+});
+it("follows late layout changes until the user scrolls and resumes on index navigation", async () => {
+  window.history.replaceState(null, "", "/settings#settings-location");
+  let resized: (() => void) | undefined;
+  const observe = vi.fn(),
+    disconnect = vi.fn();
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      constructor(callback: () => void) {
+        resized = callback;
+      }
+      observe = observe;
+      disconnect = disconnect;
+    },
+  );
+  const scroll = vi.spyOn(Element.prototype, "scrollIntoView");
+  const view = render(
+    <ThemeProvider env="test">
+      <I18nProvider>
+        <SectionIndex items={[{ id: "settings-location", label: "Location" }]}>
+          <section>Loading AI settings</section>
+          <section id="settings-location">Location settings</section>
+        </SectionIndex>
+      </I18nProvider>
+    </ThemeProvider>,
+  );
+  await waitFor(() => expect(scroll).toHaveBeenCalledTimes(1));
+  expect(resized).toBeTypeOf("function");
+  act(() => resized!());
+  await waitFor(() => expect(scroll).toHaveBeenCalledTimes(2));
+  expect(scroll.mock.instances[1]).toBe(
+    document.getElementById("settings-location"),
+  );
+  fireEvent.wheel(document.body);
+  act(() => resized!());
+  await act(async () => {
+    await new Promise(requestAnimationFrame);
+  });
+  expect(scroll).toHaveBeenCalledTimes(2);
+  fireEvent.click(view.getByRole("link", { name: "Location" }));
+  await waitFor(() => expect(scroll).toHaveBeenCalledTimes(3));
+  act(() => resized!());
+  await waitFor(() => expect(scroll).toHaveBeenCalledTimes(4));
+  view.unmount();
+  expect(disconnect).toHaveBeenCalled();
 });
