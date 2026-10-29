@@ -1,3 +1,4 @@
+import { taskPollInterval } from "./TaskStatus";
 import { Button, Group, Stack, Textarea, Text } from "@mantine/core";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -73,7 +74,8 @@ function HintEditor({
       get<{ state: string }>(`/files/${fileID}/${kind}`, signal),
     enabled: canRun,
     retry: false,
-    refetchInterval: canRun ? 2000 : false,
+    staleTime: 10_000,
+    refetchInterval: taskPollInterval,
   });
   const pending = job.data?.state === "queued" || job.data?.state === "running";
   const tooLong = new TextEncoder().encode(value).length > 1024;

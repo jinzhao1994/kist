@@ -1,7 +1,7 @@
-import { taskErrorMessage } from "./TaskStatus";
+import { TaskError, taskPollInterval, taskErrorMessage } from "./TaskStatus";
 import { OCRAction } from "./AI";
 import { HelpTooltip } from "./HelpTooltip";
-import { Button, Text, Group } from "@mantine/core";
+import { Button, Group } from "@mantine/core";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   useIsMutating,
@@ -104,12 +104,13 @@ function useMetadataTask({
   const [error, setError] = useState("");
   const write = useRef<ReturnType<typeof createWrite> | undefined>(undefined);
   const request = useRef<string | undefined>(undefined);
-  const job = useQuery({
+  const job = useQuery<Job>({
     queryKey: [`${extractor}-job`, fileID],
     queryFn: ({ signal }) => get<Job>(`/files/${fileID}/${extractor}`, signal),
     enabled: ai,
     retry: false,
-    refetchInterval: ai ? 2000 : false,
+    staleTime: 10_000,
+    refetchInterval: taskPollInterval,
   });
   const backgroundQueued =
     ai && !empty && job.data?.state === "queued" && !job.data.manual;
@@ -122,7 +123,8 @@ function useMetadataTask({
       ),
     enabled: backgroundQueued,
     retry: false,
-    refetchInterval: backgroundQueued ? 2000 : false,
+    refetchInterval: (query) =>
+      query.state.error || query.state.data?.paused ? 15000 : 2000,
   });
   const pending =
     ai && (job.data?.state === "queued" || job.data?.state === "running");
@@ -174,7 +176,7 @@ function useMetadataTask({
     error ||
     (ai &&
       (taskErrorMessage(job.data?.error, t) ||
-        (job.error && errorMessage(job.error, t))));
+        (!job.data && job.error && errorMessage(job.error, t))));
   return {
     hidden:
       empty &&
@@ -208,14 +210,6 @@ function useMetadataTask({
         )}
       </Button>
     ) : null,
-    status: (
-      <>
-        {issue && (
-          <Text role="alert" size="sm">
-            {issue}
-          </Text>
-        )}
-      </>
-    ),
+    status: <>{issue && <TaskError>{issue}</TaskError>}</>,
   };
 }

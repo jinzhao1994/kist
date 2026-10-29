@@ -1,4 +1,9 @@
-import { TaskStatus, taskErrorMessage } from "./TaskStatus";
+import {
+  TaskError,
+  TaskStatus,
+  taskPollInterval,
+  taskErrorMessage,
+} from "./TaskStatus";
 import { CopyTextPreview } from "./CopyTextPreview";
 import {
   Alert,
@@ -539,14 +544,15 @@ export function OCRAction({
   const queries = useQueryClient();
   const status = useStatus();
   const settings = useAISettings();
-  const job = useQuery({
+  const job = useQuery<OCRJob>({
     queryKey: [`${kind}-job`, fileID],
     queryFn: ({ signal }) => get<OCRJob>(`/files/${fileID}/${kind}`, signal),
     retry: false,
     // The containing metadata group already observes this job; remounting must not retry errors.
     refetchOnMount: false,
     retryOnMount: false,
-    refetchInterval: 2000,
+    staleTime: 10_000,
+    refetchInterval: taskPollInterval,
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -574,10 +580,13 @@ export function OCRAction({
   const issue =
     error ||
     taskErrorMessage(job.data?.error, t) ||
-    (job.error && errorMessage(job.error, t)) ||
-    (settings.error && errorMessage(settings.error, t)) ||
-    (status.error && errorMessage(status.error, t));
-  const readFailed = job.isError || settings.isError || status.isError;
+    (!job.data && job.error && errorMessage(job.error, t)) ||
+    (!settings.data && settings.error && errorMessage(settings.error, t)) ||
+    (!status.data && status.error && errorMessage(status.error, t));
+  const readFailed =
+    (!job.data && job.isError) ||
+    (!settings.data && settings.isError) ||
+    (!status.data && status.isError);
   const loading = job.isPending || settings.isPending || status.isPending;
   const needsSetup =
     !loading &&
@@ -629,11 +638,7 @@ export function OCRAction({
     );
   const feedback = (
     <>
-      {issue && (
-        <Text role="alert" size="xs">
-          {issue}
-        </Text>
-      )}
+      {issue && <TaskError>{issue}</TaskError>}
       {needsSetup && !pending && (
         <TaskStatus>{t("ocrConfigureFirst")}</TaskStatus>
       )}

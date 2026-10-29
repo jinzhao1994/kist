@@ -1,6 +1,10 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  focusManager,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { MetadataGroup } from "./MetadataGroup";
 import { I18nProvider, storageKey } from "./i18n";
@@ -15,6 +19,7 @@ beforeEach(() => {
   );
 });
 afterEach(() => {
+  focusManager.setFocused(undefined);
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -143,3 +148,38 @@ it.each([
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   },
 );
+
+it("stops polling completed jobs and retains results during a server restart", async () => {
+  focusManager.setFocused(true);
+  let offline = false;
+  const fetcher = vi.fn(async () => {
+    if (offline) throw new TypeError("Connection lost");
+    return Response.json({ state: "ready" });
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const client = mount("ocr");
+  await waitFor(() =>
+    expect(client.getQueryData(["ocr-job", "file"])).toEqual({
+      state: "ready",
+    }),
+  );
+  vi.useFakeTimers();
+  try {
+    act(() => client.setQueryData(["ocr-job", "file"], { state: "ready" }));
+    const calls = fetcher.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6000);
+    });
+    expect(fetcher).toHaveBeenCalledTimes(calls);
+    offline = true;
+    await act(async () => {
+      await client.invalidateQueries();
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(screen.getByText("Original result")).toBeVisible();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  } finally {
+    vi.useRealTimers();
+    client.clear();
+  }
+});

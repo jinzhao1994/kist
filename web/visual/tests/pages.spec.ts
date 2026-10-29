@@ -5027,6 +5027,12 @@ for (const scenario of [
         "一张白底的测试文档",
       );
     }
+    if (scenario === "error" || scenario === "text-refresh") {
+      await expect(group.getByRole("alert")).toHaveAttribute(
+        "style",
+        /--text-fz: var\(--mantine-font-size-xs\)/,
+      );
+    }
     await capture(
       page,
       errors,
