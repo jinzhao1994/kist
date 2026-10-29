@@ -220,6 +220,9 @@ function AISettings({
         ? {
             ...old,
             ...change,
+            changed: [
+              ...new Set([...(old.changed || []), ...Object.keys(change)]),
+            ],
             reset: (old.reset || []).filter(
               (key) => !Object.hasOwn(change, key),
             ),
@@ -230,11 +233,14 @@ function AISettings({
   }
   function resetAction(key: keyof NonNullable<AISettingsData["defaults"]>) {
     const value = query.data?.defaults?.[key];
+    const specified =
+      !!draft &&
+      (draft.changed?.includes(key) ||
+        (!!query.data?.explicit?.includes(key) && !draft.reset?.includes(key)));
     return (
       <SettingsReset
-        disabled={
-          disabled || busy || value === undefined || draft?.[key] === value
-        }
+        specified={!!specified}
+        disabled={disabled || busy || value === undefined || !specified}
         onReset={() => {
           if (value === undefined) return;
           setDraft((old) =>
@@ -242,6 +248,7 @@ function AISettings({
               ? {
                   ...old,
                   [key]: value,
+                  changed: (old.changed || []).filter((field) => field !== key),
                   reset: [...new Set([...(old.reset || []), key])],
                 }
               : old,
@@ -272,6 +279,8 @@ function AISettings({
         {
           ...draft,
           defaults: undefined,
+          explicit: undefined,
+          changed: draft.changed || [],
           reset: draft.reset?.length ? draft.reset : undefined,
         },
         "PUT",

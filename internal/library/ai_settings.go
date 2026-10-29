@@ -2,9 +2,6 @@ package library
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"path/filepath"
 
 	"github.com/jinzhao1994/kist/internal/config"
@@ -13,6 +10,8 @@ import (
 )
 
 type OCRSettings struct {
+	Explicit        []string          `json:"explicit" readOnly:"true"`
+	Changed         []string          `json:"changed,omitempty" maxItems:"6"`
 	Defaults        *config.AIOptions `json:"defaults,omitempty"`
 	Reset           []string          `json:"reset,omitempty" maxItems:"6"`
 	AutoFacts       bool              `json:"auto_facts"`
@@ -25,21 +24,17 @@ type OCRSettings struct {
 }
 
 func ocrSettings(c config.AIOptions) OCRSettings {
-	// Include the private activation boundary in the revision.
-	raw, _ := json.Marshal(struct {
-		Options                                           config.AIOptions
-		OCRAfter, DescAfter, OrientationAfter, FactsAfter int64
-	}{c, c.AfterOp, c.DescAfterOp, c.OrientationAfterOp, c.FactsAfterOp})
-	sum := sha256.Sum256(raw)
 	defaults := config.Defaults("library").AIOptions
-	return OCRSettings{Defaults: &defaults, AutoFacts: c.AutoFacts, AutoOrientation: c.AutoOrientation, Model: c.Model, AutoOCR: c.AutoOCR, AutoDesc: c.AutoDesc, ProxyURL: c.ProxyURL, Revision: hex.EncodeToString(sum[:])}
+	return OCRSettings{Defaults: &defaults, AutoFacts: c.AutoFacts, AutoOrientation: c.AutoOrientation, Model: c.Model, AutoOCR: c.AutoOCR, AutoDesc: c.AutoDesc, ProxyURL: c.ProxyURL}
 }
 func (l *Library) OCRSettings(ctx context.Context) (OCRSettings, error) {
-	cfg, err := config.Load(l.layout.ConfigPath())
+	cfg, explicit, revision, err := settingsSnapshot(l.layout.ConfigPath(), "ai_options", config.Defaults("library").AIOptions)
 	if err != nil {
 		return OCRSettings{}, err
 	}
-	return ocrSettings(cfg.AIOptions), nil
+	out := ocrSettings(cfg.AIOptions)
+	out.Explicit, out.Revision = explicit, revision
+	return out, ctx.Err()
 }
 func (l *Library) SaveOCRSettings(ctx context.Context, in OCRSettings) (OCRSettings, error) {
 	release, err := l.lock.Acquire(ctx)
@@ -55,14 +50,14 @@ func (l *Library) SaveOCRSettings(ctx context.Context, in OCRSettings) (OCRSetti
 		return OCRSettings{}, err
 	}
 	defer unlock()
-	cfg, err := config.Load(l.layout.ConfigPath())
+	cfg, _, revision, err := settingsSnapshot(l.layout.ConfigPath(), "ai_options", config.Defaults("library").AIOptions)
 	if err != nil {
 		return OCRSettings{}, err
 	}
-	if in.Revision == "" || in.Revision != ocrSettings(cfg.AIOptions).Revision {
+	if in.Revision == "" || in.Revision != revision {
 		return OCRSettings{}, config.ErrChanged
 	}
-	in, err = resetSettings(in, config.Defaults("library").AIOptions, in.Reset)
+	in, selected, err := prepareSettings(in, ocrSettings(cfg.AIOptions), config.Defaults("library").AIOptions, in.Changed, in.Reset)
 	if err != nil {
 		return OCRSettings{}, err
 	}
@@ -91,10 +86,22 @@ func (l *Library) SaveOCRSettings(ctx context.Context, in OCRSettings) (OCRSetti
 			return OCRSettings{}, err
 		}
 	}
-	changes := map[string]any{"ai_options.auto_facts": next.AutoFacts, "ai_options.facts_after_op": next.FactsAfterOp, "ai_options.auto_orientation": next.AutoOrientation, "ai_options.orientation_after_op": next.OrientationAfterOp, "ai_options.auto_desc": next.AutoDesc, "ai_options.desc_after_op": next.DescAfterOp, "ai_options.model": next.Model, "ai_options.auto_ocr": next.AutoOCR, "ai_options.after_op": next.AfterOp, "ai_options.proxy_url": next.ProxyURL}
+	changes := map[string]any{"ai_options.auto_facts": next.AutoFacts, "ai_options.auto_orientation": next.AutoOrientation, "ai_options.auto_desc": next.AutoDesc, "ai_options.model": next.Model, "ai_options.auto_ocr": next.AutoOCR, "ai_options.proxy_url": next.ProxyURL}
+	for key := range changes {
+		field := key[len("ai_options."):]
+		if !selected[field] {
+			delete(changes, key)
+		}
+	}
+	for key, value := range map[string]int64{"after_op": next.AfterOp, "facts_after_op": next.FactsAfterOp, "orientation_after_op": next.OrientationAfterOp, "desc_after_op": next.DescAfterOp} {
+		changes["ai_options."+key] = value
+	}
 	for _, key := range in.Reset {
 		changes["ai_options."+key] = nil
 	}
-	err = config.Update(l.layout.ConfigPath(), "", changes)
-	return ocrSettings(next), err
+	err = config.Update(l.layout.ConfigPath(), revision, changes)
+	if err != nil {
+		return OCRSettings{}, err
+	}
+	return l.OCRSettings(ctx)
 }

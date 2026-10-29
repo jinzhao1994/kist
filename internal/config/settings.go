@@ -76,10 +76,7 @@ func Defaults(mode string) *Config {
 	if mode == "client" {
 		listen = "127.0.0.1:8474"
 	}
-	legacyGeo := DefaultGeocoding()
-	// Missing automatic flags predate opt-in location lookup.
-	legacyGeo.Automatic = false
-	return &Config{Geocoding: legacyGeo, Version: CurrentVersion, Mode: mode,
+	return &Config{Geocoding: DefaultGeocoding(), Version: CurrentVersion, Mode: mode,
 		Appearance: Appearance{PrimaryColor: "blue"},
 		Library:    Library{Timezone: defaultTimezone, Language: "zh-CN"},
 		Client:     Client{CacheMaxAge: "180d", CacheMaxBytes: 10 << 30},

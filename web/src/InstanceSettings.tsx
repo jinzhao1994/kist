@@ -203,6 +203,9 @@ export function InstanceSettings() {
                     disabled={busy}
                     action={
                       <SettingsReset
+                        specified={
+                          changed ? changes[field.key] !== null : field.explicit
+                        }
                         disabled={
                           busy ||
                           (changed

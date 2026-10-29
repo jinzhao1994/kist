@@ -2,9 +2,7 @@ package library
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -215,6 +213,8 @@ func locationSettingDefaults() LocationSettingDefaults {
 }
 
 type LocationSettings struct {
+	Explicit               []string                 `json:"explicit" readOnly:"true"`
+	Changed                []string                 `json:"changed,omitempty" maxItems:"4"`
 	Defaults               *LocationSettingDefaults `json:"defaults,omitempty"`
 	Reset                  []string                 `json:"reset,omitempty" maxItems:"4"`
 	RequestIntervalSeconds int                      `json:"request_interval_seconds" minimum:"0" maximum:"86400"`
@@ -225,17 +225,17 @@ type LocationSettings struct {
 }
 
 func locationSettings(c config.Geocoding) LocationSettings {
-	raw, _ := json.Marshal(c)
-	sum := sha256.Sum256(raw)
 	defaults := locationSettingDefaults()
-	return LocationSettings{Defaults: &defaults, RequestIntervalSeconds: c.RequestIntervalSeconds, PauseOnError: c.PauseOnError, Automatic: c.Automatic, Endpoint: c.Endpoint, Revision: hex.EncodeToString(sum[:])}
+	return LocationSettings{Defaults: &defaults, RequestIntervalSeconds: c.RequestIntervalSeconds, PauseOnError: c.PauseOnError, Automatic: c.Automatic, Endpoint: c.Endpoint}
 }
 func (l *Library) LocationSettings(ctx context.Context) (LocationSettings, error) {
-	c, err := config.Load(l.layout.ConfigPath())
+	c, explicit, revision, err := settingsSnapshot(l.layout.ConfigPath(), "geocoding", locationSettingDefaults())
 	if err != nil {
 		return LocationSettings{}, err
 	}
-	return locationSettings(c.Geocoding), ctx.Err()
+	out := locationSettings(c.Geocoding)
+	out.Explicit, out.Revision = explicit, revision
+	return out, ctx.Err()
 }
 func (l *Library) SaveLocationSettings(ctx context.Context, in LocationSettings) (LocationSettings, error) {
 	release, err := l.lock.Acquire(ctx)
@@ -251,14 +251,14 @@ func (l *Library) SaveLocationSettings(ctx context.Context, in LocationSettings)
 		return LocationSettings{}, err
 	}
 	defer unlock()
-	cfg, err := config.Load(l.layout.ConfigPath())
+	cfg, _, revision, err := settingsSnapshot(l.layout.ConfigPath(), "geocoding", locationSettingDefaults())
 	if err != nil {
 		return LocationSettings{}, err
 	}
-	if in.Revision == "" || in.Revision != locationSettings(cfg.Geocoding).Revision {
+	if in.Revision == "" || in.Revision != revision {
 		return LocationSettings{}, config.ErrChanged
 	}
-	in, err = resetSettings(in, locationSettingDefaults(), in.Reset)
+	in, selected, err := prepareSettings(in, locationSettings(cfg.Geocoding), locationSettingDefaults(), in.Changed, in.Reset)
 	if err != nil {
 		return LocationSettings{}, err
 	}
@@ -269,14 +269,21 @@ func (l *Library) SaveLocationSettings(ctx context.Context, in LocationSettings)
 			return LocationSettings{}, err
 		}
 	}
-	changes := map[string]any{"geocoding.request_interval_seconds": next.RequestIntervalSeconds, "geocoding.pause_on_error": next.PauseOnError, "geocoding.automatic": next.Automatic, "geocoding.endpoint": next.Endpoint, "geocoding.after_op": next.AfterOp}
-	for _, key := range in.Reset {
-		// Missing legacy flags resolve to false; a reset to the new opt-in default
-		// must remain explicit and retain its freshly computed activation boundary.
-		if key != "automatic" {
-			changes["geocoding."+key] = nil
+	changes := map[string]any{"geocoding.request_interval_seconds": next.RequestIntervalSeconds, "geocoding.pause_on_error": next.PauseOnError, "geocoding.automatic": next.Automatic, "geocoding.endpoint": next.Endpoint}
+	for key := range changes {
+		field := key[len("geocoding."):]
+		if !selected[field] {
+			delete(changes, key)
 		}
 	}
-	err = config.Update(l.layout.ConfigPath(), "", changes)
-	return locationSettings(next), err
+	changes["geocoding.after_op"] = next.AfterOp
+	for _, key := range in.Reset {
+		changes["geocoding."+key] = nil
+	}
+
+	err = config.Update(l.layout.ConfigPath(), revision, changes)
+	if err != nil {
+		return LocationSettings{}, err
+	}
+	return l.LocationSettings(ctx)
 }

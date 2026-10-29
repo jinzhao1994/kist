@@ -1,8 +1,10 @@
 package library
 
 import (
+	"errors"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -52,6 +54,60 @@ func TestLocationSettingsResetPreservesActivationBoundary(t *testing.T) {
 		if strings.Contains(string(raw), key+" =") {
 			t.Fatalf("reset retained explicit GPS option %s", key)
 		}
+	}
+}
+
+func TestSettingsPresenceAndPartialSave(t *testing.T) {
+	l := openTestLibrary(t)
+	a, err := l.OCRSettings(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(a.Explicit) != 0 {
+		t.Fatal("fresh AI settings must follow defaults", a.Explicit)
+	}
+	stale := a
+	a.Changed = []string{"auto_ocr"}
+	// Saving false explicitly is meaningful even though the default is false.
+	a, err = l.SaveOCRSettings(t.Context(), a)
+	if err != nil || !slices.Contains(a.Explicit, "auto_ocr") {
+		t.Fatal(a, err)
+	}
+	if a.Revision == stale.Revision {
+		t.Fatal("presence-only edit did not change revision")
+	}
+	if _, err = l.SaveOCRSettings(t.Context(), stale); !errors.Is(err, config.ErrChanged) {
+		t.Fatal("stale presence accepted", err)
+	}
+	a.Changed = []string{"proxy_url"}
+	a.ProxyURL = "http://127.0.0.1:7890"
+	a.AutoDesc = true // An unselected field must be ignored, not enabled.
+	a, err = l.SaveOCRSettings(t.Context(), a)
+	if err != nil || a.AutoDesc || !reflect.DeepEqual(a.Explicit, []string{"auto_ocr", "proxy_url"}) {
+		t.Fatal(a, err)
+	}
+	a.Changed, a.Reset = []string{}, []string{"auto_ocr"}
+	a, err = l.SaveOCRSettings(t.Context(), a)
+	if err != nil || slices.Contains(a.Explicit, "auto_ocr") || !slices.Contains(a.Explicit, "proxy_url") {
+		t.Fatal(a, err)
+	}
+
+	g, err := l.LocationSettings(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(g.Explicit) != 0 {
+		t.Fatal("fresh GPS settings must follow defaults", g.Explicit)
+	}
+	g.Changed = []string{"request_interval_seconds"}
+	g, err = l.SaveLocationSettings(t.Context(), g)
+	if err != nil || !reflect.DeepEqual(g.Explicit, []string{"request_interval_seconds"}) {
+		t.Fatal(g, err)
+	}
+	g.Changed, g.Reset = []string{}, []string{"request_interval_seconds"}
+	g, err = l.SaveLocationSettings(t.Context(), g)
+	if err != nil || len(g.Explicit) != 0 {
+		t.Fatal(g, err)
 	}
 }
 

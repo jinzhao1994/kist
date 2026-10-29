@@ -205,6 +205,7 @@ async function prepare(page: Page, options: Options = {}) {
       return route.fulfill({
         json: {
           defaults: gpsSettingDefaults,
+          explicit: [],
           automatic: true,
           endpoint: "https://photon.komoot.io/reverse",
           request_interval_seconds: 2,
@@ -216,6 +217,7 @@ async function prepare(page: Page, options: Options = {}) {
       return route.fulfill({
         json: {
           defaults: aiSettingDefaults,
+          explicit: ["model"],
           model: "gpt-6-luna",
           auto_ocr: false,
           auto_desc: false,
@@ -4193,6 +4195,7 @@ for (const scenario of [
         route.fulfill({
           json: {
             defaults: aiSettingDefaults,
+            explicit: ["model"],
             model: "gpt-6-luna",
             auto_ocr: scenario === "ai-paused",
             auto_desc: scenario === "ai-description",
@@ -4299,6 +4302,8 @@ for (const scenario of [
         exact: true,
       });
       await expect(reset).toBeEnabled();
+      const specified = field.getByText("指定值", { exact: true });
+      await expect(specified).toBeVisible();
       await expect(field.locator(".setting-field-footer")).toHaveCount(0);
       const defaultField = settings.locator(".setting-field").filter({
         has: page.getByRole("textbox", {
@@ -4310,20 +4315,18 @@ for (const scenario of [
         defaultField.getByRole("button", { name: "恢复默认", exact: true }),
       ).toBeDisabled();
       await defaultField.hover();
-      await expect(defaultField.locator(".setting-field-action")).toHaveCSS(
+      await expect(defaultField.locator(".setting-reset")).toHaveCSS(
         "opacity",
         "1",
       );
       await page.mouse.move(0, 0);
-      await expect(field.locator(".setting-field-action")).toHaveCSS(
-        "opacity",
-        "0",
-      );
+      await expect(field.locator(".setting-reset")).toHaveCSS("opacity", "0");
+      await expect(specified).toBeVisible();
+      await expect(
+        defaultField.getByText("指定值", { exact: true }),
+      ).toHaveCount(0);
       await origins.hover();
-      await expect(field.locator(".setting-field-action")).toHaveCSS(
-        "opacity",
-        "1",
-      );
+      await expect(field.locator(".setting-reset")).toHaveCSS("opacity", "1");
       const labelBox = await field
         .locator(".setting-field-heading label")
         .boundingBox();
@@ -5513,18 +5516,17 @@ for (const anchor of ["location", "background-tasks"] as const) {
       section.getByRole("button", { name: "恢复默认", exact: true }),
     ).toHaveCount(4);
     await autoField.hover();
-    await expect(autoField.locator(".setting-field-action")).toHaveCSS(
-      "opacity",
-      "1",
-    );
+    await expect(autoField.locator(".setting-reset")).toHaveCSS("opacity", "1");
     await expect(
       autoField.getByRole("button", { name: "恢复默认", exact: true }),
     ).toBeDisabled();
     await autoField.getByRole("checkbox").uncheck();
+    await expect(autoField.getByText("指定值", { exact: true })).toBeVisible();
     await autoField
       .getByRole("button", { name: "恢复默认", exact: true })
       .click();
     await expect(autoField.getByRole("checkbox")).toBeChecked();
+    await expect(autoField.getByText("指定值", { exact: true })).toHaveCount(0);
     await expect(
       section.getByRole("checkbox", { name: "自动查询新增文件的位置" }),
     ).toBeChecked();

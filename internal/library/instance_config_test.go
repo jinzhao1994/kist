@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -11,6 +12,41 @@ import (
 
 	"github.com/jinzhao1994/kist/internal/config"
 )
+
+func TestLocationDefaultMigrationPreservesLegacyPolicy(t *testing.T) {
+	for _, automatic := range []string{"", "automatic = false", "automatic = true"} {
+		t.Run(automatic, func(t *testing.T) {
+			root := t.TempDir()
+			path := filepath.Join(root, "kist.toml")
+			raw := fmt.Sprintf("# Keep this comment\nversion = 2\nmode = 'library'\n[geocoding]\n%s\n", automatic)
+			if err := os.WriteFile(path, []byte(raw), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if err := migrateInstanceConfig(t.Context(), root, "library"); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := config.Load(path)
+			if err != nil || cfg.Version != config.CurrentVersion || cfg.Geocoding.Automatic != (automatic == "automatic = true") {
+				t.Fatal(cfg, err)
+			}
+			first, _ := os.ReadFile(path)
+			if err := migrateInstanceConfig(t.Context(), root, "library"); err != nil {
+				t.Fatal(err)
+			}
+			second, _ := os.ReadFile(path)
+			if string(first) != string(second) {
+				t.Fatal("migration is not idempotent")
+			}
+			if err := config.Update(path, "", map[string]any{"geocoding.automatic": nil}); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err = config.Load(path)
+			if err != nil || !cfg.Geocoding.Automatic {
+				t.Fatal("reset must follow the new default", err)
+			}
+		})
+	}
+}
 
 func TestLegacyClientMigrationPreservesIdentityConnectionAndQueue(t *testing.T) {
 	nas := openTestLibrary(t)

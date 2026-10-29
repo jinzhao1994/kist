@@ -3518,13 +3518,23 @@ main.upload-drag-active {
   margin-inline-start: auto;
   flex-shrink: 0;
 }
+.setting-source-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-md);
+}
+.setting-source {
+  color: var(--mantine-primary-color-filled);
+  font-size: var(--mantine-font-size-xs);
+  white-space: nowrap;
+}
 @media (hover: hover) and (pointer: fine) {
-  .setting-field-action {
+  .setting-reset {
     opacity: 0;
     pointer-events: none;
   }
-  .setting-field:hover .setting-field-action,
-  .setting-field:focus-within .setting-field-action {
+  .setting-field:hover .setting-reset,
+  .setting-field:focus-within .setting-reset {
     opacity: 1;
     pointer-events: auto;
   }

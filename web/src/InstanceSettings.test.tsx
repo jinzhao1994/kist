@@ -241,10 +241,17 @@ it("keeps a disabled heading reset discoverable until a default field is edited"
   const reset = within(field).getByRole("button", { name: "Restore default" });
   expect(reset.closest(".setting-field-heading")).toBeInTheDocument();
   expect(reset).toBeEnabled();
+  expect(within(field).getByText("Specified value")).toBeVisible();
+  await user.clear(input);
+  await user.type(input, "32 GiB");
+  expect(input).toHaveValue("32 GiB");
+  expect(reset).toBeEnabled();
+  expect(within(field).getByText("Specified value")).toBeVisible();
   await user.click(reset);
   expect(input).toHaveValue("32 GiB");
   expect(
     within(field).getByRole("button", { name: "Restore default" }),
   ).toBeDisabled();
+  expect(within(field).queryByText("Specified value")).not.toBeInTheDocument();
   expect(writes).toEqual([]);
 });

@@ -196,6 +196,9 @@ export const en = {
   settingCredentials: "Access credentials",
   settingRestart: "Requires restart",
   settingReset: "Restore default",
+  settingSpecified: "Specified value",
+  settingSpecifiedHint:
+    "Explicitly configured; this value stays fixed when defaults change.",
   settingOverride: "Overridden by a startup flag. Effective value:",
   settingRestartPending: "Saved; restart this service to apply.",
   settingOnePerLine: "One value per line",
@@ -1192,6 +1195,8 @@ export const zh: Record<MessageKey, string> = {
   settingCredentials: "访问凭据",
   settingRestart: "重启后生效",
   settingReset: "恢复默认",
+  settingSpecified: "指定值",
+  settingSpecifiedHint: "已明确配置；默认值变化时仍保留此值。",
   settingOverride: "由启动参数覆盖，当前生效值：",
   settingRestartPending: "已保存，重启当前服务后生效。",
   settingOnePerLine: "每行填写一项",

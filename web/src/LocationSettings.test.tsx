@@ -25,6 +25,7 @@ it("resets every GPS field in the draft and saves reset intent only on demand", 
     request_interval_seconds: 9,
     pause_on_error: false,
     defaults,
+    explicit: Object.keys(defaults),
     revision: "one",
   };
   const writes: Record<string, unknown>[] = [];
@@ -34,7 +35,12 @@ it("resets every GPS field in the draft and saves reset intent only on demand", 
       expect(url).toBe("/api/v1/geo/settings");
       if (init?.method === "PUT") {
         writes.push(JSON.parse(String(init.body)));
-        return Response.json({ ...defaults, defaults, revision: "two" });
+        return Response.json({
+          ...defaults,
+          defaults,
+          explicit: [],
+          revision: "two",
+        });
       }
       return Response.json(saved);
     }),
@@ -54,6 +60,7 @@ it("resets every GPS field in the draft and saves reset intent only on demand", 
   await screen.findByRole("textbox", { name: "Photon endpoint" });
   const resets = screen.getAllByRole("button", { name: "Restore default" });
   expect(resets).toHaveLength(4);
+  expect(screen.getAllByText("Specified value")).toHaveLength(4);
   const user = userEvent.setup();
   for (const reset of resets) await user.click(reset);
   expect(writes).toHaveLength(0);
@@ -74,6 +81,7 @@ it("resets every GPS field in the draft and saves reset intent only on demand", 
     screen.getByRole("textbox", { name: "Request interval (seconds)" }),
   ).toHaveValue("2");
   for (const reset of resets) expect(reset).toBeDisabled();
+  expect(screen.queryByText("Specified value")).not.toBeInTheDocument();
   // An explicit edit supersedes an earlier reset of the same field.
   const interval = screen.getByRole("textbox", {
     name: "Request interval (seconds)",
@@ -93,6 +101,7 @@ it("resets every GPS field in the draft and saves reset intent only on demand", 
     request_interval_seconds: 5,
     revision: "one",
     reset: ["automatic", "endpoint", "pause_on_error"],
+    changed: ["request_interval_seconds"],
   });
   view.unmount();
   client.clear();

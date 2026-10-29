@@ -2160,8 +2160,10 @@ export interface components {
         };
         LocationSettings: {
             automatic: boolean;
+            changed?: string[] | null;
             defaults?: components["schemas"]["LocationSettingDefaults"];
             endpoint: string;
+            readonly explicit: string[] | null;
             pause_on_error: boolean;
             /** Format: int64 */
             request_interval_seconds: number;
@@ -2263,7 +2265,9 @@ export interface components {
             auto_facts: boolean;
             auto_ocr: boolean;
             auto_orientation: boolean;
+            changed?: string[] | null;
             defaults?: components["schemas"]["AIOptions"];
+            readonly explicit: string[] | null;
             model: string;
             proxy_url: string;
             reset?: string[] | null;

@@ -15,7 +15,7 @@ import (
 )
 
 // CurrentVersion is the config schema this build writes.
-const CurrentVersion = 2
+const CurrentVersion = 3
 
 type AIOptions struct {
 	AutoFacts          bool   `toml:"auto_facts" json:"auto_facts"`
@@ -117,9 +117,6 @@ type Storage struct {
 // capture times remains pinned when defaults or the host environment change.
 func Default(linkMode blob.LinkMode) *Config {
 	c := Defaults("library")
-	// Enable location lookup for new archives. Decode keeps the legacy false
-	// fallback so opening an existing archive cannot enqueue its old images.
-	c.Geocoding = DefaultGeocoding()
 	c.Library.ID = domain.NewID()
 	c.Storage.LinkMode = linkMode
 	return c
@@ -178,6 +175,11 @@ func Decode(raw []byte) (*Config, error) {
 	}
 	if c.Version < 2 && (!meta.IsDefined("library", "timezone") || c.Library.Timezone == "") {
 		c.Library.Timezone = localZoneName()
+	}
+	// Older omitted flags meant off. Migration pins that behavior before
+	// version 3 makes omission follow the current location default.
+	if c.Version < 3 && !meta.IsDefined("geocoding", "automatic") {
+		c.Geocoding.Automatic = false
 	}
 	if c.Version < 1 {
 		return nil, fmt.Errorf("read %s: unsupported config version", path)

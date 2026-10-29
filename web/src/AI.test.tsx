@@ -198,6 +198,7 @@ it("shows model loading and saves shared options without triggering a backfill",
       auto_desc: false,
       auto_orientation: false,
       proxy_url: "http://127.0.0.1:7890",
+      changed: ["model", "auto_ocr", "proxy_url"],
       revision: "one",
     },
   });
@@ -232,6 +233,7 @@ it("resets AI model, proxy and boolean options without starting extraction", asy
           auto_orientation: true,
           auto_facts: true,
           defaults: settingDefaults,
+          explicit: Object.keys(settingDefaults),
           revision: "one",
         });
       }
@@ -247,6 +249,7 @@ it("resets AI model, proxy and boolean options without starting extraction", asy
   });
   const resets = screen.getAllByRole("button", { name: "Restore default" });
   expect(resets).toHaveLength(6);
+  expect(screen.getAllByText("Specified value")).toHaveLength(6);
   for (const reset of resets) await userEvent.click(reset);
   expect(writes).toHaveLength(0);
   for (const checkbox of screen.getAllByRole("checkbox"))
@@ -260,6 +263,9 @@ it("resets AI model, proxy and boolean options without starting extraction", asy
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0]).toMatchObject({ ...settingDefaults, revision: "one" });
   expect(writes[0].defaults).toBeUndefined();
+  expect(writes[0].explicit).toBeUndefined();
+  expect(writes[0].changed).toEqual([]);
+  expect(screen.queryByText("Specified value")).not.toBeInTheDocument();
   expect(writes[0].reset).toEqual([
     "model",
     "proxy_url",

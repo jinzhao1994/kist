@@ -2,12 +2,52 @@ package api
 
 import (
 	"encoding/json"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/jinzhao1994/kist/internal/config"
 )
+
+func TestSettingsPresenceAndEmptyChangedListHTTP(t *testing.T) {
+	s, _ := testServer(t)
+	request := func(method, path string, value map[string]any) map[string]any {
+		t.Helper()
+		raw, _ := json.Marshal(value)
+		r := httptest.NewRequest(method, "http://localhost:8473"+Prefix+path, strings.NewReader(string(raw)))
+		r.RemoteAddr = "127.0.0.1:1234"
+		r.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		s.ServeHTTP(w, r)
+		if w.Code != 200 {
+			t.Fatal(w.Code, w.Body.String())
+		}
+		var out map[string]any
+		if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	for path, key := range map[string]string{"/ai/settings": "auto_ocr", "/geo/settings": "request_interval_seconds"} {
+		t.Run(path, func(t *testing.T) {
+			value := request("GET", path, nil)
+			if len(value["explicit"].([]any)) != 0 {
+				t.Fatal(value)
+			}
+			value["changed"] = []string{key}
+			value = request("PUT", path, value)
+			if keys := value["explicit"].([]any); len(keys) != 1 || keys[0] != key {
+				t.Fatal(value)
+			}
+			value["changed"], value["reset"] = []string{}, []string{key}
+			value = request("PUT", path, value)
+			if len(value["explicit"].([]any)) != 0 {
+				t.Fatal("reset pinned untouched defaults", value)
+			}
+		})
+	}
+}
 
 func TestInstanceSettingsCASDefaultsAndSecrets(t *testing.T) {
 	s, l := testServer(t)

@@ -111,6 +111,16 @@ func migrateInstanceConfig(ctx context.Context, root, mode string) error {
 			return err
 		}
 	}
+	if cfg != nil && cfg.Version < 3 {
+		// Preserve the effective legacy opt-in policy before omission means
+		// following the new default. This never initiates a location request.
+		if err = config.Update(path, "", map[string]any{
+			"version":             config.CurrentVersion,
+			"geocoding.automatic": cfg.Geocoding.Automatic,
+		}); err != nil {
+			return err
+		}
+	}
 	if err = os.Chmod(path, 0600); err != nil {
 		return err
 	}

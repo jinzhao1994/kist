@@ -14,9 +14,13 @@ identity; do not copy a client identity to another independent client.
 GPS and AI settings also offer per-field resets, including checkboxes. Resetting
 changes the draft until you save. GPS automatic lookup resets to on, pause on
 failure to on, and the interval to 2 seconds; AI automatic extraction resets to
-off. For compatibility, a missing GPS automatic flag in an older configuration
-still means off. Resetting that flag explicitly saves on and only covers files
-added afterward, without backfilling existing files.
+off. Explicit settings show a theme-colored **Specified value** marker, even when
+they equal the current default. Unmarked settings follow defaults; reset controls
+appear on hover or keyboard focus and remain visible on touch devices. Version 3
+makes a missing GPS automatic flag follow the current default. Older configurations
+are upgraded by pinning their previous effective flag, so upgrading never enables
+a previously disabled lookup. Resetting only covers files added afterward, without
+backfilling existing files.
 
 Settings are grouped into Appearance, Storage, Service, Maps, Connection
 (clients), and Access credentials (both libraries and clients). Storage includes client cache age and size
@@ -61,7 +65,7 @@ Simple comments and untouched lines are retained; complex TOML may be reformatte
 Stop old processes before upgrading. First open migrates legacy `client.json`,
 `connection.json` and `sync-access.json`, then removes them only after the unified
 configuration is durable. Unknown legacy versions are rejected. Back up the
-configuration before upgrading; old binaries cannot read version 2.
+configuration before upgrading; binaries supporting version 2 or earlier cannot read version 3. Restore the pre-upgrade backup before downgrading.
 
 Treat `kist.toml` as secret: it can contain a client's connection credential and
 library credential digests. The API never returns stored secrets. New sync
