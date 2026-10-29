@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
@@ -6,7 +6,8 @@ import { MetadataGroup } from "./MetadataGroup";
 import { ImageRotation } from "./ImageRotation";
 import type { ArchiveFile } from "./api";
 import { FileDetail } from "./FileDetail";
-import { AIConnection, BackgroundTaskQueue, OCRAction, OCRText } from "./AI";
+import { AIConnection, OCRAction, OCRText } from "./AI";
+import { BackgroundTasks } from "./BackgroundTasks";
 import { I18nProvider, storageKey } from "./i18n";
 import { ThemeProvider } from "./theme";
 
@@ -477,27 +478,28 @@ it("explains canceled tasks in both queue settings and metadata", async () => {
     "fetch",
     vi.fn(async (path: string) =>
       Response.json(
-        path.endsWith("/ai/ocr")
-          ? {
-              paused: true,
-              scanning: false,
-              queued: 0,
-              failed: 1,
-              running: "",
-              error: "context canceled",
-            }
-          : { state: "failed", error: "context canceled" },
+        path.endsWith("/ai")
+          ? { supported: true, connected: true }
+          : path.endsWith("/ai/settings")
+            ? { model: "gpt-6-luna" }
+            : path.endsWith("/ai/ocr")
+              ? {
+                  paused: true,
+                  scanning: false,
+                  queued: 0,
+                  failed: 1,
+                  running: "",
+                  error: "context canceled",
+                }
+              : path.includes("/files/")
+                ? { state: "failed", error: "context canceled" }
+                : { queued: 0, failed: 0, paused: false },
       ),
     ),
   );
   mount(
     <>
-      <BackgroundTaskQueue
-        kind="ocr"
-        disabled={false}
-        connected
-        model="gpt-6-luna"
-      />
+      <BackgroundTasks />
       <MetadataGroup title="OCR" fileID="file" extractor="ocr">
         Existing text
       </MetadataGroup>
@@ -512,7 +514,9 @@ it("explains canceled tasks in both queue settings and metadata", async () => {
     screen.queryByRole("link", { name: "AI settings" }),
   ).not.toBeInTheDocument();
   expect(
-    screen.getByRole("button", { name: "Retry failed tasks" }),
+    within(
+      screen.getByRole("rowheader", { name: /^OCR/ }).closest("tr")!,
+    ).getByRole("button", { name: "Retry" }),
   ).toBeEnabled();
 });
 

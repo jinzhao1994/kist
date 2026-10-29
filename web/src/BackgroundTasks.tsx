@@ -1,8 +1,20 @@
-import { useQuery } from "@tanstack/react-query";
-import { BackgroundTaskQueue } from "./AI";
+import { Button, Group, Table, Text } from "@mantine/core";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { FullTextTooltip } from "./FullTextTooltip";
 import { HelpTooltip } from "./HelpTooltip";
-import { settingsQueries, type MetadataTask } from "./settingsQueries";
+import { taskErrorMessage } from "./TaskStatus";
+import { result } from "./api";
+import type { components } from "./api-schema";
+import {
+  settingsQueries,
+  queuePath,
+  type MetadataTask,
+} from "./settingsQueries";
 import { useI18n, type MessageKey } from "./i18n";
+import { errorMessage } from "./mutations";
+
+type QueueStatus = components["schemas"]["OCRQueueStatus"];
 
 export function BackgroundTasks({
   disabled = false,
@@ -39,26 +51,204 @@ export function BackgroundTasks({
           {t("backgroundTasksHint")}
         </HelpTooltip>
       </h2>
-      <div className="settings-blocks">
-        {kinds.map((kind) => (
-          <BackgroundTaskQueue
-            key={kind}
-            kind={kind}
-            disabled={
-              disabled || (kind === "geo" ? locationPending : aiPending)
-            }
-            connected={
-              kind === "geo" ? !!location.data : !!connection.data?.connected
-            }
-            model={kind === "geo" ? "photon" : ai.data?.model}
-            hint={
-              kind === "geo"
-                ? undefined
-                : t(`${kind}BackfillHint` as MessageKey)
-            }
-          />
-        ))}
-      </div>
+      <Table.ScrollContainer minWidth={640}>
+        <Table
+          highlightOnHover
+          verticalSpacing="xs"
+          horizontalSpacing="sm"
+          className="settings-table settings-table--compact task-table"
+          aria-label={t("backgroundTasks")}
+        >
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th className="task-table-kind">
+                {t("backgroundTaskType")}
+              </Table.Th>
+              <Table.Th>{t("backgroundTaskState")}</Table.Th>
+              <Table.Th className="task-table-count">
+                {t("backgroundTaskQueued")}
+              </Table.Th>
+              <Table.Th className="task-table-count">
+                {t("backgroundTaskFailed")}
+              </Table.Th>
+              <Table.Th className="task-table-actions">
+                <span className="sr-only">{t("settingCredentialActions")}</span>
+              </Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {kinds.map((kind) => (
+              <BackgroundTaskRow
+                key={kind}
+                kind={kind}
+                disabled={
+                  disabled || (kind === "geo" ? locationPending : aiPending)
+                }
+                connected={
+                  kind === "geo"
+                    ? !!location.data
+                    : !!connection.data?.connected
+                }
+                model={kind === "geo" ? "photon" : ai.data?.model}
+              />
+            ))}
+          </Table.Tbody>
+        </Table>
+      </Table.ScrollContainer>
     </section>
+  );
+}
+
+function BackgroundTaskRow({
+  kind,
+  disabled,
+  connected,
+  model,
+}: {
+  kind: MetadataTask;
+  disabled: boolean;
+  connected: boolean;
+  model?: string;
+}) {
+  const { t } = useI18n();
+  const queue = useQuery({
+    ...settingsQueries.queue(kind),
+    refetchInterval: 2000,
+  });
+  const queries = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  async function command(action: "pause" | "backfill", body: unknown) {
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const value = await result<QueueStatus>(
+        await fetch(`/api/v1${queuePath(kind)}/${action}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }),
+      );
+      queries.setQueryData([`${kind}-queue`], value);
+      if (action === "backfill") setNotice(t("ocrBackfillStarted"));
+    } catch (e) {
+      setError(errorMessage(e, t));
+    } finally {
+      setBusy(false);
+    }
+  }
+  const data = queue.data;
+  const title = t(`${kind}Title` as MessageKey);
+  const issue =
+    error ||
+    (queue.error && errorMessage(queue.error, t)) ||
+    taskErrorMessage(data?.error, t);
+  const status = !data
+    ? t("loading")
+    : data.running
+      ? t("extractionQueueRunning", { name: data.running })
+      : data.scanning
+        ? t("backgroundTaskScanning")
+        : data.paused
+          ? t("backgroundTaskPaused")
+          : t("backgroundTaskIdle");
+  return (
+    <Table.Tr>
+      <Table.Th scope="row">
+        <div className="setting-field-heading">
+          {title}
+          <HelpTooltip label={title} inline>
+            {t(
+              kind === "geo"
+                ? "geoSettingsHint"
+                : (`${kind}BackfillHint` as MessageKey),
+            )}
+          </HelpTooltip>
+        </div>
+      </Table.Th>
+      <Table.Td>
+        <div className="task-table-feedback">
+          <FullTextTooltip text={status}>
+            <Text
+              size="sm"
+              role="status"
+              tabIndex={0}
+              className="task-table-state"
+            >
+              {status}
+            </Text>
+          </FullTextTooltip>
+          {(issue || notice) && (
+            <FullTextTooltip text={issue || notice}>
+              <Text
+                size="xs"
+                c={issue ? "red" : "dimmed"}
+                role={issue ? "alert" : "status"}
+                tabIndex={0}
+                className="task-table-message"
+              >
+                {issue || notice}
+              </Text>
+            </FullTextTooltip>
+          )}
+          {queue.error && (
+            <Button
+              variant="subtle"
+              size="compact-xs"
+              onClick={() => void queue.refetch()}
+            >
+              {t("retry")}
+            </Button>
+          )}
+        </div>
+      </Table.Td>
+      <Table.Td className="task-table-count">{data?.queued ?? "—"}</Table.Td>
+      <Table.Td className="task-table-count">{data?.failed ?? "—"}</Table.Td>
+      <Table.Td>
+        <Group
+          gap="xs"
+          wrap="nowrap"
+          justify="flex-end"
+          className="table-row-actions"
+          data-busy={busy || undefined}
+        >
+          <Button
+            variant="subtle"
+            size="compact-xs"
+            disabled={
+              !data || disabled || busy || !model || !connected || data.scanning
+            }
+            onClick={() => void command("backfill", { retry: false })}
+          >
+            {t("backgroundTaskBackfill")}
+          </Button>
+          <Button
+            variant="subtle"
+            size="compact-xs"
+            disabled={
+              !data ||
+              disabled ||
+              busy ||
+              !connected ||
+              !data.failed ||
+              data.scanning
+            }
+            onClick={() => void command("backfill", { retry: true })}
+          >
+            {t("backgroundTaskRetry")}
+          </Button>
+          <Button
+            variant="subtle"
+            size="compact-xs"
+            disabled={!data || disabled || busy}
+            onClick={() => void command("pause", { paused: !data?.paused })}
+          >
+            {t(data?.paused ? "backgroundTaskResume" : "backgroundTaskPause")}
+          </Button>
+        </Group>
+      </Table.Td>
+    </Table.Tr>
   );
 }

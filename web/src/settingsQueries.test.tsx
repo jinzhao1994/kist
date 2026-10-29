@@ -102,7 +102,7 @@ it("reveals local settings together, reuses requests and does not wait for remot
   await waitFor(() => expect(reads).toContain("/ai/settings"));
   expect(reads).toContain("/geo/settings");
   expect(
-    screen.queryByRole("heading", { name: "Photo location", level: 2 }),
+    screen.queryByRole("heading", { name: "Location", level: 2 }),
   ).not.toBeInTheDocument();
   await waitFor(() =>
     expect(client.getQueryData(["sync-credentials"])).toEqual([]),
@@ -114,7 +114,7 @@ it("reveals local settings together, reuses requests and does not wait for remot
   });
   releaseLocation(Response.json(location));
   expect(
-    await screen.findByRole("heading", { name: "Photo location", level: 2 }),
+    await screen.findByRole("heading", { name: "Location", level: 2 }),
   ).toBeVisible();
   expect(
     screen.getByLabelText("Photon endpoint", { selector: "input" }),
@@ -137,23 +137,36 @@ it("reveals local settings together, reuses requests and does not wait for remot
     view.container.querySelector(".storage-usage-values"),
   ).toHaveTextContent("—");
   releaseModels(Response.json([]));
-  const background = screen.getByRole("region", { name: "Background tasks" });
-  expect(within(background).getAllByRole("heading", { level: 3 })).toHaveLength(
-    5,
+  const indexLinks = [
+    ...view.container.querySelectorAll(".section-index a"),
+  ].map((a) => a.getAttribute("href"));
+  // Section order and the directory must agree, with background tasks last.
+  const sectionIDs = [
+    ...view.container.querySelectorAll(".flat-page-section"),
+  ].map((el) => el.id);
+  expect(sectionIDs.slice(-3)).toEqual([
+    "settings-location",
+    "settings-maps",
+    "settings-background-tasks",
+  ]);
+  expect(indexLinks.slice(-3)).toEqual(
+    sectionIDs.slice(-3).map((id) => `#${id}`),
   );
+  const background = screen.getByRole("region", { name: "Background tasks" });
+  expect(within(background).getAllByRole("rowheader")).toHaveLength(5);
   for (const id of ["settings-ai", "settings-location"])
-    expect(view.container.querySelector(`#${id} .settings-task`)).toBeNull();
+    expect(view.container.querySelector(`#${id} table.task-table`)).toBeNull();
   const ocr = within(background)
-    .getByRole("heading", { name: "OCR" })
-    .closest("section")!;
+    .getByRole("rowheader", { name: /^OCR/ })
+    .closest("tr")!;
   const geo = within(background)
-    .getByRole("heading", { name: "Photo location" })
-    .closest("section")!;
+    .getByRole("rowheader", { name: /^Location/ })
+    .closest("tr")!;
   const ocrPause = within(ocr).getByRole("button", {
-    name: "Pause processing",
+    name: "Pause",
   });
   const geoPause = within(geo).getByRole("button", {
-    name: "Pause processing",
+    name: "Pause",
   });
   expect(ocrPause).toBeEnabled();
   expect(geoPause).toBeEnabled();
@@ -178,9 +191,9 @@ it("reveals local settings together, reuses requests and does not wait for remot
   await waitFor(() => expect(geoPause).toBeEnabled());
   await user.click(ocrPause);
   expect(
-    await within(ocr).findByRole("button", { name: "Continue processing" }),
+    await within(ocr).findByRole("button", { name: "Resume" }),
   ).toBeEnabled();
-  expect(geoPause).toHaveTextContent("Pause processing");
+  expect(geoPause).toHaveTextContent("Pause");
   expect(writes).toEqual(["/ai/ocr/pause"]);
   releaseStorage(
     Response.json({
@@ -219,5 +232,62 @@ it("isolates optional section failures and respects unsupported AI endpoints", a
   expect(client.getQueryData(["location-settings"])).toEqual(location);
   expect(reads).not.toContain("/ai/settings");
   expect(reads).not.toContain("/ai/ocr");
+  client.clear();
+});
+
+it("keeps task commands scoped to their row and distinguishes backfill from retry", async () => {
+  localStorage.setItem(
+    storageKey,
+    JSON.stringify({ language: "en", timezone: "UTC", formatLocale: "en-US" }),
+  );
+  const writes: { path: string; body: unknown }[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      const path = url.replace("/api/v1", "");
+      if (init?.method === "POST") {
+        writes.push({ path, body: JSON.parse(String(init.body)) });
+        return Response.json({ ...queue, failed: 2 });
+      }
+      if (path === "/ai")
+        return Response.json({ supported: false, connected: false });
+      if (path === "/geo/settings") return Response.json(location);
+      if (path === "/geo") return Response.json({ ...queue, failed: 2 });
+      throw new Error(`Unexpected request: ${path}`);
+    }),
+  );
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const { BackgroundTasks } = await import("./BackgroundTasks");
+  const view = render(
+    <QueryClientProvider client={client}>
+      <ThemeProvider env="test">
+        <I18nProvider>
+          <BackgroundTasks />
+        </I18nProvider>
+      </ThemeProvider>
+    </QueryClientProvider>,
+  );
+  const row = (
+    await screen.findByRole("rowheader", { name: /^Location/ })
+  ).closest("tr")!;
+  const user = userEvent.setup();
+  const fill = within(row).getByRole("button", { name: "Fill missing" });
+  await waitFor(() => expect(fill).toBeEnabled());
+  await user.click(fill);
+  const retry = within(row).getByRole("button", { name: "Retry" });
+  await waitFor(() => expect(retry).toBeEnabled());
+  await user.click(retry);
+  const pause = within(row).getByRole("button", { name: "Pause" });
+  await waitFor(() => expect(pause).toBeEnabled());
+  await user.click(pause);
+  expect(writes).toEqual([
+    { path: "/geo/backfill", body: { retry: false } },
+    { path: "/geo/backfill", body: { retry: true } },
+    { path: "/geo/pause", body: { paused: true } },
+  ]);
+  expect(screen.getAllByRole("rowheader")).toHaveLength(1);
+  view.unmount();
   client.clear();
 });

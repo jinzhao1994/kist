@@ -3492,8 +3492,7 @@ main.upload-drag-active {
   margin-block-end: 4px;
 }
 .settings-fields,
-.settings-blocks,
-.settings-task {
+.settings-blocks {
   display: flex;
   flex-direction: column;
 }
@@ -3503,22 +3502,9 @@ main.upload-drag-active {
 .settings-blocks {
   gap: var(--mantine-spacing-xl);
 }
-.settings-task {
-  gap: var(--mantine-spacing-md);
-}
-.settings-task > h3 {
-  font-size: var(--mantine-font-size-sm);
-  font-weight: 500;
-  margin: 0;
-}
 .settings-hint {
   font-size: var(--mantine-font-size-sm);
   color: var(--mantine-color-dimmed);
-}
-.settings-task-status {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--mantine-spacing-xs) var(--mantine-spacing-lg);
 }
 
 .setting-field-heading > .mantine-InputWrapper-label,
@@ -3750,4 +3736,72 @@ main.upload-drag-active {
   margin-inline-start: 12px;
   padding-inline-start: 12px;
   border-inline-start: 1px solid var(--border);
+}
+
+/* Keep row actions stable and keyboard-accessible; touch devices expose them. */
+.table-row-actions {
+  white-space: nowrap;
+}
+@media (hover: hover) and (pointer: fine) {
+  .table-row-actions {
+    opacity: 0;
+    pointer-events: none;
+  }
+  tr:hover .table-row-actions,
+  tr:focus-within .table-row-actions,
+  .table-row-actions[data-busy] {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+.task-table {
+  table-layout: fixed;
+}
+.settings-table--compact td,
+.settings-table--compact th[scope="row"] {
+  font-size: 0.8125rem;
+}
+.settings-table--compact th[scope="row"] {
+  font-weight: 400;
+}
+.table-row-actions > .mantine-Button-root {
+  font-weight: 500;
+}
+.task-table th[scope="row"] {
+  color: var(--mantine-color-text);
+  white-space: nowrap;
+}
+.task-table .setting-field-heading {
+  margin-block-end: 0;
+}
+.task-table-kind {
+  inline-size: 10rem;
+}
+.task-table-count {
+  inline-size: 5rem;
+  text-align: end;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.task-table-actions {
+  inline-size: 14rem;
+}
+.task-table-feedback {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  min-inline-size: 0;
+}
+.task-table-state,
+.task-table-message {
+  min-inline-size: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  margin-block: 0;
+}
+.task-table-state {
+  font-size: inherit;
+  flex-shrink: 0;
+  max-inline-size: 100%;
 }

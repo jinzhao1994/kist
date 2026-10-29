@@ -1,13 +1,8 @@
-import {
-  settingsQueries,
-  queuePath,
-  type MetadataTask,
-} from "./settingsQueries";
+import { settingsQueries, type MetadataTask } from "./settingsQueries";
 import {
   SettingsCheckbox,
   SettingsFieldHeading,
   SettingsHint,
-  SettingsTask,
   useSettingsPending,
 } from "./SettingsFields";
 import {
@@ -173,7 +168,6 @@ export function AIConnection({
   );
 }
 type AISettingsData = NonNullable<ReturnType<typeof useAISettings>["data"]>;
-type QueueStatus = NonNullable<ReturnType<typeof useOCRQueue>["data"]>;
 type OCRJob = {
   manual?: boolean;
   state: "missing" | "queued" | "running" | "ready" | "failed";
@@ -187,12 +181,6 @@ function useAISettings() {
 export type ImageTask = Exclude<MetadataTask, "geo">;
 const taskMessage = (kind: MetadataTask, suffix: string) =>
   `${kind}${suffix}` as MessageKey;
-function useOCRQueue(kind: MetadataTask = "ocr") {
-  return useQuery({
-    ...settingsQueries.queue(kind),
-    refetchInterval: 2000,
-  });
-}
 function AISettings({
   connected,
   disabled,
@@ -391,122 +379,6 @@ function AISettings({
         </div>
       )}
     </div>
-  );
-}
-export function BackgroundTaskQueue({
-  kind,
-  disabled,
-  connected,
-  model,
-  hint,
-}: {
-  kind: MetadataTask;
-  disabled: boolean;
-  connected: boolean;
-  model?: string;
-  hint?: ReactNode;
-}) {
-  const { t } = useI18n();
-  const queue = useOCRQueue(kind);
-  const queries = useQueryClient();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  async function command(path: string, body: unknown) {
-    setBusy(true);
-    setError("");
-    setNotice("");
-    try {
-      const value = await post<QueueStatus>(path, body);
-      queries.setQueryData([`${kind}-queue`], value);
-      if (path.endsWith("backfill")) setNotice(t("ocrBackfillStarted"));
-    } catch (e) {
-      setError(errorMessage(e, t));
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <SettingsTask title={t(taskMessage(kind, "Title"))}>
-      {error && <TaskError>{error}</TaskError>}
-      {notice && (
-        <Text role="status" size="sm">
-          {notice}
-        </Text>
-      )}
-      {queue.error && (
-        <Group>
-          <TaskError>{errorMessage(queue.error, t)}</TaskError>
-          <Button onClick={() => void queue.refetch()}>{t("retry")}</Button>
-        </Group>
-      )}
-      {queue.data && (
-        <>
-          <div className="settings-task-status">
-            <Text className="settings-hint" role="status">
-              {queue.data.paused
-                ? t(taskMessage(kind, "QueuePaused"))
-                : queue.data.running
-                  ? t("extractionQueueRunning", {
-                      name: queue.data.running,
-                    })
-                  : t(taskMessage(kind, "QueueIdle"))}
-            </Text>
-            <SettingsHint>
-              {t("ocrQueueCounts", {
-                queued: queue.data.queued,
-                failed: queue.data.failed,
-              })}
-            </SettingsHint>
-          </div>
-          {queue.data.scanning && (
-            <Text role="status" size="sm">
-              {t(taskMessage(kind, "Scanning"))}
-            </Text>
-          )}
-          {queue.data.error && (
-            <TaskError>{taskErrorMessage(queue.data.error, t)}</TaskError>
-          )}
-          <Group>
-            <Button
-              disabled={
-                disabled || busy || !model || !connected || queue.data.scanning
-              }
-              onClick={() =>
-                void command(`${queuePath(kind)}/backfill`, { retry: false })
-              }
-            >
-              {t(taskMessage(kind, "Backfill"))}
-            </Button>
-            <Button
-              disabled={
-                disabled ||
-                busy ||
-                !connected ||
-                !queue.data.failed ||
-                queue.data.scanning
-              }
-              onClick={() =>
-                void command(`${queuePath(kind)}/backfill`, { retry: true })
-              }
-            >
-              {t("ocrRetryFailed")}
-            </Button>
-            <Button
-              disabled={disabled || busy}
-              onClick={() =>
-                void command(`${queuePath(kind)}/pause`, {
-                  paused: !queue.data?.paused,
-                })
-              }
-            >
-              {t(queue.data.paused ? "ocrResume" : "ocrPause")}
-            </Button>
-          </Group>
-          {hint && <SettingsHint>{hint}</SettingsHint>}
-        </>
-      )}
-    </SettingsTask>
   );
 }
 export function OCRAction({

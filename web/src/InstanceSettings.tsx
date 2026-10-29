@@ -156,6 +156,98 @@ export function InstanceSettings() {
       if (Object.keys(changes).some((key) => key.startsWith("server.map_")))
         window.location.reload();
     });
+  function renderGroup(group: string) {
+    if (!snapshot) return null;
+    return (
+      <section
+        key={group}
+        id={`settings-${group}`}
+        className="flat-page-section"
+        aria-labelledby={`settings-${group}-title`}
+      >
+        <h2 id={`settings-${group}-title`}>
+          {t(
+            group === "appearance"
+              ? "settingAppearance"
+              : group === "storage"
+                ? "settingStorage"
+                : group === "maps"
+                  ? "settingMaps"
+                  : "settingService",
+          )}
+        </h2>
+        <Stack gap="lg">
+          {group === "storage" && <StorageUsage />}
+          {(snapshot.fields || [])
+            .filter((field) => category(field) === group)
+            .map((field) => {
+              const changed = Object.hasOwn(changes, field.key);
+              const value = changed
+                ? changes[field.key] === null
+                  ? field.default
+                  : changes[field.key]
+                : field.value;
+              const overridden = (snapshot.overrides || []).includes(field.key);
+              return (
+                <div key={field.key} className="instance-setting">
+                  <SettingInput
+                    field={field}
+                    value={value}
+                    disabled={busy}
+                    change={(value) =>
+                      setChanges((old) => ({
+                        ...old,
+                        [field.key]: value,
+                      }))
+                    }
+                  />
+                  <Group
+                    className="setting-field-footer"
+                    wrap="nowrap"
+                    justify={overridden ? "space-between" : "flex-end"}
+                    gap="xs"
+                    mt="xs"
+                  >
+                    {overridden && (
+                      <Text size="sm" c="var(--mantine-primary-color-filled)">
+                        {t("settingOverride")}{" "}
+                        {typeof snapshot.effective[field.key] === "string"
+                          ? String(snapshot.effective[field.key])
+                          : JSON.stringify(snapshot.effective[field.key])}
+                      </Text>
+                    )}
+                    <Button
+                      size="compact-xs"
+                      variant="subtle"
+                      disabled={
+                        busy ||
+                        (changed
+                          ? changes[field.key] === null
+                          : !field.explicit)
+                      }
+                      onClick={() =>
+                        setChanges((old) => ({
+                          ...old,
+                          [field.key]: null,
+                        }))
+                      }
+                    >
+                      {t("settingReset")}
+                    </Button>
+                  </Group>
+                  {!overridden &&
+                    (snapshot.restart_required || []).includes(field.key) && (
+                      <Text size="sm" c="dimmed">
+                        {t("settingRestartPending")}
+                      </Text>
+                    )}
+                </div>
+              );
+            })}
+        </Stack>
+      </section>
+    );
+  }
   return (
     <section
       aria-label={t("instanceSettings")}
@@ -206,7 +298,9 @@ export function InstanceSettings() {
                 { id: "settings-appearance", label: t("settingAppearance") },
                 { id: "settings-storage", label: t("settingStorage") },
                 { id: "settings-service", label: t("settingService") },
-                { id: "settings-maps", label: t("settingMaps") },
+                ...(snapshot.mode === "client"
+                  ? [{ id: "settings-maps", label: t("settingMaps") }]
+                  : []),
                 ...(snapshot.mode === "client"
                   ? [
                       {
@@ -220,6 +314,7 @@ export function InstanceSettings() {
                   ? [
                       { id: "settings-ai", label: t("aiConnection") },
                       { id: "settings-location", label: t("geoTitle") },
+                      { id: "settings-maps", label: t("settingMaps") },
                       {
                         id: "settings-background-tasks",
                         label: t("backgroundTasks"),
@@ -228,107 +323,8 @@ export function InstanceSettings() {
                   : []),
               ]}
             >
-              {["appearance", "storage", "service", "maps"].map((group) => (
-                <section
-                  key={group}
-                  id={`settings-${group}`}
-                  className="flat-page-section"
-                  aria-labelledby={`settings-${group}-title`}
-                >
-                  <h2 id={`settings-${group}-title`}>
-                    {t(
-                      group === "appearance"
-                        ? "settingAppearance"
-                        : group === "storage"
-                          ? "settingStorage"
-                          : group === "maps"
-                            ? "settingMaps"
-                            : "settingService",
-                    )}
-                  </h2>
-                  <Stack gap="lg">
-                    {group === "storage" && <StorageUsage />}
-                    {(snapshot.fields || [])
-                      .filter((field) => category(field) === group)
-                      .map((field) => {
-                        const changed = Object.hasOwn(changes, field.key);
-                        const value = changed
-                          ? changes[field.key] === null
-                            ? field.default
-                            : changes[field.key]
-                          : field.value;
-                        const overridden = (snapshot.overrides || []).includes(
-                          field.key,
-                        );
-                        return (
-                          <div key={field.key} className="instance-setting">
-                            <SettingInput
-                              field={field}
-                              value={value}
-                              disabled={busy}
-                              change={(value) =>
-                                setChanges((old) => ({
-                                  ...old,
-                                  [field.key]: value,
-                                }))
-                              }
-                            />
-                            <Group
-                              className="setting-field-footer"
-                              wrap="nowrap"
-                              justify={
-                                overridden ? "space-between" : "flex-end"
-                              }
-                              gap="xs"
-                              mt="xs"
-                            >
-                              {overridden && (
-                                <Text
-                                  size="sm"
-                                  c="var(--mantine-primary-color-filled)"
-                                >
-                                  {t("settingOverride")}{" "}
-                                  {typeof snapshot.effective[field.key] ===
-                                  "string"
-                                    ? String(snapshot.effective[field.key])
-                                    : JSON.stringify(
-                                        snapshot.effective[field.key],
-                                      )}
-                                </Text>
-                              )}
-                              <Button
-                                size="compact-xs"
-                                variant="subtle"
-                                disabled={
-                                  busy ||
-                                  (changed
-                                    ? changes[field.key] === null
-                                    : !field.explicit)
-                                }
-                                onClick={() =>
-                                  setChanges((old) => ({
-                                    ...old,
-                                    [field.key]: null,
-                                  }))
-                                }
-                              >
-                                {t("settingReset")}
-                              </Button>
-                            </Group>
-                            {!overridden &&
-                              (snapshot.restart_required || []).includes(
-                                field.key,
-                              ) && (
-                                <Text size="sm" c="dimmed">
-                                  {t("settingRestartPending")}
-                                </Text>
-                              )}
-                          </div>
-                        );
-                      })}
-                  </Stack>
-                </section>
-              ))}
+              {["appearance", "storage", "service"].map(renderGroup)}
+              {snapshot.mode === "client" && renderGroup("maps")}
               {snapshot.mode === "client" && (
                 <section
                   id="settings-connection"
@@ -395,6 +391,7 @@ export function InstanceSettings() {
                   disabled={busy || Object.keys(changes).length > 0}
                 />
               )}
+              {snapshot.mode === "library" && renderGroup("maps")}
               {snapshot.mode === "library" && (
                 <BackgroundTasks
                   disabled={busy || Object.keys(changes).length > 0}

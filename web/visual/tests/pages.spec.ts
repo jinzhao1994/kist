@@ -4235,14 +4235,11 @@ for (const scenario of [
       ).toBeEnabled();
     }
     if (scenario === "ai-description") {
-      await expect(
-        settings.getByText(/文档完整读取，最多 200 页、20 MiB，超限不处理/),
-      ).toBeVisible();
-      const backfill = settings.getByRole("button", {
-        name: "补全已有文件的描述",
-        exact: true,
-      });
-      await backfill.scrollIntoViewIfNeeded();
+      const row = settings
+        .getByRole("row")
+        .filter({ has: page.getByRole("rowheader", { name: /^描述/ }) });
+      await row.hover();
+      const backfill = row.getByRole("button", { name: "补全", exact: true });
       await expect(backfill).toBeEnabled();
       await expect(
         settings.getByRole("checkbox", {
@@ -4250,9 +4247,7 @@ for (const scenario of [
           exact: true,
         }),
       ).toBeChecked();
-      await expect(
-        settings.getByText("描述后台已就绪", { exact: true }),
-      ).toBeVisible();
+      await expect(row.getByText("空闲", { exact: true })).toBeVisible();
     }
     if (scenario === "ai-facts") {
       await expect(
@@ -4261,15 +4256,13 @@ for (const scenario of [
           exact: true,
         }),
       ).not.toBeChecked();
-      const backfill = settings.getByRole("button", {
-        name: "补全已有文件的结构化信息",
-        exact: true,
-      });
-      await backfill.scrollIntoViewIfNeeded();
+      const row = settings
+        .getByRole("row")
+        .filter({ has: page.getByRole("rowheader", { name: /^结构化信息/ }) });
+      await row.hover();
+      const backfill = row.getByRole("button", { name: "补全", exact: true });
       await expect(backfill).toBeEnabled();
-      await expect(
-        settings.getByText("结构化提取后台已就绪", { exact: true }),
-      ).toBeVisible();
+      await expect(row.getByText("空闲", { exact: true })).toBeVisible();
     }
     if (scenario === "service") {
       await settings.getByRole("link", { name: "服务", exact: true }).click();
@@ -4400,7 +4393,10 @@ for (const scenario of [
           page.getByRole("checkbox", { name: "自动识别新增图片" }),
         ).toBeChecked();
         await expect(
-          page.getByRole("button", { name: "继续处理", exact: true }),
+          page
+            .getByRole("row")
+            .filter({ has: page.getByRole("rowheader", { name: /^OCR/ }) })
+            .getByRole("button", { name: "继续", exact: true }),
         ).toBeEnabled();
       }
     }
@@ -5380,10 +5376,15 @@ for (const anchor of ["location", "background-tasks"] as const) {
     await page.goto(`/settings#settings-${anchor}`);
     if (anchor === "background-tasks") {
       const tasks = page.locator("#settings-background-tasks");
-      await expect(tasks.getByRole("heading", { level: 3 })).toHaveCount(5);
+      await expect(tasks.getByRole("rowheader")).toHaveCount(5);
+      const actions = tasks.locator(".table-row-actions").first();
+      await page.mouse.move(5, 5);
+      await expect(actions).toHaveCSS("opacity", "0");
+      await tasks.getByRole("row").nth(1).hover();
+      await expect(actions).toHaveCSS("opacity", "1");
       await expect(
-        tasks.getByRole("button", { name: "暂停处理", exact: true }),
-      ).toHaveCount(5);
+        actions.getByRole("button", { name: "暂停", exact: true }),
+      ).toBeEnabled();
       await expect(
         tasks.getByRole("heading", { name: "后台任务", exact: true }),
       ).toBeInViewport();
@@ -5422,7 +5423,7 @@ for (const anchor of ["location", "background-tasks"] as const) {
       section.getByText("请求串行执行", { exact: false }),
     ).toHaveCount(0);
     const sectionHelp = section.getByRole("button", {
-      name: "照片位置",
+      name: "位置",
       exact: true,
     });
     await sectionHelp.hover();
@@ -5468,7 +5469,7 @@ for (const anchor of ["location", "background-tasks"] as const) {
       section.getByRole("textbox", { name: "Photon 接口地址", exact: true }),
     ).toHaveValue("https://photon.komoot.io/reverse");
     await expect(
-      section.getByRole("heading", { name: "照片位置", exact: true }),
+      section.getByRole("heading", { name: "位置", exact: true }),
     ).toBeInViewport();
     await capture(page, errors, info.title);
   });

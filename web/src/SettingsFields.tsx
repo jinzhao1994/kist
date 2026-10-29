@@ -42,21 +42,6 @@ export function SettingsHint({ children }: { children: ReactNode }) {
   return <Text className="settings-hint">{children}</Text>;
 }
 
-export function SettingsTask({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="settings-task">
-      <h3>{title}</h3>
-      {children}
-    </section>
-  );
-}
-
 // Keep controls in a separate task section aware of unsaved configuration.
 export function useSettingsPending(
   pending: boolean,

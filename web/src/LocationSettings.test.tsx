@@ -54,7 +54,7 @@ it("edits endpoint policy together without starting a lookup", async () => {
       </I18nProvider>
     </QueryClientProvider>,
   );
-  expect(screen.getByRole("heading", { name: "Photo location" })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Location" })).toBeVisible();
   const input = await screen.findByRole("textbox", {
     name: "Request interval (seconds)",
   });
