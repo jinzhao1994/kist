@@ -4270,14 +4270,12 @@ for (const scenario of [
         name: "允许使用的访问网址",
         exact: true,
       });
-      const field = settings
-        .locator(".setting-field")
-        .filter({
-          has: page.getByRole("textbox", {
-            name: "允许使用的访问网址",
-            exact: true,
-          }),
-        });
+      const field = settings.locator(".setting-field").filter({
+        has: page.getByRole("textbox", {
+          name: "允许使用的访问网址",
+          exact: true,
+        }),
+      });
       const reset = field.getByRole("button", {
         name: "恢复默认",
         exact: true,
@@ -4292,7 +4290,12 @@ for (const scenario of [
       });
       await expect(
         defaultField.getByRole("button", { name: "恢复默认", exact: true }),
-      ).toHaveCount(0);
+      ).toBeDisabled();
+      await defaultField.hover();
+      await expect(defaultField.locator(".setting-field-action")).toHaveCSS(
+        "opacity",
+        "1",
+      );
       await page.mouse.move(0, 0);
       await expect(field.locator(".setting-field-action")).toHaveCSS(
         "opacity",

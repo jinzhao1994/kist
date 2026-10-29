@@ -203,22 +203,23 @@ export function InstanceSettings() {
                     value={value}
                     disabled={busy}
                     action={
-                      (changed
-                        ? changes[field.key] !== null
-                        : field.explicit) && (
-                        <Anchor
-                          component="button"
-                          type="button"
-                          size="xs"
-                          className="text-action-link"
-                          disabled={busy}
-                          onClick={() =>
-                            setChanges((old) => ({ ...old, [field.key]: null }))
-                          }
-                        >
-                          {t("settingReset")}
-                        </Anchor>
-                      )
+                      <Anchor
+                        component="button"
+                        type="button"
+                        size="xs"
+                        className="text-action-link"
+                        disabled={
+                          busy ||
+                          (changed
+                            ? changes[field.key] === null
+                            : !field.explicit)
+                        }
+                        onClick={() =>
+                          setChanges((old) => ({ ...old, [field.key]: null }))
+                        }
+                      >
+                        {t("settingReset")}
+                      </Anchor>
                     }
                     change={(value) =>
                       setChanges((old) => ({

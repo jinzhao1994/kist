@@ -143,15 +143,18 @@ it("does not save on open; resetting removes the explicit value using the loaded
   mount();
   expect(await screen.findByRole("radio", { name: "Green" })).toBeChecked();
   expect(writes).toEqual([]);
-  const reset = screen.getByRole("button", { name: "Restore default" });
+  const colorField = screen
+    .getByRole("radio", { name: "Green" })
+    .closest<HTMLElement>(".setting-field")!;
+  const reset = within(colorField).getByRole("button", {
+    name: "Restore default",
+  });
   expect(reset.closest(".setting-field-heading")).toHaveTextContent(
     "Primary color",
   );
   expect(document.querySelectorAll(".setting-field-footer")).toHaveLength(0);
   await user.click(reset);
-  expect(
-    screen.queryByRole("button", { name: "Restore default" }),
-  ).not.toBeInTheDocument();
+  expect(reset).toBeDisabled();
   expect(screen.getByRole("radio", { name: "Blue" })).toBeChecked();
   await user.click(screen.getByRole("button", { name: "Save" }));
   await waitFor(() =>
@@ -223,7 +226,7 @@ it("shows an empty credential row without a table and can open and cancel creati
   expect(screen.queryByRole("table")).not.toBeInTheDocument();
 });
 
-it("offers a heading reset only after a default field is edited", async () => {
+it("keeps a disabled heading reset discoverable until a default field is edited", async () => {
   const user = userEvent.setup();
   mount();
   const input = await screen.findByRole("textbox", {
@@ -231,16 +234,17 @@ it("offers a heading reset only after a default field is edited", async () => {
   });
   const field = input.closest<HTMLElement>(".setting-field")!;
   expect(
-    within(field).queryByRole("button", { name: "Restore default" }),
-  ).not.toBeInTheDocument();
+    within(field).getByRole("button", { name: "Restore default" }),
+  ).toBeDisabled();
   await user.clear(input);
   await user.type(input, "16 GiB");
   const reset = within(field).getByRole("button", { name: "Restore default" });
   expect(reset.closest(".setting-field-heading")).toBeInTheDocument();
+  expect(reset).toBeEnabled();
   await user.click(reset);
   expect(input).toHaveValue("32 GiB");
   expect(
-    within(field).queryByRole("button", { name: "Restore default" }),
-  ).not.toBeInTheDocument();
+    within(field).getByRole("button", { name: "Restore default" }),
+  ).toBeDisabled();
   expect(writes).toEqual([]);
 });
