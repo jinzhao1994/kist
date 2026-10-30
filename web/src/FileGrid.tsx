@@ -1,4 +1,4 @@
-import { FloatingTooltip } from "./FloatingTooltip";
+import { FileBoxSource } from "./FileBoxSource";
 import { OfflineBatch } from "./OfflineBatch";
 import { offlineOwner } from "./offline-retention";
 import {
@@ -467,11 +467,6 @@ export function FileGrid({
                     !boxID && file?.box_id
                       ? boxesByID.get(file.box_id)
                       : undefined;
-                  const sourceDate =
-                    sourceBox?.start_at?.replace("T", " ") || "";
-                  const source = sourceBox
-                    ? [sourceBox.name, sourceDate].filter(Boolean).join(" · ")
-                    : "";
                   const size = folder ? folder.total_size : file?.size;
                   const editing =
                     entryAction?.action === "rename" &&
@@ -657,31 +652,7 @@ export function FileGrid({
                         )}
                         {!boxID && (
                           <small className="file-card-meta">
-                            <FloatingTooltip
-                              label={source}
-                              disabled={!source}
-                              multiline
-                              maw={360}
-                              position="bottom-start"
-                              offset={16}
-                              role="tooltip"
-                              classNames={{ tooltip: "metadata-tooltip" }}
-                            >
-                              <span className="file-card-source">
-                                <bdi className="file-card-source-name">
-                                  {sourceBox?.name}
-                                </bdi>
-                                {sourceDate && (
-                                  <time
-                                    className="file-card-source-date"
-                                    dateTime={sourceBox?.start_at}
-                                  >
-                                    {" · "}
-                                    {sourceDate}
-                                  </time>
-                                )}
-                              </span>
-                            </FloatingTooltip>
+                            <FileBoxSource box={sourceBox} />
                             <span className="file-card-size">
                               {size == null ? "—" : formatBytes(size, prefs)}
                             </span>

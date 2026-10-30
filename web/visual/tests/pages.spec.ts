@@ -227,6 +227,8 @@ async function prepare(page: Page, options: Options = {}) {
           revision: "visual",
         },
       });
+    if (/^\/(?:ai\/(?:ocr|desc|facts|orientation)|geo)\/jobs$/.test(path))
+      return route.fulfill({ json: { items: [], next_cursor: "" } });
     if (
       path === "/geo" ||
       path === "/ai/ocr" ||
@@ -4360,6 +4362,12 @@ for (const scenario of [
       await expect(
         defaultField.getByText("已跟随默认", { exact: true }),
       ).toBeVisible();
+      // Moving the pointer does not blur the origins editor. Focus keeps its
+      // reset action visible until the user clicks elsewhere.
+      await expect(field.locator(".setting-reset")).toHaveCSS("opacity", "1");
+      await settings
+        .getByRole("heading", { name: "设置", exact: true, level: 1 })
+        .click();
       await page.mouse.move(0, 0);
       await expect(inherited).toHaveCSS("opacity", "0");
       await expect(field.locator(".setting-reset")).toHaveCSS("opacity", "0");
@@ -5459,9 +5467,21 @@ for (const variant of [
   });
 }
 
-for (const anchor of ["location", "background-tasks"] as const) {
+for (const anchor of [
+  "location",
+  "background-tasks",
+  "background-tasks-expanded",
+  "background-tasks-expanded-dark",
+  "background-tasks-expanded-mobile",
+] as const) {
   test(`settings-${anchor}`, async ({ page }, info) => {
-    const errors = await prepare(page);
+    const taskSection = anchor.startsWith("background-tasks");
+    const expanded = anchor.includes("expanded");
+    if (anchor.endsWith("mobile"))
+      await page.setViewportSize({ width: 390, height: 844 });
+    const errors = await prepare(page, {
+      mode: anchor.endsWith("dark") ? "dark" : "light",
+    });
     await page.route("**/api/v1/settings", (route) =>
       route.fulfill({
         json: {
@@ -5489,28 +5509,57 @@ for (const anchor of ["location", "background-tasks"] as const) {
     await page.route("**/api/v1/settings/credentials", (route) =>
       route.fulfill({ json: [] }),
     );
-    if (anchor === "background-tasks")
+    if (taskSection)
       await page.route("**/api/v1/ai/ocr", (route) =>
         route.fulfill({
           json: {
             paused: true,
             scanning: true,
             queued: 1,
-            failed: 0,
+            failed: expanded ? 1 : 0,
             running: "",
             error: "context canceled",
           },
         }),
       );
-    await page.goto(`/settings#settings-${anchor}`);
-    if (anchor === "background-tasks") {
+    if (expanded)
+      await page.route("**/api/v1/ai/ocr/jobs?*", (route) =>
+        route.fulfill({
+          json: {
+            items: [
+              {
+                file_id: files[0].id,
+                request_id: "synthetic-queued",
+                name: "申请材料扫描.pdf",
+                state: "queued",
+                file_available: true,
+                box: { name: "申请材料", start_at: "2026-01" },
+              },
+              {
+                file_id: files[1].id,
+                request_id: "synthetic-failed",
+                name: "一份名称比较长的证书照片与相关附件.png",
+                state: "failed",
+                error: "context canceled",
+                file_available: true,
+                box: { name: "考试与证书", start_at: "2025-09-12T14:30" },
+              },
+            ],
+            next_cursor: "",
+          },
+        }),
+      );
+    await page.goto(
+      `/settings#settings-${taskSection ? "background-tasks" : "location"}`,
+    );
+    if (taskSection) {
       const tasks = page.locator("#settings-background-tasks");
       await expect(tasks.getByRole("rowheader")).toHaveCount(5);
       const ocr = tasks
         .getByRole("row")
         .filter({ has: page.getByRole("rowheader", { name: /^OCR/ }) });
       await expect(ocr.getByRole("status")).toHaveText("已暂停");
-      await expect(ocr.getByRole("alert")).toHaveCount(0);
+      await expect(ocr.getByRole("alert")).toHaveCount(expanded ? 1 : 0);
       await expect(
         ocr.getByRole("button", { name: "重试", exact: true }),
       ).toBeDisabled();
@@ -5543,6 +5592,29 @@ for (const anchor of ["location", "background-tasks"] as const) {
         .hover();
       await expect(page.getByRole("tooltip")).toContainText("共用调度器");
       await expect(page.getByRole("tooltip")).toContainText("独立后台执行器");
+      await page.mouse.move(5, 5);
+      const arrow = ocr.getByRole("button", {
+        name: "展开OCR任务",
+        exact: true,
+      });
+      await expect(arrow.locator("..")).toHaveCSS("opacity", "0");
+      await arrow.focus();
+      await expect(arrow.locator("..")).toHaveCSS("opacity", "1");
+      if (expanded) {
+        await arrow.click();
+        const details = tasks.getByRole("table", {
+          name: "OCR任务",
+          exact: true,
+        });
+        await expect(
+          details.getByRole("link", { name: "申请材料扫描.pdf" }),
+        ).toHaveAttribute("href", `/files?file=${files[0].id}`);
+        await expect(details.locator("time").first()).toHaveText(" · 2026-01");
+        await expect(
+          details.getByText("任务已取消，可重试。", { exact: true }),
+        ).toBeVisible();
+        await expect(arrow).toHaveAttribute("aria-expanded", "true");
+      }
       await page.mouse.move(5, 5);
       await capture(page, errors, info.title);
       return;

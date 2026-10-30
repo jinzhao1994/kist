@@ -83,6 +83,36 @@ func TestDescriptionFileRouteIsLocalOnly(t *testing.T) {
 	}
 }
 
+func TestExtractionQueueListRoutes(t *testing.T) {
+	s, _ := testServer(t)
+	for _, path := range []string{"/ai/ocr", "/ai/desc", "/ai/orientation", "/ai/facts", "/geo"} {
+		for _, query := range []struct {
+			suffix string
+			code   int
+		}{{"", 200}, {"?limit=1", 200}, {"?cursor=invalid", 400}, {"?limit=101", 422}, {"?limit=0", 422}} {
+			r := httptest.NewRequest("GET", "http://localhost:8473"+Prefix+path+"/jobs"+query.suffix, nil)
+			r.RemoteAddr = "127.0.0.1:1234"
+			w := httptest.NewRecorder()
+			s.ServeHTTP(w, r)
+			if w.Code != query.code {
+				t.Fatalf("%s%s: %d %s", path, query.suffix, w.Code, w.Body.String())
+			}
+			if query.code == 200 && !strings.Contains(w.Body.String(), `"items":[]`) {
+				t.Fatal(w.Body.String())
+			}
+		}
+		if strings.HasPrefix(path, "/ai/") {
+			r := httptest.NewRequest("GET", "http://localhost:8473"+Prefix+path+"/jobs", nil)
+			r.RemoteAddr = "192.0.2.1:1234"
+			w := httptest.NewRecorder()
+			s.ServeHTTP(w, r)
+			if w.Code != 403 {
+				t.Fatal("remote queue list exposed", path, w.Code)
+			}
+		}
+	}
+}
+
 // Exercise the real HTTP validator; mocked browser responses cannot catch
 // missing required fields before a refresh reaches its queue.
 func TestAIReextractHTTPContract(t *testing.T) {

@@ -29,6 +29,14 @@ export const en = {
     "Cannot display this structured result. The saved data has been preserved.",
 
   backgroundTaskType: "Task",
+  backgroundTaskDetails: "Task details",
+  backgroundTaskExpand: "Expand {name} tasks",
+  backgroundTaskCollapse: "Collapse {name} tasks",
+  backgroundTaskList: "{name} tasks",
+  backgroundTaskEmpty: "No queued or failed tasks",
+  backgroundTaskPrevious: "Previous page",
+  backgroundTaskNext: "Next page",
+  backgroundTaskBox: "Box",
   backgroundTaskState: "Status",
   backgroundTaskQueued: "Queued",
   backgroundTaskFailed: "Failed",
@@ -1048,6 +1056,14 @@ export const zh: Record<MessageKey, string> = {
   factsInvalid: "无法显示此结构化结果，已保存的数据保持不变。",
 
   backgroundTaskType: "任务",
+  backgroundTaskDetails: "任务明细",
+  backgroundTaskExpand: "展开{name}任务",
+  backgroundTaskCollapse: "收起{name}任务",
+  backgroundTaskList: "{name}任务",
+  backgroundTaskEmpty: "暂无排队或失败任务",
+  backgroundTaskPrevious: "上一页",
+  backgroundTaskNext: "下一页",
+  backgroundTaskBox: "归档盒",
   backgroundTaskState: "状态",
   backgroundTaskQueued: "排队",
   backgroundTaskFailed: "失败",
@@ -2029,6 +2045,9 @@ export function initializeLanguage() {
   applyDocumentLanguage(initialPreferences());
 }
 interface Parameters {
+  backgroundTaskExpand: { name: string };
+  backgroundTaskCollapse: { name: string };
+  backgroundTaskList: { name: string };
   editMetadata: { field: string };
   removeMetadata: { field: string };
   removeMetadataQuestion: { field: string };

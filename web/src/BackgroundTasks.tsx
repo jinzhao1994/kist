@@ -1,6 +1,8 @@
 import { Anchor, Group, Table, Text } from "@mantine/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { BackgroundTaskJobs } from "./BackgroundTaskJobs";
+import { TreeToggle } from "./TreeToggle";
 import { FullTextTooltip } from "./FullTextTooltip";
 import { HelpTooltip } from "./HelpTooltip";
 import { taskErrorMessage } from "./TaskStatus";
@@ -61,6 +63,9 @@ export function BackgroundTasks({
         >
           <Table.Thead>
             <Table.Tr>
+              <Table.Th className="task-table-toggle-cell">
+                <span className="sr-only">{t("backgroundTaskDetails")}</span>
+              </Table.Th>
               <Table.Th className="task-table-kind">
                 {t("backgroundTaskType")}
               </Table.Th>
@@ -118,6 +123,8 @@ function BackgroundTaskRow({
   const queries = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [expanded, setExpanded] = useState(false);
+  const detailsID = `background-task-${kind}-jobs`;
   async function command(action: "pause" | "backfill", body: unknown) {
     setBusy(true);
     setError("");
@@ -137,6 +144,18 @@ function BackgroundTaskRow({
     }
   }
   const data = queue.data;
+  useEffect(() => {
+    // Include the final transition to idle/failed even when it stops polling.
+    // Inactive (collapsed) details are only marked stale, never fetched here.
+    void queries.invalidateQueries({ queryKey: [`${kind}-queue-jobs`] });
+  }, [
+    kind,
+    queries,
+    data?.queued,
+    data?.failed,
+    data?.running,
+    data?.scanning,
+  ]);
   const title = t(`${kind}Title` as MessageKey);
   // A canceled attempt can already be queued again. Keep queue-wide failures
   // (such as configuration errors) visible even without failed file jobs.
@@ -162,110 +181,147 @@ function BackgroundTaskRow({
             ? t("backgroundTaskWaiting")
             : t("backgroundTaskIdle");
   return (
-    <Table.Tr>
-      <Table.Th scope="row">
-        <div className="setting-field-heading">
-          {title}
+    <>
+      <Table.Tr>
+        <Table.Td className="task-table-toggle-cell">
           <span className="table-row-help">
-            <HelpTooltip label={title} inline>
-              {t(
-                kind === "geo"
-                  ? "geoSettingsHint"
-                  : (`${kind}BackfillHint` as MessageKey),
+            <TreeToggle
+              label={t(
+                expanded ? "backgroundTaskCollapse" : "backgroundTaskExpand",
+                { name: title },
               )}
-            </HelpTooltip>
+              expanded={expanded}
+              controls={detailsID}
+              onClick={() => setExpanded(!expanded)}
+            />
           </span>
-        </div>
-      </Table.Th>
-      <Table.Td>
-        <div className="task-table-feedback">
-          <FullTextTooltip text={status}>
-            <Text
-              size="sm"
-              role="status"
-              tabIndex={0}
-              className="task-table-state"
-            >
-              {status}
-            </Text>
-          </FullTextTooltip>
-          {issue && (
-            <FullTextTooltip text={issue}>
+        </Table.Td>
+        <Table.Th scope="row">
+          <div className="setting-field-heading">
+            {title}
+            <span className="table-row-help">
+              <HelpTooltip label={title} inline>
+                {t(
+                  kind === "geo"
+                    ? "geoSettingsHint"
+                    : (`${kind}BackfillHint` as MessageKey),
+                )}
+              </HelpTooltip>
+            </span>
+          </div>
+        </Table.Th>
+        <Table.Td>
+          <div className="task-table-feedback">
+            <FullTextTooltip text={status}>
               <Text
-                size="xs"
-                c="red"
-                role="alert"
+                size="sm"
+                role="status"
                 tabIndex={0}
-                className="task-table-message"
+                className="task-table-state"
               >
-                {issue}
+                {status}
               </Text>
             </FullTextTooltip>
-          )}
-          {queue.error && (
+            {issue && (
+              <FullTextTooltip text={issue}>
+                <Text
+                  size="xs"
+                  c="red"
+                  role="alert"
+                  tabIndex={0}
+                  className="task-table-message"
+                >
+                  {issue}
+                </Text>
+              </FullTextTooltip>
+            )}
+            {queue.error && (
+              <Anchor
+                component="button"
+                type="button"
+                size="xs"
+                className="text-action-link"
+                onClick={() => void queue.refetch()}
+              >
+                {t("retry")}
+              </Anchor>
+            )}
+          </div>
+        </Table.Td>
+        <Table.Td className="task-table-count">{data?.queued ?? "—"}</Table.Td>
+        <Table.Td className="task-table-count">{data?.failed ?? "—"}</Table.Td>
+        <Table.Td>
+          <Group
+            gap="md"
+            wrap="nowrap"
+            justify="flex-end"
+            className="table-row-actions"
+            data-busy={busy || undefined}
+          >
             <Anchor
               component="button"
               type="button"
               size="xs"
               className="text-action-link"
-              onClick={() => void queue.refetch()}
+              disabled={
+                !data ||
+                disabled ||
+                busy ||
+                !model ||
+                !connected ||
+                data.scanning
+              }
+              onClick={() => void command("backfill", { retry: false })}
             >
-              {t("retry")}
+              {t("backgroundTaskBackfill")}
             </Anchor>
-          )}
-        </div>
-      </Table.Td>
-      <Table.Td className="task-table-count">{data?.queued ?? "—"}</Table.Td>
-      <Table.Td className="task-table-count">{data?.failed ?? "—"}</Table.Td>
-      <Table.Td>
-        <Group
-          gap="md"
-          wrap="nowrap"
-          justify="flex-end"
-          className="table-row-actions"
-          data-busy={busy || undefined}
-        >
-          <Anchor
-            component="button"
-            type="button"
-            size="xs"
-            className="text-action-link"
-            disabled={
-              !data || disabled || busy || !model || !connected || data.scanning
-            }
-            onClick={() => void command("backfill", { retry: false })}
-          >
-            {t("backgroundTaskBackfill")}
-          </Anchor>
-          <Anchor
-            component="button"
-            type="button"
-            size="xs"
-            className="text-action-link"
-            disabled={
-              !data ||
-              disabled ||
-              busy ||
-              !connected ||
-              !data.failed ||
-              data.scanning
-            }
-            onClick={() => void command("backfill", { retry: true })}
-          >
-            {t("backgroundTaskRetry")}
-          </Anchor>
-          <Anchor
-            component="button"
-            type="button"
-            size="xs"
-            className="text-action-link"
-            disabled={!data || disabled || busy}
-            onClick={() => void command("pause", { paused: !data?.paused })}
-          >
-            {t(data?.paused ? "backgroundTaskResume" : "backgroundTaskPause")}
-          </Anchor>
-        </Group>
-      </Table.Td>
-    </Table.Tr>
+            <Anchor
+              component="button"
+              type="button"
+              size="xs"
+              className="text-action-link"
+              disabled={
+                !data ||
+                disabled ||
+                busy ||
+                !connected ||
+                !data.failed ||
+                data.scanning
+              }
+              onClick={() => void command("backfill", { retry: true })}
+            >
+              {t("backgroundTaskRetry")}
+            </Anchor>
+            <Anchor
+              component="button"
+              type="button"
+              size="xs"
+              className="text-action-link"
+              disabled={!data || disabled || busy}
+              onClick={() => void command("pause", { paused: !data?.paused })}
+            >
+              {t(data?.paused ? "backgroundTaskResume" : "backgroundTaskPause")}
+            </Anchor>
+          </Group>
+        </Table.Td>
+      </Table.Tr>
+      {expanded && (
+        <Table.Tr className="task-table-detail-row">
+          <Table.Td />
+          <Table.Td colSpan={5}>
+            <BackgroundTaskJobs
+              kind={kind}
+              title={title}
+              id={detailsID}
+              active={
+                !!data &&
+                (!!data.running ||
+                  (!data.paused && (data.queued > 0 || data.scanning)))
+              }
+            />
+          </Table.Td>
+        </Table.Tr>
+      )}
+    </>
   );
 }

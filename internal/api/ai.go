@@ -149,6 +149,13 @@ func (s *Server) RunOCR(ctx context.Context) {
 
 func (s *Server) queueRoutes(prefix string, queues map[string]*library.OCRQueue) {
 	for kind, q := range queues {
+		huma.Get(s.contract, Prefix+prefix+kind+"/jobs", func(ctx context.Context, in *struct {
+			Cursor string `query:"cursor" maxLength:"1024"`
+			Limit  int    `query:"limit" default:"20" minimum:"1" maximum:"100"`
+		}) (*output[library.ExtractionQueuePage], error) {
+			v, err := q.Jobs(ctx, in.Cursor, in.Limit)
+			return response(v, err)
+		})
 		huma.Get(s.contract, Prefix+prefix+kind, func(ctx context.Context, _ *struct{}) (*output[library.OCRQueueStatus], error) {
 			v, err := q.Status(ctx)
 			return response(v, err)

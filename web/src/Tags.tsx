@@ -1,5 +1,6 @@
 import { ContextMenu, useContextMenu } from "./ContextMenu";
 import { SidebarMenuButton } from "./SidebarMenuButton";
+import { TreeToggle } from "./TreeToggle";
 import {
   Menu,
   UnstyledButton,
@@ -105,13 +106,12 @@ export function TagTree({
             }}
           >
             {hasChildren ? (
-              <UnstyledButton
-                className="tag-tree-toggle"
+              <TreeToggle
                 tabIndex={-1}
-                aria-label={t(expanded ? "collapseTag" : "expandTag", {
+                label={t(expanded ? "collapseTag" : "expandTag", {
                   name: String(node.label),
                 })}
-                aria-expanded={expanded}
+                expanded={expanded}
                 onClick={(event) => {
                   event.stopPropagation();
                   tree.toggleExpanded(node.value);
@@ -119,25 +119,7 @@ export function TagTree({
                     .closest<HTMLElement>('[role="treeitem"]')
                     ?.focus();
                 }}
-              >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  aria-hidden="true"
-                  className="tag-tree-chevron"
-                  data-expanded={expanded}
-                >
-                  <path
-                    d="m6 3 5 5-5 5"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </UnstyledButton>
+              />
             ) : (
               <span className="tag-tree-spacer" aria-hidden="true" />
             )}

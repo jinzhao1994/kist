@@ -322,7 +322,7 @@ summary {
 .tag-tree-row[data-active] {
   background: var(--mantine-primary-color-light);
 }
-.tag-tree-toggle,
+.tree-toggle,
 .tag-tree-spacer {
   display: inline-flex;
   align-items: center;
@@ -330,11 +330,11 @@ summary {
   flex: 0 0 1.75rem;
   block-size: 1.75rem;
 }
-.tag-tree-toggle {
+.tree-toggle {
   color: var(--mantine-color-dimmed);
   border-radius: var(--mantine-radius-sm);
 }
-.tag-tree-toggle:hover {
+.tree-toggle:hover {
   color: var(--mantine-color-text);
   background: var(--mantine-color-default-hover);
 }
@@ -375,10 +375,10 @@ summary {
     transition: none;
   }
 }
-.tag-tree-chevron:dir(rtl) {
+.tree-chevron:dir(rtl) {
   transform: rotate(180deg);
 }
-.tag-tree-chevron[data-expanded="true"] {
+.tree-chevron[data-expanded="true"] {
   transform: rotate(90deg);
 }
 .tag-tree bdi {
@@ -3813,6 +3813,43 @@ main.upload-drag-active {
 .task-table-kind {
   inline-size: 10rem;
   min-inline-size: 10rem;
+}
+.task-table .task-table-toggle-cell {
+  inline-size: 1%;
+  padding-inline: 0;
+}
+.task-table-detail-row:hover {
+  background: transparent;
+}
+.task-details {
+  padding-block: var(--mantine-spacing-xs);
+}
+.task-details-table {
+  table-layout: fixed;
+}
+.task-details-table th:first-child {
+  inline-size: 30%;
+}
+.task-details-table th:nth-child(2) {
+  inline-size: 30%;
+}
+.task-details-table td,
+.task-details-table th {
+  padding-block: var(--mantine-spacing-xs);
+}
+.task-details-table .file-card-source {
+  font-size: var(--mantine-font-size-xs);
+  color: var(--mantine-color-dimmed);
+}
+.task-details-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: inherit;
+}
+.task-details-pagination {
+  margin-block-start: var(--mantine-spacing-xs);
 }
 .task-table-count {
   inline-size: 5rem;

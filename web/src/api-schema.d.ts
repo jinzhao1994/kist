@@ -68,6 +68,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai/desc/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 ai desc jobs */
+        get: operations["get-api-v1-ai-desc-jobs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ai/desc/pause": {
         parameters: {
             query?: never;
@@ -130,6 +147,23 @@ export interface paths {
         put?: never;
         /** Post API v1 ai facts backfill */
         post: operations["post-api-v1-ai-facts-backfill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/facts/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 ai facts jobs */
+        get: operations["get-api-v1-ai-facts-jobs"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -204,6 +238,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai/ocr/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 ai ocr jobs */
+        get: operations["get-api-v1-ai-ocr-jobs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ai/ocr/pause": {
         parameters: {
             query?: never;
@@ -249,6 +300,23 @@ export interface paths {
         put?: never;
         /** Post API v1 ai orientation backfill */
         post: operations["post-api-v1-ai-orientation-backfill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/orientation/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 ai orientation jobs */
+        get: operations["get-api-v1-ai-orientation-jobs"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1016,6 +1084,23 @@ export interface paths {
         put?: never;
         /** Post API v1 geo backfill */
         post: operations["post-api-v1-geo-backfill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/geo/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 geo jobs */
+        get: operations["get-api-v1-geo-jobs"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1930,6 +2015,20 @@ export interface components {
         ExtractionInputBody: {
             force?: boolean;
         };
+        ExtractionQueueItem: {
+            box?: components["schemas"]["QueueItemBox"];
+            error?: string;
+            file_available: boolean;
+            file_id: string;
+            name: string;
+            request_id: string;
+            /** @enum {string} */
+            state: "queued" | "failed";
+        };
+        ExtractionQueuePage: {
+            items: components["schemas"]["ExtractionQueueItem"][] | null;
+            next_cursor: string;
+        };
         Field: {
             default: unknown;
             explicit: boolean;
@@ -2369,6 +2468,10 @@ export interface components {
         };
         "Put-api-v1-settings-credentials-by-idRequest": {
             note: string;
+        };
+        QueueItemBox: {
+            name: string;
+            start_at: string;
         };
         Ref: {
             id: string;
@@ -2824,6 +2927,38 @@ export interface operations {
             };
         };
     };
+    "get-api-v1-ai-desc-jobs": {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtractionQueuePage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
     "post-api-v1-ai-desc-pause": {
         parameters: {
             query?: never;
@@ -2939,6 +3074,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OCRQueueStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-ai-facts-jobs": {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtractionQueuePage"];
                 };
             };
             /** @description Error */
@@ -3076,6 +3243,38 @@ export interface operations {
             };
         };
     };
+    "get-api-v1-ai-ocr-jobs": {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtractionQueuePage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
     "post-api-v1-ai-ocr-pause": {
         parameters: {
             query?: never;
@@ -3158,6 +3357,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OCRQueueStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-ai-orientation-jobs": {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtractionQueuePage"];
                 };
             };
             /** @description Error */
@@ -5263,6 +5494,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OCRQueueStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-geo-jobs": {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtractionQueuePage"];
                 };
             };
             /** @description Error */
