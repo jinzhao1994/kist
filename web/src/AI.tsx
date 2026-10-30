@@ -5,6 +5,8 @@ import {
   SettingsReset,
   SettingsHint,
   useSettingsPending,
+  settingsDraftValue,
+  type SettingsSectionDraft,
 } from "./SettingsFields";
 import {
   TaskError,
@@ -52,10 +54,16 @@ export function AIConnection({
   disabled = false,
   onChanged,
   onPendingChange,
+  onDraftChange,
+  reloadVersion,
+  configurationPending = false,
 }: {
   disabled?: boolean;
   onChanged?: () => Promise<void>;
   onPendingChange?: (pending: boolean) => void;
+  onDraftChange?: (draft: SettingsSectionDraft | null) => void;
+  reloadVersion?: number;
+  configurationPending?: boolean;
 } = {}) {
   const { t } = useI18n();
   const query = useStatus();
@@ -135,13 +143,22 @@ export function AIConnection({
         </Text>
         <Group>
           <Button
-            disabled={disabled || busy || !status?.supported || status.pending}
+            disabled={
+              disabled ||
+              configurationPending ||
+              busy ||
+              !status?.supported ||
+              status.pending
+            }
             onClick={connect}
           >
             {t("aiContinue")}
           </Button>
           {(status?.connected || status?.pending) && (
-            <Button disabled={disabled || busy} onClick={disconnect}>
+            <Button
+              disabled={disabled || configurationPending || busy}
+              onClick={disconnect}
+            >
               {t(status.pending ? "cancel" : "aiDisconnect")}
             </Button>
           )}
@@ -162,6 +179,8 @@ export function AIConnection({
             disabled={disabled || busy}
             onChanged={onChanged}
             onPendingChange={onPendingChange}
+            onDraftChange={onDraftChange}
+            reloadVersion={reloadVersion}
           />
         )}
       </Stack>
@@ -187,11 +206,15 @@ function AISettings({
   disabled,
   onChanged,
   onPendingChange,
+  onDraftChange,
+  reloadVersion = 0,
 }: {
   connected: boolean;
   disabled: boolean;
   onChanged?: () => Promise<void>;
   onPendingChange?: (pending: boolean) => void;
+  onDraftChange?: (draft: SettingsSectionDraft | null) => void;
+  reloadVersion?: number;
 }) {
   const { t } = useI18n();
   const query = useAISettings();
@@ -259,6 +282,24 @@ function AISettings({
       />
     );
   }
+  const valid = !(
+    (draft?.auto_ocr ||
+      draft?.auto_desc ||
+      draft?.auto_facts ||
+      draft?.auto_orientation) &&
+    !draft?.model
+  );
+  useEffect(() => {
+    setDirty(false);
+    setError("");
+    setNotice("");
+    setDraft(queries.getQueryData(["ai-settings"]));
+  }, [reloadVersion, queries]);
+  useEffect(() => {
+    onDraftChange?.(
+      dirty && draft ? { value: settingsDraftValue(draft), valid } : null,
+    );
+  }, [dirty, draft, valid, onDraftChange]);
   async function perform(fn: () => Promise<void>) {
     setBusy(true);
     setError("");
@@ -414,34 +455,36 @@ function AISettings({
             onChange={(e) => edit({ auto_facts: e.currentTarget.checked })}
             disabled={disabled || busy}
           />
-          <Group>
-            <Button
-              onClick={() => void save()}
-              disabled={
-                disabled ||
-                busy ||
-                !dirty ||
-                ((draft.auto_ocr ||
-                  draft.auto_desc ||
-                  draft.auto_facts ||
-                  draft.auto_orientation) &&
-                  !draft.model)
-              }
-            >
-              {t("aiSaveSettings")}
-            </Button>
-            <Button
-              disabled={busy || disabled}
-              onClick={() => {
-                setDirty(false);
-                setError("");
-                void query.refetch();
-                if (connected) void models.refetch();
-              }}
-            >
-              {t("aiReloadSettings")}
-            </Button>
-          </Group>
+          {!onDraftChange && (
+            <Group>
+              <Button
+                onClick={() => void save()}
+                disabled={
+                  disabled ||
+                  busy ||
+                  !dirty ||
+                  ((draft.auto_ocr ||
+                    draft.auto_desc ||
+                    draft.auto_facts ||
+                    draft.auto_orientation) &&
+                    !draft.model)
+                }
+              >
+                {t("aiSaveSettings")}
+              </Button>
+              <Button
+                disabled={busy || disabled}
+                onClick={() => {
+                  setDirty(false);
+                  setError("");
+                  void query.refetch();
+                  if (connected) void models.refetch();
+                }}
+              >
+                {t("aiReloadSettings")}
+              </Button>
+            </Group>
+          )}
         </div>
       )}
     </div>

@@ -1452,6 +1452,14 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AIOptions: {
+            auto_desc: boolean;
+            auto_facts: boolean;
+            auto_ocr: boolean;
+            auto_orientation: boolean;
+            model: string;
+            proxy_url: string;
+        };
         AIStatus: {
             connected: boolean;
             email: string;
@@ -2002,6 +2010,25 @@ export interface components {
             upload_chunk_bytes?: number;
             version: string;
         };
+        LocationSettingDefaults: {
+            automatic: boolean;
+            endpoint: string;
+            pause_on_error: boolean;
+            /** Format: int64 */
+            request_interval_seconds: number;
+        };
+        LocationSettings: {
+            automatic: boolean;
+            changed?: string[] | null;
+            defaults?: components["schemas"]["LocationSettingDefaults"];
+            endpoint: string;
+            readonly explicit: string[] | null;
+            pause_on_error: boolean;
+            /** Format: int64 */
+            request_interval_seconds: number;
+            reset?: string[] | null;
+            revision: string;
+        };
         MapProvider: {
             resource_origins: string[] | null;
             style_url: string;
@@ -2065,6 +2092,19 @@ export interface components {
             id: string;
             note?: string;
             token: string;
+        };
+        OCRSettings: {
+            auto_desc: boolean;
+            auto_facts: boolean;
+            auto_ocr: boolean;
+            auto_orientation: boolean;
+            changed?: string[] | null;
+            defaults?: components["schemas"]["AIOptions"];
+            readonly explicit: string[] | null;
+            model: string;
+            proxy_url: string;
+            reset?: string[] | null;
+            revision: string;
         };
         "OutputStruct {}Body": Record<string, never>;
         Point: {
@@ -2254,9 +2294,11 @@ export interface components {
             session?: components["schemas"]["UploadState"];
         };
         SettingsInputBody: {
+            ai?: components["schemas"]["OCRSettings"];
             changes: {
                 [key: string]: unknown;
             };
+            location?: components["schemas"]["LocationSettings"];
             revision: string;
         };
         SettingsResponse: {

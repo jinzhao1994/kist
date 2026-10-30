@@ -10,6 +10,19 @@ import { useI18n } from "./i18n";
 import { HelpTooltip } from "./HelpTooltip";
 import { FullTextTooltip } from "./FullTextTooltip";
 
+export type SettingsSectionDraft = { value: unknown; valid: boolean };
+
+// Read metadata must not be echoed as writable configuration.
+export function settingsDraftValue<
+  T extends { defaults?: unknown; explicit?: unknown },
+>(draft: T) {
+  const { defaults: _defaults, explicit: _explicit, ...value } = draft;
+  return {
+    ...value,
+    changed: (draft as T & { changed?: string[] }).changed || [],
+  };
+}
+
 export function SettingsFieldHeading({
   label,
   help,

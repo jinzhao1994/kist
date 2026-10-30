@@ -5509,6 +5509,22 @@ for (const anchor of ["location", "background-tasks"] as const) {
       return;
     }
     const section = page.locator("#settings-location");
+    await expect(
+      section.getByRole("button", { name: "保存 GPS 设置", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      section.getByRole("button", { name: "重新加载 GPS 设置", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page
+        .locator("#settings-ai")
+        .getByRole("button", { name: "保存 AI 设置", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page
+        .locator("#settings-ai")
+        .getByRole("button", { name: "重新加载 AI 设置", exact: true }),
+    ).toHaveCount(0);
     const autoField = section.locator(".setting-field").filter({
       has: page.getByRole("checkbox", {
         name: "自动查询新增文件的位置",

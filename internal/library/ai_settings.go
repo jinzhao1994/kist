@@ -2,10 +2,8 @@ package library
 
 import (
 	"context"
-	"path/filepath"
 
 	"github.com/jinzhao1994/kist/internal/config"
-	"github.com/jinzhao1994/kist/internal/lockfile"
 	"github.com/jinzhao1994/kist/internal/store"
 )
 
@@ -37,53 +35,40 @@ func (l *Library) OCRSettings(ctx context.Context) (OCRSettings, error) {
 	return out, ctx.Err()
 }
 func (l *Library) SaveOCRSettings(ctx context.Context, in OCRSettings) (OCRSettings, error) {
-	release, err := l.lock.Acquire(ctx)
-	if err != nil {
+	if err := l.UpdateCombinedSettings(ctx, in.Revision, map[string]any{}, &in, nil); err != nil {
 		return OCRSettings{}, err
 	}
-	defer release()
-	if err = l.catchUpLocked(ctx); err != nil {
-		return OCRSettings{}, err
-	}
-	unlock, err := lockfile.New(filepath.Join(l.layout.Root, "config.lock")).Acquire(ctx)
-	if err != nil {
-		return OCRSettings{}, err
-	}
-	defer unlock()
-	cfg, _, revision, err := settingsSnapshot(l.layout.ConfigPath(), "ai_options", config.Defaults("library").AIOptions)
-	if err != nil {
-		return OCRSettings{}, err
-	}
-	if in.Revision == "" || in.Revision != revision {
-		return OCRSettings{}, config.ErrChanged
-	}
+	return l.OCRSettings(ctx)
+}
+
+func (l *Library) ocrSettingsChanges(cfg *config.Config, in OCRSettings) (map[string]any, error) {
 	in, selected, err := prepareSettings(in, ocrSettings(cfg.AIOptions), config.Defaults("library").AIOptions, in.Changed, in.Reset)
 	if err != nil {
-		return OCRSettings{}, err
+		return nil, err
 	}
 	next := config.AIOptions{AutoFacts: in.AutoFacts, FactsAfterOp: cfg.AIOptions.FactsAfterOp, AutoOrientation: in.AutoOrientation, OrientationAfterOp: cfg.AIOptions.OrientationAfterOp, AutoDesc: in.AutoDesc, DescAfterOp: cfg.AIOptions.DescAfterOp, Model: in.Model, AutoOCR: in.AutoOCR, AfterOp: cfg.AIOptions.AfterOp, ProxyURL: in.ProxyURL}
 	if next.AutoOCR && !cfg.AIOptions.AutoOCR {
 		next.AfterOp, err = store.MaxOpID(l.db)
 		if err != nil {
-			return OCRSettings{}, err
+			return nil, err
 		}
 	}
 	if next.AutoFacts && !cfg.AIOptions.AutoFacts {
 		next.FactsAfterOp, err = store.MaxOpID(l.db)
 		if err != nil {
-			return OCRSettings{}, err
+			return nil, err
 		}
 	}
 	if next.AutoDesc && !cfg.AIOptions.AutoDesc {
 		next.DescAfterOp, err = store.MaxOpID(l.db)
 		if err != nil {
-			return OCRSettings{}, err
+			return nil, err
 		}
 	}
 	if next.AutoOrientation && !cfg.AIOptions.AutoOrientation {
 		next.OrientationAfterOp, err = store.MaxOpID(l.db)
 		if err != nil {
-			return OCRSettings{}, err
+			return nil, err
 		}
 	}
 	changes := map[string]any{"ai_options.auto_facts": next.AutoFacts, "ai_options.auto_orientation": next.AutoOrientation, "ai_options.auto_desc": next.AutoDesc, "ai_options.model": next.Model, "ai_options.auto_ocr": next.AutoOCR, "ai_options.proxy_url": next.ProxyURL}
@@ -99,9 +84,5 @@ func (l *Library) SaveOCRSettings(ctx context.Context, in OCRSettings) (OCRSetti
 	for _, key := range in.Reset {
 		changes["ai_options."+key] = nil
 	}
-	err = config.Update(l.layout.ConfigPath(), revision, changes)
-	if err != nil {
-		return OCRSettings{}, err
-	}
-	return l.OCRSettings(ctx)
+	return changes, nil
 }

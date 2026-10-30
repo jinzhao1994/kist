@@ -111,6 +111,46 @@ func TestSettingsPresenceAndPartialSave(t *testing.T) {
 	}
 }
 
+func TestCombinedSettingsAreAtomicAndKeepActivationBoundaries(t *testing.T) {
+	l := openTestLibrary(t)
+	setOCR(t, l, false)
+	old := ocrFile(t, l)
+	snapshot, _ := l.InstanceSettings(t.Context())
+	a, _ := l.OCRSettings(t.Context())
+	g, _ := l.LocationSettings(t.Context())
+	a.AutoOCR, a.Model, a.Changed = true, "", []string{"auto_ocr", "model"}
+	g.RequestIntervalSeconds, g.Changed = 7, []string{"request_interval_seconds"}
+	before, _ := os.ReadFile(l.layout.ConfigPath())
+	changes := map[string]any{"appearance.primary_color": "green"}
+	if err := l.UpdateCombinedSettings(t.Context(), snapshot.Revision, changes, &a, &g); err == nil {
+		t.Fatal("invalid combined draft accepted")
+	}
+	after, _ := os.ReadFile(l.layout.ConfigPath())
+	if string(before) != string(after) {
+		t.Fatal("failed combined save changed configuration")
+	}
+	a.Model = "test-model"
+	if err := l.UpdateCombinedSettings(t.Context(), snapshot.Revision, changes, &a, &g); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load(l.layout.ConfigPath())
+	if err != nil || cfg.Appearance.PrimaryColor != "green" || cfg.Geocoding.RequestIntervalSeconds != 7 || !cfg.AIOptions.AutoOCR {
+		t.Fatal(cfg, err)
+	}
+	p := &fakeOCR{}
+	q := queueFor(t, l, p)
+	if err := q.Step(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	requireOCRState(t, q, old, "missing")
+	if p.calls != 0 {
+		t.Fatal("combined save processed an old image")
+	}
+	if err := l.UpdateCombinedSettings(t.Context(), snapshot.Revision, changes, &a, &g); !errors.Is(err, config.ErrChanged) {
+		t.Fatal("stale combined draft accepted", err)
+	}
+}
+
 func TestAISettingsResetRemovesOverrides(t *testing.T) {
 	l := openTestLibrary(t)
 	s, err := l.OCRSettings(t.Context())

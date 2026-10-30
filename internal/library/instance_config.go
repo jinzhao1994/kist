@@ -211,6 +211,13 @@ func (c *Client) PrimaryColor() (string, error) {
 }
 
 func (l *Library) UpdateSettings(ctx context.Context, revision string, changes map[string]any, validators ...func(config.Server) error) error {
+	return l.UpdateCombinedSettings(ctx, revision, changes, nil, nil, validators...)
+}
+
+// UpdateCombinedSettings publishes general, GPS and AI drafts in one validated
+// configuration write. Activation boundaries are decided while both the archive
+// and configuration locks are held, just as in the dedicated settings APIs.
+func (l *Library) UpdateCombinedSettings(ctx context.Context, revision string, changes map[string]any, ai *OCRSettings, location *LocationSettings, validators ...func(config.Server) error) error {
 	normalized, err := config.NormalizeChanges("library", changes)
 	if err != nil {
 		return err
@@ -218,7 +225,40 @@ func (l *Library) UpdateSettings(ctx context.Context, revision string, changes m
 	if revision == "" {
 		return config.ErrChanged
 	}
-	return l.configure(ctx, revision, normalized, validators...)
+	if ai == nil && location == nil {
+		return l.configure(ctx, revision, normalized, validators...)
+	}
+	if (ai != nil && ai.Revision != revision) || (location != nil && location.Revision != revision) {
+		return config.ErrChanged
+	}
+	release, err := l.lock.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
+	if err = l.catchUpLocked(ctx); err != nil {
+		return err
+	}
+	return l.configurePrepared(ctx, revision, normalized, func(cfg *config.Config) error {
+		merge := func(values map[string]any, err error) error {
+			if err != nil {
+				return err
+			}
+			for key, value := range values {
+				normalized[key] = value
+			}
+			return nil
+		}
+		if ai != nil {
+			if err := merge(l.ocrSettingsChanges(cfg, *ai)); err != nil {
+				return err
+			}
+		}
+		if location != nil {
+			return merge(l.locationSettingsChanges(cfg, *location))
+		}
+		return nil
+	}, validators...)
 }
 func (c *Client) UpdateSettings(ctx context.Context, revision string, changes map[string]any, validators ...func(config.Server) error) error {
 	normalized, err := config.NormalizeChanges("client", changes)

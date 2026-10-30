@@ -11,6 +11,11 @@ explicit option when you save. A typical initialized library needs only its
 version, mode, identity, time zone and chosen projection mode. Keep the generated
 identity; do not copy a client identity to another independent client.
 
+The page toolbar saves and reloads general, GPS and AI configuration together.
+You can edit multiple sections before saving. One request validates and atomically
+writes all drafts; validation failures save nothing, and reload discards all
+configuration drafts. Sign-in and task controls remain separate immediate actions.
+
 GPS and AI settings also offer per-field resets, including checkboxes. Resetting
 changes the draft until you save. GPS automatic lookup resets to on, pause on
 failure to on, and the interval to 2 seconds; AI automatic extraction resets to

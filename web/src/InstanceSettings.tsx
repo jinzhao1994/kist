@@ -1,6 +1,10 @@
 import { BackgroundTasks } from "./BackgroundTasks";
 import { loadSettingsPage, settingsQueries } from "./settingsQueries";
-import { SettingsFieldHeading, SettingsReset } from "./SettingsFields";
+import {
+  SettingsFieldHeading,
+  SettingsReset,
+  type SettingsSectionDraft,
+} from "./SettingsFields";
 import { LocationSettings } from "./LocationSettings";
 import { StorageUsageValues } from "./StorageUsageValues";
 import { AIConnection } from "./AI";
@@ -96,6 +100,13 @@ export function InstanceSettings() {
   const [changes, setChanges] = useState<Record<string, unknown>>({});
   const [aiPending, setAIPending] = useState(false);
   const [locationPending, setLocationPending] = useState(false);
+  const [aiDraft, setAIDraft] = useState<SettingsSectionDraft | null>(null);
+  const [locationDraft, setLocationDraft] =
+    useState<SettingsSectionDraft | null>(null);
+  const [reloadVersion, setReloadVersion] = useState(0);
+  const unsaved =
+    Object.keys(changes).length > 0 || !!aiDraft || !!locationDraft;
+  const valid = (aiDraft?.valid ?? true) && (locationDraft?.valid ?? true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -129,6 +140,9 @@ export function InstanceSettings() {
     const value = await loadSettingsPage(queries, signal, true);
     setSnapshot(value);
     setChanges({});
+    setAIDraft(null);
+    setLocationDraft(null);
+    setReloadVersion((old) => old + 1);
     queries.setQueryData(["instance-settings"], value);
     await queries.invalidateQueries({ queryKey: ["info"] });
   };
@@ -140,6 +154,8 @@ export function InstanceSettings() {
         "PUT",
         {
           revision: snapshot.revision,
+          ai: aiDraft?.value,
+          location: locationDraft?.value,
           changes: Object.fromEntries(
             Object.entries(changes).map(([key, value]) => [
               key,
@@ -153,11 +169,10 @@ export function InstanceSettings() {
         },
         signal,
       );
-      setSnapshot(value);
-      setChanges({});
       queries.setQueryData(["instance-settings"], value);
-      await queries.invalidateQueries({ queryKey: ["info"] });
+      await reload(signal);
       await queries.invalidateQueries({ queryKey: ["client"] });
+      if (aiDraft) await queries.invalidateQueries({ queryKey: ["ai-models"] });
       setNotice(t("settingsSaved"));
       // A new document is needed for the updated map resource CSP.
       if (Object.keys(changes).some((key) => key.startsWith("server.map_")))
@@ -268,7 +283,7 @@ export function InstanceSettings() {
           <Button
             variant="filled"
             loading={busy}
-            disabled={!Object.keys(changes).length}
+            disabled={!unsaved || !valid}
             onClick={save}
           >
             {t("save")}
@@ -342,7 +357,7 @@ export function InstanceSettings() {
                     <ConnectionSettings
                       key={snapshot.revision}
                       settings={snapshot}
-                      busy={busy || Object.keys(changes).length > 0}
+                      busy={busy || unsaved}
                       run={run}
                       saved={reload}
                     />
@@ -368,16 +383,15 @@ export function InstanceSettings() {
                     {t("settingsPending")}
                   </Text>
                 )}
-                <Credentials
-                  busy={busy || Object.keys(changes).length > 0}
-                  run={run}
-                  saved={reload}
-                />
+                <Credentials busy={busy || unsaved} run={run} saved={reload} />
               </section>
               {snapshot.mode === "library" && (
                 <AIConnection
                   onPendingChange={setAIPending}
-                  disabled={busy || Object.keys(changes).length > 0}
+                  disabled={busy}
+                  configurationPending={unsaved}
+                  onDraftChange={setAIDraft}
+                  reloadVersion={reloadVersion}
                   onChanged={async () => {
                     if (Object.keys(changes).length === 0)
                       await run(async (signal) => reload(signal));
@@ -387,13 +401,15 @@ export function InstanceSettings() {
               {snapshot.mode === "library" && (
                 <LocationSettings
                   onPendingChange={setLocationPending}
-                  disabled={busy || Object.keys(changes).length > 0}
+                  onDraftChange={setLocationDraft}
+                  reloadVersion={reloadVersion}
+                  disabled={busy}
                 />
               )}
               {snapshot.mode === "library" && renderGroup("maps")}
               {snapshot.mode === "library" && (
                 <BackgroundTasks
-                  disabled={busy || Object.keys(changes).length > 0}
+                  disabled={busy || unsaved}
                   aiPending={aiPending}
                   locationPending={locationPending}
                 />

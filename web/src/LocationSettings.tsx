@@ -5,6 +5,8 @@ import {
   SettingsFieldHeading,
   SettingsReset,
   useSettingsPending,
+  settingsDraftValue,
+  type SettingsSectionDraft,
 } from "./SettingsFields";
 import {
   Alert,
@@ -28,9 +30,13 @@ type Draft = Omit<Settings, "request_interval_seconds"> & {
 export function LocationSettings({
   disabled = false,
   onPendingChange,
+  onDraftChange,
+  reloadVersion = 0,
 }: {
   disabled?: boolean;
   onPendingChange?: (pending: boolean) => void;
+  onDraftChange?: (draft: SettingsSectionDraft | null) => void;
+  reloadVersion?: number;
 }) {
   const { t } = useI18n();
   const endpointID = useId();
@@ -96,6 +102,18 @@ export function LocationSettings({
     Number.isInteger(draft.request_interval_seconds) &&
     draft.request_interval_seconds >= 0 &&
     draft.request_interval_seconds <= 86400;
+  useEffect(() => {
+    setDirty(false);
+    setError("");
+    setDraft(queries.getQueryData(["location-settings"]));
+  }, [reloadVersion, queries]);
+  useEffect(() => {
+    onDraftChange?.(
+      dirty && draft
+        ? { value: settingsDraftValue(draft), valid: validInterval }
+        : null,
+    );
+  }, [dirty, draft, validInterval, onDraftChange]);
   async function save() {
     if (!draft || !validInterval) return;
     setBusy(true);
@@ -195,25 +213,27 @@ export function LocationSettings({
                 edit({ pause_on_error: e.currentTarget.checked })
               }
             />
-            <Group>
-              <Button
-                disabled={!dirty || !validInterval || disabled || busy}
-                loading={busy}
-                onClick={() => void save()}
-              >
-                {t("geoSaveSettings")}
-              </Button>
-              <Button
-                disabled={busy || disabled}
-                onClick={() => {
-                  setDirty(false);
-                  setError("");
-                  void query.refetch();
-                }}
-              >
-                {t("geoReloadSettings")}
-              </Button>
-            </Group>
+            {!onDraftChange && (
+              <Group>
+                <Button
+                  disabled={!dirty || !validInterval || disabled || busy}
+                  loading={busy}
+                  onClick={() => void save()}
+                >
+                  {t("geoSaveSettings")}
+                </Button>
+                <Button
+                  disabled={busy || disabled}
+                  onClick={() => {
+                    setDirty(false);
+                    setError("");
+                    void query.refetch();
+                  }}
+                >
+                  {t("geoReloadSettings")}
+                </Button>
+              </Group>
+            )}
           </div>
         )}
       </div>

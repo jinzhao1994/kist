@@ -169,20 +169,11 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if requiresLocalAI(r.URL.Path) {
-		host, _, err := net.SplitHostPort(r.RemoteAddr)
-		ip := net.ParseIP(host)
-		hostName, _, hostErr := net.SplitHostPort(r.Host)
-		if hostErr != nil {
-			hostName = r.Host
-		}
-		hostIP := net.ParseIP(hostName)
-		localHost := hostName == "localhost" || (hostIP != nil && hostIP.IsLoopback())
-		if err != nil || ip == nil || !ip.IsLoopback() || !localHost {
-			writeFailure(w, huma.Error403Forbidden("AI connections and OCR require local access"))
-			return
-		}
+	if requiresLocalAI(r.URL.Path) && !localAIRequest(r.RemoteAddr, r.Host) {
+		writeFailure(w, huma.Error403Forbidden("AI connections and OCR require local access"))
+		return
 	}
+
 	runtime := s.current.Load()
 	r = r.WithContext(context.WithValue(r.Context(), runtimeKey{}, runtime))
 	w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -288,4 +279,16 @@ func requiresLocalAI(path string) bool {
 	}
 	parts := strings.Split(rest, "/")
 	return len(parts) == 2 && (parts[1] == "ocr" || parts[1] == "desc" || parts[1] == "orientation")
+}
+
+// localAIRequest is shared by dedicated AI routes and combined settings writes.
+func localAIRequest(remote, requestHost string) bool {
+	host, _, err := net.SplitHostPort(remote)
+	ip := net.ParseIP(host)
+	hostName, _, hostErr := net.SplitHostPort(requestHost)
+	if hostErr != nil {
+		hostName = requestHost
+	}
+	hostIP := net.ParseIP(hostName)
+	return err == nil && ip != nil && ip.IsLoopback() && (hostName == "localhost" || (hostIP != nil && hostIP.IsLoopback()))
 }

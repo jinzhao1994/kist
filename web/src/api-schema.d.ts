@@ -2462,9 +2462,11 @@ export interface components {
             session?: components["schemas"]["UploadState"];
         };
         SettingsInputBody: {
+            ai?: components["schemas"]["OCRSettings"];
             changes: {
                 [key: string]: unknown;
             };
+            location?: components["schemas"]["LocationSettings"];
             revision: string;
         };
         SettingsResponse: {

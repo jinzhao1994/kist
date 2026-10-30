@@ -14,10 +14,20 @@ import (
 
 type settingsInput struct {
 	Body struct {
-		Revision string         `json:"revision" minLength:"1"`
-		Changes  map[string]any `json:"changes"`
+		AI       *library.OCRSettings      `json:"ai,omitempty"`
+		Location *library.LocationSettings `json:"location,omitempty"`
+		Revision string                    `json:"revision" minLength:"1"`
+		Changes  map[string]any            `json:"changes"`
 	}
 }
+
+func (in *settingsInput) Resolve(ctx huma.Context) []error {
+	if in.Body.AI != nil && !localAIRequest(ctx.RemoteAddr(), ctx.Host()) {
+		return []error{huma.Error403Forbidden("AI settings require local access")}
+	}
+	return nil
+}
+
 type settingsResponse struct {
 	library.InstanceSettings
 	Effective       map[string]any `json:"effective"`
@@ -115,7 +125,7 @@ func (s *Server) settingsRoutes(opt Options) error {
 		if changes == nil {
 			changes = map[string]any{}
 		}
-		err := s.reloadSettings(ctx, in.Body.Revision, changes)
+		err := s.reloadCombinedSettings(ctx, in.Body.Revision, changes, in.Body.AI, in.Body.Location)
 		if errors.Is(err, config.ErrChanged) {
 			return nil, huma.Error409Conflict("Settings changed; reload before saving.")
 		}

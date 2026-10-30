@@ -238,35 +238,22 @@ func (l *Library) LocationSettings(ctx context.Context) (LocationSettings, error
 	return out, ctx.Err()
 }
 func (l *Library) SaveLocationSettings(ctx context.Context, in LocationSettings) (LocationSettings, error) {
-	release, err := l.lock.Acquire(ctx)
-	if err != nil {
+	if err := l.UpdateCombinedSettings(ctx, in.Revision, map[string]any{}, nil, &in); err != nil {
 		return LocationSettings{}, err
 	}
-	defer release()
-	if err = l.catchUpLocked(ctx); err != nil {
-		return LocationSettings{}, err
-	}
-	unlock, err := lockfile.New(filepath.Join(l.layout.Root, "config.lock")).Acquire(ctx)
-	if err != nil {
-		return LocationSettings{}, err
-	}
-	defer unlock()
-	cfg, _, revision, err := settingsSnapshot(l.layout.ConfigPath(), "geocoding", locationSettingDefaults())
-	if err != nil {
-		return LocationSettings{}, err
-	}
-	if in.Revision == "" || in.Revision != revision {
-		return LocationSettings{}, config.ErrChanged
-	}
+	return l.LocationSettings(ctx)
+}
+
+func (l *Library) locationSettingsChanges(cfg *config.Config, in LocationSettings) (map[string]any, error) {
 	in, selected, err := prepareSettings(in, locationSettings(cfg.Geocoding), locationSettingDefaults(), in.Changed, in.Reset)
 	if err != nil {
-		return LocationSettings{}, err
+		return nil, err
 	}
 	next := config.Geocoding{RequestIntervalSeconds: in.RequestIntervalSeconds, PauseOnError: in.PauseOnError, Automatic: in.Automatic, Endpoint: in.Endpoint, AfterOp: cfg.Geocoding.AfterOp}
 	if next.Automatic && !cfg.Geocoding.Automatic {
 		next.AfterOp, err = store.MaxOpID(l.db)
 		if err != nil {
-			return LocationSettings{}, err
+			return nil, err
 		}
 	}
 	changes := map[string]any{"geocoding.request_interval_seconds": next.RequestIntervalSeconds, "geocoding.pause_on_error": next.PauseOnError, "geocoding.automatic": next.Automatic, "geocoding.endpoint": next.Endpoint}
@@ -281,9 +268,5 @@ func (l *Library) SaveLocationSettings(ctx context.Context, in LocationSettings)
 		changes["geocoding."+key] = nil
 	}
 
-	err = config.Update(l.layout.ConfigPath(), revision, changes)
-	if err != nil {
-		return LocationSettings{}, err
-	}
-	return l.LocationSettings(ctx)
+	return changes, nil
 }

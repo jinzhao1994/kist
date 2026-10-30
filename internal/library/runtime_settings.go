@@ -18,7 +18,7 @@ type loadedSettings struct {
 
 // configureInstance serializes validation, durable publication and activation.
 // Validation must not change running state. Activation cannot fail.
-func configureInstance(ctx context.Context, root, revision string, changes map[string]any, validate func(*config.Config) error, activate func()) error {
+func configureInstance(ctx context.Context, root, revision string, changes map[string]any, validate func(*config.Config) error, activate func(), prepare ...func(*config.Config) error) error {
 	release, err := lockfile.New(filepath.Join(root, "config.lock")).Acquire(ctx)
 	if err != nil {
 		return err
@@ -26,6 +26,15 @@ func configureInstance(ctx context.Context, root, revision string, changes map[s
 	defer release()
 	path := filepath.Join(root, "kist.toml")
 	if changes != nil {
+		if len(prepare) > 0 && prepare[0] != nil {
+			cfg, err := config.Load(path)
+			if err != nil {
+				return err
+			}
+			if err := prepare[0](cfg); err != nil {
+				return err
+			}
+		}
 		err = config.UpdateValidated(path, revision, changes, validate)
 	} else {
 		var cfg *config.Config
@@ -42,6 +51,10 @@ func configureInstance(ctx context.Context, root, revision string, changes map[s
 }
 
 func (l *Library) configure(ctx context.Context, revision string, changes map[string]any, validators ...func(config.Server) error) error {
+	return l.configurePrepared(ctx, revision, changes, nil, validators...)
+}
+
+func (l *Library) configurePrepared(ctx context.Context, revision string, changes map[string]any, prepare func(*config.Config) error, validators ...func(config.Server) error) error {
 	var next *loadedSettings
 	return configureInstance(ctx, l.layout.Root, revision, changes, func(cfg *config.Config) error {
 		old := l.settings.Load()
@@ -74,7 +87,7 @@ func (l *Library) configure(ctx context.Context, revision string, changes map[st
 		copy.Storage.LinkMode = mode
 		next = &loadedSettings{config: &copy, zone: zone}
 		return nil
-	}, func() { l.settings.Store(next) })
+	}, func() { l.settings.Store(next) }, prepare)
 }
 
 // ReloadSettings validates and activates a file edited outside the web UI.

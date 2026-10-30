@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/jinzhao1994/kist/internal/config"
+	"github.com/jinzhao1994/kist/internal/library"
 	staging "github.com/jinzhao1994/kist/internal/upload"
 )
 
@@ -112,6 +113,14 @@ func (s *Server) ReloadSettings(ctx context.Context) error {
 	return s.reloadSettings(ctx, "", nil)
 }
 func (s *Server) reloadSettings(ctx context.Context, revision string, changes map[string]any) error {
+	return s.reloadCombinedSettings(ctx, revision, changes, nil, nil)
+}
+
+func (s *Server) reloadCombinedSettings(ctx context.Context, revision string, changes map[string]any, ai *library.OCRSettings, location *library.LocationSettings) error {
+	if s.client != nil && (ai != nil || location != nil) {
+		return fmt.Errorf("metadata settings require a library")
+	}
+
 	var next *runtimeSettings
 	validate := func(stored config.Server) (err error) { next, err = s.prepareSettings(stored); return }
 	var err error
@@ -124,7 +133,7 @@ func (s *Server) reloadSettings(ctx context.Context, revision string, changes ma
 	} else if s.client != nil {
 		err = s.client.UpdateSettings(ctx, revision, changes, validate)
 	} else {
-		err = s.library.UpdateSettings(ctx, revision, changes, validate)
+		err = s.library.UpdateCombinedSettings(ctx, revision, changes, ai, location, validate)
 	}
 	if err != nil {
 		return err

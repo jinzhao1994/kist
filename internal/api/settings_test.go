@@ -49,6 +49,42 @@ func TestSettingsPresenceAndEmptyChangedListHTTP(t *testing.T) {
 	}
 }
 
+func TestCombinedSettingsCannotBypassLocalAIRestriction(t *testing.T) {
+	s, l := testServer(t)
+	a, _ := l.OCRSettings(t.Context())
+	a.Changed = []string{"model"}
+	a.Model = "test-model"
+	g, _ := l.LocationSettings(t.Context())
+	g.RequestIntervalSeconds, g.Changed = 4, []string{"request_interval_seconds"}
+	before, _ := l.InstanceSettings(t.Context())
+	raw, _ := json.Marshal(map[string]any{"revision": before.Revision, "changes": map[string]any{"appearance.primary_color": "green"}, "ai": a, "location": g})
+	r := httptest.NewRequest("PUT", "http://localhost:8473"+Prefix+"/settings", strings.NewReader(string(raw)))
+	r.RemoteAddr = "192.0.2.1:1234"
+	r.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, r)
+	if w.Code != 403 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	after, _ := l.InstanceSettings(t.Context())
+	if before.Revision != after.Revision {
+		t.Fatal("remote combined write changed configuration")
+	}
+	r = httptest.NewRequest("PUT", "http://localhost:8473"+Prefix+"/settings", strings.NewReader(string(raw)))
+	r.RemoteAddr = "127.0.0.1:1234"
+	r.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, r)
+	if w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	a, _ = l.OCRSettings(t.Context())
+	g, _ = l.LocationSettings(t.Context())
+	if a.Model != "test-model" || g.RequestIntervalSeconds != 4 {
+		t.Fatal(a, g)
+	}
+}
+
 func TestInstanceSettingsCASDefaultsAndSecrets(t *testing.T) {
 	s, l := testServer(t)
 	credential, err := l.AuthorizeSync(t.Context())

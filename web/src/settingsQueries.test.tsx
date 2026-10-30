@@ -50,6 +50,7 @@ it("reveals local settings together, reuses requests and does not wait for remot
   let releaseLocation!: (response: Response) => void,
     releaseModels!: (response: Response) => void,
     releaseStorage!: (response: Response) => void;
+  let locationRequests = 0;
   const reads: string[] = [];
   const writes: string[] = [];
   vi.stubGlobal(
@@ -61,10 +62,12 @@ it("reveals local settings together, reuses requests and does not wait for remot
         return Response.json({ ...queue, paused: true });
       }
       reads.push(path);
-      if (path === "/geo/settings")
+      if (path === "/geo/settings") {
+        if (locationRequests++ > 0) return Response.json(location);
         return new Promise<Response>((r) => {
           releaseLocation = r;
         });
+      }
       if (path === "/ai/models")
         return new Promise<Response>((r) => {
           releaseModels = r;
@@ -176,16 +179,16 @@ it("reveals local settings together, reuses requests and does not wait for remot
     "http://localhost:7890",
   );
   expect(ocrPause).toBeDisabled();
-  expect(geoPause).toBeEnabled();
-  await user.click(screen.getByRole("button", { name: "Reload AI settings" }));
+  expect(geoPause).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "Reload settings" }));
   await waitFor(() => expect(ocrPause).toBeEnabled());
   await user.type(
     screen.getByRole("textbox", { name: "Request interval (seconds)" }),
     "0",
   );
   expect(geoPause).toBeDisabled();
-  expect(ocrPause).toBeEnabled();
-  await user.click(screen.getByRole("button", { name: "Reload GPS settings" }));
+  expect(ocrPause).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "Reload settings" }));
   await waitFor(() => expect(geoPause).toBeEnabled());
   await user.click(ocrPause);
   expect(
