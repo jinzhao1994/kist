@@ -16,7 +16,7 @@ import {
   Text,
   TextInput,
 } from "@mantine/core";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useMemo, useId, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { result } from "./api";
 import type { components } from "./api-schema";
@@ -46,13 +46,18 @@ export function LocationSettings({
     ...settingsQueries.location,
   });
   const [draft, setDraft] = useState<Draft>();
-  const [dirty, setDirty] = useState(false);
+  const [touched, setTouched] = useState(false);
+  const pending = useMemo(
+    () => (draft ? settingsDraftValue(draft, query.data) : undefined),
+    [draft, query.data],
+  );
+  const dirty = !!(pending?.changed.length || pending?.reset?.length);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   useSettingsPending(disabled || busy || dirty, onPendingChange);
   useEffect(() => {
-    if (!dirty && query.data) setDraft(query.data);
-  }, [query.data, dirty]);
+    if (!touched && query.data) setDraft(query.data);
+  }, [query.data, touched]);
   function edit(change: Partial<Draft>) {
     setDraft((old) =>
       old
@@ -68,7 +73,7 @@ export function LocationSettings({
           }
         : old,
     );
-    setDirty(true);
+    setTouched(true);
   }
   function resetAction(key: keyof NonNullable<Settings["defaults"]>) {
     const value = query.data?.defaults?.[key];
@@ -92,7 +97,7 @@ export function LocationSettings({
                 }
               : old,
           );
-          setDirty(true);
+          setTouched(true);
         }}
       />
     );
@@ -103,17 +108,15 @@ export function LocationSettings({
     draft.request_interval_seconds >= 0 &&
     draft.request_interval_seconds <= 86400;
   useEffect(() => {
-    setDirty(false);
+    setTouched(false);
     setError("");
     setDraft(queries.getQueryData(["location-settings"]));
   }, [reloadVersion, queries]);
   useEffect(() => {
     onDraftChange?.(
-      dirty && draft
-        ? { value: settingsDraftValue(draft), valid: validInterval }
-        : null,
+      dirty && pending ? { value: pending, valid: validInterval } : null,
     );
-  }, [dirty, draft, validInterval, onDraftChange]);
+  }, [dirty, pending, validInterval, onDraftChange]);
   async function save() {
     if (!draft || !validInterval) return;
     setBusy(true);
@@ -123,18 +126,12 @@ export function LocationSettings({
         await fetch("/api/v1/geo/settings", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...draft,
-            defaults: undefined,
-            explicit: undefined,
-            changed: draft.changed || [],
-            reset: draft.reset?.length ? draft.reset : undefined,
-          }),
+          body: JSON.stringify(pending),
         }),
       );
       queries.setQueryData(["location-settings"], value);
       setDraft(value);
-      setDirty(false);
+      setTouched(false);
     } catch (e) {
       setError(errorMessage(e, t));
     } finally {
@@ -225,7 +222,7 @@ export function LocationSettings({
                 <Button
                   disabled={busy || disabled}
                   onClick={() => {
-                    setDirty(false);
+                    setTouched(false);
                     setError("");
                     void query.refetch();
                   }}

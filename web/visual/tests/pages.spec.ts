@@ -4331,6 +4331,11 @@ for (const scenario of [
           exact: true,
         }),
       });
+      await origins.fill("https://temporary.example");
+      await origins.fill("https://archive.example");
+      await expect(
+        settings.getByRole("button", { name: "保存", exact: true }),
+      ).toBeDisabled();
       const reset = field.getByRole("button", {
         name: "恢复默认",
         exact: true,
@@ -5583,6 +5588,9 @@ for (const anchor of ["location", "background-tasks"] as const) {
       .getByRole("button", { name: "恢复默认", exact: true })
       .click();
     await expect(autoField.getByRole("checkbox")).toBeChecked();
+    await expect(
+      page.getByRole("button", { name: "保存", exact: true }),
+    ).toBeDisabled();
     await expect(
       autoField.getByText("已显式指定", { exact: true }),
     ).toHaveCount(0);

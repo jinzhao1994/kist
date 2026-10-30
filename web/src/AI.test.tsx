@@ -250,6 +250,14 @@ it("resets AI model, proxy and boolean options without starting extraction", asy
   const resets = screen.getAllByRole("button", { name: "Restore default" });
   expect(resets).toHaveLength(6);
   expect(screen.getAllByText("Explicitly set")).toHaveLength(6);
+  const automatic = screen.getByRole("checkbox", {
+    name: "Automatically recognize new images",
+  });
+  await userEvent.click(automatic);
+  await userEvent.click(automatic);
+  expect(
+    screen.getByRole("button", { name: "Save AI settings" }),
+  ).toBeDisabled();
   for (const reset of resets) await userEvent.click(reset);
   expect(writes).toHaveLength(0);
   for (const checkbox of screen.getAllByRole("checkbox"))

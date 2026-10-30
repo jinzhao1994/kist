@@ -23,7 +23,14 @@ import {
   Text,
   PasswordInput,
 } from "@mantine/core";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, result } from "./api";
 import { Select } from "./Select";
@@ -228,16 +235,21 @@ function AISettings({
     retry: false,
   });
   const [draft, setDraft] = useState<AISettingsData>();
-  const [dirty, setDirty] = useState(false);
+  const [touched, setTouched] = useState(false);
+  const pending = useMemo(
+    () => (draft ? settingsDraftValue(draft, query.data) : undefined),
+    [draft, query.data],
+  );
+  const dirty = !!(pending?.changed.length || pending?.reset?.length);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   useSettingsPending(disabled || busy || dirty, onPendingChange);
   useEffect(() => {
-    if (query.data && !dirty) setDraft(query.data);
-  }, [query.data, dirty]);
+    if (query.data && !touched) setDraft(query.data);
+  }, [query.data, touched]);
   function edit(change: Partial<AISettingsData>) {
-    setDirty(true);
+    setTouched(true);
     setDraft((old) =>
       old
         ? {
@@ -276,7 +288,7 @@ function AISettings({
                 }
               : old,
           );
-          setDirty(true);
+          setTouched(true);
           setNotice("");
         }}
       />
@@ -290,16 +302,14 @@ function AISettings({
     !draft?.model
   );
   useEffect(() => {
-    setDirty(false);
+    setTouched(false);
     setError("");
     setNotice("");
     setDraft(queries.getQueryData(["ai-settings"]));
   }, [reloadVersion, queries]);
   useEffect(() => {
-    onDraftChange?.(
-      dirty && draft ? { value: settingsDraftValue(draft), valid } : null,
-    );
-  }, [dirty, draft, valid, onDraftChange]);
+    onDraftChange?.(dirty && pending ? { value: pending, valid } : null);
+  }, [dirty, pending, valid, onDraftChange]);
   async function perform(fn: () => Promise<void>) {
     setBusy(true);
     setError("");
@@ -315,19 +325,9 @@ function AISettings({
   async function save() {
     if (!draft) return;
     await perform(async () => {
-      const value = await post<AISettingsData>(
-        "/ai/settings",
-        {
-          ...draft,
-          defaults: undefined,
-          explicit: undefined,
-          changed: draft.changed || [],
-          reset: draft.reset?.length ? draft.reset : undefined,
-        },
-        "PUT",
-      );
+      const value = await post<AISettingsData>("/ai/settings", pending, "PUT");
       queries.setQueryData(["ai-settings"], value);
-      setDirty(false);
+      setTouched(false);
       setDraft(value);
       await queries.invalidateQueries({ queryKey: ["ai-models"] });
       await onChanged?.();
@@ -475,7 +475,7 @@ function AISettings({
               <Button
                 disabled={busy || disabled}
                 onClick={() => {
-                  setDirty(false);
+                  setTouched(false);
                   setError("");
                   void query.refetch();
                   if (connected) void models.refetch();

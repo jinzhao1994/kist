@@ -62,6 +62,14 @@ it("resets every GPS field in the draft and saves reset intent only on demand", 
   expect(resets).toHaveLength(4);
   expect(screen.getAllByText("Explicitly set")).toHaveLength(4);
   const user = userEvent.setup();
+  const automatic = screen.getByRole("checkbox", {
+    name: "Look up locations of new files automatically",
+  });
+  await user.click(automatic);
+  await user.click(automatic);
+  expect(
+    screen.getByRole("button", { name: "Save GPS settings" }),
+  ).toBeDisabled();
   for (const reset of resets) await user.click(reset);
   expect(writes).toHaveLength(0);
   expect(

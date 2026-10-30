@@ -3,6 +3,7 @@ import { loadSettingsPage, settingsQueries } from "./settingsQueries";
 import {
   SettingsFieldHeading,
   SettingsReset,
+  hasSettingChange,
   type SettingsSectionDraft,
 } from "./SettingsFields";
 import { LocationSettings } from "./LocationSettings";
@@ -104,7 +105,13 @@ export function InstanceSettings({
     queryFn: ({ signal }) => loadSettingsPage(queries, signal),
   });
   const [snapshot, setSnapshot] = useState<SettingsData>();
-  const [changes, setChanges] = useState<Record<string, unknown>>({});
+  const [draftChanges, setChanges] = useState<Record<string, unknown>>({});
+  const changes = Object.fromEntries(
+    Object.entries(draftChanges).filter(([key, value]) => {
+      const field = snapshot?.fields?.find((field) => field.key === key);
+      return !field || hasSettingChange(field, value);
+    }),
+  );
   const [aiPending, setAIPending] = useState(false);
   const [locationPending, setLocationPending] = useState(false);
   const [aiDraft, setAIDraft] = useState<SettingsSectionDraft | null>(null);
@@ -306,11 +313,11 @@ export function InstanceSettings({
           {(snapshot.fields || [])
             .filter((field) => category(field) === group)
             .map((field) => {
-              const changed = Object.hasOwn(changes, field.key);
+              const changed = Object.hasOwn(draftChanges, field.key);
               const value = changed
-                ? changes[field.key] === null
+                ? draftChanges[field.key] === null
                   ? field.default
-                  : changes[field.key]
+                  : draftChanges[field.key]
                 : field.value;
               const overridden = (snapshot.overrides || []).includes(field.key);
               return (
@@ -322,12 +329,14 @@ export function InstanceSettings({
                     action={
                       <SettingsReset
                         specified={
-                          changed ? changes[field.key] !== null : field.explicit
+                          changed
+                            ? draftChanges[field.key] !== null
+                            : field.explicit
                         }
                         disabled={
                           busy ||
                           (changed
-                            ? changes[field.key] === null
+                            ? draftChanges[field.key] === null
                             : !field.explicit)
                         }
                         onReset={() =>

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { InstanceSettings } from "./InstanceSettings";
+import { hasSettingChange } from "./SettingsFields";
 import { I18nProvider, storageKey } from "./i18n";
 import { ThemeProvider } from "./theme";
 vi.mock("@mantine/hooks", async (importOriginal) => ({
@@ -256,4 +257,20 @@ it("shows inherited state without a reset until a default field is explicitly ed
   expect(within(field).getByText("Following defaults")).toBeVisible();
   expect(within(field).queryByText("Explicitly set")).not.toBeInTheDocument();
   expect(writes).toEqual([]);
+});
+
+it("compares saved meaning without conflating explicit and inherited defaults", () => {
+  const bytes = { kind: "bytes", value: 32 * 2 ** 30, explicit: true };
+  expect(hasSettingChange(bytes, "32 GiB")).toBe(false);
+  expect(hasSettingChange(bytes, "34,359,738,368 B")).toBe(false);
+  expect(hasSettingChange(bytes, "32 GB")).toBe(true);
+  expect(hasSettingChange({ ...bytes, explicit: false }, "32 GiB")).toBe(true);
+  expect(hasSettingChange({ ...bytes, explicit: false }, null)).toBe(false);
+  expect(hasSettingChange(bytes, null)).toBe(true);
+  expect(
+    hasSettingChange(
+      { kind: "list", value: ["https://example.test"], explicit: true },
+      [" https://example.test ", ""],
+    ),
+  ).toBe(false);
 });

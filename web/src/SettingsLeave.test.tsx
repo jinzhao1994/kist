@@ -13,7 +13,7 @@ afterEach(() => {
   history.replaceState(null, "", "/");
 });
 
-function setup(fail = false) {
+function setup(fail = false, explicit = false) {
   localStorage.setItem(storageKey, JSON.stringify({ language: "en" }));
   history.replaceState(null, "", "/settings");
   let settings = {
@@ -25,7 +25,7 @@ function setup(fail = false) {
         kind: "text",
         value: "zh-CN",
         default: "zh-CN",
-        explicit: false,
+        explicit,
       },
     ],
     effective: {},
@@ -146,6 +146,51 @@ it("keeps the draft on cancel, allows same-page navigation, and discards only on
   const leftUnload = new Event("beforeunload", { cancelable: true });
   window.dispatchEvent(leftUnload);
   expect(leftUnload.defaultPrevented).toBe(false);
+});
+
+it("does not warn after an explicit setting is changed back to its saved value", async () => {
+  const { user, writes } = setup(false, true);
+  const input = await screen.findByRole("textbox", {
+    name: "Library language",
+  });
+  await user.clear(input);
+  await user.type(input, "en");
+  await user.clear(input);
+  await user.type(input, "zh-CN");
+  expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  const event = new Event("beforeunload", { cancelable: true });
+  window.dispatchEvent(event);
+  expect(event.defaultPrevented).toBe(false);
+  await user.click(screen.getByRole("button", { name: "Leave settings" }));
+  await screen.findByRole("heading", { name: "Left settings" });
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(writes).toHaveLength(0);
+});
+
+it("still warns for a source-only change, but clears it when inheritance is restored", async () => {
+  const { user } = setup();
+  const input = await screen.findByRole("textbox", {
+    name: "Library language",
+  });
+  await user.clear(input);
+  await user.type(input, "zh-CN");
+  expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+  await user.click(screen.getByRole("button", { name: "Leave settings" }));
+  const dialog = await screen.findByRole("dialog");
+  await user.click(
+    within(dialog).getByRole("button", { name: "Continue editing" }),
+  );
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
+  await user.click(
+    within(input.closest(".setting-field") as HTMLElement).getByRole("button", {
+      name: "Restore default",
+    }),
+  );
+  expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "Leave settings" }));
+  await screen.findByRole("heading", { name: "Left settings" });
 });
 
 it("saves once before resuming navigation", async () => {

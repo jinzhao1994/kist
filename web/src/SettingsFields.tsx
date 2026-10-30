@@ -14,13 +14,59 @@ export type SettingsSectionDraft = { value: unknown; valid: boolean };
 
 // Read metadata must not be echoed as writable configuration.
 export function settingsDraftValue<
-  T extends { defaults?: unknown; explicit?: unknown },
->(draft: T) {
+  T extends {
+    defaults?: unknown;
+    explicit?: string[] | null;
+    changed?: string[] | null;
+    reset?: string[] | null;
+  },
+>(draft: T, saved?: T) {
   const { defaults: _defaults, explicit: _explicit, ...value } = draft;
+  const changed = (draft.changed || []).filter(
+    (key) =>
+      !saved ||
+      !saved.explicit?.includes(key) ||
+      !Object.is(draft[key as keyof T], saved[key as keyof T]),
+  );
+  const reset = (draft.reset || []).filter(
+    (key) => !saved || saved.explicit?.includes(key),
+  );
   return {
     ...value,
-    changed: (draft as T & { changed?: string[] }).changed || [],
+    changed,
+    reset: reset.length ? reset : undefined,
   };
+}
+
+// Compare persisted meaning while keeping the raw draft intact for typing.
+// An explicitly pinned default is different from an inherited default.
+export function hasSettingChange(
+  field: { kind: string; value: unknown; explicit: boolean },
+  draft: unknown,
+) {
+  if (draft === null) return field.explicit;
+  if (!field.explicit) return true;
+  const normalize = (value: unknown): unknown => {
+    if (field.kind === "list" && Array.isArray(value))
+      return value.map((v) => String(v).trim()).filter(Boolean);
+    if (field.kind === "bytes" && typeof value === "string") {
+      const match = /^([\d.,]+)\s*([kmgtpe]?)(i?)(b?)$/i.exec(value.trim());
+      if (match && (!match[3] || match[2])) {
+        const power = match[2]
+          ? "kmgtpe".indexOf(match[2].toLowerCase()) + 1
+          : 0;
+        const bytes = Math.trunc(
+          Number(match[1].replaceAll(",", "")) *
+            (match[3] ? 1024 : 1000) ** power,
+        );
+        if (Number.isSafeInteger(bytes)) return bytes;
+      }
+    }
+    return value;
+  };
+  return (
+    JSON.stringify(normalize(draft)) !== JSON.stringify(normalize(field.value))
+  );
 }
 
 export function SettingsFieldHeading({
