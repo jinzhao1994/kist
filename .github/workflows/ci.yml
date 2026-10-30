@@ -81,7 +81,11 @@ jobs:
       # it needs a C toolchain on Windows; `check` covers it on Linux.
       - shell: bash
         run: |
-          go test ./...
+          # Use the same package deadline as make check; the durable SQLite
+          # suite can exceed Go's implicit 10-minute deadline on Windows.
+          go_test_timeout=$(sed -n 's/^GO_TEST_TIMEOUT ?= //p' Makefile)
+          test -n "$go_test_timeout"
+          go test -timeout="$go_test_timeout" ./...
           CGO_ENABLED=0 go build ./...
 
   container:

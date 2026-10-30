@@ -5447,7 +5447,7 @@ for (const variant of [
     if (variant === "help") {
       await group.getByRole("button", { name: "GPS", exact: true }).hover();
       await expect(page.getByRole("tooltip")).toContainText(
-        "圆圈表示照片记录的定位误差",
+        "圆圈表示记录的定位误差",
       );
     } else await page.mouse.move(0, 0);
     await capture(page, errors, info.title);
@@ -5503,7 +5503,7 @@ for (const anchor of ["location", "background-tasks"] as const) {
       await expect(tasks.getByRole("rowheader")).toHaveCount(5);
       const ocr = tasks
         .getByRole("row")
-        .filter({ has: tasks.getByRole("rowheader", { name: /^OCR/ }) });
+        .filter({ has: page.getByRole("rowheader", { name: /^OCR/ }) });
       await expect(ocr.getByRole("status")).toHaveText("已暂停");
       await expect(ocr.getByRole("alert")).toHaveCount(0);
       await expect(
