@@ -445,13 +445,31 @@ func TestCleanupInterruptedBeforeAndAfterPublication(t *testing.T) {
 func TestConcurrentCreationReservesDeclaredSpace(t *testing.T) {
 	path := t.TempDir()
 	s := newStore(t, path, 10)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+	defer cancel()
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	created := 0
-	for i := 0; i < 10; i++ {
+	// Keep startup/migration outside the concurrent reservation workload. Each
+	// creator still has its own store and database connection, as separate
+	// processes would after opening the shared runtime database.
+	others := make([]*Store, 10)
+	for i := range others {
+		others[i] = newStore(t, path, 10)
+	}
+	for i, other := range others {
 		wg.Go(func() {
-			other := newStore(t, path, 10)
-			_, err := other.Create(t.Context(), fmt.Sprint(i), manifest([]byte("1234567890")))
+			var err error
+			for {
+				_, err = other.Create(ctx, fmt.Sprint(i), manifest([]byte("1234567890")))
+				var busy *lockfile.BusyError
+				// Slow durable writes on Windows may exceed the normal lock wait.
+				// Retry only contention, using the same idempotent creation key;
+				// quota errors and the exact reservation limit remain assertions.
+				if !errors.As(err, &busy) || ctx.Err() != nil {
+					break
+				}
+			}
 			if err == nil {
 				mu.Lock()
 				created++
