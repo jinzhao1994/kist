@@ -167,6 +167,20 @@ it("does not save on open; resetting removes the explicit value using the loaded
     ]),
   );
 });
+it("keeps color choices keyboard accessible without saving the draft", async () => {
+  const user = userEvent.setup();
+  mount();
+  const green = await screen.findByRole("radio", { name: "Green" });
+  expect(green).toHaveAttribute("tabindex", "0");
+  await user.click(green);
+  await user.keyboard("{ArrowRight}");
+  const yellow = screen.getByRole("radio", { name: "Yellow" });
+  expect(yellow).toBeChecked();
+  expect(yellow).toHaveFocus();
+  expect(yellow).toHaveAttribute("tabindex", "0");
+  expect(green).toHaveAttribute("tabindex", "-1");
+  expect(writes).toEqual([]);
+});
 it("keeps edits on conflict and does not retry the write", async () => {
   stale = true;
   const user = userEvent.setup();

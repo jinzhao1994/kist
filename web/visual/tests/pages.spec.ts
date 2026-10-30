@@ -4314,6 +4314,7 @@ for (const scenario of [
     }
     await page.goto("/settings");
     const settings = page.getByRole("region", { name: "设置", exact: true });
+    await expect(settings.locator(".color-choice")).toHaveCount(colors.length);
     await expect(
       settings.getByRole("radio", { name: "蓝色", exact: true }),
     ).toBeChecked();

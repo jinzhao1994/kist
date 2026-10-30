@@ -8,6 +8,7 @@ import {
 } from "./SettingsFields";
 import { LocationSettings } from "./LocationSettings";
 import { StorageUsageValues } from "./StorageUsageValues";
+import { ColorChoiceGroup } from "./ColorChoiceGroup";
 import { AIConnection } from "./AI";
 import { EmptyHint } from "./EmptyHint";
 import { HelpTooltip } from "./HelpTooltip";
@@ -22,13 +23,10 @@ import {
   Alert,
   Button,
   Checkbox,
-  ColorSwatch,
-  DEFAULT_THEME,
   Group,
   Input,
   NumberInput,
   PasswordInput,
-  Radio,
   Stack,
   Table,
   Text,
@@ -50,7 +48,6 @@ import type { components } from "./api-schema";
 import { useI18n, formatInstant, type MessageKey } from "./i18n";
 import { errorMessage } from "./mutations";
 import { Select } from "./Select";
-import { colors } from "./theme";
 
 type SettingsData = components["schemas"]["SettingsResponse"];
 type SettingField = NonNullable<SettingsData["fields"]>[number];
@@ -726,32 +723,13 @@ function SettingControl({
   const label = labels[field.key] ? t(labels[field.key]) : field.key;
   if (field.key === "appearance.primary_color")
     return (
-      <Radio.Group
+      <ColorChoiceGroup
         id={id}
-        aria-label={label}
+        label={label}
         value={String(value)}
         onChange={change}
-      >
-        <Group gap="sm" mt="xs" wrap="wrap">
-          {colors.map((color) => (
-            <Radio
-              key={color}
-              value={color}
-              disabled={disabled}
-              color={color}
-              label={
-                <Group gap={6}>
-                  <ColorSwatch
-                    color={DEFAULT_THEME.colors[color][6]}
-                    size={16}
-                  />
-                  {t(color)}
-                </Group>
-              }
-            />
-          ))}
-        </Group>
-      </Radio.Group>
+        disabled={disabled}
+      />
     );
   if (field.kind === "select")
     return (
