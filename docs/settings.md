@@ -14,9 +14,10 @@ identity; do not copy a client identity to another independent client.
 GPS and AI settings also offer per-field resets, including checkboxes. Resetting
 changes the draft until you save. GPS automatic lookup resets to on, pause on
 failure to on, and the interval to 2 seconds; AI automatic extraction resets to
-off. Explicit settings show a theme-colored **Specified value** marker, even when
-they equal the current default. Unmarked settings follow defaults; reset controls
-appear on hover or keyboard focus and remain visible on touch devices. Version 3
+off. Explicit settings show a theme-colored **Explicitly set** marker, even when
+they equal the current default. Inherited settings show a gray **Following defaults**
+marker without a reset action. Explicit settings offer reset controls on hover or
+keyboard focus; these remain visible on touch devices. Version 3
 makes a missing GPS automatic flag follow the current default. Older configurations
 are upgraded by pinning their previous effective flag, so upgrading never enables
 a previously disabled lookup. Resetting only covers files added afterward, without

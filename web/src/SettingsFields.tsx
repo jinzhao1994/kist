@@ -79,23 +79,32 @@ export function SettingsReset({
   const { t } = useI18n();
   return (
     <div className="setting-source-actions">
-      <Anchor
-        component="button"
-        type="button"
-        size="xs"
-        className="text-action-link setting-reset"
-        disabled={disabled}
-        onClick={onReset}
-      >
-        {t("settingReset")}
-      </Anchor>
       {specified && (
-        <FullTextTooltip text={t("settingSpecifiedHint")}>
-          <Text component="span" className="setting-source">
-            {t("settingSpecified")}
-          </Text>
-        </FullTextTooltip>
+        <Anchor
+          component="button"
+          type="button"
+          size="xs"
+          className="text-action-link setting-reset"
+          disabled={disabled}
+          onClick={onReset}
+        >
+          {t("settingReset")}
+        </Anchor>
       )}
+      <FullTextTooltip
+        text={t(specified ? "settingSpecifiedHint" : "settingInheritedHint")}
+      >
+        <Text
+          component="span"
+          className={
+            specified
+              ? "setting-source"
+              : "setting-source setting-source--default"
+          }
+        >
+          {t(specified ? "settingSpecified" : "settingInherited")}
+        </Text>
+      </FullTextTooltip>
     </div>
   );
 }

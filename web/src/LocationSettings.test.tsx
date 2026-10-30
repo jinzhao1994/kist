@@ -60,7 +60,7 @@ it("resets every GPS field in the draft and saves reset intent only on demand", 
   await screen.findByRole("textbox", { name: "Photon endpoint" });
   const resets = screen.getAllByRole("button", { name: "Restore default" });
   expect(resets).toHaveLength(4);
-  expect(screen.getAllByText("Specified value")).toHaveLength(4);
+  expect(screen.getAllByText("Explicitly set")).toHaveLength(4);
   const user = userEvent.setup();
   for (const reset of resets) await user.click(reset);
   expect(writes).toHaveLength(0);
@@ -80,8 +80,11 @@ it("resets every GPS field in the draft and saves reset intent only on demand", 
   expect(
     screen.getByRole("textbox", { name: "Request interval (seconds)" }),
   ).toHaveValue("2");
-  for (const reset of resets) expect(reset).toBeDisabled();
-  expect(screen.queryByText("Specified value")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Restore default" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getAllByText("Following defaults")).toHaveLength(4);
+  expect(screen.queryByText("Explicitly set")).not.toBeInTheDocument();
   // An explicit edit supersedes an earlier reset of the same field.
   const interval = screen.getByRole("textbox", {
     name: "Request interval (seconds)",

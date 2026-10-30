@@ -4302,7 +4302,7 @@ for (const scenario of [
         exact: true,
       });
       await expect(reset).toBeEnabled();
-      const specified = field.getByText("指定值", { exact: true });
+      const specified = field.getByText("已显式指定", { exact: true });
       await expect(specified).toBeVisible();
       await expect(field.locator(".setting-field-footer")).toHaveCount(0);
       const defaultField = settings.locator(".setting-field").filter({
@@ -4313,17 +4313,16 @@ for (const scenario of [
       });
       await expect(
         defaultField.getByRole("button", { name: "恢复默认", exact: true }),
-      ).toBeDisabled();
+      ).toHaveCount(0);
       await defaultField.hover();
-      await expect(defaultField.locator(".setting-reset")).toHaveCSS(
-        "opacity",
-        "1",
-      );
+      await expect(
+        defaultField.getByText("已跟随默认", { exact: true }),
+      ).toBeVisible();
       await page.mouse.move(0, 0);
       await expect(field.locator(".setting-reset")).toHaveCSS("opacity", "0");
       await expect(specified).toBeVisible();
       await expect(
-        defaultField.getByText("指定值", { exact: true }),
+        defaultField.getByText("已显式指定", { exact: true }),
       ).toHaveCount(0);
       await origins.hover();
       await expect(field.locator(".setting-reset")).toHaveCSS("opacity", "1");
@@ -5514,19 +5513,25 @@ for (const anchor of ["location", "background-tasks"] as const) {
     });
     await expect(
       section.getByRole("button", { name: "恢复默认", exact: true }),
-    ).toHaveCount(4);
+    ).toHaveCount(0);
     await autoField.hover();
-    await expect(autoField.locator(".setting-reset")).toHaveCSS("opacity", "1");
+    await expect(
+      autoField.getByText("已跟随默认", { exact: true }),
+    ).toBeVisible();
     await expect(
       autoField.getByRole("button", { name: "恢复默认", exact: true }),
-    ).toBeDisabled();
+    ).toHaveCount(0);
     await autoField.getByRole("checkbox").uncheck();
-    await expect(autoField.getByText("指定值", { exact: true })).toBeVisible();
+    await expect(
+      autoField.getByText("已显式指定", { exact: true }),
+    ).toBeVisible();
     await autoField
       .getByRole("button", { name: "恢复默认", exact: true })
       .click();
     await expect(autoField.getByRole("checkbox")).toBeChecked();
-    await expect(autoField.getByText("指定值", { exact: true })).toHaveCount(0);
+    await expect(
+      autoField.getByText("已显式指定", { exact: true }),
+    ).toHaveCount(0);
     await expect(
       section.getByRole("checkbox", { name: "自动查询新增文件的位置" }),
     ).toBeChecked();

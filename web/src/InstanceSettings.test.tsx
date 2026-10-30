@@ -154,7 +154,7 @@ it("does not save on open; resetting removes the explicit value using the loaded
   );
   expect(document.querySelectorAll(".setting-field-footer")).toHaveLength(0);
   await user.click(reset);
-  expect(reset).toBeDisabled();
+  expect(reset).not.toBeInTheDocument();
   expect(screen.getByRole("radio", { name: "Blue" })).toBeChecked();
   await user.click(screen.getByRole("button", { name: "Save" }));
   await waitFor(() =>
@@ -226,7 +226,7 @@ it("shows an empty credential row without a table and can open and cancel creati
   expect(screen.queryByRole("table")).not.toBeInTheDocument();
 });
 
-it("keeps a disabled heading reset discoverable until a default field is edited", async () => {
+it("shows inherited state without a reset until a default field is explicitly edited", async () => {
   const user = userEvent.setup();
   mount();
   const input = await screen.findByRole("textbox", {
@@ -234,24 +234,26 @@ it("keeps a disabled heading reset discoverable until a default field is edited"
   });
   const field = input.closest<HTMLElement>(".setting-field")!;
   expect(
-    within(field).getByRole("button", { name: "Restore default" }),
-  ).toBeDisabled();
+    within(field).queryByRole("button", { name: "Restore default" }),
+  ).not.toBeInTheDocument();
+  expect(within(field).getByText("Following defaults")).toBeVisible();
   await user.clear(input);
   await user.type(input, "16 GiB");
   const reset = within(field).getByRole("button", { name: "Restore default" });
   expect(reset.closest(".setting-field-heading")).toBeInTheDocument();
   expect(reset).toBeEnabled();
-  expect(within(field).getByText("Specified value")).toBeVisible();
+  expect(within(field).getByText("Explicitly set")).toBeVisible();
   await user.clear(input);
   await user.type(input, "32 GiB");
   expect(input).toHaveValue("32 GiB");
   expect(reset).toBeEnabled();
-  expect(within(field).getByText("Specified value")).toBeVisible();
+  expect(within(field).getByText("Explicitly set")).toBeVisible();
   await user.click(reset);
   expect(input).toHaveValue("32 GiB");
   expect(
-    within(field).getByRole("button", { name: "Restore default" }),
-  ).toBeDisabled();
-  expect(within(field).queryByText("Specified value")).not.toBeInTheDocument();
+    within(field).queryByRole("button", { name: "Restore default" }),
+  ).not.toBeInTheDocument();
+  expect(within(field).getByText("Following defaults")).toBeVisible();
+  expect(within(field).queryByText("Explicitly set")).not.toBeInTheDocument();
   expect(writes).toEqual([]);
 });

@@ -249,7 +249,7 @@ it("resets AI model, proxy and boolean options without starting extraction", asy
   });
   const resets = screen.getAllByRole("button", { name: "Restore default" });
   expect(resets).toHaveLength(6);
-  expect(screen.getAllByText("Specified value")).toHaveLength(6);
+  expect(screen.getAllByText("Explicitly set")).toHaveLength(6);
   for (const reset of resets) await userEvent.click(reset);
   expect(writes).toHaveLength(0);
   for (const checkbox of screen.getAllByRole("checkbox"))
@@ -265,7 +265,11 @@ it("resets AI model, proxy and boolean options without starting extraction", asy
   expect(writes[0].defaults).toBeUndefined();
   expect(writes[0].explicit).toBeUndefined();
   expect(writes[0].changed).toEqual([]);
-  expect(screen.queryByText("Specified value")).not.toBeInTheDocument();
+  expect(screen.queryByText("Explicitly set")).not.toBeInTheDocument();
+  expect(screen.getAllByText("Following defaults")).toHaveLength(6);
+  expect(
+    screen.queryByRole("button", { name: "Restore default" }),
+  ).not.toBeInTheDocument();
   expect(writes[0].reset).toEqual([
     "model",
     "proxy_url",

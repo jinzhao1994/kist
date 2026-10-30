@@ -196,7 +196,10 @@ export const en = {
   settingCredentials: "Access credentials",
   settingRestart: "Requires restart",
   settingReset: "Restore default",
-  settingSpecified: "Specified value",
+  settingSpecified: "Explicitly set",
+  settingInherited: "Following defaults",
+  settingInheritedHint:
+    "Not explicitly configured; follows the current default, including future changes.",
   settingSpecifiedHint:
     "Explicitly configured; this value stays fixed when defaults change.",
   settingOverride: "Overridden by a startup flag. Effective value:",
@@ -1195,7 +1198,9 @@ export const zh: Record<MessageKey, string> = {
   settingCredentials: "访问凭据",
   settingRestart: "重启后生效",
   settingReset: "恢复默认",
-  settingSpecified: "指定值",
+  settingSpecified: "已显式指定",
+  settingInherited: "已跟随默认",
+  settingInheritedHint: "未显式配置；使用当前默认值，并随默认值变化。",
   settingSpecifiedHint: "已明确配置；默认值变化时仍保留此值。",
   settingOverride: "由启动参数覆盖，当前生效值：",
   settingRestartPending: "已保存，重启当前服务后生效。",

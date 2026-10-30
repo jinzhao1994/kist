@@ -3528,6 +3528,9 @@ main.upload-drag-active {
   font-size: var(--mantine-font-size-xs);
   white-space: nowrap;
 }
+.setting-source--default {
+  color: var(--mantine-color-dimmed);
+}
 @media (hover: hover) and (pointer: fine) {
   .setting-reset {
     opacity: 0;
