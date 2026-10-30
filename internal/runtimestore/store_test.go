@@ -137,3 +137,29 @@ func TestIndexedRuntimeLookups(t *testing.T) {
 		}
 	}
 }
+
+func TestVersionTwoUpgradePreservesVideoCache(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "runtime.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, statement := range []string{schema, videoSchema, `INSERT INTO video_segments VALUES('synthetic','hls_1080p_v1',0,188,'digest','now'); PRAGMA user_version=2`} {
+		if _, err = db.Exec(statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	db.Close()
+	s, err := OpenExisting(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	var size int64
+	if err = s.DB.QueryRow(`SELECT bytes FROM video_segments WHERE blob_key='synthetic'`).Scan(&size); err != nil || size != 188 {
+		t.Fatal(size, err)
+	}
+	if _, err = s.DB.Exec(`INSERT INTO preview_cache VALUES('synthetic','thumbnail','generation',12,1)`); err != nil {
+		t.Fatal(err)
+	}
+}

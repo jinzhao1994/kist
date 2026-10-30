@@ -41,12 +41,23 @@ export function settingsDraftValue<
 // Compare persisted meaning while keeping the raw draft intact for typing.
 // An explicitly pinned default is different from an inherited default.
 export function hasSettingChange(
-  field: { kind: string; value: unknown; explicit: boolean },
+  field: {
+    kind: string;
+    value: unknown;
+    explicit: boolean;
+    unlimited?: boolean;
+  },
   draft: unknown,
 ) {
   if (draft === null) return field.explicit;
   if (!field.explicit) return true;
   const normalize = (value: unknown): unknown => {
+    if (
+      field.unlimited &&
+      typeof value === "string" &&
+      value.trim().toLowerCase() === "inf"
+    )
+      return "inf";
     if (field.kind === "list" && Array.isArray(value))
       return value.map((v) => String(v).trim()).filter(Boolean);
     if (field.kind === "bytes" && typeof value === "string") {

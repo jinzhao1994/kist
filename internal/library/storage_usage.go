@@ -124,6 +124,9 @@ func measureStorage(ctx context.Context, root string, client bool, previews map[
 				target = &result.OriginalsBytes
 			case "derived":
 				target = &result.PreviewsBytes
+				if strings.HasSuffix(entry.Name(), ".lock") {
+					target = &result.MetadataBytes
+				}
 				if strings.HasSuffix(entry.Name(), ".mp4") {
 					target = &result.VideoBytes
 				}

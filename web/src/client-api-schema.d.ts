@@ -1796,6 +1796,7 @@ export interface components {
             kind: string;
             options?: string[] | null;
             restart: boolean;
+            unlimited?: boolean;
             value: unknown;
         };
         File: {

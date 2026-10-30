@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
-	"os"
 
 	"github.com/jinzhao1994/kist/internal/blob"
 	"github.com/jinzhao1994/kist/internal/derive"
@@ -58,7 +57,7 @@ func (m *Media) DescribeSyncDerived(ctx context.Context, key, recipe string, ret
 
 // OpenSyncDerived rejects stale descriptors rather than mixing generations
 // during a resumed transfer. The returned handle stays on the opened inode.
-func (m *Media) OpenSyncDerived(ctx context.Context, key, recipe, generation, contentKey string) (MediaJob, *os.File, error) {
+func (m *Media) OpenSyncDerived(ctx context.Context, key, recipe, generation, contentKey string) (MediaJob, *MediaContent, error) {
 	job, err := m.resolveSyncOriginal(ctx, key, recipe)
 	if err != nil {
 		return job, nil, err

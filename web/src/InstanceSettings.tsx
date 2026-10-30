@@ -9,6 +9,7 @@ import {
 import { LocationSettings } from "./LocationSettings";
 import { StorageUsageValues } from "./StorageUsageValues";
 import { ColorChoiceGroup } from "./ColorChoiceGroup";
+import { CacheLimitInput } from "./CacheLimitInput";
 import { AIConnection } from "./AI";
 import { EmptyHint } from "./EmptyHint";
 import { HelpTooltip } from "./HelpTooltip";
@@ -60,6 +61,8 @@ const labels: Record<string, MessageKey> = {
   "client.cache_max_bytes": "settingCacheBytes",
   "video.cache_max_age": "settingVideoCacheAge",
   "video.cache_max_bytes": "settingVideoCacheBytes",
+  "previews.cache_max_age": "settingPreviewCacheAge",
+  "previews.cache_max_bytes": "settingPreviewCacheBytes",
   "server.listen": "settingListen",
   "server.allowed_origins": "settingOrigins",
   "server.max_upload_bytes": "settingUploadBytes",
@@ -671,8 +674,13 @@ function SettingInput(props: {
   const id = useId();
   const { field } = props;
   const label = labels[field.key] ? t(labels[field.key]) : field.key;
-  const hint =
-    field.key === "library.language"
+  const hint = field.unlimited
+    ? t(
+        field.kind === "bytes"
+          ? "settingCacheBytesHint"
+          : "settingCacheAgeHint",
+      )
+    : field.key === "library.language"
       ? t("settingLanguageHint")
       : field.key === "client.cache_max_age" ||
           field.key === "video.cache_max_age"
@@ -721,6 +729,18 @@ function SettingControl({
 }) {
   const { t } = useI18n();
   const label = labels[field.key] ? t(labels[field.key]) : field.key;
+  if (field.unlimited)
+    return (
+      <CacheLimitInput
+        id={id}
+        label={label}
+        disabled={disabled}
+        value={
+          typeof value === "number" ? editableBytes(value) : String(value ?? "")
+        }
+        onChange={change}
+      />
+    );
   if (field.key === "appearance.primary_color")
     return (
       <ColorChoiceGroup

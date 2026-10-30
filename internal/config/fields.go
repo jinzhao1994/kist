@@ -12,13 +12,14 @@ import (
 // Field describes one editable setting. Identity and credentials have dedicated
 // management paths and are deliberately absent from this public schema.
 type Field struct {
-	Key      string   `json:"key"`
-	Kind     string   `json:"kind"`
-	Restart  bool     `json:"restart"`
-	Options  []string `json:"options,omitempty"`
-	Value    any      `json:"value"`
-	Default  any      `json:"default"`
-	Explicit bool     `json:"explicit"`
+	Key       string   `json:"key"`
+	Kind      string   `json:"kind"`
+	Restart   bool     `json:"restart"`
+	Options   []string `json:"options,omitempty"`
+	Value     any      `json:"value"`
+	Default   any      `json:"default"`
+	Explicit  bool     `json:"explicit"`
+	Unlimited bool     `json:"unlimited,omitempty"`
 }
 
 func fieldDefinitions(mode string) []Field {
@@ -36,7 +37,7 @@ func fieldDefinitions(mode string) []Field {
 	if mode == "client" {
 		return append(fields, Field{Key: "client.cache_max_age", Kind: "text"}, Field{Key: "client.cache_max_bytes", Kind: "bytes"})
 	}
-	return append(fields, Field{Key: "library.timezone", Kind: "text"}, Field{Key: "library.language", Kind: "text"}, Field{Key: "storage.link_mode", Kind: "select", Options: []string{"", "copy", "reflink", "hardlink", "symlink"}}, Field{Key: "video.cache_max_age", Kind: "text"}, Field{Key: "video.cache_max_bytes", Kind: "bytes"})
+	return append(fields, Field{Key: "library.timezone", Kind: "text"}, Field{Key: "library.language", Kind: "text"}, Field{Key: "storage.link_mode", Kind: "select", Options: []string{"", "copy", "reflink", "hardlink", "symlink"}}, Field{Key: "previews.cache_max_age", Kind: "text", Unlimited: true}, Field{Key: "previews.cache_max_bytes", Kind: "bytes", Unlimited: true}, Field{Key: "video.cache_max_age", Kind: "text"}, Field{Key: "video.cache_max_bytes", Kind: "bytes"})
 }
 
 func values(c *Config) (map[string]any, error) {
@@ -110,6 +111,10 @@ func NormalizeChanges(mode string, changes map[string]any) (map[string]any, erro
 		}
 		if value == nil {
 			out[key] = nil
+			continue
+		}
+		if text, ok := value.(string); ok && f.Unlimited && strings.EqualFold(strings.TrimSpace(text), "inf") {
+			out[key] = "inf"
 			continue
 		}
 		switch f.Kind {

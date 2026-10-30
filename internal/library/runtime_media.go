@@ -43,6 +43,9 @@ func saveMediaTx(tx *sql.Tx, kind string, j MediaJob) error {
 		finished = j.UpdatedAt.Format(time.RFC3339Nano)
 	}
 	_, err = tx.Exec(`INSERT INTO job_attempts(request_id,kind,job_key,file_id,blob_key,state,started_at,finished_at,error) VALUES(?,?,?,'',?,?,?,?,?) ON CONFLICT(request_id) DO UPDATE SET state=excluded.state,error=excluded.error,started_at=CASE WHEN job_attempts.started_at='' THEN excluded.started_at ELSE job_attempts.started_at END,finished_at=excluded.finished_at`, kind+":"+j.Generation, kind, j.BlobKey+"/"+j.Recipe, j.BlobKey, state, started, finished, j.Reason)
+	if err == nil && kind == "media" {
+		err = savePreviewCacheTx(tx, j, j.UpdatedAt)
+	}
 	return err
 }
 
@@ -130,6 +133,9 @@ func (m *Media) database() (*runtimestore.Store, error) {
 		}
 		return filepath.Join(m.library.layout.Derived(), filepath.FromSlash(key.RelPath()), j.Recipe+".json"), nil
 	})
+	if err == nil {
+		err = adoptPreviewCache(db)
+	}
 	return db, err
 }
 func (m *ClientMedia) database() (*runtimestore.Store, error) {

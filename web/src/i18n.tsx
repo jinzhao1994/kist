@@ -204,6 +204,13 @@ export const en = {
   settingVideoCacheAge: "Video cache retention",
   settingVideoCacheBytes: "Video cache size limit",
   settingClearVideoCache: "Clear video cache",
+  settingPreviewCacheAge: "Thumbnail and preview retention",
+  settingPreviewCacheBytes: "Thumbnail and preview cache size limit",
+  settingNoLimit: "No limit",
+  settingCacheAgeHint:
+    "Measured since last access. Use 30d for 30 days, or choose No limit to disable expiry. The size limit can still evict cached content.",
+  settingCacheBytesHint:
+    "Use a size such as 32 GB or 32 GiB, or choose No limit. Active content is protected; originals and archive information are never removed.",
   settingStorageUsageHint:
     "Local file sizes, including history and downloaded content. Archive information includes the database and operation records. Projection copies and temporary files are excluded; filesystem compression and shared blocks may change allocated disk space.",
   settingService: "Service",
@@ -1225,6 +1232,13 @@ export const zh: Record<MessageKey, string> = {
   settingVideoCacheAge: "视频缓存保留时间",
   settingVideoCacheBytes: "视频缓存容量上限",
   settingClearVideoCache: "清空视频缓存",
+  settingPreviewCacheAge: "缩略图与预览保留时间",
+  settingPreviewCacheBytes: "缩略图与预览容量上限",
+  settingNoLimit: "不限制",
+  settingCacheAgeHint:
+    "从最近访问起计算，例如 30d 表示 30 天；选择“不限制”可关闭按时间清理，容量上限仍可能触发清理。",
+  settingCacheBytesHint:
+    "可填写 32 GB、32 GiB 等容量，或选择“不限制”。正在使用的缓存会保留，不会清理原文件或资料信息。",
   settingStorageUsageHint:
     "按本机文件大小统计，包含历史版本及已下载内容。资料信息包含数据库和操作记录。不含目录投影副本及临时文件；文件系统压缩、共享块会影响实际磁盘占用。",
   settingService: "服务",

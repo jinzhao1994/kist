@@ -16,13 +16,16 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const Version = 2
+const Version = 3
 
 //go:embed schema.sql
 var schema string
 
 //go:embed video.sql
 var videoSchema string
+
+//go:embed previews.sql
+var previewSchema string
 
 type Store struct{ DB *sql.DB }
 
@@ -96,10 +99,15 @@ func open(path string, existing bool) (*Store, error) {
 				return err
 			}
 		}
-		if _, err := tx.Exec(videoSchema); err != nil {
+		if version < 2 {
+			if _, err := tx.Exec(videoSchema); err != nil {
+				return err
+			}
+		}
+		if _, err := tx.Exec(previewSchema); err != nil {
 			return err
 		}
-		_, err := tx.Exec("PRAGMA user_version = 2")
+		_, err := tx.Exec("PRAGMA user_version = 3")
 		return err
 	})
 	if err != nil {

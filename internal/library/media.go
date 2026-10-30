@@ -184,7 +184,7 @@ func (m *Media) Cancel(ctx context.Context, id domain.FileID, recipe string) (Me
 var ErrMediaNotReady = errors.New("derived media is not ready")
 
 // Open only serves completed, atomically published output for a live file.
-func (m *Media) Open(ctx context.Context, id domain.FileID, recipe string) (MediaJob, *os.File, error) {
+func (m *Media) Open(ctx context.Context, id domain.FileID, recipe string) (MediaJob, *MediaContent, error) {
 	j, err := m.resolve(ctx, id, recipe)
 	if err != nil {
 		return j, nil, err
@@ -192,7 +192,7 @@ func (m *Media) Open(ctx context.Context, id domain.FileID, recipe string) (Medi
 	return m.openJob(ctx, j)
 }
 
-func (m *Media) openJob(ctx context.Context, j MediaJob) (MediaJob, *os.File, error) {
+func (m *Media) openJob(ctx context.Context, j MediaJob) (MediaJob, *MediaContent, error) {
 	release, err := m.state.Acquire(ctx)
 	if err != nil {
 		return j, nil, err
@@ -209,14 +209,41 @@ func (m *Media) openJob(ctx context.Context, j MediaJob) (MediaJob, *os.File, er
 	if err != nil {
 		return j, nil, err
 	}
+	lease, err := m.contentLease(j, true)
+	if err != nil {
+		return j, nil, err
+	}
+	unlock, ok, err := lease.TryAcquire()
+	if err != nil {
+		return j, nil, err
+	}
+	if !ok {
+		return j, nil, ErrMediaNotReady
+	}
 	f, err := os.Open(path)
-	return j, f, err
+	if err != nil {
+		unlock()
+		return j, nil, err
+	}
+	db, err := m.database()
+	if err == nil {
+		err = db.Transaction(ctx, func(tx *sql.Tx) error { return savePreviewCacheTx(tx, j, time.Now()) })
+	}
+	if err != nil {
+		f.Close()
+		unlock()
+		return j, nil, err
+	}
+	return j, &MediaContent{File: f, media: m, job: j, release: unlock}, nil
 }
 
 // Run uses a separate worker lock, allowing multiple servers to share a
 // library without parallel decoders. A dead process releases this OS lock;
 // only its successor may recover running jobs. Shutdown preserves the queue.
 func (m *Media) Run(ctx context.Context) {
+	maintenanceDone := make(chan struct{})
+	go func() { defer close(maintenanceDone); m.maintainPreviews(ctx) }()
+	defer func() { <-maintenanceDone }()
 	for ctx.Err() == nil {
 		release, err := m.worker.Acquire(ctx)
 		if err == nil {
@@ -268,6 +295,15 @@ func (m *Media) claim(ctx context.Context) (MediaJob, bool, error) {
 }
 
 func (m *Media) generate(ctx context.Context, j MediaJob) error {
+	lease, err := m.contentLease(j, false)
+	if err != nil {
+		return err
+	}
+	unlock, err := lease.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	_, output, err := m.paths(j)
 	if err != nil {
 		return err
@@ -334,6 +370,19 @@ func (m *Media) generate(ctx context.Context, j MediaJob) error {
 			j.State = "blocked"
 		}
 	} else {
+		if previewCacheRecipe(j.Recipe) {
+			if err = m.prunePreviewsLocked(ctx, result.Bytes, &j); err != nil {
+				if errors.Is(err, ErrCacheQuota) {
+					j.State = "failed"
+					j.Reason = "cache_quota"
+					return m.save(j)
+				}
+				return err
+			}
+		}
+		if err = os.Remove(output); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
 		if err = os.Rename(temp.Name(), output); err != nil {
 			return err
 		}

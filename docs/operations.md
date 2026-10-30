@@ -50,6 +50,27 @@ decoder. Missing tools disable those previews, not storage or downloads.
 The Docker build includes and tests these dependencies; see README's Docker
 instructions. For prebuilt images and NAS deployment, see [Docker deployment](docker.md).
 
+### Thumbnail and preview cache
+
+NAS thumbnails and non-video previews share a separate cache, limited to 32 GB
+by default, with no age limit. Settings → Storage accepts a size or duration and
+offers **No limit**. Omit a setting to inherit its default; explicitly setting
+`"inf"` disables that limit even if the default changes later.
+
+```toml
+[previews]
+cache_max_age = "inf"
+cache_max_bytes = 32000000000 # 32 GB; also accepts "inf"
+```
+
+Eviction uses last access time, protects active reads and sync transfers, and
+never removes originals, archive metadata or execution history. Evicted outputs
+are regenerated when requested. Existing caches get a fresh retention window
+when upgraded. A single output larger than the configured quota, or a quota
+occupied by active readers, can fail generation with `cache_quota`; retry after
+adjusting the limit or after readers finish. Client offline cache limits and video
+playback cache limits remain separate.
+
 ### Video playback cache
 
 NAS video playback uses HLS with on-demand six-second H.264/AAC segments.

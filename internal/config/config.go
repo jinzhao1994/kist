@@ -52,6 +52,7 @@ type Config struct {
 	Library        Library        `toml:"library"`
 	Storage        Storage        `toml:"storage"`
 	Video          Video          `toml:"video"`
+	Previews       Previews       `toml:"previews"`
 	Remotes        []Remote       `toml:"remote"`
 }
 

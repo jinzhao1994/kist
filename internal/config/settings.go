@@ -33,6 +33,12 @@ type Video struct {
 	CacheMaxAge   string `toml:"cache_max_age" json:"cache_max_age"`
 	CacheMaxBytes int64  `toml:"cache_max_bytes" json:"cache_max_bytes"`
 }
+
+// Previews limits regenerable non-video derivatives independently of playback.
+type Previews struct {
+	CacheMaxAge   string     `toml:"cache_max_age" json:"cache_max_age"`
+	CacheMaxBytes CacheBytes `toml:"cache_max_bytes" json:"cache_max_bytes"`
+}
 type Client struct {
 	ParentID      domain.ID   `toml:"parent_id,omitempty" json:"parent_id"`
 	Ancestors     []domain.ID `toml:"ancestors,omitempty" json:"ancestors"`
@@ -87,12 +93,16 @@ func Defaults(mode string) *Config {
 		Library:    Library{Timezone: defaultTimezone, Language: "zh-CN"},
 		Client:     Client{CacheMaxAge: "180d", CacheMaxBytes: 10 << 30},
 		Video:      Video{CacheMaxAge: "30d", CacheMaxBytes: 8 << 30},
+		Previews:   Previews{CacheMaxAge: "inf", CacheMaxBytes: 32_000_000_000},
 		Server: Server{Listen: listen, AllowedOrigins: []string{}, MaxUploadBytes: 32 << 30, MaxUploadFiles: 1000,
 			MapStyle: "https://tiles.openfreemap.org/styles/liberty", MapTerrainTiles: "https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png", MapTerrainAttribution: `<a href="https://www.mapzen.com/rights/">Mapzen terrain</a>`, MapResourceOrigins: []string{}},
 	}
 }
 
 func (c *Config) Validate() error {
+	if _, err := ParseCacheRetention(c.Previews.CacheMaxAge); err != nil || c.Previews.CacheMaxBytes < 0 || c.Previews.CacheMaxBytes > 9007199254740991 {
+		return fmt.Errorf("invalid preview cache limits")
+	}
 	if age, err := ParseCacheMaxAge(c.Video.CacheMaxAge); err != nil || age <= 0 || c.Video.CacheMaxBytes <= 0 {
 		return fmt.Errorf("invalid video cache limits")
 	}
