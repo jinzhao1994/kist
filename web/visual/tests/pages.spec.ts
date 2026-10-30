@@ -4038,16 +4038,27 @@ for (const scenario of [
   "storage",
   "storage-mobile",
   "storage-dark",
+  "unsaved",
+  "unsaved-dark",
+  "unsaved-mobile",
   "mobile",
   "dark",
 ] as const) {
   test(`instance-settings-${scenario}`, async ({ page }, info) => {
     const errors = await prepare(page, {
       mode:
-        scenario === "dark" || scenario === "storage-dark" ? "dark" : "light",
+        scenario === "dark" ||
+        scenario === "storage-dark" ||
+        scenario === "unsaved-dark"
+          ? "dark"
+          : "light",
       client: scenario === "client-storage",
     });
-    if (scenario === "mobile" || scenario === "storage-mobile")
+    if (
+      scenario === "mobile" ||
+      scenario === "storage-mobile" ||
+      scenario === "unsaved-mobile"
+    )
       await page.setViewportSize({ width: 390, height: 844 });
     const client = scenario === "client-storage";
     const fields = [
@@ -4244,6 +4255,29 @@ for (const scenario of [
         .getByRole("navigation", { name: "个人归档" })
         .getByRole("button", { name: "设置", exact: true }),
     ).toHaveClass(/active/);
+    if (scenario.startsWith("unsaved")) {
+      await settings
+        .getByRole("textbox", { name: "资料库语言", exact: true })
+        .fill("en");
+      await page
+        .getByRole("navigation", { name: "个人归档" })
+        .getByRole("button", { name: "全部文件", exact: true })
+        .click();
+      const dialog = page.getByRole("dialog", {
+        name: "有未保存的设置",
+        exact: true,
+      });
+      await expect(dialog).toBeVisible();
+      await expect(
+        dialog.getByRole("button", { name: "继续编辑", exact: true }),
+      ).toBeFocused();
+      await expect(
+        dialog.getByRole("button", { name: "保存并离开", exact: true }),
+      ).toBeEnabled();
+      await expect(page).toHaveURL(/\/settings(?:#.*)?$/);
+      await capture(page, errors, info.title);
+      return;
+    }
     if (scenario === "ai" || scenario.startsWith("ai-")) {
       await settings
         .getByRole("link", { name: "AI 连接", exact: true })

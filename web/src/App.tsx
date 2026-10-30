@@ -510,7 +510,9 @@ export function App() {
             </div>
           )}
           {settingsPage ? (
-            <InstanceSettings />
+            <InstanceSettings
+              registerNavigationBlocker={navigation.registerBlocker}
+            />
           ) : syncPage ? (
             info.isPending ? (
               <p role="status">{t("loading")}</p>

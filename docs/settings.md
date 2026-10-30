@@ -28,6 +28,12 @@ are upgraded by pinning their previous effective flag, so upgrading never enable
 a previously disabled lookup. Resetting only covers files added afterward, without
 backfilling existing files.
 
+Leaving the settings page with configuration drafts offers **Save and leave**,
+**Discard and leave**, and **Continue editing**. Failed saves retain the draft
+and destination. Same-page section navigation stays uninterrupted. Refreshing or
+closing the tab uses the browser's native unsaved-changes warning, which cannot
+include a custom save button.
+
 Settings are grouped into Appearance, Storage, Service, Maps, Connection
 (clients), and Access credentials (both libraries and clients). Storage includes client cache age and size
 limits, or the library's capture-time fallback zone and projection mode. Service

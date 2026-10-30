@@ -1,6 +1,6 @@
 import type { Filters, BoxFilters } from "./Filters";
 import { readURLFilters, writeURLFilters } from "./urlFilters";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { get } from "./api";
 import type { components } from "./api-schema";
@@ -110,37 +110,149 @@ export function routeURL(next: Route, anchor?: string): string {
     (anchor ? `#${encodeURIComponent(anchor)}` : "")
   );
 }
+export type NavigationTransition = { href: string; proceed: () => void };
+export type NavigationBlocker = (transition: NavigationTransition) => boolean;
+export type RegisterNavigationBlocker = (
+  blocker: NavigationBlocker,
+) => () => void;
+
+// Index owned entries so a blocked Back/Forward restores the current entry
+// without replacing the requested destination or unmounting the dirty form.
+const historyIndex = "kistHistoryIndex";
 export function useNavigation() {
   const [route, setRoute] = useState(read);
+  const routeRef = useRef(route);
+  routeRef.current = route;
+  const blocker = useRef<NavigationBlocker | null>(null);
+  const entry = useRef({
+    href: location.href,
+    state: history.state,
+    index: history.state?.[historyIndex] ?? 0,
+  });
+  const restoring = useRef(false);
+  const afterRestore = useRef<(() => void) | null>(null);
+  const bypassPop = useRef(false);
+  const registerBlocker = useCallback<RegisterNavigationBlocker>((next) => {
+    blocker.current = next;
+    return () => {
+      if (blocker.current === next) blocker.current = null;
+    };
+  }, []);
   useEffect(() => {
-    const change = () => setRoute(read());
+    history.replaceState(
+      { ...history.state, [historyIndex]: entry.current.index },
+      "",
+      location.href,
+    );
+    entry.current.state = history.state;
+    function accept() {
+      const index = history.state?.[historyIndex] ?? entry.current.index + 1;
+      if (history.state?.[historyIndex] === undefined)
+        history.replaceState(
+          { ...history.state, [historyIndex]: index },
+          "",
+          location.href,
+        );
+      entry.current = { href: location.href, state: history.state, index };
+      setRoute(read());
+    }
+    const change = () => {
+      if (restoring.current) {
+        if (location.href !== entry.current.href) return;
+        restoring.current = false;
+        const resume = afterRestore.current;
+        afterRestore.current = null;
+        resume?.();
+        return;
+      }
+      if (location.href === entry.current.href) return;
+      if (bypassPop.current) {
+        bypassPop.current = false;
+        accept();
+        return;
+      }
+      const target = {
+        href: location.href,
+        state: history.state,
+        index: history.state?.[historyIndex],
+      };
+      const delta =
+        typeof target.index === "number"
+          ? target.index - entry.current.index
+          : 0;
+      const resume = () => {
+        if (delta) {
+          const move = () => {
+            bypassPop.current = true;
+            history.go(delta);
+          };
+          if (restoring.current) afterRestore.current = move;
+          else move();
+        } else {
+          // Entries from before this router was mounted have no index. Keep
+          // both the draft and requested URL usable without guessing direction.
+          history.replaceState(target.state, "", target.href);
+          accept();
+        }
+      };
+      if (
+        routeRef.current.section === "settings" &&
+        read().section !== "settings" &&
+        blocker.current?.({ href: target.href, proceed: resume })
+      ) {
+        if (delta) {
+          restoring.current = true;
+          history.go(-delta);
+        } else
+          history.replaceState(entry.current.state, "", entry.current.href);
+        return;
+      }
+      accept();
+    };
     window.addEventListener("popstate", change);
-    return () => window.removeEventListener("popstate", change);
+    window.addEventListener("hashchange", change);
+    return () => {
+      window.removeEventListener("popstate", change);
+      window.removeEventListener("hashchange", change);
+    };
   }, []);
   return {
     route,
+    registerBlocker,
     go: (requested: Route, replace = false, anchor?: string) => {
       const next = { ...requested };
       if (!next.file) next.scope = undefined;
-      const opening = !!next.file && !route.file && !next.section;
-      const state = replace
-        ? history.state
-        : opening
-          ? {
-              kistGallery: true,
-              kistScope: {
-                box: route.box,
-                folder: route.folder,
-                tag: route.tag,
-              },
-            }
-          : null;
-      history[replace ? "replaceState" : "pushState"](
-        state,
-        "",
-        routeURL(next, anchor),
-      );
-      setRoute(next);
+      const href = new URL(routeURL(next, anchor), location.origin).href;
+      const commit = () => {
+        const opening = !!next.file && !route.file && !next.section;
+        const state = replace
+          ? history.state
+          : opening
+            ? {
+                kistGallery: true,
+                kistScope: {
+                  box: route.box,
+                  folder: route.folder,
+                  tag: route.tag,
+                },
+              }
+            : null;
+        const index = entry.current.index + (replace ? 0 : 1);
+        history[replace ? "replaceState" : "pushState"](
+          { ...state, [historyIndex]: index },
+          "",
+          href,
+        );
+        entry.current = { href, state: history.state, index };
+        setRoute(next);
+      };
+      if (
+        routeRef.current.section === "settings" &&
+        next.section !== "settings" &&
+        blocker.current?.({ href, proceed: commit })
+      )
+        return;
+      commit();
     },
   };
 }

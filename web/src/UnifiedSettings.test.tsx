@@ -150,6 +150,9 @@ it("saves all configuration drafts through the page toolbar in one request", asy
   await user.clear(interval);
   await user.type(interval, "7");
   expect(writes).toHaveLength(0);
+  const dirtyUnload = new Event("beforeunload", { cancelable: true });
+  window.dispatchEvent(dirtyUnload);
+  expect(dirtyUnload.defaultPrevented).toBe(true);
   await user.click(screen.getByRole("button", { name: "Save" }));
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0]).toMatchObject({
@@ -167,6 +170,9 @@ it("saves all configuration drafts through the page toolbar in one request", asy
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled(),
   );
+  const savedUnload = new Event("beforeunload", { cancelable: true });
+  window.dispatchEvent(savedUnload);
+  expect(savedUnload.defaultPrevented).toBe(false);
   await user.clear(interval);
   await user.type(interval, "9");
   await user.click(screen.getByRole("button", { name: "Reload settings" }));

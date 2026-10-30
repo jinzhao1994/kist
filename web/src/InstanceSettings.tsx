@@ -11,6 +11,11 @@ import { AIConnection } from "./AI";
 import { EmptyHint } from "./EmptyHint";
 import { HelpTooltip } from "./HelpTooltip";
 import { SectionIndex } from "./SectionIndex";
+import { Dialog, DialogPresence } from "./Dialog";
+import type {
+  NavigationTransition,
+  RegisterNavigationBlocker,
+} from "./navigation";
 import {
   Alert,
   Button,
@@ -88,7 +93,9 @@ async function request<T>(
   );
 }
 
-export function InstanceSettings() {
+export function InstanceSettings({
+  registerNavigationBlocker,
+}: { registerNavigationBlocker?: RegisterNavigationBlocker } = {}) {
   const { ref: headerRef, height: headerHeight } = useElementSize();
   const { t } = useI18n();
   const queries = useQueryClient();
@@ -110,6 +117,93 @@ export function InstanceSettings() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [leaving, setLeaving] = useState(false);
+  const pendingNavigation = useRef<NavigationTransition | null>(null);
+  const allowLeave = useRef(false);
+  const unsavedRef = useRef(unsaved);
+  unsavedRef.current = unsaved;
+  const requestLeave = useRef<(transition: NavigationTransition) => boolean>(
+    () => false,
+  );
+  requestLeave.current = (transition) => {
+    if (!unsavedRef.current || allowLeave.current) return false;
+    if (!pendingNavigation.current) pendingNavigation.current = transition;
+    setLeaving(true);
+    return true;
+  };
+  useEffect(
+    () =>
+      registerNavigationBlocker?.((transition) =>
+        requestLeave.current(transition),
+      ),
+    [registerNavigationBlocker],
+  );
+  useEffect(() => {
+    if (!unsaved) return;
+    const unload = (event: BeforeUnloadEvent) => {
+      if (!unsavedRef.current || allowLeave.current) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    const link = (event: MouseEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      )
+        return;
+      const target =
+        event.target instanceof Element
+          ? event.target.closest("a[href]")
+          : null;
+      if (
+        !(target instanceof HTMLAnchorElement) ||
+        target.hasAttribute("download") ||
+        (target.target && target.target !== "_self")
+      )
+        return;
+      const href = new URL(target.href);
+      if (!["http:", "https:"].includes(href.protocol)) return;
+      if (
+        href.origin === location.origin &&
+        href.pathname === location.pathname &&
+        href.search === location.search
+      )
+        return;
+      if (
+        requestLeave.current({
+          href: href.href,
+          proceed: () => location.assign(href.href),
+        })
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    window.addEventListener("beforeunload", unload);
+    document.addEventListener("click", link, true);
+    return () => {
+      window.removeEventListener("beforeunload", unload);
+      document.removeEventListener("click", link, true);
+    };
+  }, [unsaved]);
+  function continueEditing() {
+    if (busy) return;
+    pendingNavigation.current = null;
+    setLeaving(false);
+  }
+  function leave(reloadDocument = false) {
+    const next = pendingNavigation.current;
+    if (!next) return;
+    allowLeave.current = true;
+    pendingNavigation.current = null;
+    setLeaving(false);
+    if (reloadDocument) location.assign(next.href);
+    else next.proceed();
+  }
   const active = useRef<AbortController | null>(null);
   useEffect(() => () => active.current?.abort(), []);
   useEffect(() => {
@@ -146,8 +240,9 @@ export function InstanceSettings() {
     queries.setQueryData(["instance-settings"], value);
     await queries.invalidateQueries({ queryKey: ["info"] });
   };
-  const save = () =>
-    run(async (signal) => {
+  const save = async (skipDocumentReload = false) => {
+    let saved = false;
+    await run(async (signal) => {
       if (!snapshot) return;
       const value = await request<SettingsData>(
         "/settings",
@@ -174,10 +269,18 @@ export function InstanceSettings() {
       await queries.invalidateQueries({ queryKey: ["client"] });
       if (aiDraft) await queries.invalidateQueries({ queryKey: ["ai-models"] });
       setNotice(t("settingsSaved"));
+      saved = true;
       // A new document is needed for the updated map resource CSP.
-      if (Object.keys(changes).some((key) => key.startsWith("server.map_")))
+      if (
+        !skipDocumentReload &&
+        Object.keys(changes).some((key) => key.startsWith("server.map_"))
+      ) {
+        allowLeave.current = true;
         window.location.reload();
+      }
     });
+    return saved;
+  };
   function renderGroup(group: string) {
     if (!snapshot) return null;
     return (
@@ -284,7 +387,7 @@ export function InstanceSettings() {
             variant="filled"
             loading={busy}
             disabled={!unsaved || !valid}
-            onClick={save}
+            onClick={() => void save()}
           >
             {t("save")}
           </Button>
@@ -418,6 +521,46 @@ export function InstanceSettings() {
           </>
         )}
       </div>
+      <DialogPresence>
+        {leaving && (
+          <Dialog
+            open
+            title={t("settingsUnsavedTitle")}
+            description={t("settingsUnsavedDescription")}
+            onOpenChange={(open) => {
+              if (!open) continueEditing();
+            }}
+            size="md"
+          >
+            {error && (
+              <Alert color="red" role="alert">
+                {error}
+              </Alert>
+            )}
+            <div className="actions">
+              <Button data-autofocus disabled={busy} onClick={continueEditing}>
+                {t("settingsContinueEditing")}
+              </Button>
+              <Button disabled={busy} onClick={() => leave()}>
+                {t("settingsDiscardLeave")}
+              </Button>
+              <Button
+                variant="filled"
+                loading={busy}
+                disabled={busy || !valid}
+                onClick={async () => {
+                  const reloadDocument = Object.keys(changes).some((key) =>
+                    key.startsWith("server.map_"),
+                  );
+                  if (await save(true)) leave(reloadDocument);
+                }}
+              >
+                {t("settingsSaveLeave")}
+              </Button>
+            </div>
+          </Dialog>
+        )}
+      </DialogPresence>
     </section>
   );
 }

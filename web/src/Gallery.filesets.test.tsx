@@ -290,7 +290,10 @@ it("restores the URL page and preserves it on reload without changing the galler
   fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
   expect(await screen.findByText("first metadata")).toBeVisible();
   expect(new URL(location.href).searchParams.get("page")).toBe("1");
-  expect(window.history.state).toEqual({ kistGallery: true });
+  expect(window.history.state).toEqual({
+    kistGallery: true,
+    kistHistoryIndex: 0,
+  });
   fireEvent.click(screen.getByRole("button", { name: "Next page" }));
   expect(new URL(location.href).searchParams.get("file")).toBe("set");
   expect(new URL(location.href).searchParams.get("page")).toBe("2");
