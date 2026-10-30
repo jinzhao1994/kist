@@ -12,6 +12,7 @@ vi.mock("@mantine/hooks", async (importOriginal) => ({
 }));
 let writes: any[];
 let stale: boolean;
+let invalidFields: { field: string; code: string; message: string }[];
 const initial = () => ({
   revision: "revision-one",
   mode: "client",
@@ -20,6 +21,14 @@ const initial = () => ({
   credential_configured: true,
   connection: { server: "https://remote.example", allow_http: false },
   fields: [
+    {
+      key: "client.cache_max_age",
+      kind: "text",
+      value: "180d",
+      default: "180d",
+      explicit: false,
+      restart: false,
+    },
     {
       key: "appearance.primary_color",
       kind: "select",
@@ -66,6 +75,7 @@ beforeEach(() => {
   );
   writes = [];
   stale = false;
+  invalidFields = [];
   vi.stubGlobal(
     "fetch",
     vi.fn(async (_path: string, options?: RequestInit) => {
@@ -82,6 +92,16 @@ beforeEach(() => {
       if (options?.method === "PUT") {
         const body = JSON.parse(options.body as string);
         writes.push(body);
+        if (invalidFields.length)
+          return Response.json(
+            {
+              code: "invalid_request",
+              class: "invalid",
+              message: "Invalid settings",
+              fields: invalidFields,
+            },
+            { status: 400 },
+          );
         if (stale)
           return new Response(
             JSON.stringify({
@@ -122,6 +142,42 @@ function mount() {
     </QueryClientProvider>,
   );
 }
+it("shows server field errors only after save and keeps them when the floating message is dismissed", async () => {
+  const user = userEvent.setup();
+  mount();
+  const input = await screen.findByRole("textbox", {
+    name: "Maximum cache age",
+  });
+  await user.clear(input);
+  await user.type(input, "30da21");
+  expect(input).not.toHaveAttribute("aria-invalid", "true");
+  expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+  invalidFields = [
+    {
+      field: "client.cache_max_age",
+      code: "duration",
+      message: "Invalid duration",
+    },
+  ];
+  await user.click(screen.getByRole("button", { name: "Save" }));
+  expect(await screen.findByRole("alert")).toHaveClass("floating-feedback");
+  expect(input).toHaveAttribute("aria-invalid", "true");
+  expect(input.closest(".setting-field")).toHaveTextContent(
+    "Enter a positive duration",
+  );
+  expect(input).toHaveValue("30da21");
+  await user.click(
+    within(screen.getByRole("alert")).getByRole("button", { name: "Close" }),
+  );
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  expect(input).toHaveAttribute("aria-invalid", "true");
+  await user.clear(input);
+  await user.type(input, "30d");
+  expect(input).not.toHaveAttribute("aria-invalid", "true");
+  invalidFields = [];
+  await user.click(screen.getByRole("button", { name: "Save" }));
+  await waitFor(() => expect(writes).toHaveLength(2));
+});
 it("restores a fragment after settings load without scrolling again on edits", async () => {
   window.history.replaceState(null, "", "/settings#settings-access");
   const scroll = vi.spyOn(Element.prototype, "scrollIntoView");

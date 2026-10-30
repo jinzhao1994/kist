@@ -70,6 +70,9 @@ func (l *Library) configurePrepared(ctx context.Context, revision string, change
 			mode, err = blob.DetectLinkMode(l.blobs.Root(), l.layout.Boxes())
 		} else if mode != old.config.Storage.LinkMode {
 			err = blob.CheckLinkMode(l.blobs.Root(), l.layout.Boxes(), mode)
+			if err != nil {
+				return config.InvalidField("storage.link_mode", "link_mode", "The selected projection method is unavailable on this filesystem.")
+			}
 		}
 		if err != nil {
 			return err

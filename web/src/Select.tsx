@@ -19,6 +19,7 @@ export function Select({
   onValueChange,
   options,
   disabled,
+  error,
   label,
   searchable = false,
   renderOption,
@@ -36,6 +37,7 @@ export function Select({
     disabled?: boolean;
   }[];
   disabled?: boolean;
+  error?: string;
   label?: string;
   searchable?: boolean;
   renderOption?: SelectProps["renderOption"];
@@ -96,6 +98,7 @@ export function Select({
             id={id}
             aria-label={ariaLabel}
             label={label}
+            error={error}
             component="button"
             type="button"
             role="combobox"
@@ -170,6 +173,7 @@ export function Select({
       id={id}
       aria-label={ariaLabel}
       label={label}
+      error={error}
       value={value}
       onChange={(next) => {
         if (next !== null) onValueChange(next);

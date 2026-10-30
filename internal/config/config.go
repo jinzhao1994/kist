@@ -193,7 +193,7 @@ func Decode(raw []byte) (*Config, error) {
 	switch c.Storage.LinkMode {
 	case blob.LinkReflink, blob.LinkHardlink, blob.LinkSymlink, blob.LinkCopy, "":
 	default:
-		return nil, fmt.Errorf("read %s: unknown link_mode %q", path, c.Storage.LinkMode)
+		return nil, InvalidField("storage.link_mode", "choice", "Choose one of the available values.")
 	}
 
 	// Remotes are hand-written, so they are checked here rather than trusted.

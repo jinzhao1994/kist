@@ -164,6 +164,100 @@ func TestSettingsStorageUsage(t *testing.T) {
 	}
 }
 
+func TestSettingsRejectMalformedRetentionWithoutPublishing(t *testing.T) {
+	s, l := testServer(t)
+	before, err := os.ReadFile(l.Layout().ConfigPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"previews.cache_max_age", "video.cache_max_age"} {
+		for _, value := range []string{"30da21", "0d", "106752d"} {
+			body, _ := json.Marshal(map[string]any{"revision": config.Revision(before), "changes": map[string]any{key: value, "appearance.primary_color": "orange"}})
+			w := call(s, "PUT", Prefix+"/settings", "", string(body))
+			if w.Code != 400 {
+				t.Fatalf("%s=%s: %d %s", key, value, w.Code, w.Body)
+			}
+			var problem HTTPError
+			if err := json.Unmarshal(w.Body.Bytes(), &problem); err != nil || len(problem.Fields) != 1 || problem.Fields[0].Field != key || problem.Fields[0].Code != "duration" {
+				t.Fatalf("missing field context: %s (%v)", w.Body, err)
+			}
+			after, err := os.ReadFile(l.Layout().ConfigPath())
+			if err != nil || string(after) != string(before) {
+				t.Fatal("invalid save changed configuration", err)
+			}
+		}
+	}
+}
+
+func TestSettingsReturnFieldErrorsAcrossSections(t *testing.T) {
+	s, l := testServer(t)
+	save := func(body []byte) *httptest.ResponseRecorder {
+		request := httptest.NewRequest("PUT", "http://localhost:8473"+Prefix+"/settings", strings.NewReader(string(body)))
+		request.RemoteAddr = "127.0.0.1:1234"
+		request.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		s.ServeHTTP(response, request)
+		return response
+	}
+	raw, err := os.ReadFile(l.Layout().ConfigPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range []struct {
+		key   string
+		value any
+	}{
+		{"previews.cache_max_bytes", "potato"}, {"server.max_upload_files", 0},
+		{"server.listen", "wrong"}, {"library.timezone", "Not/AZone"},
+		{"library.language", "not a language"}, {"storage.link_mode", "wrong"},
+		{"server.allowed_origins", []string{"https://example.test/private"}},
+		{"server.map_style", "file:///private/map.json"},
+	} {
+		body, _ := json.Marshal(map[string]any{"revision": config.Revision(raw), "changes": map[string]any{item.key: item.value}})
+		w := save(body)
+		var problem HTTPError
+		if err = json.Unmarshal(w.Body.Bytes(), &problem); err != nil || w.Code != 400 || len(problem.Fields) != 1 || problem.Fields[0].Field != item.key {
+			t.Fatalf("%s: %d %s %v", item.key, w.Code, w.Body, err)
+		}
+	}
+	ai, err := l.OCRSettings(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ai.ProxyURL = "invalid://password@private-host"
+	ai.Changed = []string{"proxy_url"}
+	location, err := l.LocationSettings(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	location.Endpoint = "invalid://private-host"
+	location.Changed = []string{"endpoint"}
+	for _, item := range []struct {
+		section string
+		value   any
+		field   string
+	}{
+		{"ai", ai, "ai_options.proxy_url"}, {"location", location, "geocoding.endpoint"},
+	} {
+		body, _ := json.Marshal(map[string]any{"revision": config.Revision(raw), "changes": map[string]any{}, item.section: item.value})
+		w := save(body)
+		var problem HTTPError
+		if err = json.Unmarshal(w.Body.Bytes(), &problem); err != nil || w.Code != 400 || len(problem.Fields) != 1 || problem.Fields[0].Field != item.field {
+			t.Fatalf("%s: %d %s %v", item.field, w.Code, w.Body, err)
+		}
+		if strings.Contains(w.Body.String(), "password") || strings.Contains(w.Body.String(), "private-host") {
+			t.Fatal("error echoed private input")
+		}
+	}
+	// Request binding failures also identify the nested field, without its value.
+	body, _ := json.Marshal(map[string]any{"revision": config.Revision(raw), "changes": map[string]any{}, "location": map[string]any{"automatic": true, "endpoint": "https://example.test/reverse", "pause_on_error": true, "request_interval_seconds": "invalid-private-value", "revision": config.Revision(raw)}})
+	w := save(body)
+	var problem HTTPError
+	if err = json.Unmarshal(w.Body.Bytes(), &problem); err != nil || w.Code != 422 || len(problem.Fields) == 0 || problem.Fields[0].Field != "geocoding.request_interval_seconds" || strings.Contains(w.Body.String(), "invalid-private-value") {
+		t.Fatalf("binding: %d %s %v", w.Code, w.Body, err)
+	}
+}
+
 func TestCredentialNotesDoNotRotateOrRestoreTokens(t *testing.T) {
 	s, l := testServer(t)
 	w := call(s, "POST", Prefix+"/settings/credentials", "", `{"note":"  旅行备用机  "}`)

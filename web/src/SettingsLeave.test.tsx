@@ -223,7 +223,7 @@ it("keeps the page and draft when saving before leaving fails", async () => {
   await user.click(
     within(dialog).getByRole("button", { name: "Save and leave" }),
   );
-  expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+  expect(await screen.findByRole("alert")).toHaveTextContent(
     "Check the entered values and start a corrected operation.",
   );
   expect(location.pathname).toBe("/settings");

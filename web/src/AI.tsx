@@ -6,6 +6,8 @@ import {
   SettingsHint,
   useSettingsPending,
   settingsDraftValue,
+  SettingsErrorsContext,
+  useSettingsError,
   type SettingsSectionDraft,
 } from "./SettingsFields";
 import {
@@ -25,6 +27,7 @@ import {
 } from "@mantine/core";
 import {
   useEffect,
+  useContext,
   useId,
   useRef,
   useMemo,
@@ -225,6 +228,9 @@ function AISettings({
 }) {
   const { t } = useI18n();
   const query = useAISettings();
+  const { clear: clearFieldError } = useContext(SettingsErrorsContext);
+  const modelError = useSettingsError("ai_options.model");
+  const proxyError = useSettingsError("ai_options.proxy_url");
   const proxyID = useId();
   const modelID = useId();
   const queries = useQueryClient();
@@ -249,6 +255,7 @@ function AISettings({
     if (query.data && !touched) setDraft(query.data);
   }, [query.data, touched]);
   function edit(change: Partial<AISettingsData>) {
+    Object.keys(change).forEach((key) => clearFieldError(`ai_options.${key}`));
     setTouched(true);
     setDraft((old) =>
       old
@@ -278,6 +285,7 @@ function AISettings({
         disabled={disabled || busy || value === undefined || !specified}
         onReset={() => {
           if (value === undefined) return;
+          clearFieldError(`ai_options.${key}`);
           setDraft((old) =>
             old
               ? {
@@ -294,13 +302,6 @@ function AISettings({
       />
     );
   }
-  const valid = !(
-    (draft?.auto_ocr ||
-      draft?.auto_desc ||
-      draft?.auto_facts ||
-      draft?.auto_orientation) &&
-    !draft?.model
-  );
   useEffect(() => {
     setTouched(false);
     setError("");
@@ -308,8 +309,8 @@ function AISettings({
     setDraft(queries.getQueryData(["ai-settings"]));
   }, [reloadVersion, queries]);
   useEffect(() => {
-    onDraftChange?.(dirty && pending ? { value: pending, valid } : null);
-  }, [dirty, pending, valid, onDraftChange]);
+    onDraftChange?.(dirty && pending ? { value: pending } : null);
+  }, [dirty, pending, onDraftChange]);
   async function perform(fn: () => Promise<void>) {
     setBusy(true);
     setError("");
@@ -362,7 +363,7 @@ function AISettings({
       )}
       {draft && (
         <div className="settings-fields">
-          <div className="setting-field">
+          <div className="setting-field" data-setting-field="ai_options.model">
             <SettingsFieldHeading
               label={t("aiModel")}
               htmlFor={modelID}
@@ -371,6 +372,7 @@ function AISettings({
             <Select
               id={modelID}
               aria-label={t("aiModel")}
+              error={modelError}
               value={draft.model}
               onValueChange={(model) => edit({ model })}
               options={[
@@ -406,7 +408,10 @@ function AISettings({
               {t("aiUseLuna")}
             </Button>
           )}
-          <div className="setting-field">
+          <div
+            className="setting-field"
+            data-setting-field="ai_options.proxy_url"
+          >
             <SettingsFieldHeading
               label={t("aiProxy")}
               action={resetAction("proxy_url")}
@@ -416,6 +421,7 @@ function AISettings({
             <PasswordInput
               id={proxyID}
               value={draft.proxy_url}
+              error={proxyError}
               onChange={(e) => edit({ proxy_url: e.currentTarget.value })}
               disabled={disabled || busy}
               autoComplete="off"

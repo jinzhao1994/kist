@@ -7,12 +7,14 @@ export function CacheLimitInput({
   label,
   value,
   disabled,
+  error,
   onChange,
 }: {
   id: string;
   label: string;
   value: string;
   disabled: boolean;
+  error?: string;
   onChange: (value: string) => void;
 }) {
   const { t } = useI18n();
@@ -22,6 +24,7 @@ export function CacheLimitInput({
       id={id}
       aria-label={label}
       disabled={disabled}
+      error={error}
       value={value.trim().toLowerCase() === "inf" ? unlimited : value}
       data={[unlimited]}
       filter={({ options }) => options}

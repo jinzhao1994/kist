@@ -120,39 +120,39 @@ func NormalizeChanges(mode string, changes map[string]any) (map[string]any, erro
 		switch f.Kind {
 		case "text", "select":
 			if _, ok = value.(string); !ok {
-				return nil, fmt.Errorf("%s requires text", key)
+				return nil, InvalidField(key, "text", "Enter text.")
 			}
 		case "integer", "bytes":
 			if text, ok := value.(string); ok && f.Kind == "bytes" {
 				size, err := humanize.ParseBytes(strings.TrimSpace(text))
 				if err != nil || size == 0 || size > 9007199254740991 {
-					return nil, fmt.Errorf("%s requires a positive size such as 32 GB or 32 GiB", key)
+					return nil, InvalidField(key, "size", "Enter a positive size, such as 32 GB or 32 GiB.")
 				}
 				value = int64(size)
 			}
 			switch v := value.(type) {
 			case float64:
 				if math.IsNaN(v) || math.IsInf(v, 0) || v < 1 || v > 9007199254740991 || v != math.Trunc(v) {
-					return nil, fmt.Errorf("%s requires a positive integer", key)
+					return nil, InvalidField(key, "integer", "Enter a positive integer.")
 				}
 				value = int64(v)
 			case int64:
 				if v <= 0 {
-					return nil, fmt.Errorf("invalid %s", key)
+					return nil, InvalidField(key, "integer", "Enter a positive integer.")
 				}
 			default:
-				return nil, fmt.Errorf("%s requires an integer", key)
+				return nil, InvalidField(key, "integer", "Enter a positive integer.")
 			}
 		case "list":
 			items, ok := value.([]any)
 			if !ok {
-				return nil, fmt.Errorf("%s requires a list", key)
+				return nil, InvalidField(key, "list", "Enter a list of text values.")
 			}
 			list := []string{}
 			for _, v := range items {
 				s, ok := v.(string)
 				if !ok {
-					return nil, fmt.Errorf("%s requires text entries", key)
+					return nil, InvalidField(key, "list", "Enter a list of text values.")
 				}
 				list = append(list, s)
 			}

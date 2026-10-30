@@ -6,6 +6,8 @@ import {
   SettingsReset,
   useSettingsPending,
   settingsDraftValue,
+  SettingsErrorsContext,
+  useSettingsError,
   type SettingsSectionDraft,
 } from "./SettingsFields";
 import {
@@ -16,7 +18,7 @@ import {
   Text,
   TextInput,
 } from "@mantine/core";
-import { useEffect, useMemo, useId, useState } from "react";
+import { useContext, useEffect, useMemo, useId, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { result } from "./api";
 import type { components } from "./api-schema";
@@ -39,6 +41,9 @@ export function LocationSettings({
   reloadVersion?: number;
 }) {
   const { t } = useI18n();
+  const { clear: clearFieldError } = useContext(SettingsErrorsContext);
+  const endpointError = useSettingsError("geocoding.endpoint");
+  const intervalError = useSettingsError("geocoding.request_interval_seconds");
   const endpointID = useId();
   const intervalID = useId();
   const queries = useQueryClient();
@@ -59,6 +64,7 @@ export function LocationSettings({
     if (!touched && query.data) setDraft(query.data);
   }, [query.data, touched]);
   function edit(change: Partial<Draft>) {
+    Object.keys(change).forEach((key) => clearFieldError(`geocoding.${key}`));
     setDraft((old) =>
       old
         ? {
@@ -87,6 +93,7 @@ export function LocationSettings({
         disabled={disabled || busy || value === undefined || !specified}
         onReset={() => {
           if (value === undefined) return;
+          clearFieldError(`geocoding.${key}`);
           setDraft((old) =>
             old
               ? {
@@ -102,23 +109,16 @@ export function LocationSettings({
       />
     );
   }
-  const validInterval =
-    typeof draft?.request_interval_seconds === "number" &&
-    Number.isInteger(draft.request_interval_seconds) &&
-    draft.request_interval_seconds >= 0 &&
-    draft.request_interval_seconds <= 86400;
   useEffect(() => {
     setTouched(false);
     setError("");
     setDraft(queries.getQueryData(["location-settings"]));
   }, [reloadVersion, queries]);
   useEffect(() => {
-    onDraftChange?.(
-      dirty && pending ? { value: pending, valid: validInterval } : null,
-    );
-  }, [dirty, pending, validInterval, onDraftChange]);
+    onDraftChange?.(dirty && pending ? { value: pending } : null);
+  }, [dirty, pending, onDraftChange]);
   async function save() {
-    if (!draft || !validInterval) return;
+    if (!draft) return;
     setBusy(true);
     setError("");
     try {
@@ -169,7 +169,10 @@ export function LocationSettings({
               disabled={disabled || busy}
               onChange={(e) => edit({ automatic: e.currentTarget.checked })}
             />
-            <div className="setting-field">
+            <div
+              className="setting-field"
+              data-setting-field="geocoding.endpoint"
+            >
               <SettingsFieldHeading
                 htmlFor={endpointID}
                 label={t("geoEndpoint")}
@@ -179,11 +182,15 @@ export function LocationSettings({
               <TextInput
                 id={endpointID}
                 value={draft.endpoint}
+                error={endpointError}
                 disabled={disabled || busy}
                 onChange={(e) => edit({ endpoint: e.currentTarget.value })}
               />
             </div>
-            <div className="setting-field">
+            <div
+              className="setting-field"
+              data-setting-field="geocoding.request_interval_seconds"
+            >
               <SettingsFieldHeading
                 htmlFor={intervalID}
                 label={t("geoRequestInterval")}
@@ -192,8 +199,7 @@ export function LocationSettings({
               />
               <NumberInput
                 id={intervalID}
-                min={0}
-                max={86400}
+                error={intervalError}
                 allowDecimal={false}
                 value={draft.request_interval_seconds}
                 disabled={disabled || busy}
@@ -213,7 +219,7 @@ export function LocationSettings({
             {!onDraftChange && (
               <Group>
                 <Button
-                  disabled={!dirty || !validInterval || disabled || busy}
+                  disabled={!dirty || disabled || busy}
                   loading={busy}
                   onClick={() => void save()}
                 >

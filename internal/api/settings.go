@@ -130,7 +130,7 @@ func (s *Server) settingsRoutes(opt Options) error {
 			return nil, huma.Error409Conflict("Settings changed; reload before saving.")
 		}
 		if err != nil {
-			return nil, invalid("Invalid settings; check the values and reload the configuration.")
+			return nil, settingsFailure(err)
 		}
 		out, err := s.settingsView(ctx)
 		return response(out, err)

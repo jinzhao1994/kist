@@ -100,49 +100,61 @@ func Defaults(mode string) *Config {
 }
 
 func (c *Config) Validate() error {
-	if _, err := ParseCacheRetention(c.Previews.CacheMaxAge); err != nil || c.Previews.CacheMaxBytes < 0 || c.Previews.CacheMaxBytes > 9007199254740991 {
-		return fmt.Errorf("invalid preview cache limits")
+	if _, err := ParseCacheRetention(c.Previews.CacheMaxAge); err != nil {
+		return InvalidField("previews.cache_max_age", "duration", "Enter a positive duration, such as 30d or 1h30m, or inf.")
 	}
-	if age, err := ParseCacheMaxAge(c.Video.CacheMaxAge); err != nil || age <= 0 || c.Video.CacheMaxBytes <= 0 {
-		return fmt.Errorf("invalid video cache limits")
+	if c.Previews.CacheMaxBytes < 0 || c.Previews.CacheMaxBytes > 9007199254740991 {
+		return InvalidField("previews.cache_max_bytes", "size", "Enter a positive size or inf.")
+	}
+	if _, err := ParseCacheMaxAge(c.Video.CacheMaxAge); err != nil {
+		return InvalidField("video.cache_max_age", "duration", "Enter a positive duration, such as 30d or 1h30m.")
+	}
+	if c.Video.CacheMaxBytes <= 0 {
+		return InvalidField("video.cache_max_bytes", "size", "Enter a positive size.")
 	}
 	if c.RuntimeStorage < 0 || c.RuntimeStorage > 1 {
 		return fmt.Errorf("unsupported runtime storage version")
 	}
 	if len(c.Library.Language) > 64 || c.Library.Language == "" {
-		return fmt.Errorf("library language must be a BCP 47 language tag")
+		return InvalidField("library.language", "language", "Enter a BCP 47 language tag, such as zh-CN or en.")
 	}
 	if _, err := language.Parse(c.Library.Language); err != nil {
-		return fmt.Errorf("invalid library language")
+		return InvalidField("library.language", "language", "Enter a BCP 47 language tag, such as zh-CN or en.")
 	}
 
 	if c.Geocoding.RequestIntervalSeconds < 0 || c.Geocoding.RequestIntervalSeconds > 86400 {
-		return fmt.Errorf("location request interval must be between 0 and 86400 seconds")
+		return InvalidField("geocoding.request_interval_seconds", "interval", "Enter an integer between 0 and 86400 seconds.")
 	}
-	if c.Geocoding.AfterOp < 0 || len(c.Geocoding.Endpoint) > 2048 {
+	if c.Geocoding.AfterOp < 0 {
 		return fmt.Errorf("invalid geocoding settings")
 	}
-	if err := geocode.ValidateEndpoint(c.Geocoding.Endpoint); err != nil {
-		return err
+	if err := geocode.ValidateEndpoint(c.Geocoding.Endpoint); err != nil || len(c.Geocoding.Endpoint) > 2048 {
+		return InvalidField("geocoding.endpoint", "endpoint", "Enter an HTTP(S) endpoint without credentials, query or fragment.")
 	}
-	if len(c.AIOptions.Model) > 200 || len(c.AIOptions.ProxyURL) > 2048 || c.AIOptions.AfterOp < 0 || ((c.AIOptions.AutoFacts || c.AIOptions.AutoOCR || c.AIOptions.AutoDesc || c.AIOptions.AutoOrientation) && c.AIOptions.Model == "") || c.AIOptions.FactsAfterOp < 0 || c.AIOptions.DescAfterOp < 0 || c.AIOptions.OrientationAfterOp < 0 {
+	if len(c.AIOptions.Model) > 200 {
+		return InvalidField("ai_options.model", "text_length", "Model identifier must be at most 200 bytes.")
+	}
+	if (c.AIOptions.AutoFacts || c.AIOptions.AutoOCR || c.AIOptions.AutoDesc || c.AIOptions.AutoOrientation) && c.AIOptions.Model == "" {
+		return InvalidField("ai_options.model", "model_required", "Choose a model before enabling automatic AI tasks.")
+	}
+	if c.AIOptions.AfterOp < 0 || c.AIOptions.FactsAfterOp < 0 || c.AIOptions.DescAfterOp < 0 || c.AIOptions.OrientationAfterOp < 0 {
 		return fmt.Errorf("invalid AI options")
 	}
-	if _, err := ai.HTTPClient(c.AIOptions.ProxyURL, time.Second); err != nil {
-		return err
+	if _, err := ai.HTTPClient(c.AIOptions.ProxyURL, time.Second); err != nil || len(c.AIOptions.ProxyURL) > 2048 {
+		return InvalidField("ai_options.proxy_url", "proxy", "Enter a supported HTTP(S) or SOCKS proxy URL.")
 	}
 
 	if c.Mode != "library" && c.Mode != "client" {
 		return fmt.Errorf("unknown instance mode")
 	}
 	if !slices.Contains([]string{"gray", "green", "yellow", "pink", "blue", "orange"}, c.Appearance.PrimaryColor) {
-		return fmt.Errorf("invalid primary color")
+		return InvalidField("appearance.primary_color", "choice", "Choose one of the available values.")
 	}
 	if c.Version >= 2 && c.Library.Timezone == "" {
-		return fmt.Errorf("library timezone cannot be empty; omit it to use %s", defaultTimezone)
+		return InvalidField("library.timezone", "timezone", "Enter an IANA timezone, such as Asia/Shanghai.")
 	}
 	if _, err := c.Library.Zone(); err != nil {
-		return err
+		return InvalidField("library.timezone", "timezone", "Enter an IANA timezone, such as Asia/Shanghai.")
 	}
 	if c.Mode == "client" {
 		seenNodes := map[domain.ID]bool{c.Client.ID: true}
@@ -171,42 +183,57 @@ func (c *Config) Validate() error {
 		}
 	}
 	age, err := ParseCacheMaxAge(c.Client.CacheMaxAge)
-	if err != nil || age <= 0 || c.Client.CacheMaxBytes <= 0 {
-		return fmt.Errorf("invalid cache limits")
+	if err != nil || age <= 0 {
+		return InvalidField("client.cache_max_age", "duration", "Enter a positive duration, such as 180d.")
+	}
+	if c.Client.CacheMaxBytes <= 0 {
+		return InvalidField("client.cache_max_bytes", "size", "Enter a positive size.")
 	}
 	host, port, err := net.SplitHostPort(c.Server.Listen)
 	portNumber, portErr := strconv.Atoi(port)
 	if err != nil || portErr != nil || portNumber <= 0 || portNumber > 65535 {
-		return fmt.Errorf("invalid listen address")
+		return InvalidField("server.listen", "listen", "Enter a host and port, such as 127.0.0.1:8473.")
 	}
-	if c.Server.MaxUploadBytes <= 0 || c.Server.MaxUploadFiles <= 0 {
-		return fmt.Errorf("upload limits must be positive")
+	if c.Server.MaxUploadBytes <= 0 {
+		return InvalidField("server.max_upload_bytes", "size", "Enter a positive size.")
+	}
+	if c.Server.MaxUploadFiles <= 0 {
+		return InvalidField("server.max_upload_files", "integer", "Enter a positive integer.")
 	}
 	if len(c.Server.AllowedOrigins) == 0 && host != "localhost" && (net.ParseIP(host) == nil || !net.ParseIP(host).IsLoopback()) {
-		return fmt.Errorf("non-loopback listening requires allowed_origins")
+		return InvalidField("server.allowed_origins", "origins_required", "Specify allowed origins for non-loopback listening.")
 	}
 	for _, raw := range c.Server.AllowedOrigins {
 		u, err := url.Parse(raw)
 		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") || strings.Contains(u.Host, "*") {
-			return fmt.Errorf("invalid allowed origin")
+			return InvalidField("server.allowed_origins", "origin", "Enter HTTP(S) origins without credentials, path, query, fragment or wildcards.")
 		}
 	}
 	if c.Server.MapStyle == "" {
-		return fmt.Errorf("map style cannot be empty")
+		return InvalidField("server.map_style", "required", "Map style URL is required.")
 	}
-	for _, raw := range append([]string{c.Server.MapStyle, c.Server.MapTerrainTiles}, c.Server.MapResourceOrigins...) {
-		if raw == "" {
-			continue
-		}
-		u, err := url.Parse(raw)
-		if err != nil || u.User != nil || u.Fragment != "" || strings.ContainsAny(raw, "\r\n\t ;'\"\\") {
-			return fmt.Errorf("invalid map URL")
-		}
-		if u.Host == "" && strings.HasPrefix(raw, "/") && !strings.HasPrefix(raw, "//") {
-			continue
-		}
-		if (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || strings.ContainsAny(u.Host, "*{}") {
-			return fmt.Errorf("invalid map URL")
+	for _, item := range []struct {
+		field  string
+		values []string
+	}{
+		{"server.map_style", []string{c.Server.MapStyle}},
+		{"server.map_terrain_tiles", []string{c.Server.MapTerrainTiles}},
+		{"server.map_resource_origins", c.Server.MapResourceOrigins},
+	} {
+		for _, raw := range item.values {
+			if raw == "" {
+				continue
+			}
+			u, err := url.Parse(raw)
+			if err != nil || u.User != nil || u.Fragment != "" || strings.ContainsAny(raw, "\r\n\t ;'\"\\") {
+				return InvalidField(item.field, "map_url", "Enter an HTTP(S) URL or a local absolute path without credentials or fragments.")
+			}
+			if u.Host == "" && strings.HasPrefix(raw, "/") && !strings.HasPrefix(raw, "//") {
+				continue
+			}
+			if (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || strings.ContainsAny(u.Host, "*{}") {
+				return InvalidField(item.field, "map_url", "Enter an HTTP(S) URL or a local absolute path without credentials or fragments.")
+			}
 		}
 	}
 	seen := map[string]bool{}

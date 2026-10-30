@@ -3764,6 +3764,16 @@ main.upload-drag-active {
   opacity: 1;
   pointer-events: auto;
 }
+.floating-feedback {
+  position: fixed;
+  inset-block-start: var(--mantine-spacing-md);
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  z-index: calc(var(--mantine-z-index-modal) + 1);
+  inline-size: max-content;
+  max-inline-size: calc(100vw - 2 * var(--mantine-spacing-md));
+  box-shadow: var(--mantine-shadow-md);
+}
 .pointer-anchor {
   position: fixed;
   width: 1px;

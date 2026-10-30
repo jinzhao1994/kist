@@ -207,6 +207,30 @@ export const en = {
   settingPreviewCacheAge: "Thumbnail and preview retention",
   settingPreviewCacheBytes: "Thumbnail and preview cache size limit",
   settingNoLimit: "No limit",
+  settingInvalidDuration: "Enter a positive duration, such as 30d or 1h30m.",
+  settingInvalidSize: "Enter a positive size, such as 32 GB or 32 GiB.",
+  settingInvalidInteger: "Enter a positive integer.",
+  settingInvalidLanguage: "Enter a language tag, such as zh-CN or en.",
+  settingInvalidTimezone: "Enter an IANA timezone, such as Asia/Shanghai.",
+  settingInvalidListen: "Enter a host and port, such as 127.0.0.1:8473.",
+  settingInvalidOrigin:
+    "Use HTTP(S) origins without credentials, paths, queries, fragments or wildcards.",
+  settingOriginsRequired:
+    "Specify allowed access URLs for non-loopback listening.",
+  settingInvalidMapURL:
+    "Use an HTTP(S) URL or a local absolute path, without credentials or fragments.",
+  settingInvalidEndpoint:
+    "Use an HTTP(S) endpoint without credentials, queries or fragments.",
+  settingInvalidProxy: "Use a valid HTTP(S) or SOCKS proxy URL.",
+  settingModelRequired: "Choose a model before enabling automatic AI tasks.",
+  settingInvalidChoice: "Choose one of the available values.",
+  settingInvalidLinkMode:
+    "This projection method is unavailable on the current filesystem.",
+  settingInvalidInterval: "Enter an integer between 0 and 86400 seconds.",
+  settingRequired: "This value is required.",
+  settingInvalidList: "Enter one text value per line.",
+  settingInvalidText: "Enter text.",
+  settingInvalidValue: "Check this value’s type, length and range.",
   settingCacheAgeHint:
     "Measured since last access. Use 30d for 30 days, or choose No limit to disable expiry. The size limit can still evict cached content.",
   settingCacheBytesHint:
@@ -1235,6 +1259,26 @@ export const zh: Record<MessageKey, string> = {
   settingPreviewCacheAge: "缩略图与预览保留时间",
   settingPreviewCacheBytes: "缩略图与预览容量上限",
   settingNoLimit: "不限制",
+  settingInvalidDuration: "请输入有效的正数时长，例如 30d 或 1h30m。",
+  settingInvalidSize: "请输入有效的正数容量，例如 32 GB 或 32 GiB。",
+  settingInvalidInteger: "请输入正整数。",
+  settingInvalidLanguage: "请输入有效的语言标记，例如 zh-CN 或 en。",
+  settingInvalidTimezone: "请输入有效的 IANA 时区，例如 Asia/Shanghai。",
+  settingInvalidListen: "请输入有效的监听地址和端口，例如 127.0.0.1:8473。",
+  settingInvalidOrigin:
+    "请输入 HTTP(S) 来源地址，不含账号、路径、查询参数、片段或通配符。",
+  settingOriginsRequired: "监听非本机地址时，请指定允许使用的访问网址。",
+  settingInvalidMapURL: "请输入 HTTP(S) 网址或本地绝对路径，不含账号或片段。",
+  settingInvalidEndpoint: "请输入 HTTP(S) 接口地址，不含账号、查询参数或片段。",
+  settingInvalidProxy: "请输入有效的 HTTP(S) 或 SOCKS 代理地址。",
+  settingModelRequired: "启用自动 AI 任务前，请先选择模型。",
+  settingInvalidChoice: "请选择可用的选项。",
+  settingInvalidLinkMode: "当前文件系统不支持此文件投影方式。",
+  settingInvalidInterval: "请输入 0 到 86400 之间的整数秒数。",
+  settingRequired: "请填写此项。",
+  settingInvalidList: "请输入文本列表，每行一项。",
+  settingInvalidText: "请输入文本。",
+  settingInvalidValue: "请检查此项的格式、长度或取值范围。",
   settingCacheAgeHint:
     "从最近访问起计算，例如 30d 表示 30 天；选择“不限制”可关闭按时间清理，容量上限仍可能触发清理。",
   settingCacheBytesHint:

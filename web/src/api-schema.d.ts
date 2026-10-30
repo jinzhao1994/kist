@@ -2209,6 +2209,7 @@ export interface components {
             class: string;
             code: string;
             existing_id?: string;
+            fields?: components["schemas"]["SettingFieldError"][] | null;
             holder?: string;
             message: string;
             /** Format: int64 */
@@ -2616,6 +2617,11 @@ export interface components {
             /** Format: int64 */
             op_id?: number;
             session?: components["schemas"]["UploadState"];
+        };
+        SettingFieldError: {
+            code: string;
+            field: string;
+            message: string;
         };
         SettingsInputBody: {
             ai?: components["schemas"]["OCRSettings"];

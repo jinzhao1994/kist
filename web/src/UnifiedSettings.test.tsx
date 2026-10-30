@@ -165,12 +165,7 @@ it("saves all configuration drafts through the page toolbar in one request", asy
     name: "Request interval (seconds)",
   });
   await user.clear(interval);
-  expect(saveButton).toBeDisabled();
-  await user.hover(saveHint);
-  expect(await screen.findByRole("tooltip")).toHaveTextContent(
-    "Correct invalid settings first",
-  );
-  await user.unhover(saveHint);
+  expect(saveButton).toBeEnabled();
   await user.type(interval, "7");
   expect(saveButton).toBeEnabled();
   await user.hover(saveHint);

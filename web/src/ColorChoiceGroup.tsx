@@ -7,17 +7,25 @@ export function ColorChoiceGroup({
   label,
   value,
   disabled,
+  error,
   onChange,
 }: {
   id: string;
   label: string;
   value: string;
   disabled: boolean;
+  error?: string;
   onChange: (value: string) => void;
 }) {
   const { t } = useI18n();
   return (
-    <Radio.Group id={id} aria-label={label} value={value} onChange={onChange}>
+    <Radio.Group
+      id={id}
+      aria-label={label}
+      value={value}
+      onChange={onChange}
+      error={error}
+    >
       <div className="color-choices">
         {colors.map((color) => (
           <Radio.Card

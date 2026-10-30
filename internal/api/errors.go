@@ -4,18 +4,36 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/jinzhao1994/kist/internal/config"
 	"github.com/jinzhao1994/kist/internal/errcodes"
 	"github.com/jinzhao1994/kist/internal/wire"
 )
 
-// HTTPError preserves the same machine-readable error fields as the CLI.
+// HTTPError preserves the CLI error envelope and adds settings field context.
 type ErrorFields = wire.Error
 
 type HTTPError struct {
 	ErrorFields
-	Status int `json:"-"`
+	Status int                 `json:"-"`
+	Fields []SettingFieldError `json:"fields,omitempty"`
+}
+
+// SettingFieldError carries a safe reason without echoing submitted values.
+type SettingFieldError struct {
+	Field   string `json:"field"`
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+func settingsFailure(err error) error {
+	var field *config.FieldError
+	if errors.As(err, &field) {
+		return &HTTPError{Status: 400, ErrorFields: wire.Error{Code: "invalid_request", Class: "invalid", Message: "Invalid settings; correct the indicated field."}, Fields: []SettingFieldError{{Field: field.Field, Code: field.Code, Message: field.Message}}}
+	}
+	return invalid("Invalid settings; check the values and reload the configuration.")
 }
 
 func (e *HTTPError) Error() string  { return e.Message }
@@ -24,7 +42,7 @@ func (e *HTTPError) GetStatus() int { return e.Status }
 func init() {
 	// Huma's documented error factory also covers decoding and validation.
 	// Install once, not in New: creating multiple servers must not mutate globals.
-	huma.NewError = func(status int, message string, _ ...error) huma.StatusError {
+	huma.NewError = func(status int, message string, details ...error) huma.StatusError {
 		code, class := "invalid_request", "invalid"
 		switch {
 		case status >= 500:
@@ -42,7 +60,25 @@ func init() {
 		case status == 415:
 			code = "unsupported_media_type"
 		}
-		return &HTTPError{ErrorFields: wire.Error{Code: code, Class: class, Message: message}, Status: status}
+		out := &HTTPError{ErrorFields: wire.Error{Code: code, Class: class, Message: message}, Status: status}
+		for _, err := range details {
+			var detail huma.ErrorDetailer
+			if !errors.As(err, &detail) {
+				continue
+			}
+			location := detail.ErrorDetail().Location
+			field := ""
+			for _, pair := range [][2]string{{"body.ai.", "ai_options."}, {"body.location.", "geocoding."}, {"body.changes.", ""}} {
+				if strings.HasPrefix(location, pair[0]) {
+					field = pair[1] + strings.TrimPrefix(location, pair[0])
+					break
+				}
+			}
+			if field != "" {
+				out.Fields = append(out.Fields, SettingFieldError{Field: field, Code: "value", Message: "Check the value's type, length and range."})
+			}
+		}
+		return out
 	}
 }
 

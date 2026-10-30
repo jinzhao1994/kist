@@ -4,12 +4,16 @@ import {
   SettingsFieldHeading,
   SettingsReset,
   hasSettingChange,
+  SettingsErrorsContext,
+  useSettingsError,
+  type SettingsErrors,
   type SettingsSectionDraft,
 } from "./SettingsFields";
 import { LocationSettings } from "./LocationSettings";
 import { StorageUsageValues } from "./StorageUsageValues";
 import { ColorChoiceGroup } from "./ColorChoiceGroup";
 import { CacheLimitInput } from "./CacheLimitInput";
+import { FloatingFeedback } from "./FloatingFeedback";
 import { AIConnection } from "./AI";
 import { EmptyHint } from "./EmptyHint";
 import { HelpTooltip } from "./HelpTooltip";
@@ -123,16 +127,25 @@ export function InstanceSettings({
   const [reloadVersion, setReloadVersion] = useState(0);
   const unsaved =
     Object.keys(changes).length > 0 || !!aiDraft || !!locationDraft;
-  const valid = (aiDraft?.valid ?? true) && (locationDraft?.valid ?? true);
   const [busy, setBusy] = useState(false);
-  const saveHint = busy
-    ? ""
-    : !valid
-      ? t("settingsSaveInvalid")
-      : !unsaved
-        ? t("settingsSaveNoChanges")
-        : "";
+  const saveHint = busy ? "" : !unsaved ? t("settingsSaveNoChanges") : "";
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<SettingsErrors>({});
+  useEffect(() => {
+    const first = Object.keys(fieldErrors)[0];
+    if (!first) return;
+    Array.from(document.querySelectorAll<HTMLElement>("[data-setting-field]"))
+      .find((element) => element.dataset.settingField === first)
+      ?.scrollIntoView({ block: "center" });
+  }, [fieldErrors]);
+  const [dismissedQueryError, setDismissedQueryError] = useState<unknown>();
+  const clearFieldError = (key: string) =>
+    setFieldErrors((old) => {
+      if (!old[key]) return old;
+      const next = { ...old };
+      delete next[key];
+      return next;
+    });
   const [notice, setNotice] = useState("");
   const [leaving, setLeaving] = useState(false);
   const pendingNavigation = useRef<NavigationTransition | null>(null);
@@ -232,16 +245,24 @@ export function InstanceSettings({
     active.current = controller;
     setBusy(true);
     setError("");
+    setFieldErrors({});
     setNotice("");
     try {
       await command(controller.signal);
     } catch (err) {
-      if (!controller.signal.aborted)
+      if (!controller.signal.aborted) {
+        if (err instanceof APIError && err.body.fields)
+          setFieldErrors(
+            Object.fromEntries(
+              err.body.fields.map((field) => [field.field, field]),
+            ),
+          );
         setError(
           err instanceof APIError && err.status === 409
             ? t("settingsConflict")
             : errorMessage(err, t),
         );
+      }
     } finally {
       active.current = null;
       setBusy(false);
@@ -250,6 +271,7 @@ export function InstanceSettings({
   const reload = async (signal?: AbortSignal) => {
     const value = await loadSettingsPage(queries, signal, true);
     setSnapshot(value);
+    setFieldErrors({});
     setChanges({});
     setAIDraft(null);
     setLocationDraft(null);
@@ -333,7 +355,11 @@ export function InstanceSettings({
                 : field.value;
               const overridden = (snapshot.overrides || []).includes(field.key);
               return (
-                <div key={field.key} className="setting-field">
+                <div
+                  key={field.key}
+                  className="setting-field"
+                  data-setting-field={field.key}
+                >
                   <SettingInput
                     field={field}
                     value={value}
@@ -351,17 +377,19 @@ export function InstanceSettings({
                             ? draftChanges[field.key] === null
                             : !field.explicit)
                         }
-                        onReset={() =>
-                          setChanges((old) => ({ ...old, [field.key]: null }))
-                        }
+                        onReset={() => {
+                          clearFieldError(field.key);
+                          setChanges((old) => ({ ...old, [field.key]: null }));
+                        }}
                       />
                     }
-                    change={(value) =>
+                    change={(value) => {
+                      clearFieldError(field.key);
                       setChanges((old) => ({
                         ...old,
                         [field.key]: value,
-                      }))
-                    }
+                      }));
+                    }}
                   />
                   {overridden && (
                     <div className="setting-field-footer">
@@ -387,209 +415,220 @@ export function InstanceSettings({
     );
   }
   return (
-    <section
-      aria-label={t("instanceSettings")}
-      style={
-        { "--section-top-offset": `${headerHeight + 40}px` } as CSSProperties
-      }
+    <SettingsErrorsContext.Provider
+      value={{ errors: fieldErrors, clear: clearFieldError }}
     >
-      <header ref={headerRef} className="page-header settings-page-header">
-        <div>
-          <h1>{t("instanceSettings")}</h1>
-        </div>
-        <Group className="header-actions">
-          <Button
-            disabled={busy}
-            onClick={() => run((signal) => reload(signal))}
-          >
-            {t("settingsReload")}
-          </Button>
-          <FullTextTooltip text={saveHint} disabled={!saveHint}>
-            <span
-              className="tooltip-target mantine-focus-auto"
-              tabIndex={saveHint ? 0 : undefined}
+      <section
+        aria-label={t("instanceSettings")}
+        style={
+          { "--section-top-offset": `${headerHeight + 40}px` } as CSSProperties
+        }
+      >
+        <header ref={headerRef} className="page-header settings-page-header">
+          <div>
+            <h1>{t("instanceSettings")}</h1>
+          </div>
+          <Group className="header-actions">
+            <Button
+              disabled={busy}
+              onClick={() => run((signal) => reload(signal))}
             >
-              <Button
-                variant="filled"
-                loading={busy}
-                disabled={!unsaved || !valid}
-                onClick={() => void save()}
+              {t("settingsReload")}
+            </Button>
+            <FullTextTooltip text={saveHint} disabled={!saveHint}>
+              <span
+                className="tooltip-target mantine-focus-auto"
+                tabIndex={saveHint ? 0 : undefined}
               >
-                {t("save")}
-              </Button>
-            </span>
-          </FullTextTooltip>
-        </Group>
-      </header>
-      <div className="instance-settings-content">
-        {query.isPending && !snapshot && (
-          <Text role="status">{t("loading")}</Text>
-        )}
-        {(error || query.error) && (
-          <Alert color="red" role="alert">
-            {error || errorMessage(query.error, t)}
-          </Alert>
-        )}
-        {notice && (
-          <Text role="status" size="sm">
-            {notice}
-          </Text>
-        )}
-        {snapshot && (
-          <>
-            <SectionIndex
-              ready={headerHeight > 0}
-              items={[
-                { id: "settings-appearance", label: t("settingAppearance") },
-                { id: "settings-storage", label: t("settingStorage") },
-                { id: "settings-service", label: t("settingService") },
-                ...(snapshot.mode === "client"
-                  ? [{ id: "settings-maps", label: t("settingMaps") }]
-                  : []),
-                ...(snapshot.mode === "client"
-                  ? [
-                      {
-                        id: "settings-connection",
-                        label: t("clientConnection"),
-                      },
-                    ]
-                  : []),
-                { id: "settings-access", label: t("settingCredentials") },
-                ...(snapshot.mode === "library"
-                  ? [
-                      { id: "settings-ai", label: t("aiConnection") },
-                      { id: "settings-location", label: t("geoTitle") },
-                      { id: "settings-maps", label: t("settingMaps") },
-                      {
-                        id: "settings-background-tasks",
-                        label: t("backgroundTasks"),
-                      },
-                    ]
-                  : []),
-              ]}
-            >
-              {["appearance", "storage", "service"].map(renderGroup)}
-              {snapshot.mode === "client" && renderGroup("maps")}
-              {snapshot.mode === "client" && (
-                <section
-                  id="settings-connection"
-                  className="flat-page-section"
-                  aria-labelledby="settings-connection-title"
+                <Button
+                  variant="filled"
+                  loading={busy}
+                  disabled={!unsaved}
+                  onClick={() => void save()}
                 >
-                  <h2 id="settings-connection-title">
-                    {t("clientConnection")}
+                  {t("save")}
+                </Button>
+              </span>
+            </FullTextTooltip>
+          </Group>
+        </header>
+        <div className="instance-settings-content">
+          {query.isPending && !snapshot && (
+            <Text role="status">{t("loading")}</Text>
+          )}
+          {(error || (query.error && query.error !== dismissedQueryError)) && (
+            <FloatingFeedback
+              message={error || errorMessage(query.error, t)}
+              onClose={() => {
+                setError("");
+                setDismissedQueryError(query.error);
+              }}
+            />
+          )}
+          {notice && !unsaved && (
+            <Text role="status" size="sm">
+              {notice}
+            </Text>
+          )}
+          {snapshot && (
+            <>
+              <SectionIndex
+                ready={headerHeight > 0}
+                items={[
+                  { id: "settings-appearance", label: t("settingAppearance") },
+                  { id: "settings-storage", label: t("settingStorage") },
+                  { id: "settings-service", label: t("settingService") },
+                  ...(snapshot.mode === "client"
+                    ? [{ id: "settings-maps", label: t("settingMaps") }]
+                    : []),
+                  ...(snapshot.mode === "client"
+                    ? [
+                        {
+                          id: "settings-connection",
+                          label: t("clientConnection"),
+                        },
+                      ]
+                    : []),
+                  { id: "settings-access", label: t("settingCredentials") },
+                  ...(snapshot.mode === "library"
+                    ? [
+                        { id: "settings-ai", label: t("aiConnection") },
+                        { id: "settings-location", label: t("geoTitle") },
+                        { id: "settings-maps", label: t("settingMaps") },
+                        {
+                          id: "settings-background-tasks",
+                          label: t("backgroundTasks"),
+                        },
+                      ]
+                    : []),
+                ]}
+              >
+                {["appearance", "storage", "service"].map(renderGroup)}
+                {snapshot.mode === "client" && renderGroup("maps")}
+                {snapshot.mode === "client" && (
+                  <section
+                    id="settings-connection"
+                    className="flat-page-section"
+                    aria-labelledby="settings-connection-title"
+                  >
+                    <h2 id="settings-connection-title">
+                      {t("clientConnection")}
+                    </h2>
+                    {Object.keys(changes).length > 0 && (
+                      <Text size="sm" c="dimmed" mb="md">
+                        {t("settingsPending")}
+                      </Text>
+                    )}
+                    {snapshot.mode === "client" && (
+                      <ConnectionSettings
+                        key={snapshot.revision}
+                        settings={snapshot}
+                        busy={busy || unsaved}
+                        run={run}
+                        saved={reload}
+                      />
+                    )}
+                  </section>
+                )}
+                <section
+                  id="settings-access"
+                  className="flat-page-section"
+                  aria-labelledby="settings-access-title"
+                >
+                  <h2
+                    id="settings-access-title"
+                    className="settings-section-heading"
+                  >
+                    {t("settingCredentials")}
+                    <HelpTooltip label={t("settingCredentials")}>
+                      {t("settingCredentialsHint")}
+                    </HelpTooltip>
                   </h2>
                   {Object.keys(changes).length > 0 && (
                     <Text size="sm" c="dimmed" mb="md">
                       {t("settingsPending")}
                     </Text>
                   )}
-                  {snapshot.mode === "client" && (
-                    <ConnectionSettings
-                      key={snapshot.revision}
-                      settings={snapshot}
-                      busy={busy || unsaved}
-                      run={run}
-                      saved={reload}
-                    />
-                  )}
+                  <Credentials
+                    busy={busy || unsaved}
+                    run={run}
+                    saved={reload}
+                  />
                 </section>
-              )}
-              <section
-                id="settings-access"
-                className="flat-page-section"
-                aria-labelledby="settings-access-title"
-              >
-                <h2
-                  id="settings-access-title"
-                  className="settings-section-heading"
-                >
-                  {t("settingCredentials")}
-                  <HelpTooltip label={t("settingCredentials")}>
-                    {t("settingCredentialsHint")}
-                  </HelpTooltip>
-                </h2>
-                {Object.keys(changes).length > 0 && (
-                  <Text size="sm" c="dimmed" mb="md">
-                    {t("settingsPending")}
-                  </Text>
+                {snapshot.mode === "library" && (
+                  <AIConnection
+                    onPendingChange={setAIPending}
+                    disabled={busy}
+                    configurationPending={unsaved}
+                    onDraftChange={setAIDraft}
+                    reloadVersion={reloadVersion}
+                    onChanged={async () => {
+                      if (Object.keys(changes).length === 0)
+                        await run(async (signal) => reload(signal));
+                    }}
+                  />
                 )}
-                <Credentials busy={busy || unsaved} run={run} saved={reload} />
-              </section>
-              {snapshot.mode === "library" && (
-                <AIConnection
-                  onPendingChange={setAIPending}
+                {snapshot.mode === "library" && (
+                  <LocationSettings
+                    onPendingChange={setLocationPending}
+                    onDraftChange={setLocationDraft}
+                    reloadVersion={reloadVersion}
+                    disabled={busy}
+                  />
+                )}
+                {snapshot.mode === "library" && renderGroup("maps")}
+                {snapshot.mode === "library" && (
+                  <BackgroundTasks
+                    disabled={busy || unsaved}
+                    aiPending={aiPending}
+                    locationPending={locationPending}
+                  />
+                )}
+              </SectionIndex>
+            </>
+          )}
+        </div>
+        <DialogPresence>
+          {leaving && (
+            <Dialog
+              open
+              title={t("settingsUnsavedTitle")}
+              description={t("settingsUnsavedDescription")}
+              onOpenChange={(open) => {
+                if (!open) continueEditing();
+              }}
+              size="md"
+            >
+              <div className="actions">
+                <Button
+                  data-autofocus
                   disabled={busy}
-                  configurationPending={unsaved}
-                  onDraftChange={setAIDraft}
-                  reloadVersion={reloadVersion}
-                  onChanged={async () => {
-                    if (Object.keys(changes).length === 0)
-                      await run(async (signal) => reload(signal));
+                  onClick={continueEditing}
+                >
+                  {t("settingsContinueEditing")}
+                </Button>
+                <Button disabled={busy} onClick={() => leave()}>
+                  {t("settingsDiscardLeave")}
+                </Button>
+                <Button
+                  variant="filled"
+                  loading={busy}
+                  disabled={busy}
+                  onClick={async () => {
+                    const reloadDocument = Object.keys(changes).some((key) =>
+                      key.startsWith("server.map_"),
+                    );
+                    if (await save(true)) leave(reloadDocument);
                   }}
-                />
-              )}
-              {snapshot.mode === "library" && (
-                <LocationSettings
-                  onPendingChange={setLocationPending}
-                  onDraftChange={setLocationDraft}
-                  reloadVersion={reloadVersion}
-                  disabled={busy}
-                />
-              )}
-              {snapshot.mode === "library" && renderGroup("maps")}
-              {snapshot.mode === "library" && (
-                <BackgroundTasks
-                  disabled={busy || unsaved}
-                  aiPending={aiPending}
-                  locationPending={locationPending}
-                />
-              )}
-            </SectionIndex>
-          </>
-        )}
-      </div>
-      <DialogPresence>
-        {leaving && (
-          <Dialog
-            open
-            title={t("settingsUnsavedTitle")}
-            description={t("settingsUnsavedDescription")}
-            onOpenChange={(open) => {
-              if (!open) continueEditing();
-            }}
-            size="md"
-          >
-            {error && (
-              <Alert color="red" role="alert">
-                {error}
-              </Alert>
-            )}
-            <div className="actions">
-              <Button data-autofocus disabled={busy} onClick={continueEditing}>
-                {t("settingsContinueEditing")}
-              </Button>
-              <Button disabled={busy} onClick={() => leave()}>
-                {t("settingsDiscardLeave")}
-              </Button>
-              <Button
-                variant="filled"
-                loading={busy}
-                disabled={busy || !valid}
-                onClick={async () => {
-                  const reloadDocument = Object.keys(changes).some((key) =>
-                    key.startsWith("server.map_"),
-                  );
-                  if (await save(true)) leave(reloadDocument);
-                }}
-              >
-                {t("settingsSaveLeave")}
-              </Button>
-            </div>
-          </Dialog>
-        )}
-      </DialogPresence>
-    </section>
+                >
+                  {t("settingsSaveLeave")}
+                </Button>
+              </div>
+            </Dialog>
+          )}
+        </DialogPresence>
+      </section>
+    </SettingsErrorsContext.Provider>
   );
 }
 function StorageUsage({ canClearVideo }: { canClearVideo: boolean }) {
@@ -729,12 +768,14 @@ function SettingControl({
 }) {
   const { t } = useI18n();
   const label = labels[field.key] ? t(labels[field.key]) : field.key;
+  const error = useSettingsError(field.key);
   if (field.unlimited)
     return (
       <CacheLimitInput
         id={id}
         label={label}
         disabled={disabled}
+        error={error}
         value={
           typeof value === "number" ? editableBytes(value) : String(value ?? "")
         }
@@ -749,6 +790,7 @@ function SettingControl({
         value={String(value)}
         onChange={change}
         disabled={disabled}
+        error={error}
       />
     );
   if (field.kind === "select")
@@ -763,6 +805,7 @@ function SettingControl({
           value,
           label: value || t("auto"),
         }))}
+        error={error}
       />
     );
   if (field.kind === "bytes")
@@ -775,6 +818,7 @@ function SettingControl({
         }
         onChange={(e) => change(e.currentTarget.value)}
         disabled={disabled}
+        error={error}
       />
     );
   if (field.kind === "integer")
@@ -785,8 +829,7 @@ function SettingControl({
         value={typeof value === "number" ? value : ""}
         onChange={change}
         disabled={disabled}
-        min={1}
-        max={Number.MAX_SAFE_INTEGER}
+        error={error}
         allowDecimal={false}
       />
     );
@@ -798,6 +841,7 @@ function SettingControl({
         value={Array.isArray(value) ? value.join("\n") : ""}
         onChange={(e) => change(e.currentTarget.value.split("\n"))}
         disabled={disabled}
+        error={error}
         autosize
         minRows={2}
       />
@@ -809,6 +853,7 @@ function SettingControl({
       aria-label={label}
       value={String(value ?? "")}
       disabled={disabled}
+      error={error}
       onChange={(e) => change(e.currentTarget.value)}
     />
   );

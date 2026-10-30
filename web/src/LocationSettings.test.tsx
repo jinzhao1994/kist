@@ -174,7 +174,7 @@ it("edits endpoint policy together without starting a lookup", async () => {
   await user.clear(input);
   expect(
     screen.getByRole("button", { name: "Save GPS settings" }),
-  ).toBeDisabled();
+  ).toBeEnabled();
   await user.type(input, "5");
   await user.click(pause);
   expect(writes).toHaveLength(0);

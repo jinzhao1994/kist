@@ -5,12 +5,49 @@ import {
   Text,
   type CheckboxProps,
 } from "@mantine/core";
-import { useEffect, type ReactNode } from "react";
-import { useI18n } from "./i18n";
+import { createContext, useContext, useEffect, type ReactNode } from "react";
+import { useI18n, type MessageKey } from "./i18n";
+import type { components } from "./api-schema";
 import { HelpTooltip } from "./HelpTooltip";
 import { FullTextTooltip } from "./FullTextTooltip";
 
-export type SettingsSectionDraft = { value: unknown; valid: boolean };
+export type SettingsSectionDraft = { value: unknown };
+export type SettingsErrors = Record<
+  string,
+  components["schemas"]["SettingFieldError"]
+>;
+export const SettingsErrorsContext = createContext<{
+  errors: SettingsErrors;
+  clear: (key: string) => void;
+}>({ errors: {}, clear: () => {} });
+
+// Only translate server failure codes here; validation rules live in Go.
+export function useSettingsError(field: string) {
+  const { t } = useI18n();
+  const { errors } = useContext(SettingsErrorsContext);
+  const error = errors[field];
+  const messages: Record<string, MessageKey> = {
+    duration: "settingInvalidDuration",
+    size: "settingInvalidSize",
+    integer: "settingInvalidInteger",
+    language: "settingInvalidLanguage",
+    timezone: "settingInvalidTimezone",
+    listen: "settingInvalidListen",
+    origin: "settingInvalidOrigin",
+    origins_required: "settingOriginsRequired",
+    map_url: "settingInvalidMapURL",
+    endpoint: "settingInvalidEndpoint",
+    proxy: "settingInvalidProxy",
+    model_required: "settingModelRequired",
+    choice: "settingInvalidChoice",
+    link_mode: "settingInvalidLinkMode",
+    interval: "settingInvalidInterval",
+    required: "settingRequired",
+    list: "settingInvalidList",
+    text: "settingInvalidText",
+  };
+  return error ? t(messages[error.code] || "settingInvalidValue") : undefined;
+}
 
 // Read metadata must not be echoed as writable configuration.
 export function settingsDraftValue<

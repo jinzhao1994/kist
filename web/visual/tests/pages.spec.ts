@@ -4260,8 +4260,24 @@ for (const scenario of [
             : [],
       }),
     );
-    await page.route("**/api/v1/settings", (route) =>
-      route.fulfill({
+    await page.route("**/api/v1/settings", (route) => {
+      if (scenario === "save-invalid" && route.request().method() === "PUT")
+        return route.fulfill({
+          status: 400,
+          json: {
+            code: "invalid_request",
+            class: "invalid",
+            message: "Invalid settings",
+            fields: [
+              {
+                field: "previews.cache_max_age",
+                code: "duration",
+                message: "Invalid duration",
+              },
+            ],
+          },
+        });
+      return route.fulfill({
         json: {
           revision: "visual",
           mode: client ? "client" : "library",
@@ -4273,8 +4289,8 @@ for (const scenario of [
           overrides: ["server.listen"],
           restart_required: ["server.listen"],
         },
-      }),
-    );
+      });
+    });
     if (scenario.startsWith("ai-")) {
       await page.route("**/api/v1/ai", (route) =>
         route.fulfill({
@@ -4336,21 +4352,33 @@ for (const scenario of [
     await expect(
       settings.getByRole("radio", { name: "蓝色", exact: true }),
     ).toBeChecked();
-    if (scenario === "save-hint" || scenario === "save-invalid") {
-      if (scenario === "save-invalid") {
-        await settings.getByRole("link", { name: "GPS", exact: true }).click();
-        await settings
-          .getByRole("textbox", { name: "请求间隔（秒）", exact: true })
-          .fill("");
-      }
+    if (scenario === "save-invalid") {
+      await settings.getByRole("link", { name: "存储", exact: true }).click();
+      const retention = settings.getByRole("combobox", {
+        name: "缩略图与预览保留时间",
+        exact: true,
+      });
+      await retention.fill("30da21");
+      await retention.press("Escape");
+      const save = settings.getByRole("button", { name: "保存", exact: true });
+      await expect(save).toBeEnabled();
+      await expect(retention).not.toHaveAttribute("aria-invalid", "true");
+      await save.click();
+      await expect(retention).toHaveAttribute("aria-invalid", "true");
+      await expect(page.getByRole("alert")).toHaveText(/请检查输入/);
+      await expect(
+        page
+          .getByRole("alert")
+          .getByRole("button", { name: "关闭", exact: true }),
+      ).toBeVisible();
+      await capture(page, errors, info.title);
+      return;
+    }
+    if (scenario === "save-hint") {
       const save = settings.getByRole("button", { name: "保存", exact: true });
       await expect(save).toBeDisabled();
       await save.locator("..").hover();
-      await expect(page.getByRole("tooltip")).toHaveText(
-        scenario === "save-invalid"
-          ? "请先修正无效的配置项"
-          : "没有未保存的修改",
-      );
+      await expect(page.getByRole("tooltip")).toHaveText("没有未保存的修改");
       await capture(page, errors, info.title);
       return;
     }
