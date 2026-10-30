@@ -4314,11 +4314,15 @@ for (const scenario of [
       await expect(
         defaultField.getByRole("button", { name: "恢复默认", exact: true }),
       ).toHaveCount(0);
+      const inherited = defaultField.locator(".setting-source--default");
+      await expect(inherited).toHaveCSS("opacity", "0");
       await defaultField.hover();
+      await expect(inherited).toHaveCSS("opacity", "1");
       await expect(
         defaultField.getByText("已跟随默认", { exact: true }),
       ).toBeVisible();
       await page.mouse.move(0, 0);
+      await expect(inherited).toHaveCSS("opacity", "0");
       await expect(field.locator(".setting-reset")).toHaveCSS("opacity", "0");
       await expect(specified).toBeVisible();
       await expect(

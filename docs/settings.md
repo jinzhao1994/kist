@@ -16,7 +16,7 @@ changes the draft until you save. GPS automatic lookup resets to on, pause on
 failure to on, and the interval to 2 seconds; AI automatic extraction resets to
 off. Explicit settings show a theme-colored **Explicitly set** marker, even when
 they equal the current default. Inherited settings show a gray **Following defaults**
-marker without a reset action. Explicit settings offer reset controls on hover or
+marker on hover or keyboard focus, without a reset action; it remains visible on touch devices. Explicit settings offer reset controls on hover or
 keyboard focus; these remain visible on touch devices. Version 3
 makes a missing GPS automatic flag follow the current default. Older configurations
 are upgraded by pinning their previous effective flag, so upgrading never enables

@@ -3532,12 +3532,15 @@ main.upload-drag-active {
   color: var(--mantine-color-dimmed);
 }
 @media (hover: hover) and (pointer: fine) {
-  .setting-reset {
+  .setting-reset,
+  .setting-source--default {
     opacity: 0;
     pointer-events: none;
   }
   .setting-field:hover .setting-reset,
-  .setting-field:focus-within .setting-reset {
+  .setting-field:focus-within .setting-reset,
+  .setting-field:hover .setting-source--default,
+  .setting-field:focus-within .setting-source--default {
     opacity: 1;
     pointer-events: auto;
   }
