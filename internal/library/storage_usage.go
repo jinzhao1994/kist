@@ -2,12 +2,15 @@ package library
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"math"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/jinzhao1994/kist/internal/derive"
 )
 
 // StorageUsage measures local file lengths, not allocated or shared filesystem
@@ -17,10 +20,11 @@ type StorageUsage struct {
 	OriginalsBytes int64 `json:"originals_bytes"`
 	MetadataBytes  int64 `json:"metadata_bytes"`
 	PreviewsBytes  int64 `json:"previews_bytes"`
+	VideoBytes     int64 `json:"video_bytes"`
 }
 
 func (l *Library) StorageUsage(ctx context.Context) (StorageUsage, error) {
-	return measureStorage(ctx, l.layout.Root, false, nil)
+	return measureStorage(ctx, l.layout.Root, false, nil, nil)
 }
 
 func (c *Client) StorageUsage(ctx context.Context) (StorageUsage, error) {
@@ -32,17 +36,51 @@ func (c *Client) StorageUsage(ctx context.Context) (StorageUsage, error) {
 		return StorageUsage{}, err
 	}
 	_, previews, err := c.derivedRecordsLocked()
+	videos := map[string]bool{}
+	if err == nil {
+		videos, err = c.videoCacheKeys(ctx)
+	}
 	release()
 	if err != nil {
 		return StorageUsage{}, err
 	}
-	return measureStorage(ctx, c.root, true, previews)
+	return measureStorage(ctx, c.root, true, previews, videos)
 }
 
-func measureStorage(ctx context.Context, root string, client bool, previews map[string]int64) (StorageUsage, error) {
+func (c *Client) videoCacheKeys(ctx context.Context) (map[string]bool, error) {
+	db, err := c.runtimeStore()
+	if err != nil {
+		return nil, err
+	}
+	rows, err := db.DB.QueryContext(ctx, `SELECT content_key,outputs FROM cache_derivations WHERE recipe=?`, derive.Video)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	keys := map[string]bool{}
+	for rows.Next() {
+		var key, raw string
+		if err = rows.Scan(&key, &raw); err != nil {
+			return nil, err
+		}
+		if key != "" {
+			keys[key] = true
+		}
+		var outputs map[string]int64
+		if err = json.Unmarshal([]byte(raw), &outputs); err != nil {
+			return nil, err
+		}
+		for key := range outputs {
+			keys[key] = true
+		}
+	}
+	return keys, rows.Err()
+}
+
+func measureStorage(ctx context.Context, root string, client bool, previews map[string]int64, videos map[string]bool) (StorageUsage, error) {
 	var result StorageUsage
 	// Scanning only these roots avoids following user-facing projection links.
-	paths := []string{"blobs", "ops", "derived"}
+	paths := []string{"blobs", "ops", "derived", "transcodes"}
 	if client {
 		paths = []string{"local-blobs", "catalog", "pending", "cache/objects", "cache/derived"}
 	}
@@ -86,12 +124,23 @@ func measureStorage(ctx context.Context, root string, client bool, previews map[
 				target = &result.OriginalsBytes
 			case "derived":
 				target = &result.PreviewsBytes
+				if strings.HasSuffix(entry.Name(), ".mp4") {
+					target = &result.VideoBytes
+				}
+			case "transcodes":
+				target = &result.VideoBytes
+				if strings.HasSuffix(entry.Name(), ".lock") {
+					target = &result.MetadataBytes
+				}
 			case "cache/objects":
 				ext := filepath.Ext(entry.Name())
 				if ext == ".data" || ext == ".part" {
 					target = &result.OriginalsBytes
 					if _, ok := previews["sha256:"+strings.TrimSuffix(entry.Name(), ext)]; ok {
 						target = &result.PreviewsBytes
+					}
+					if videos["sha256:"+strings.TrimSuffix(entry.Name(), ext)] {
+						target = &result.VideoBytes
 					}
 				}
 			}

@@ -58,6 +58,7 @@ type Server struct {
 	library          *library.Library
 	client           *library.Client
 	media            *library.Media
+	video            *library.VideoPlayback
 	previews         mediaBackend
 	clientRenderer   library.ClientRenderer
 	mux              *http.ServeMux
@@ -144,11 +145,13 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 		s.savedSearchRoutes()
 		s.filesetRoutes()
 		s.media = l.Media()
+		s.video = l.VideoPlayback()
 		s.previews = nasMedia{s.media}
 		s.contentRoutes()
 		s.textRoutes()
 		s.sheetRoutes()
 		s.mediaRoutes()
+		s.videoRoutes()
 		s.uploadRoutes()
 		s.uploadSessionRoutes()
 		s.extractionRoutes()

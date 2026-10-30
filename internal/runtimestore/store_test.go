@@ -60,6 +60,33 @@ func TestDurabilityImportRollbackAndVersion(t *testing.T) {
 	}
 }
 
+func TestVersionOneUpgradePreservesLocalState(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "runtime.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.Exec(schema); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.Exec(`INSERT INTO service_limits VALUES('existing','retained'); PRAGMA user_version=1`); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	s, err := OpenExisting(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	var saved string
+	if err = s.DB.QueryRow(`SELECT next_at FROM service_limits WHERE service='existing'`).Scan(&saved); err != nil || saved != "retained" {
+		t.Fatal(saved, err)
+	}
+	if _, err = s.DB.Exec(`INSERT INTO video_segments VALUES('synthetic','hls_1080p_v1',0,188,'digest','now')`); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestIndexedRuntimeLookups(t *testing.T) {
 	s, err := Open(filepath.Join(t.TempDir(), "runtime.db"))
 	if err != nil {

@@ -200,6 +200,10 @@ export const en = {
   settingOriginalsUsage: "Original files",
   settingMetadataUsage: "Archive information",
   settingPreviewsUsage: "Thumbnails and previews",
+  settingVideoUsage: "Video transcode cache",
+  settingVideoCacheAge: "Video cache retention",
+  settingVideoCacheBytes: "Video cache size limit",
+  settingClearVideoCache: "Clear video cache",
   settingStorageUsageHint:
     "Local file sizes, including history and downloaded content. Archive information includes the database and operation records. Projection copies and temporary files are excluded; filesystem compression and shared blocks may change allocated disk space.",
   settingService: "Service",
@@ -1217,6 +1221,10 @@ export const zh: Record<MessageKey, string> = {
   settingOriginalsUsage: "原文件",
   settingMetadataUsage: "资料信息",
   settingPreviewsUsage: "缩略图与预览缓存",
+  settingVideoUsage: "视频转码缓存",
+  settingVideoCacheAge: "视频缓存保留时间",
+  settingVideoCacheBytes: "视频缓存容量上限",
+  settingClearVideoCache: "清空视频缓存",
   settingStorageUsageHint:
     "按本机文件大小统计，包含历史版本及已下载内容。资料信息包含数据库和操作记录。不含目录投影副本及临时文件；文件系统压缩、共享块会影响实际磁盘占用。",
   settingService: "服务",

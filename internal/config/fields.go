@@ -36,7 +36,7 @@ func fieldDefinitions(mode string) []Field {
 	if mode == "client" {
 		return append(fields, Field{Key: "client.cache_max_age", Kind: "text"}, Field{Key: "client.cache_max_bytes", Kind: "bytes"})
 	}
-	return append(fields, Field{Key: "library.timezone", Kind: "text"}, Field{Key: "library.language", Kind: "text"}, Field{Key: "storage.link_mode", Kind: "select", Options: []string{"", "copy", "reflink", "hardlink", "symlink"}})
+	return append(fields, Field{Key: "library.timezone", Kind: "text"}, Field{Key: "library.language", Kind: "text"}, Field{Key: "storage.link_mode", Kind: "select", Options: []string{"", "copy", "reflink", "hardlink", "symlink"}}, Field{Key: "video.cache_max_age", Kind: "text"}, Field{Key: "video.cache_max_bytes", Kind: "bytes"})
 }
 
 func values(c *Config) (map[string]any, error) {

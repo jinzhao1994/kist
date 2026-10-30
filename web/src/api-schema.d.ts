@@ -987,6 +987,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/files/{id}/playback/index.m3u8": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the VOD timeline; segments are generated only when requested */
+        get: operations["get-video-playlist"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{id}/playback/segments/{segment}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read or generate one bounded HLS segment */
+        get: operations["GET-video-segment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        /** Read or generate one bounded HLS segment */
+        head: operations["HEAD-video-segment"];
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/files/{id}/sheet-preview": {
         parameters: {
             query?: never;
@@ -1413,6 +1448,23 @@ export interface paths {
         get: operations["get-api-v1-settings-storage"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/video-cache/clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 settings video cache clear */
+        post: operations["post-api-v1-settings-video-cache-clear"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2612,6 +2664,8 @@ export interface components {
             originals_bytes: number;
             /** Format: int64 */
             previews_bytes: number;
+            /** Format: int64 */
+            video_bytes: number;
         };
         "Sync-derived-describeRequest": {
             key: string;
@@ -5273,6 +5327,117 @@ export interface operations {
             };
         };
     };
+    "get-video-playlist": {
+        parameters: {
+            query: {
+                v: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description HLS VOD playlist */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.apple.mpegurl": string;
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "GET-video-segment": {
+        parameters: {
+            query: {
+                v: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+                segment: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Independently decodable H.264/AAC segment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "video/mp2t": string;
+                };
+            };
+            /** @description Requested byte range */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Video content changed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "HEAD-video-segment": {
+        parameters: {
+            query: {
+                v: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+                segment: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Independently decodable H.264/AAC segment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "video/mp2t": string;
+                };
+            };
+            /** @description Requested byte range */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Video content changed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     "get-api-v1-files-by-id-sheet-preview": {
         parameters: {
             query?: {
@@ -6304,6 +6469,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StorageUsage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-settings-video-cache-clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutputStruct {}Body"];
                 };
             };
             /** @description Error */

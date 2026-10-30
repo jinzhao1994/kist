@@ -996,6 +996,51 @@ for (const scenario of [
     await capture(page, errors, info.title);
   });
 }
+for (const failed of [false, true]) {
+  test(`video-hls-${failed ? "failed" : "idle"}`, async ({ page }, info) => {
+    const errors = await prepare(page);
+    const fullConversions: string[] = [];
+    page.on("request", (request) => {
+      if (request.url().includes("/derived/preview_1080p_v1"))
+        fullConversions.push(request.url());
+    });
+    await page.route("**/api/v1/files/file-4/playback/index.m3u8?*", (route) =>
+      route.fulfill({
+        status: failed ? 503 : 200,
+        contentType: failed
+          ? "application/json"
+          : "application/vnd.apple.mpegurl",
+        body: failed
+          ? JSON.stringify({
+              code: "unavailable",
+              message: "Video playback unavailable: dependency_missing",
+            })
+          : "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:6\n#EXT-X-PLAYLIST-TYPE:VOD\n#EXTINF:6,\nsegments/0?v=synthetic\n#EXT-X-ENDLIST\n",
+      }),
+    );
+    await page.goto("/files?file=file-4");
+    if (failed) {
+      await expect(
+        page
+          .getByRole("region", { name: "画廊", exact: true })
+          .getByRole("status")
+          .filter({ hasText: "预览生成失败" }),
+      ).toBeVisible();
+    } else {
+      await expect
+        .poll(() =>
+          page.locator("video").evaluate((v) => ({
+            duration: (v as HTMLVideoElement).duration,
+            paused: (v as HTMLVideoElement).paused,
+          })),
+        )
+        .toEqual({ duration: 6, paused: true });
+    }
+    expect(fullConversions).toEqual([]);
+    await capture(page, errors, info.title);
+  });
+}
+
 for (const state of [
   "ready",
   "queued",
@@ -3334,6 +3379,7 @@ for (const panel of [
           originals_bytes: 2147483648,
           metadata_bytes: 8388608,
           previews_bytes: 134217728,
+          video_bytes: 536870912,
         },
       }),
     );
@@ -4150,6 +4196,22 @@ for (const scenario of [
               explicit: false,
               restart: false,
             },
+            {
+              key: "video.cache_max_age",
+              kind: "text",
+              value: "30d",
+              default: "30d",
+              explicit: false,
+              restart: false,
+            },
+            {
+              key: "video.cache_max_bytes",
+              kind: "bytes",
+              value: 8589934592,
+              default: 8589934592,
+              explicit: false,
+              restart: false,
+            },
           ]),
     ];
     await page.route("**/api/v1/settings/storage", (route) =>
@@ -4158,6 +4220,7 @@ for (const scenario of [
           originals_bytes: 2147483648,
           metadata_bytes: 8388608,
           previews_bytes: 134217728,
+          video_bytes: 536870912,
         },
       }),
     );
@@ -5523,6 +5586,7 @@ for (const anchor of [
           originals_bytes: 1024,
           metadata_bytes: 512,
           previews_bytes: 256,
+          video_bytes: 0,
         },
       }),
     );

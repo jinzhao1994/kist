@@ -61,6 +61,8 @@ const labels: Record<string, MessageKey> = {
   "storage.link_mode": "settingLinkMode",
   "client.cache_max_age": "clientMaxAge",
   "client.cache_max_bytes": "settingCacheBytes",
+  "video.cache_max_age": "settingVideoCacheAge",
+  "video.cache_max_bytes": "settingVideoCacheBytes",
   "server.listen": "settingListen",
   "server.allowed_origins": "settingOrigins",
   "server.max_upload_bytes": "settingUploadBytes",
@@ -317,7 +319,9 @@ export function InstanceSettings({
           )}
         </h2>
         <Stack gap="lg">
-          {group === "storage" && <StorageUsage />}
+          {group === "storage" && (
+            <StorageUsage canClearVideo={snapshot.mode === "library"} />
+          )}
           {(snapshot.fields || [])
             .filter((field) => category(field) === group)
             .map((field) => {
@@ -588,8 +592,11 @@ export function InstanceSettings({
     </section>
   );
 }
-function StorageUsage() {
+function StorageUsage({ canClearVideo }: { canClearVideo: boolean }) {
   const { t } = useI18n();
+  const client = useQueryClient();
+  const [clearing, setClearing] = useState(false);
+  const [clearError, setClearError] = useState<unknown>();
   const usage = useQuery({
     ...settingsQueries.storage,
     refetchOnWindowFocus: false,
@@ -611,10 +618,38 @@ function StorageUsage() {
         >
           {t("refresh")}
         </Button>
+        {canClearVideo && (
+          <Button
+            size="compact-xs"
+            variant="subtle"
+            loading={clearing}
+            onClick={async () => {
+              setClearing(true);
+              setClearError(undefined);
+              try {
+                await request("/settings/video-cache/clear", "POST", {});
+                await client.invalidateQueries({
+                  queryKey: settingsQueries.storage.queryKey,
+                });
+              } catch (error) {
+                setClearError(error);
+              } finally {
+                setClearing(false);
+              }
+            }}
+          >
+            {t("settingClearVideoCache")}
+          </Button>
+        )}
       </Group>
       {usage.error && (
         <Text size="sm" c="red" role="alert">
           {errorMessage(usage.error, t)}
+        </Text>
+      )}
+      {!!clearError && (
+        <Text size="sm" c="red" role="alert">
+          {errorMessage(clearError, t)}
         </Text>
       )}
       <StorageUsageValues
@@ -622,6 +657,7 @@ function StorageUsage() {
           ["settingOriginalsUsage", usage.data?.originals_bytes],
           ["settingMetadataUsage", usage.data?.metadata_bytes],
           ["settingPreviewsUsage", usage.data?.previews_bytes],
+          ["settingVideoUsage", usage.data?.video_bytes],
         ]}
       />
     </section>
@@ -641,7 +677,8 @@ function SettingInput(props: {
   const hint =
     field.key === "library.language"
       ? t("settingLanguageHint")
-      : field.key === "client.cache_max_age"
+      : field.key === "client.cache_max_age" ||
+          field.key === "video.cache_max_age"
         ? t("clientMaxAgeHint")
         : field.key === "storage.link_mode"
           ? t("settingLinkModeHint")

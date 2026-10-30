@@ -12,6 +12,12 @@ vi.mock("./PDFReader", () => ({
     <div aria-label={name} data-src={src} />
   ),
 }));
+vi.mock("./HLSPlayer", () => ({
+  default: ({ src, name }: { src: string; name: string }) => (
+    <video aria-label={name} data-hls={src} />
+  ),
+  useHLS: () => {},
+}));
 
 const file: ArchiveFile = {
   id: "photo",
@@ -45,10 +51,11 @@ function job(
     },
   };
 }
-function mount(props: Partial<Parameters<typeof Media>[0]> = {}) {
+function mount(props: Partial<Parameters<typeof Media>[0]> = {}, nas = false) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
+  client.setQueryData(["info"], { client: !nas });
   return {
     client,
     ...render(
@@ -64,6 +71,27 @@ function mount(props: Partial<Parameters<typeof Media>[0]> = {}) {
 }
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+it("uses on-demand HLS on NAS without requesting a full MP4 conversion", async () => {
+  const fetch = vi.fn();
+  vi.stubGlobal("fetch", fetch);
+  mount(
+    {
+      file: {
+        ...file,
+        kind: "video",
+        media_type: "video/quicktime",
+        name: "NAS clip.mov",
+      },
+    },
+    true,
+  );
+  expect(await screen.findByLabelText("NAS clip.mov")).toHaveAttribute(
+    "data-hls",
+    "/api/v1/files/photo/playback/index.m3u8?v=sha256%3Aphoto",
+  );
+  expect(fetch).not.toHaveBeenCalled();
 });
 
 it("requests missing HEIC previews and only loads derived bytes", async () => {
@@ -128,7 +156,7 @@ it("reconciles a deleted output without falling back to its original", async () 
   );
 });
 
-it("does not request inactive media and uses MP4 for video details", async () => {
+it("does not request inactive media and preserves cached MP4 playback on offline clients", async () => {
   const fetch = vi.fn().mockResolvedValue(Response.json(job("ready")));
   vi.stubGlobal("fetch", fetch);
   const inactive = mount({ active: false });

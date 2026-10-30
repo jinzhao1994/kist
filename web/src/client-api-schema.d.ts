@@ -2341,6 +2341,8 @@ export interface components {
             originals_bytes: number;
             /** Format: int64 */
             previews_bytes: number;
+            /** Format: int64 */
+            video_bytes: number;
         };
         "Sync-derived-describeRequest": {
             key: string;

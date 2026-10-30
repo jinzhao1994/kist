@@ -159,7 +159,7 @@ func TestSettingsStorageUsage(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &usage); err != nil {
 		t.Fatal(err)
 	}
-	if len(usage) != 3 || usage["metadata_bytes"] <= 0 {
+	if len(usage) != 4 || usage["metadata_bytes"] <= 0 {
 		t.Fatalf("usage: %v", usage)
 	}
 }

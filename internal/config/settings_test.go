@@ -18,7 +18,7 @@ func TestSparseDefaultsAndResetPreserveComments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Server.Listen != "127.0.0.1:8473" || c.Client.CacheMaxBytes != 10<<30 {
+	if c.Server.Listen != "127.0.0.1:8473" || c.Client.CacheMaxBytes != 10<<30 || c.Video.CacheMaxBytes != 8<<30 || c.Video.CacheMaxAge != "30d" {
 		t.Fatal("missing defaults")
 	}
 	if err = Update(path, Revision(raw), map[string]any{"appearance.primary_color": "pink", "server.max_upload_files": 123}); err != nil {

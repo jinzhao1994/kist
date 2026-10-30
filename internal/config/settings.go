@@ -27,6 +27,12 @@ import (
 type Appearance struct {
 	PrimaryColor string `toml:"primary_color" json:"primary_color"`
 }
+
+// Video limits the disposable playback cache independently of image previews.
+type Video struct {
+	CacheMaxAge   string `toml:"cache_max_age" json:"cache_max_age"`
+	CacheMaxBytes int64  `toml:"cache_max_bytes" json:"cache_max_bytes"`
+}
 type Client struct {
 	ParentID      domain.ID   `toml:"parent_id,omitempty" json:"parent_id"`
 	Ancestors     []domain.ID `toml:"ancestors,omitempty" json:"ancestors"`
@@ -80,12 +86,16 @@ func Defaults(mode string) *Config {
 		Appearance: Appearance{PrimaryColor: "blue"},
 		Library:    Library{Timezone: defaultTimezone, Language: "zh-CN"},
 		Client:     Client{CacheMaxAge: "180d", CacheMaxBytes: 10 << 30},
+		Video:      Video{CacheMaxAge: "30d", CacheMaxBytes: 8 << 30},
 		Server: Server{Listen: listen, AllowedOrigins: []string{}, MaxUploadBytes: 32 << 30, MaxUploadFiles: 1000,
 			MapStyle: "https://tiles.openfreemap.org/styles/liberty", MapTerrainTiles: "https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png", MapTerrainAttribution: `<a href="https://www.mapzen.com/rights/">Mapzen terrain</a>`, MapResourceOrigins: []string{}},
 	}
 }
 
 func (c *Config) Validate() error {
+	if age, err := ParseCacheMaxAge(c.Video.CacheMaxAge); err != nil || age <= 0 || c.Video.CacheMaxBytes <= 0 {
+		return fmt.Errorf("invalid video cache limits")
+	}
 	if c.RuntimeStorage < 0 || c.RuntimeStorage > 1 {
 		return fmt.Errorf("unsupported runtime storage version")
 	}

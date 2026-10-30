@@ -50,6 +50,30 @@ decoder. Missing tools disable those previews, not storage or downloads.
 The Docker build includes and tests these dependencies; see README's Docker
 instructions. For prebuilt images and NAS deployment, see [Docker deployment](docker.md).
 
+### Video playback cache
+
+NAS video playback uses HLS with on-demand six-second H.264/AAC segments.
+Only requested segments are converted; seeking can generate a later segment
+without converting the beginning first. Encoding is limited to one process per
+instance, independently of thumbnail generation and metadata extraction.
+
+Settings → Storage exposes the separate video cache limits and a clear action.
+The equivalent optional `kist.toml` settings are:
+
+```toml
+[video]
+cache_max_age = "30d"
+cache_max_bytes = 8589934592 # 8 GiB
+```
+
+Omitting either value follows its current default. Changes take effect without
+restarting. HLS segments live in `transcodes/`; retention is based on last access
+and eviction skips actively read or generated segments. Temporary encoding output
+is bounded separately to 32 MiB. Clearing this cache leaves originals, thumbnails,
+metadata and execution history intact. Existing full MP4 previews and offline
+client video preparation remain available through the earlier derived-media API;
+the HLS cache clear action does not remove them.
+
 ## Back up and restore
 
 1. Stop every writer, including `serve`, CLI imports, extraction, and repair.

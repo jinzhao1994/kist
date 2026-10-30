@@ -15,6 +15,7 @@ import {
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  api,
   contentURL,
   get,
   mediaAction,
@@ -22,6 +23,7 @@ import {
   type ArchiveFile,
   type MediaJob,
 } from "./api";
+import HLSPlayer, { useHLS } from "./HLSPlayer";
 import { useI18n, type MessageKey } from "./i18n";
 
 import { TextPreview } from "./TextPreview";
@@ -177,10 +179,12 @@ function LivePhotoPlayer({
   photo,
   src,
   retry,
+  hls = false,
 }: {
   photo: ArchiveFile;
   src?: string;
   retry?: () => void;
+  hls?: boolean;
 }) {
   const { t } = useI18n();
   const surface = useRef<HTMLDivElement>(null);
@@ -210,6 +214,17 @@ function LivePhotoPlayer({
   const [playing, setPlaying] = useState(false);
   const [waiting, setWaiting] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [ready, setReady] = useState(!hls);
+  useHLS(
+    video,
+    src,
+    hls,
+    () => {
+      stop();
+      setFailed(true);
+    },
+    () => setReady(true),
+  );
   const stop = () => {
     attempt.current++;
     requested.current = false;
@@ -228,6 +243,10 @@ function LivePhotoPlayer({
     };
   }, []);
   const play = () => {
+    if (hls && failed) {
+      retry?.();
+      return;
+    }
     if (requested.current) {
       stop();
       return;
@@ -260,8 +279,8 @@ function LivePhotoPlayer({
       </div>
       <video
         ref={video}
-        src={src}
-        preload="auto"
+        src={hls ? undefined : src}
+        preload={hls ? "none" : "auto"}
         playsInline
         aria-hidden="true"
         onPlaying={() => {
@@ -285,7 +304,7 @@ function LivePhotoPlayer({
         onClick={play}
         aria-label={t(playing ? "filesetStill" : "filesetMotion")}
         aria-pressed={playing}
-        disabled={!src && !retry}
+        disabled={(!src && !retry) || (hls && !ready && !failed)}
         title={
           failed || retry
             ? t("retry")
@@ -318,21 +337,71 @@ function LivePhotoPlayer({
   );
 }
 
-export function Media({
-  file,
-  active = true,
-  detail = false,
-  paused = false,
-  tracks,
-  livePhoto,
-}: {
+type MediaProps = {
   file: ArchiveFile;
   tracks?: SubtitleTrack[];
   livePhoto?: ArchiveFile;
   active?: boolean;
   detail?: boolean;
   paused?: boolean;
-}) {
+};
+
+export function Media(props: MediaProps) {
+  if (props.detail && mediaProfile(props.file)?.id === "video")
+    return <VideoDetail {...props} />;
+  return <DerivedMedia {...props} />;
+}
+
+function VideoDetail(props: MediaProps) {
+  const { t } = useI18n();
+  const { file, active = true, paused = false, livePhoto, tracks } = props;
+  const [attempt, setAttempt] = useState(0);
+  const info = useQuery({
+    queryKey: ["info"],
+    queryFn: ({ signal }) => api.info(signal),
+    enabled: active && !paused,
+    staleTime: Infinity,
+  });
+  if (!active) return null;
+  if (info.isError)
+    return (
+      <div className="media-placeholder">
+        <p role="status">{t("mediaRequestFailed")}</p>
+        <Button onClick={() => void info.refetch()}>{t("retry")}</Button>
+      </div>
+    );
+  if (!info.data)
+    return <div className="media-placeholder">{t("loading")}</div>;
+  if (info.data.client) return <DerivedMedia {...props} />;
+  const src = `/api/v1/files/${encodeURIComponent(file.id)}/playback/index.m3u8?v=${encodeURIComponent(file.blob_key)}`;
+  if (livePhoto)
+    return (
+      <LivePhotoPlayer
+        key={`${file.id}:${file.blob_key}:${attempt}`}
+        photo={livePhoto}
+        src={src}
+        hls
+        retry={() => setAttempt(attempt + 1)}
+      />
+    );
+  return (
+    <HLSPlayer
+      key={`${file.id}:${file.blob_key}`}
+      src={src}
+      name={file.name}
+      tracks={tracks}
+    />
+  );
+}
+
+function DerivedMedia({
+  file,
+  active = true,
+  detail = false,
+  paused = false,
+  tracks,
+  livePhoto,
+}: MediaProps) {
   const { t } = useI18n();
   const player = useRef<HTMLMediaElement | null>(null);
   const playerRef = useCallback((node: HTMLMediaElement | null) => {

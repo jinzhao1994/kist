@@ -55,9 +55,18 @@ func mediaID(in mediaInput) (domain.FileID, error) {
 	return domain.FileID{ID: id}, nil
 }
 
-// RunMedia processes disposable derived jobs until shutdown. Callers join it
-// before closing the library; HTTP requests merely enqueue work.
-func (s *Server) RunMedia(ctx context.Context) { s.previews.Run(ctx) }
+// RunMedia owns the derived worker and HLS cache maintenance until shutdown.
+// HLS encoding itself is request-bound. Callers join before closing the library.
+func (s *Server) RunMedia(ctx context.Context) {
+	if s.video == nil {
+		s.previews.Run(ctx)
+		return
+	}
+	done := make(chan struct{})
+	go func() { defer close(done); s.video.Run(ctx) }()
+	s.previews.Run(ctx)
+	<-done
+}
 
 func (s *Server) mediaRoutes() {
 	path := Prefix + "/files/{id}/derived/{recipe}"

@@ -27,9 +27,12 @@ func TestStorageUsageCountsLocalFilesWithoutProjections(t *testing.T) {
 			files["blobs/original"] = 17
 			files["ops/op"] = 19
 			files["derived/thumb"] = 31
+			files["derived/preview_1080p_v1.mp4"] = 37
+			files["transcodes/segment.ts"] = 41
 			expected.OriginalsBytes = 17
 			expected.MetadataBytes += 19
 			expected.PreviewsBytes = 31
+			expected.VideoBytes = 78
 		}
 		for name, size := range files {
 			path := filepath.Join(root, filepath.FromSlash(name))
@@ -40,13 +43,13 @@ func TestStorageUsageCountsLocalFilesWithoutProjections(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		got, err := measureStorage(t.Context(), root, client, map[string]int64{"sha256:preview": 31})
+		got, err := measureStorage(t.Context(), root, client, map[string]int64{"sha256:preview": 31}, nil)
 		if err != nil || got != expected {
 			t.Fatalf("client=%v: got %+v want %+v: %v", client, got, expected, err)
 		}
 		ctx, cancel := context.WithCancel(t.Context())
 		cancel()
-		if _, err := measureStorage(ctx, root, client, nil); err != context.Canceled {
+		if _, err := measureStorage(ctx, root, client, nil, nil); err != context.Canceled {
 			t.Fatalf("canceled scan: %v", err)
 		}
 	}
@@ -64,7 +67,7 @@ func TestStorageUsageSkipsMissingDirectoriesAndSymlinks(t *testing.T) {
 	if err := os.Symlink(target, filepath.Join(root, "blobs", "link")); err != nil {
 		t.Skip("symlinks unavailable")
 	}
-	got, err := measureStorage(t.Context(), root, false, nil)
+	got, err := measureStorage(t.Context(), root, false, nil, nil)
 	if err != nil || got != (StorageUsage{}) {
 		t.Fatalf("got %+v: %v", got, err)
 	}

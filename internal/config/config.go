@@ -51,6 +51,7 @@ type Config struct {
 	Sync           Sync           `toml:"sync"`
 	Library        Library        `toml:"library"`
 	Storage        Storage        `toml:"storage"`
+	Video          Video          `toml:"video"`
 	Remotes        []Remote       `toml:"remote"`
 }
 
