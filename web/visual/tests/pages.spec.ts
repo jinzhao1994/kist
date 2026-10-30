@@ -4365,7 +4365,9 @@ for (const scenario of [
       await expect(retention).not.toHaveAttribute("aria-invalid", "true");
       await save.click();
       await expect(retention).toHaveAttribute("aria-invalid", "true");
-      await expect(page.getByRole("alert")).toHaveText(/请检查输入/);
+      await expect(page.getByRole("alert")).toHaveText(
+        "设置未保存，请检查填写的内容。",
+      );
       await expect(
         page
           .getByRole("alert")

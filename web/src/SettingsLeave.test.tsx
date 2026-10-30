@@ -224,7 +224,7 @@ it("keeps the page and draft when saving before leaving fails", async () => {
     within(dialog).getByRole("button", { name: "Save and leave" }),
   );
   expect(await screen.findByRole("alert")).toHaveTextContent(
-    "Check the entered values and start a corrected operation.",
+    "Settings were not saved. Check the values you entered.",
   );
   expect(location.pathname).toBe("/settings");
   expect(input).toHaveValue("en");

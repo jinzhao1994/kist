@@ -186,6 +186,7 @@ export const en = {
   pageContents: "On this page",
   instanceSettings: "Settings",
   settingsSaved: "Settings saved.",
+  settingsNotSaved: "Settings were not saved. Check the values you entered.",
   settingsPending:
     "Save your other settings before changing the connection or credentials.",
   settingsConflict:
@@ -1240,6 +1241,7 @@ export const zh: Record<MessageKey, string> = {
   pageContents: "页面目录",
   instanceSettings: "设置",
   settingsSaved: "设置已保存。",
+  settingsNotSaved: "设置未保存，请检查填写的内容。",
   settingsPending: "请先保存其他设置，再修改连接或凭据。",
   settingsConflict: "设置已在别处更改。当前编辑已保留，请重新加载后再保存。",
   settingsReload: "重新加载设置",

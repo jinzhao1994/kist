@@ -161,6 +161,9 @@ it("shows server field errors only after save and keeps them when the floating m
   ];
   await user.click(screen.getByRole("button", { name: "Save" }));
   expect(await screen.findByRole("alert")).toHaveClass("floating-feedback");
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "Settings were not saved. Check the values you entered.",
+  );
   expect(input).toHaveAttribute("aria-invalid", "true");
   expect(input.closest(".setting-field")).toHaveTextContent(
     "Enter a positive duration",

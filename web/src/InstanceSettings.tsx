@@ -239,7 +239,10 @@ export function InstanceSettings({
   useEffect(() => {
     if (!snapshot && query.data) setSnapshot(query.data);
   }, [snapshot, query.data]);
-  async function run(command: (signal: AbortSignal) => Promise<void>) {
+  async function run(
+    command: (signal: AbortSignal) => Promise<void>,
+    invalidMessage?: string,
+  ) {
     if (active.current) return;
     const controller = new AbortController();
     active.current = controller;
@@ -260,7 +263,11 @@ export function InstanceSettings({
         setError(
           err instanceof APIError && err.status === 409
             ? t("settingsConflict")
-            : errorMessage(err, t),
+            : err instanceof APIError &&
+                (err.status === 400 || err.status === 422) &&
+                invalidMessage
+              ? invalidMessage
+              : errorMessage(err, t),
         );
       }
     } finally {
@@ -317,7 +324,7 @@ export function InstanceSettings({
         allowLeave.current = true;
         window.location.reload();
       }
-    });
+    }, t("settingsNotSaved"));
     return saved;
   };
   function renderGroup(group: string) {
