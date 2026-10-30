@@ -5602,7 +5602,8 @@ for (const anchor of [
       await expect(arrow.locator("..")).toHaveCSS("opacity", "1");
       if (expanded) {
         await arrow.click();
-        const details = tasks.getByRole("table", {
+        await expect(tasks.locator(".task-table > tbody > tr")).toHaveCount(5);
+        const details = ocr.getByRole("table", {
           name: "OCR任务",
           exact: true,
         });
@@ -5610,9 +5611,9 @@ for (const anchor of [
           details.getByRole("link", { name: "申请材料扫描.pdf" }),
         ).toHaveAttribute("href", `/files?file=${files[0].id}`);
         await expect(details.locator("time").first()).toHaveText(" · 2026-01");
-        await expect(
-          details.getByText("任务已取消，可重试。", { exact: true }),
-        ).toBeVisible();
+        await expect(details.locator(".task-table-message")).toHaveText(
+          "任务已取消。",
+        );
         await expect(arrow).toHaveAttribute("aria-expanded", "true");
       }
       await page.mouse.move(5, 5);

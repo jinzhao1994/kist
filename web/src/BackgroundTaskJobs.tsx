@@ -64,7 +64,7 @@ export function BackgroundTaskJobs({
         <Table
           verticalSpacing="xs"
           horizontalSpacing="sm"
-          className="settings-table settings-table--compact task-details-table"
+          className="settings-table settings-table--dense task-details-table"
           aria-label={t("backgroundTaskList", { name: title })}
         >
           <Table.Thead>
