@@ -191,6 +191,8 @@ export const en = {
   settingsConflict:
     "Settings changed elsewhere. Your edits are preserved; reload before saving.",
   settingsReload: "Reload settings",
+  settingsSaveNoChanges: "No unsaved changes",
+  settingsSaveInvalid: "Correct invalid settings first",
   settingAppearance: "Appearance",
   settingStorage: "Storage",
   settingMaps: "Maps",
@@ -1206,6 +1208,8 @@ export const zh: Record<MessageKey, string> = {
   settingsPending: "请先保存其他设置，再修改连接或凭据。",
   settingsConflict: "设置已在别处更改。当前编辑已保留，请重新加载后再保存。",
   settingsReload: "重新加载设置",
+  settingsSaveNoChanges: "没有未保存的修改",
+  settingsSaveInvalid: "请先修正无效的配置项",
   settingAppearance: "外观",
   settingStorage: "存储",
   settingMaps: "地图",

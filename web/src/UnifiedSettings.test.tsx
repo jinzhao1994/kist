@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, expect, it, vi } from "vitest";
@@ -138,17 +138,44 @@ it("saves all configuration drafts through the page toolbar in one request", asy
     screen.queryByRole("button", { name: "Reload GPS settings" }),
   ).not.toBeInTheDocument();
   const user = userEvent.setup();
+  const saveButton = screen.getByRole("button", { name: "Save" });
+  const saveHint = saveButton.closest<HTMLElement>(".tooltip-target")!;
+  expect(saveButton).toBeDisabled();
+  await user.hover(saveHint);
+  expect(await screen.findByRole("tooltip")).toHaveTextContent(
+    "No unsaved changes",
+  );
+  await user.unhover(saveHint);
+  await act(async () => saveHint.focus());
+  expect(saveHint).toHaveFocus();
+  expect(await screen.findByRole("tooltip")).toHaveTextContent(
+    "No unsaved changes",
+  );
+  await act(async () => saveHint.blur());
+  await waitFor(() =>
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument(),
+  );
   await user.clear(language);
   await user.type(language, "en");
-  await user.type(
+  await user.click(
     screen.getByLabelText("AI proxy address", { selector: "input" }),
-    "http://127.0.0.1:7890",
   );
+  await user.paste("http://127.0.0.1:7890");
   const interval = screen.getByRole("textbox", {
     name: "Request interval (seconds)",
   });
   await user.clear(interval);
+  expect(saveButton).toBeDisabled();
+  await user.hover(saveHint);
+  expect(await screen.findByRole("tooltip")).toHaveTextContent(
+    "Correct invalid settings first",
+  );
+  await user.unhover(saveHint);
   await user.type(interval, "7");
+  expect(saveButton).toBeEnabled();
+  await user.hover(saveHint);
+  expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  await user.unhover(saveHint);
   expect(writes).toHaveLength(0);
   const dirtyUnload = new Event("beforeunload", { cancelable: true });
   window.dispatchEvent(dirtyUnload);

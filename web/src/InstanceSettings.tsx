@@ -11,6 +11,7 @@ import { StorageUsageValues } from "./StorageUsageValues";
 import { AIConnection } from "./AI";
 import { EmptyHint } from "./EmptyHint";
 import { HelpTooltip } from "./HelpTooltip";
+import { FullTextTooltip } from "./FullTextTooltip";
 import { SectionIndex } from "./SectionIndex";
 import { Dialog, DialogPresence } from "./Dialog";
 import type {
@@ -122,6 +123,13 @@ export function InstanceSettings({
     Object.keys(changes).length > 0 || !!aiDraft || !!locationDraft;
   const valid = (aiDraft?.valid ?? true) && (locationDraft?.valid ?? true);
   const [busy, setBusy] = useState(false);
+  const saveHint = busy
+    ? ""
+    : !valid
+      ? t("settingsSaveInvalid")
+      : !unsaved
+        ? t("settingsSaveNoChanges")
+        : "";
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [leaving, setLeaving] = useState(false);
@@ -392,14 +400,21 @@ export function InstanceSettings({
           >
             {t("settingsReload")}
           </Button>
-          <Button
-            variant="filled"
-            loading={busy}
-            disabled={!unsaved || !valid}
-            onClick={() => void save()}
-          >
-            {t("save")}
-          </Button>
+          <FullTextTooltip text={saveHint} disabled={!saveHint}>
+            <span
+              className="tooltip-target mantine-focus-auto"
+              tabIndex={saveHint ? 0 : undefined}
+            >
+              <Button
+                variant="filled"
+                loading={busy}
+                disabled={!unsaved || !valid}
+                onClick={() => void save()}
+              >
+                {t("save")}
+              </Button>
+            </span>
+          </FullTextTooltip>
         </Group>
       </header>
       <div className="instance-settings-content">

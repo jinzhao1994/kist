@@ -5,13 +5,16 @@ import { FloatingTooltip } from "./FloatingTooltip";
 export function FullTextTooltip({
   text,
   children,
+  disabled = false,
 }: {
   text: string;
   children: ReactElement;
+  disabled?: boolean;
 }) {
   return (
     <FloatingTooltip
       label={text}
+      disabled={disabled}
       multiline
       position="bottom-start"
       offset={16}
@@ -20,6 +23,7 @@ export function FullTextTooltip({
     >
       <Tooltip
         label={text}
+        disabled={disabled}
         multiline
         interactive
         position="bottom-start"

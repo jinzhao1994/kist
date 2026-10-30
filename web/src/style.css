@@ -2601,6 +2601,9 @@ main.upload-drag-active {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.tooltip-target {
+  display: inline-flex;
+}
 
 .gallery-header:focus {
   outline: none;

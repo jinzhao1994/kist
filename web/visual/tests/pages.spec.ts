@@ -4043,6 +4043,8 @@ for (const scenario of [
   "unsaved",
   "unsaved-dark",
   "unsaved-mobile",
+  "save-hint",
+  "save-invalid",
   "mobile",
   "dark",
 ] as const) {
@@ -4252,6 +4254,24 @@ for (const scenario of [
     await expect(
       settings.getByRole("radio", { name: "蓝色", exact: true }),
     ).toBeChecked();
+    if (scenario === "save-hint" || scenario === "save-invalid") {
+      if (scenario === "save-invalid") {
+        await settings.getByRole("link", { name: "GPS", exact: true }).click();
+        await settings
+          .getByRole("textbox", { name: "请求间隔（秒）", exact: true })
+          .fill("");
+      }
+      const save = settings.getByRole("button", { name: "保存", exact: true });
+      await expect(save).toBeDisabled();
+      await save.locator("..").hover();
+      await expect(page.getByRole("tooltip")).toHaveText(
+        scenario === "save-invalid"
+          ? "请先修正无效的配置项"
+          : "没有未保存的修改",
+      );
+      await capture(page, errors, info.title);
+      return;
+    }
     await expect(
       page
         .getByRole("navigation", { name: "个人归档" })
@@ -5614,7 +5634,9 @@ for (const anchor of [
         await expect(details.locator(".task-table-message")).toHaveText(
           "任务已取消。",
         );
-        await expect(arrow).toHaveAttribute("aria-expanded", "true");
+        await expect(
+          ocr.getByRole("button", { name: "收起OCR任务", exact: true }),
+        ).toHaveAttribute("aria-expanded", "true");
       }
       await page.mouse.move(5, 5);
       await capture(page, errors, info.title);
