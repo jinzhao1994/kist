@@ -391,6 +391,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai/proxies/{number}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 ai proxies by number test */
+        post: operations["post-api-v1-ai-proxies-by-number-test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ai/services": {
         parameters: {
             query?: never;
@@ -2915,6 +2932,16 @@ export interface components {
             text: string;
             truncated: boolean;
         };
+        ProxyTestResult: {
+            city: string;
+            country: string;
+            /** Format: int64 */
+            elapsed_ms: number;
+            /** @enum {string} */
+            error: "" | "connection" | "timeout" | "rate_limited" | "service";
+            ip: string;
+            region: string;
+        };
         "Put-api-v1-boxes-by-id-coverRequest": {
             file_id: string;
         };
@@ -4004,6 +4031,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OCRQueueStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-ai-proxies-by-number-test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiAccountActionBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProxyTestResult"];
                 };
             };
             /** @description Error */

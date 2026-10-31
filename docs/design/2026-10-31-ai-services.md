@@ -11,6 +11,10 @@
 
 ## 配置与凭据
 
+代理列表提供按需“测试”，仅测试已保存且当前未修改的配置，新建或修改后先统一保存。测试由服务端复用同一 HTTP(S)／SOCKS／Trojan 传输访问固定的 `https://ipwho.is/`，只请求出口 IP、国家／地区和城市，不发送账户、归档文件或 metadata。失败不回退直连、不跟随重定向，整体超时 15 秒，响应上限 16 KiB。IP 位置仅供参考；耗时为完整查询请求耗时，不表示纯网络延迟。服务文档见 [IPWho.is API](https://ipwhois.io/documentation)，选择其免密钥 HTTPS 查询，免费额度目前为每个出口 IP 每天 1,000 次，不保证可用性。
+
+`POST /ai/proxies/{number}/test` 沿用本机 AI 管理接口边界，读取一次已保存的代理（包含服务端保留的认证），不改配置、不入队、不写归档或运行库。诊断结果包含出口、粗略位置、耗时及封闭的失败原因；外部响应和传输错误不原样返回，避免回显代理认证。结果仅在当前页面展示，重新加载、修改代理或保存新修订后失效；请求取消和组件卸载不留下旧结果。页面加载、保存和悬停均不触发测试。服务限流与无效响应独立于代理连接失败展示，不把查询服务故障当作代理配置必然有误。
+
 新配置集中在 `ai_services`：`proxies`、`accounts`、`features`，以及两个编号分配高水位。账户类型为 `chatgpt` 和 `openai`（API Key）；代理类型为 `http` 和 `trojan`。`http` 表示外部 HTTP(S)／兼容现有 SOCKS URL；`trojan` 实现标准 TLS/TCP CONNECT，验证证书，可指定 TLS server name。没有选择代理代表直连，不受进程环境代理意外影响。Trojan 的 WebSocket、mux 和 UDP 扩展不在首版范围；不把扩展字段假装成已支持。
 
 不直接嵌入 trojan-go：其仓库使用 GPL-3.0，项目当前为 Apache-2.0；标准 Trojan TCP 协议很小，独立按公开协议实现即可，避免引入整个代理程序、监听端口及进程管理。参考：[Trojan 协议](https://trojan-gfw.github.io/trojan/protocol)、[trojan-go LICENSE](https://github.com/p4gefau1t/trojan-go/blob/master/LICENSE)。不复制该项目代码。

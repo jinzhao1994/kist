@@ -4135,6 +4135,8 @@ for (const scenario of [
   "ai-api-account",
   "ai-proxy-create",
   "ai-proxy-invalid",
+  "ai-proxy-test",
+  "ai-proxy-test-error",
   "ai-account-create",
   "ai-transcription",
   "service",
@@ -4386,6 +4388,19 @@ for (const scenario of [
               : [{ id: "gpt-6-luna", name: "GPT-6 Luna" }],
         });
       });
+      if (scenario === "ai-proxy-test" || scenario === "ai-proxy-test-error")
+        await page.route("**/api/v1/ai/proxies/*/test", (route) =>
+          route.fulfill({
+            json: {
+              ip: "192.0.2.1",
+              country: "示例国家",
+              region: "示例地区",
+              city: "示例城市",
+              elapsed_ms: 120,
+              error: scenario === "ai-proxy-test-error" ? "timeout" : "",
+            },
+          }),
+        );
       if (scenario === "ai-paused")
         await page.route("**/api/v1/ai/ocr", (route) =>
           route.fulfill({
@@ -4487,6 +4502,27 @@ for (const scenario of [
       await expect(
         settings.getByRole("heading", { name: "AI 功能", exact: true }),
       ).toHaveCount(0);
+    }
+    if (scenario === "ai-proxy-test" || scenario === "ai-proxy-test-error") {
+      const table = settings.getByRole("table", { name: "代理", exact: true });
+      const row = table.getByRole("row").filter({
+        has: page.getByRole("rowheader", { name: "HTTP 示例", exact: true }),
+      });
+      await row.hover();
+      const test = row.getByRole("button", { name: "测试", exact: true });
+      await expect(test).toBeEnabled();
+      await test.click();
+      if (scenario === "ai-proxy-test-error")
+        await expect(row.getByRole("alert")).toHaveText(
+          "测试超过 15 秒，请检查代理或稍后重试。",
+        );
+      else
+        await expect(row.getByRole("status")).toContainText(
+          "出口 IP：192.0.2.1 · 示例国家 · 示例地区 · 示例城市 · 120 ms",
+        );
+      await expect(test).toBeEnabled();
+      await page.mouse.move(0, 0);
+      await expect(page.getByRole("tooltip")).toHaveCount(0);
     }
     if (scenario === "ai-proxy-invalid") {
       const table = settings.getByRole("table", { name: "代理", exact: true });
@@ -4899,9 +4935,11 @@ for (const scenario of [
       info.title,
       scenario === "ai-error"
         ? ["Model service unavailable"]
-        : scenario === "ai-paused"
-          ? ["上次失败：任务已取消。"]
-          : [],
+        : scenario === "ai-proxy-test-error"
+          ? ["测试超过 15 秒，请检查代理或稍后重试。"]
+          : scenario === "ai-paused"
+            ? ["上次失败：任务已取消。"]
+            : [],
     );
   });
 }

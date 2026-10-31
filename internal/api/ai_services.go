@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -57,6 +58,13 @@ func (s *Server) prepareAISignInChange(next *library.AIServiceSettings) func() {
 }
 
 func (s *Server) aiServiceRoutes() {
+	huma.Post(s.contract, Prefix+"/ai/proxies/{number}/test", func(ctx context.Context, in *aiAccountAction) (*output[ai.ProxyTestResult], error) {
+		result, err := s.library.TestAIProxy(ctx, in.Number)
+		if errors.Is(err, library.ErrNoSuchAIProxy) {
+			return nil, huma.Error404NotFound("AI proxy no longer exists")
+		}
+		return response(result, err)
+	})
 	huma.Get(s.contract, Prefix+"/ai/services", func(ctx context.Context, _ *struct{}) (*output[aiServicesView], error) {
 		settings, err := s.library.AIServicesSettings(ctx)
 		if err != nil {

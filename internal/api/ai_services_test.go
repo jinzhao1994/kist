@@ -3,8 +3,11 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/jinzhao1994/kist/internal/ai"
@@ -80,7 +83,7 @@ func TestAIServiceLocalBoundaryIncludesEveryInvocation(t *testing.T) {
 	// Keep the exercised public routes independent of the feature registry used
 	// by the guard, including the newer structured and audio extraction paths.
 	for _, path := range []string{
-		"/ai/services", "/ai/accounts/1/models", "/ai/accounts/1/connect",
+		"/ai/services", "/ai/accounts/1/models", "/ai/accounts/1/connect", "/ai/proxies/1/test",
 		"/files/00000000-0000-7000-8000-000000000001/orientation",
 		"/files/00000000-0000-7000-8000-000000000001/ocr",
 		"/files/00000000-0000-7000-8000-000000000001/desc",
@@ -106,6 +109,48 @@ func TestAIServiceLocalBoundaryIncludesEveryInvocation(t *testing.T) {
 		if requiresLocalAI(Prefix + path) {
 			t.Errorf("ordinary metadata/content route treated as inference: %s", path)
 		}
+	}
+}
+
+func TestAIProxyDiagnosticReadsOnlySavedConfiguration(t *testing.T) {
+	s, l := testServer(t)
+	var calls atomic.Int32
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		if r.Method != "CONNECT" || r.Host != "ipwho.is:443" {
+			t.Error("unexpected diagnostic destination")
+		}
+		w.WriteHeader(http.StatusProxyAuthRequired)
+	}))
+	defer proxy.Close()
+	draft, _ := l.AIServicesSettings(t.Context())
+	draft.Proxies = []library.AIProxySettings{{Number: -1, ID: "Synthetic", Type: ai.ProxyHTTP, URL: proxy.URL}}
+	if err := l.UpdateCombinedAIServiceSettings(t.Context(), draft.Revision, map[string]any{}, nil, nil, &draft); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(l.Layout().ConfigPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		path   string
+		status int
+	}{{"/ai/proxies/1/test", 200}, {"/ai/proxies/999/test", 404}} {
+		r := httptest.NewRequest("POST", "http://localhost:8473"+Prefix+test.path, strings.NewReader("{}"))
+		r.RemoteAddr = "127.0.0.1:1234"
+		r.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		s.ServeHTTP(w, r)
+		if w.Code != test.status {
+			t.Fatalf("%d %s", w.Code, w.Body.String())
+		}
+		if test.status == 200 && !strings.Contains(w.Body.String(), `"error":"connection"`) {
+			t.Fatal(w.Body.String())
+		}
+	}
+	after, _ := os.ReadFile(l.Layout().ConfigPath())
+	if calls.Load() != 1 || !bytes.Equal(before, after) {
+		t.Fatal("diagnostic mutated settings or made an extra request")
 	}
 }
 

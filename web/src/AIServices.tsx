@@ -23,6 +23,7 @@ import {
 import type { components } from "./api-schema";
 import { get, result } from "./api";
 import { SettingsCollection } from "./SettingsCollection";
+import { AIProxyRow } from "./AIProxyRow";
 import { HelpTooltip } from "./HelpTooltip";
 import { Select } from "./Select";
 import {
@@ -871,54 +872,58 @@ export function AIConnection({
               </SettingsErrorsContext>
             }
             renderRow={(p) => (
-              <>
-                <Table.Td className="settings-number-column">
-                  {objectNumber(p.number, t("aiPendingNumber"))}
-                </Table.Td>
-                <Table.Th scope="row">{p.id || t("aiUnnamed")}</Table.Th>
-                <Table.Td>{p.type === "http" ? "HTTP" : "Trojan"}</Table.Td>
-                <Table.Td>
-                  <Text size="sm" truncate>
-                    {p.type === "http"
-                      ? proxyAddress(p.url)
-                      : `${p.host}:${p.port}`}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Group
-                    gap="md"
-                    justify="flex-end"
-                    wrap="nowrap"
-                    className="table-row-actions"
-                  >
-                    {rowAction(
-                      t("aiEdit"),
-                      () => {
-                        originalProxy.current = p;
-                        setProxyEditor(p.number);
-                      },
-                      locked ||
-                        creatingProxy !== undefined ||
-                        proxyEditor !== undefined,
-                    )}
-                    {rowAction(
-                      t("aiDelete"),
-                      () => {
-                        edit({
-                          ...draft,
-                          proxies: draft.proxies!.filter(
-                            (value) => value.number !== p.number,
-                          ),
-                        });
-                        if (proxyEditor === p.number) setProxyEditor(undefined);
-                      },
-                      locked ||
-                        creatingProxy !== undefined ||
-                        proxyEditor !== undefined,
-                    )}
-                  </Group>
-                </Table.Td>
-              </>
+              <AIProxyRow
+                number={p.number}
+                name={p.id || t("aiUnnamed")}
+                type={p.type === "http" ? "HTTP" : "Trojan"}
+                address={
+                  p.type === "http"
+                    ? proxyAddress(p.url)
+                    : `${p.host}:${p.port}`
+                }
+                revision={draft.revision}
+                saved={
+                  p.number > 0 &&
+                  !changed(
+                    p,
+                    query.data?.proxies?.find(
+                      (value) => value.number === p.number,
+                    ),
+                  )
+                }
+                disabled={
+                  locked ||
+                  configurationPending ||
+                  creatingProxy !== undefined ||
+                  proxyEditor !== undefined
+                }
+              >
+                {rowAction(
+                  t("aiEdit"),
+                  () => {
+                    originalProxy.current = p;
+                    setProxyEditor(p.number);
+                  },
+                  locked ||
+                    creatingProxy !== undefined ||
+                    proxyEditor !== undefined,
+                )}
+                {rowAction(
+                  t("aiDelete"),
+                  () => {
+                    edit({
+                      ...draft,
+                      proxies: draft.proxies!.filter(
+                        (value) => value.number !== p.number,
+                      ),
+                    });
+                    if (proxyEditor === p.number) setProxyEditor(undefined);
+                  },
+                  locked ||
+                    creatingProxy !== undefined ||
+                    proxyEditor !== undefined,
+                )}
+              </AIProxyRow>
             )}
           />
           <SettingsCollection

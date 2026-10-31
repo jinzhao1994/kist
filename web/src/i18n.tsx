@@ -21,6 +21,21 @@ export const en = {
   aiAddProxy: "Add proxy",
   aiAddAccount: "Add account",
   aiPendingNumber: "Pending save",
+  aiProxyTest: "Test",
+  aiProxyTesting: "Testing…",
+  aiProxyTestHint:
+    "Query IPWho.is through this saved proxy (15-second timeout). IP location is approximate; no archive data is sent.",
+  aiProxyTestSaveFirst: "Save this proxy before testing.",
+  aiProxyTestResult: "Exit IP: {ip} · {location} · {ms} ms",
+  aiProxyTestUnknownLocation: "Unknown location",
+  aiProxyTestConnection:
+    "Connection failed. Check the proxy address, authentication and network.",
+  aiProxyTestTimeout:
+    "Test timed out after 15 seconds. Check the proxy or try again later.",
+  aiProxyTestRateLimited:
+    "The IP lookup service is rate limited. Try again later.",
+  aiProxyTestService:
+    "The IP lookup service returned an invalid response. Try again later.",
   aiNumber: "Number",
   aiObjectID: "Name",
   aiFinishEditing: "Done",
@@ -1163,6 +1178,17 @@ export const zh: Record<MessageKey, string> = {
   aiAddProxy: "添加代理",
   aiAddAccount: "添加账户",
   aiPendingNumber: "待保存",
+  aiProxyTest: "测试",
+  aiProxyTesting: "测试中…",
+  aiProxyTestHint:
+    "经已保存的代理查询 IPWho.is，15 秒超时。IP 位置仅供参考，不发送归档内容。",
+  aiProxyTestSaveFirst: "请先保存此代理，再进行测试。",
+  aiProxyTestResult: "出口 IP：{ip} · {location} · {ms} ms",
+  aiProxyTestUnknownLocation: "位置未知",
+  aiProxyTestConnection: "连接失败，请检查代理地址、认证信息和网络。",
+  aiProxyTestTimeout: "测试超过 15 秒，请检查代理或稍后重试。",
+  aiProxyTestRateLimited: "IP 查询服务已限流，请稍后重试。",
+  aiProxyTestService: "IP 查询服务响应异常，请稍后重试。",
   aiNumber: "编号",
   aiObjectID: "名称",
   aiFinishEditing: "完成",
@@ -2272,6 +2298,7 @@ interface Parameters {
   extractionQueueRunning: { name: string };
   ocrQueueCounts: { queued: number; failed: number };
   aiRemovedReference: { number: number };
+  aiProxyTestResult: { ip: string; location: string; ms: number };
   backgroundTaskLastFailure: { error: string };
   geoNearby: { address: string };
   clientSelectLoaded: { count: number };
