@@ -9,7 +9,11 @@ import { MetadataGroup } from "./MetadataGroup";
 import { CopyTextPreview } from "./CopyTextPreview";
 import { useClientMode } from "./OfflineEntry";
 import { OCRText } from "./AI";
-import { supportsImageAI, supportsDescriptionAI } from "./media-profile";
+import {
+  supportsTranscriptionAI,
+  supportsImageAI,
+  supportsDescriptionAI,
+} from "./media-profile";
 import { Button, CopyButton, Stack, Tooltip } from "@mantine/core";
 import type { components } from "./api-schema";
 import type { FileDetail as FileData, Tag } from "./api";
@@ -48,6 +52,12 @@ export function FileDetail({
     !data.extracted?.includes("facts") &&
     !data.metadata?.some((row) => row.key === "facts:data") &&
     descriptionInput;
+  const audioInput = supportsTranscriptionAI(file);
+  const canTranscribe =
+    !clientMode &&
+    audioInput &&
+    !data.extracted?.includes("transcription") &&
+    !data.metadata?.some((row) => row.key === "transcription:text");
   const canOrient =
     !clientMode &&
     imageTextInput &&
@@ -147,6 +157,9 @@ export function FileDetail({
     "desc:text": t("descText"),
     "desc:model": t("aiModel"),
     "desc:recipe": t("ocrRecipe"),
+    "transcription:text": t("transcriptionText"),
+    "transcription:model": t("aiModel"),
+    "transcription:recipe": t("ocrRecipe"),
     "ocr:text": t("ocrText"),
     "ocr:model": t("aiModel"),
     "ocr:recipe": t("ocrRecipe"),
@@ -197,6 +210,8 @@ export function FileDetail({
   if (canOCR && !groups.has("ocr")) groups.set("ocr", []);
   if (canFacts && !groups.has("facts")) groups.set("facts", []);
   if (canDescribe && !groups.has("desc")) groups.set("desc", []);
+  if (canTranscribe && !groups.has("transcription"))
+    groups.set("transcription", []);
   return (
     <div className="file-info-panel">
       <div className="file-info-heading">
@@ -290,7 +305,13 @@ export function FileDetail({
               fileID={file.id}
               empty={
                 rows.length === 0 &&
-                ["ocr", "desc", "orientation", "facts"].includes(source)
+                [
+                  "ocr",
+                  "desc",
+                  "orientation",
+                  "facts",
+                  "transcription",
+                ].includes(source)
               }
               help={
                 source === "gps" && data.gps ? t("geoCaptureHint") : undefined
@@ -317,16 +338,24 @@ export function FileDetail({
                           ? "OCR"
                           : source === "facts"
                             ? t("factsTitle")
-                            : source === "desc"
-                              ? t("descTitle")
-                              : source === "orientation"
-                                ? t("orientationTitle")
-                                : source
+                            : source === "transcription"
+                              ? t("transcriptionTitle")
+                              : source === "desc"
+                                ? t("descTitle")
+                                : source === "orientation"
+                                  ? t("orientationTitle")
+                                  : source
               }
               extractor={
                 !(source === "orientation" && file.image_rotation_manual) &&
                 (rows.length ||
-                  ["ocr", "desc", "orientation", "facts"].includes(source)) &&
+                  [
+                    "ocr",
+                    "desc",
+                    "orientation",
+                    "facts",
+                    "transcription",
+                  ].includes(source)) &&
                 [
                   "exif",
                   "gps",
@@ -335,10 +364,17 @@ export function FileDetail({
                   "desc",
                   "orientation",
                   "facts",
+                  "transcription",
                 ].includes(source) &&
                 !(
                   clientMode &&
-                  ["ocr", "desc", "orientation", "facts"].includes(source)
+                  [
+                    "ocr",
+                    "desc",
+                    "orientation",
+                    "facts",
+                    "transcription",
+                  ].includes(source)
                 )
                   ? source === "gps"
                     ? "exif"
@@ -366,7 +402,8 @@ export function FileDetail({
                       row.key === "facts:data" ? null : row.key ===
                           "ocr:hint" ||
                         row.key === "desc:hint" ||
-                        row.key === "facts:hint" ? (
+                        row.key === "facts:hint" ||
+                        row.key === "transcription:hint" ? (
                         <AISupplement
                           key={`${file.id}/${file.blob_key}/${row.key}`}
                           fileID={file.id}
@@ -374,9 +411,11 @@ export function FileDetail({
                           kind={
                             row.key === "ocr:hint"
                               ? "ocr"
-                              : row.key === "facts:hint"
-                                ? "facts"
-                                : "desc"
+                              : row.key === "transcription:hint"
+                                ? "transcription"
+                                : row.key === "facts:hint"
+                                  ? "facts"
+                                  : "desc"
                           }
                           row={row}
                           manual={rows.some(
@@ -386,9 +425,11 @@ export function FileDetail({
                           )}
                           canRun={
                             !clientMode &&
-                            (source === "desc" || source === "facts"
-                              ? descriptionInput
-                              : imageTextInput)
+                            (source === "transcription"
+                              ? audioInput
+                              : source === "desc" || source === "facts"
+                                ? descriptionInput
+                                : imageTextInput)
                           }
                         />
                       ) : (
@@ -405,7 +446,8 @@ export function FileDetail({
                               row={row}
                               label={metadataLabel(row.key)}
                             >
-                              {row.key === "ocr:text" ? (
+                              {row.key === "ocr:text" ||
+                              row.key === "transcription:text" ? (
                                 <OCRText text={row.value} />
                               ) : row.key === "desc:text" ? (
                                 <CopyTextPreview

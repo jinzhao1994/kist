@@ -1,3 +1,4 @@
+import { aiServicesFixture } from "./aiServices.fixture";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -6,7 +7,7 @@ import { MetadataGroup } from "./MetadataGroup";
 import { ImageRotation } from "./ImageRotation";
 import type { ArchiveFile } from "./api";
 import { FileDetail } from "./FileDetail";
-import { AIConnection, OCRAction, OCRText } from "./AI";
+import { OCRAction, OCRText } from "./AI";
 import { BackgroundTasks } from "./BackgroundTasks";
 import { I18nProvider, storageKey } from "./i18n";
 import { ThemeProvider } from "./theme";
@@ -45,15 +46,7 @@ function mount(content: React.ReactNode) {
   return client;
 }
 function defaults(path: string) {
-  if (path.endsWith("/ai/settings"))
-    return Response.json({
-      model: "gpt-6-luna",
-      auto_ocr: false,
-      auto_desc: false,
-      auto_orientation: false,
-      proxy_url: "",
-      revision: "one",
-    });
+  if (path.endsWith("/ai/services")) return Response.json(aiServicesFixture());
   if (
     path.endsWith("/ai/ocr") ||
     path.endsWith("/ai/desc") ||
@@ -104,15 +97,8 @@ it("does not run OCR before a default model is saved", async () => {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (path: string) => {
-      if (path.endsWith("/ai/settings"))
-        return Response.json({
-          model: "",
-          auto_ocr: false,
-          auto_desc: false,
-          auto_orientation: false,
-          proxy_url: "",
-          revision: "one",
-        });
+      if (path.endsWith("/ai/services"))
+        return Response.json(aiServicesFixture({ model: "" }));
       return (
         defaults(path) ||
         Response.json(
@@ -125,7 +111,7 @@ it("does not run OCR before a default model is saved", async () => {
   );
   mount(<OCRAction fileID="file" />);
   await screen.findByText(
-    "Connect an account and save a default AI model in AI settings first.",
+    "Choose an account and model for this feature in AI settings first.",
   );
   expect(
     screen.queryByRole("button", { name: "Extract text (OCR)" }),
@@ -135,159 +121,6 @@ it("does not run OCR before a default model is saved", async () => {
     "/settings#settings-ai",
   );
 });
-it("shows model loading and saves shared options without triggering a backfill", async () => {
-  let finish!: (response: Response) => void;
-  let modelRequests = 0;
-  const writes: { path: string; body: any }[] = [];
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (path: string, init?: RequestInit) => {
-      if (init?.method === "PUT") {
-        const body = JSON.parse(init.body as string);
-        writes.push({ path, body });
-        return Response.json({ ...body, revision: "two" });
-      }
-      if (path.endsWith("/ai/models") && modelRequests++ === 0)
-        return new Promise<Response>((resolve) => {
-          finish = resolve;
-        });
-      if (path.endsWith("/ai/settings"))
-        return Response.json({
-          model: "",
-          auto_ocr: false,
-          auto_desc: false,
-          auto_orientation: false,
-          proxy_url: "",
-          revision: "one",
-        });
-      return (
-        defaults(path) ||
-        Response.json({
-          supported: true,
-          connected: true,
-          pending: false,
-          email: "reader@example.test",
-        })
-      );
-    }),
-  );
-  mount(<AIConnection />);
-  await screen.findByText("Loading models…");
-  finish(Response.json([{ id: "gpt-6-luna", name: "Luna" }]));
-  await userEvent.click(
-    await screen.findByRole("button", { name: "Use GPT-6 Luna" }),
-  );
-  await userEvent.click(
-    screen.getByRole("checkbox", {
-      name: "Automatically recognize new images",
-    }),
-  );
-  await userEvent.type(
-    screen.getByLabelText("AI proxy address", { selector: "input" }),
-    "http://127.0.0.1:7890",
-  );
-  await userEvent.click(
-    screen.getByRole("button", { name: "Save AI settings" }),
-  );
-  await waitFor(() => expect(writes).toHaveLength(1));
-  expect(writes[0]).toEqual({
-    path: "/api/v1/ai/settings",
-    body: {
-      model: "gpt-6-luna",
-      auto_ocr: true,
-      auto_desc: false,
-      auto_orientation: false,
-      proxy_url: "http://127.0.0.1:7890",
-      changed: ["model", "auto_ocr", "proxy_url"],
-      revision: "one",
-    },
-  });
-});
-it("resets AI model, proxy and boolean options without starting extraction", async () => {
-  const settingDefaults = {
-    model: "",
-    proxy_url: "",
-    auto_ocr: false,
-    auto_desc: false,
-    auto_orientation: false,
-    auto_facts: false,
-  };
-  const writes: Record<string, unknown>[] = [];
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (path: string, init?: RequestInit) => {
-      if (path.endsWith("/ai/settings")) {
-        if (init?.method === "PUT") {
-          writes.push(JSON.parse(String(init.body)));
-          return Response.json({
-            ...settingDefaults,
-            defaults: settingDefaults,
-            revision: "two",
-          });
-        }
-        return Response.json({
-          model: "gpt-6-luna",
-          proxy_url: "http://127.0.0.1:7890",
-          auto_ocr: true,
-          auto_desc: true,
-          auto_orientation: true,
-          auto_facts: true,
-          defaults: settingDefaults,
-          explicit: Object.keys(settingDefaults),
-          revision: "one",
-        });
-      }
-      expect(init?.method).toBeUndefined();
-      return (
-        defaults(path) || Response.json({ supported: true, connected: true })
-      );
-    }),
-  );
-  mount(<AIConnection />);
-  await screen.findByRole("checkbox", {
-    name: "Automatically recognize new images",
-  });
-  const resets = screen.getAllByRole("button", { name: "Restore default" });
-  expect(resets).toHaveLength(6);
-  expect(screen.getAllByText("Explicitly set")).toHaveLength(6);
-  const automatic = screen.getByRole("checkbox", {
-    name: "Automatically recognize new images",
-  });
-  await userEvent.click(automatic);
-  await userEvent.click(automatic);
-  expect(
-    screen.getByRole("button", { name: "Save AI settings" }),
-  ).toBeDisabled();
-  for (const reset of resets) await userEvent.click(reset);
-  expect(writes).toHaveLength(0);
-  for (const checkbox of screen.getAllByRole("checkbox"))
-    expect(checkbox).not.toBeChecked();
-  expect(
-    screen.getByLabelText("AI proxy address", { selector: "input" }),
-  ).toHaveValue("");
-  await userEvent.click(
-    screen.getByRole("button", { name: "Save AI settings" }),
-  );
-  await waitFor(() => expect(writes).toHaveLength(1));
-  expect(writes[0]).toMatchObject({ ...settingDefaults, revision: "one" });
-  expect(writes[0].defaults).toBeUndefined();
-  expect(writes[0].explicit).toBeUndefined();
-  expect(writes[0].changed).toEqual([]);
-  expect(screen.queryByText("Explicitly set")).not.toBeInTheDocument();
-  expect(screen.getAllByText("Following defaults")).toHaveLength(6);
-  expect(
-    screen.queryByRole("button", { name: "Restore default" }),
-  ).not.toBeInTheDocument();
-  expect(writes[0].reset).toEqual([
-    "model",
-    "proxy_url",
-    "auto_orientation",
-    "auto_ocr",
-    "auto_desc",
-    "auto_facts",
-  ]);
-});
-
 it("compacts OCR for display but copies the complete original text", async () => {
   const user = userEvent.setup();
   const copy = vi.spyOn(navigator.clipboard, "writeText");
@@ -306,83 +139,6 @@ it("compacts OCR for display but copies the complete original text", async () =>
   expect(copy).toHaveBeenLastCalledWith(text);
   expect(button).toHaveAccessibleName("Copied");
 });
-it("clears connection state and reports unconfirmed revocation", async () => {
-  let connected = true;
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (path: string) => {
-      const value = defaults(path);
-      if (value) return value;
-      if (path.endsWith("/disconnect")) {
-        connected = false;
-        return Response.json({ revoked: false });
-      }
-      return Response.json({
-        supported: true,
-        connected,
-        email: "reader@example.test",
-        pending: false,
-        error: "",
-      });
-    }),
-  );
-  mount(<AIConnection />);
-  await userEvent.click(
-    await screen.findByRole("button", { name: "Disconnect" }),
-  );
-  await waitFor(() =>
-    expect(screen.queryByText(/reader@example.test/)).not.toBeInTheDocument(),
-  );
-  expect(screen.getByText(/Local credentials cleared/)).toBeVisible();
-});
-
-it("opens ChatGPT from the initial click and detaches the new tab", async () => {
-  const replace = vi.fn();
-  const popup = {
-    opener: window,
-    closed: false,
-    location: { replace },
-    close: vi.fn(),
-  };
-  const open = vi
-    .spyOn(window, "open")
-    .mockReturnValue(popup as unknown as Window);
-  let pending = false;
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (path: string) => {
-      const value = defaults(path);
-      if (value) return value;
-      if (path.endsWith("/connect")) {
-        pending = true;
-        return Response.json({
-          url: "https://auth.openai.com/authorize?state=test",
-        });
-      }
-      return Response.json({
-        supported: true,
-        connected: false,
-        pending,
-        email: "",
-        error: "",
-      });
-    }),
-  );
-  mount(<AIConnection />);
-  const button = await screen.findByRole("button", {
-    name: "Continue with ChatGPT",
-  });
-  await waitFor(() => expect(button).toBeEnabled());
-  await userEvent.click(button);
-  expect(open).toHaveBeenCalledWith("about:blank", "_blank");
-  await waitFor(() =>
-    expect(replace).toHaveBeenCalledWith(
-      "https://auth.openai.com/authorize?state=test",
-    ),
-  );
-  expect(popup.opener).toBeNull();
-});
-
 it("shows an explicit empty OCR result without a blank editor or copy action", () => {
   mount(<OCRText text="" />);
   expect(screen.getByText("No text was recognized.")).toBeVisible();
@@ -390,32 +146,6 @@ it("shows an explicit empty OCR result without a blank editor or copy action", (
   expect(
     screen.queryByRole("button", { name: "Copy recognized text" }),
   ).not.toBeInTheDocument();
-});
-
-it("allows model-list retry and explains an empty catalog", async () => {
-  let modelRequests = 0;
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (path: string) => {
-      if (path.endsWith("/ai/models")) {
-        modelRequests++;
-        return modelRequests === 1
-          ? Response.json(
-              { code: "internal", message: "Catalog unavailable" },
-              { status: 502 },
-            )
-          : Response.json([]);
-      }
-      return (
-        defaults(path) || Response.json({ supported: true, connected: true })
-      );
-    }),
-  );
-  mount(<AIConnection />);
-  await screen.findByText(/Catalog unavailable/);
-  await userEvent.click(screen.getByRole("button", { name: "Try again" }));
-  await screen.findByText("No models are available for this account.");
-  expect(modelRequests).toBe(2);
 });
 
 it("queues a description independently of OCR", async () => {
@@ -566,8 +296,8 @@ it("explains canceled tasks in both queue settings and metadata", async () => {
       Response.json(
         path.endsWith("/ai")
           ? { supported: true, connected: true }
-          : path.endsWith("/ai/settings")
-            ? { model: "gpt-6-luna" }
+          : path.endsWith("/ai/services")
+            ? aiServicesFixture()
             : path.endsWith("/ai/ocr")
               ? {
                   paused: true,
@@ -751,3 +481,50 @@ it.each([
     expect(screen.getAllByRole("button")).toHaveLength(1);
   },
 );
+
+it("offers transcription for audio and keeps its output in metadata", async () => {
+  const writes: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        writes.push(path);
+        return Response.json({ state: "queued", manual: true });
+      }
+      return (
+        defaults(path) ||
+        Response.json(
+          path.endsWith("/ai") ? { supported: true } : { state: "missing" },
+        )
+      );
+    }),
+  );
+  mount(
+    <FileDetail
+      data={{
+        file: {
+          id: "audio-file",
+          name: "synthetic.wav",
+          captured_at: null,
+          folder_id: "folder",
+          blob_key: "blob",
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: "2026-01-01T00:00:00Z",
+          kind: "audio",
+          media_type: "audio/wave",
+        },
+        metadata: [],
+        extracted: [],
+        tags: [],
+      }}
+      tags={[]}
+    />,
+  );
+  const run = await screen.findByRole("button", { name: "Transcribe audio" });
+  await waitFor(() => expect(run).toBeEnabled());
+  expect(
+    screen.queryByRole("button", { name: "Extract text (OCR)" }),
+  ).not.toBeInTheDocument();
+  await userEvent.click(run);
+  expect(writes).toEqual(["/api/v1/files/audio-file/transcription"]);
+});

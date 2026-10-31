@@ -1,3 +1,4 @@
+import { aiServicesFixture } from "./aiServices.fixture";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -26,15 +27,7 @@ const location = {
   pause_on_error: true,
   revision: "test",
 };
-const ai = {
-  model: "gpt-6-luna",
-  auto_ocr: false,
-  auto_desc: false,
-  auto_facts: false,
-  auto_orientation: false,
-  proxy_url: "",
-  revision: "test",
-};
+const ai = aiServicesFixture();
 const queue = {
   paused: false,
   scanning: false,
@@ -68,7 +61,7 @@ it("reveals local settings together, reuses requests and does not wait for remot
           releaseLocation = r;
         });
       }
-      if (path === "/ai/models")
+      if (path === "/ai/accounts/1/models")
         return new Promise<Response>((r) => {
           releaseModels = r;
         });
@@ -86,7 +79,7 @@ it("reveals local settings together, reuses requests and does not wait for remot
           pending: false,
           error: "",
         });
-      if (path === "/ai/settings") return Response.json(ai);
+      if (path === "/ai/services") return Response.json(ai);
       return Response.json(queue);
     }),
   );
@@ -102,7 +95,7 @@ it("reveals local settings together, reuses requests and does not wait for remot
       </ThemeProvider>
     </QueryClientProvider>,
   );
-  await waitFor(() => expect(reads).toContain("/ai/settings"));
+  await waitFor(() => expect(reads).toContain("/ai/services"));
   expect(reads).toContain("/geo/settings");
   expect(
     screen.queryByRole("heading", { name: "GPS", level: 2 }),
@@ -122,15 +115,18 @@ it("reveals local settings together, reuses requests and does not wait for remot
   expect(
     screen.getByLabelText("Photon endpoint", { selector: "input" }),
   ).toHaveValue(location.endpoint);
-  expect(
-    screen.getByLabelText("AI proxy address", { selector: "input" }),
-  ).toHaveValue("");
+  expect(reads).not.toContain("/ai/accounts/1/models");
+  await userEvent.click(
+    within(screen.getByRole("region", { name: "OCR" })).getByRole("combobox", {
+      name: "Model",
+    }),
+  );
   await screen.findByText("Loading models…");
   for (const path of [
     "/settings/storage",
     "/settings/credentials",
     "/ai",
-    "/ai/settings",
+    "/ai/services",
     "/geo/settings",
     "/geo",
     "/metadata",
@@ -157,7 +153,7 @@ it("reveals local settings together, reuses requests and does not wait for remot
     sectionIDs.slice(-3).map((id) => `#${id}`),
   );
   const background = screen.getByRole("region", { name: "Background tasks" });
-  expect(within(background).getAllByRole("rowheader")).toHaveLength(6);
+  expect(within(background).getAllByRole("rowheader")).toHaveLength(7);
   for (const id of ["settings-ai", "settings-location"])
     expect(view.container.querySelector(`#${id} table.task-table`)).toBeNull();
   const ocr = within(background)
@@ -175,9 +171,10 @@ it("reveals local settings together, reuses requests and does not wait for remot
   expect(ocrPause).toBeEnabled();
   expect(geoPause).toBeEnabled();
   const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Add proxy" }));
   await user.type(
-    screen.getByLabelText("AI proxy address", { selector: "input" }),
-    "http://localhost:7890",
+    screen.getByRole("textbox", { name: "ID (name)" }),
+    "Test proxy",
   );
   expect(ocrPause).toBeDisabled();
   expect(geoPause).toBeDisabled();
@@ -232,7 +229,7 @@ it("isolates optional section failures and respects unsupported AI endpoints", a
   expect(await loadSettingsPage(client)).toEqual(settings);
   expect(client.getQueryState(["sync-credentials"])?.status).toBe("error");
   expect(client.getQueryData(["location-settings"])).toEqual(location);
-  expect(reads).not.toContain("/ai/settings");
+  expect(reads).not.toContain("/ai/services");
   expect(reads).not.toContain("/ai/ocr");
   client.clear();
 });

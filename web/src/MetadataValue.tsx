@@ -153,6 +153,7 @@ export function MetadataValue({
               label={editLabel}
               multiline={
                 editing.key === "ocr:text" ||
+                editing.key === "transcription:text" ||
                 editing.key === "desc:text" ||
                 /[\r\n]/u.test(editing.value) ||
                 editing.value.length > 160

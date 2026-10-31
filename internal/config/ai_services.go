@@ -103,10 +103,10 @@ func validateAIServices(s *ai.Services) error {
 		if f.Automatic && (f.Account == 0 || f.Model == "") {
 			return InvalidField(field+".account", "model_required", "Choose an account and model before enabling automatic processing.")
 		}
-		if !slices.Contains([]string{"", "none", "minimal", "low", "medium", "high", "xhigh", "max"}, f.ReasoningEffort) {
+		if !slices.Contains(ai.ParameterValues("reasoning_effort"), f.ReasoningEffort) {
 			return InvalidField(field+".reasoning_effort", "choice", "Choose a supported reasoning effort.")
 		}
-		if !slices.Contains([]string{"", "auto", "low", "high", "original"}, f.ImageDetail) {
+		if !slices.Contains(ai.ParameterValues("image_detail"), f.ImageDetail) {
 			return InvalidField(field+".image_detail", "choice", "Choose a supported image detail.")
 		}
 		if f.AfterOp < 0 {

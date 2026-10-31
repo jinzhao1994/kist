@@ -3541,6 +3541,11 @@ main.upload-drag-active {
 .settings-blocks {
   gap: var(--mantine-spacing-xl);
 }
+.settings-subsection-heading {
+  margin: 0;
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 600;
+}
 .settings-hint {
   font-size: var(--mantine-font-size-sm);
   color: var(--mantine-color-dimmed);

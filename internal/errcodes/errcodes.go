@@ -103,6 +103,7 @@ const (
 	CodeInvalidRequest        Code = "invalid_request"
 	CodeRequestConflict       Code = "request_conflict"
 	CodeOCRChanged            Code = "ocr_changed"
+	CodeVideoChanged          Code = "video_changed"
 	CodeRequestScope          Code = "request_scope"
 	CodeSyncConflict          Code = "sync_conflict"
 	CodeNotCached             Code = "not_cached"
@@ -177,6 +178,7 @@ var table = []struct {
 	{library.ErrSyncVersion, CodeSyncVersion},
 	{library.ErrRequestConflict, CodeRequestConflict},
 	{library.ErrOCRChanged, CodeOCRChanged},
+	{library.ErrVideoChanged, CodeVideoChanged},
 	{library.ErrRequestScope, CodeRequestScope},
 	{oplog.ErrNotUndoable, CodeNotUndoable},
 	{library.ErrUndoBlocked, CodeUndoBlocked},
@@ -245,6 +247,7 @@ var classes = map[Code]Class{
 	CodeInvalidRequest:        ClassInvalid,
 	CodeRequestConflict:       ClassConflict,
 	CodeOCRChanged:            ClassConflict,
+	CodeVideoChanged:          ClassConflict,
 	CodeSyncConflict:          ClassConflict,
 	CodeSyncDependency:        ClassConflict,
 	CodeSyncVersion:           ClassInvalid,

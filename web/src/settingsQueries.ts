@@ -13,7 +13,13 @@ const read = <T>(key: string, path: string) =>
   });
 
 export type MetadataTask =
-  "metadata" | "ocr" | "desc" | "facts" | "orientation" | "geo";
+  | "metadata"
+  | "ocr"
+  | "desc"
+  | "facts"
+  | "orientation"
+  | "transcription"
+  | "geo";
 export const queuePath = (kind: MetadataTask) =>
   kind === "geo" ? "/geo" : kind === "metadata" ? "/metadata" : `/ai/${kind}`;
 export const settingsQueries = {
@@ -32,6 +38,7 @@ export const settingsQueries = {
   },
   connection: read<Schema["AIStatus"]>("ai-connection", "/ai"),
   ai: read<Schema["OCRSettings"]>("ai-settings", "/ai/settings"),
+  services: read<Schema["AiServicesView"]>("ai-services", "/ai/services"),
   location: read<Schema["LocationSettings"]>(
     "location-settings",
     "/geo/settings",
@@ -72,8 +79,16 @@ export async function loadSettingsPage(
     // Preserve the local-only AI boundary; unsupported instances do not expose
     // AI settings or queue endpoints.
     if (connection?.supported) {
-      pending.push(client.prefetchQuery({ ...settingsQueries.ai, ...fresh }));
-      for (const kind of ["orientation", "ocr", "desc", "facts"] as const)
+      pending.push(
+        client.prefetchQuery({ ...settingsQueries.services, ...fresh }),
+      );
+      for (const kind of [
+        "orientation",
+        "ocr",
+        "desc",
+        "facts",
+        "transcription",
+      ] as const)
         pending.push(
           client.prefetchQuery({ ...settingsQueries.queue(kind), ...fresh }),
         );
@@ -81,4 +96,19 @@ export async function loadSettingsPage(
   }
   await Promise.all(pending);
   return settings;
+}
+
+export function aiFeatureAccess(
+  data: Schema["AiServicesView"] | undefined,
+  kind: string,
+) {
+  const feature = data?.features[kind];
+  const account = data?.accounts?.find(
+    (value) => value.number === feature?.account,
+  );
+  return {
+    feature,
+    account,
+    configured: !!feature?.model && !!account?.connected,
+  };
 }

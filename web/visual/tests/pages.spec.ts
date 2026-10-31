@@ -1,3 +1,4 @@
+import { aiServicesFixture } from "../../src/aiServices.fixture";
 import { test, expect, type Page } from "@playwright/test";
 import { colors, type Appearance } from "../../src/theme";
 import type { ArchiveFile, Box, MediaJob, Tag } from "../../src/api";
@@ -8,14 +9,61 @@ const gpsSettingDefaults = {
   request_interval_seconds: 2,
   pause_on_error: true,
 };
-const aiSettingDefaults = {
-  model: "",
-  proxy_url: "",
-  auto_ocr: false,
-  auto_desc: false,
-  auto_facts: false,
-  auto_orientation: false,
-};
+function visualAIServices(connected = true) {
+  const view = aiServicesFixture({ revision: "visual", connected });
+  view.proxies = [
+    {
+      number: 1,
+      id: "HTTP 示例",
+      type: "http",
+      url: "http://proxy.example:7890",
+      host: "",
+      port: 0,
+      server_name: "",
+      secret_configured: false,
+    },
+    {
+      number: 2,
+      id: "Trojan 示例",
+      type: "trojan",
+      url: "",
+      host: "proxy.example",
+      port: 443,
+      server_name: "proxy.example",
+      secret_configured: true,
+    },
+  ];
+  view.accounts = [
+    {
+      number: 1,
+      id: "日常 ChatGPT",
+      type: "chatgpt",
+      proxy: 1,
+      connected,
+      email: "reader@example.test",
+    },
+    {
+      number: 2,
+      id: "OpenAI API",
+      type: "openai",
+      proxy: 2,
+      connected,
+      email: "",
+    },
+  ];
+  view.features.transcription.account = 2;
+  return view;
+}
+function emptyAIServices() {
+  const view = visualAIServices(false);
+  view.accounts = [];
+  view.proxies = [];
+  for (const feature of Object.values(view.features)) {
+    feature.account = 0;
+    feature.model = "";
+  }
+  return view;
+}
 
 // A real, deterministic two-page PDF exercises rendering, text and navigation.
 function pdfFixture(slides = false) {
@@ -218,22 +266,19 @@ async function prepare(page: Page, options: Options = {}) {
           revision: "visual",
         },
       });
-    if (path === "/ai/settings")
+    if (path === "/ai/services")
+      return route.fulfill({ json: emptyAIServices() });
+    if (/^\/ai\/accounts\/\d+\/models$/.test(path))
       return route.fulfill({
-        json: {
-          defaults: aiSettingDefaults,
-          explicit: ["model"],
-          model: "gpt-6-luna",
-          auto_ocr: false,
-          auto_desc: false,
-          auto_facts: false,
-          auto_orientation: false,
-          proxy_url: "",
-          revision: "visual",
-        },
+        json: [
+          { id: "gpt-6-luna", name: "GPT-6 Luna" },
+          { id: "gpt-transcribe", name: "GPT Transcribe" },
+        ],
       });
     if (
-      /^\/(?:ai\/(?:ocr|desc|facts|orientation)|geo|metadata)\/jobs$/.test(path)
+      /^\/(?:ai\/(?:ocr|desc|facts|orientation|transcription)|geo|metadata)\/jobs$/.test(
+        path,
+      )
     )
       return route.fulfill({ json: { items: [], next_cursor: "" } });
     if (
@@ -242,7 +287,8 @@ async function prepare(page: Page, options: Options = {}) {
       path === "/ai/ocr" ||
       path === "/ai/desc" ||
       path === "/ai/facts" ||
-      path === "/ai/orientation"
+      path === "/ai/orientation" ||
+      path === "/ai/transcription"
     )
       return route.fulfill({
         json: {
@@ -254,7 +300,9 @@ async function prepare(page: Page, options: Options = {}) {
         },
       });
     if (
-      /^\/files\/[^/]+\/(?:ocr|desc|facts|orientation|geo)$/.test(path) &&
+      /^\/files\/[^/]+\/(?:ocr|desc|facts|orientation|transcription|geo)$/.test(
+        path,
+      ) &&
       route.request().method() === "GET"
     )
       return route.fulfill({ json: { state: "missing" } });
@@ -4084,6 +4132,9 @@ for (const scenario of [
   "ai-paused",
   "ai-description",
   "ai-facts",
+  "ai-trojan",
+  "ai-api-account",
+  "ai-transcription",
   "service",
   "maps",
   "credentials",
@@ -4311,22 +4362,13 @@ for (const scenario of [
           },
         }),
       );
-      await page.route("**/api/v1/ai/settings", (route) =>
-        route.fulfill({
-          json: {
-            defaults: aiSettingDefaults,
-            explicit: ["model"],
-            model: "gpt-6-luna",
-            auto_ocr: scenario === "ai-paused",
-            auto_desc: scenario === "ai-description",
-            auto_facts: false,
-            auto_orientation: false,
-            proxy_url: "",
-            revision: "visual",
-          },
-        }),
-      );
-      await page.route("**/api/v1/ai/models", async (route) => {
+      await page.route("**/api/v1/ai/services", (route) => {
+        const view = visualAIServices();
+        view.features.ocr.automatic = scenario === "ai-paused";
+        view.features.desc.automatic = scenario === "ai-description";
+        return route.fulfill({ json: view });
+      });
+      await page.route("**/api/v1/ai/accounts/*/models", async (route) => {
         if (scenario === "ai-loading") return;
         if (scenario === "ai-error")
           return route.fulfill({
@@ -4381,7 +4423,9 @@ for (const scenario of [
           .getByRole("alert")
           .getByRole("button", { name: "关闭", exact: true }),
       ).toBeVisible();
-      await capture(page, errors, info.title);
+      await capture(page, errors, info.title, [
+        "设置未保存，请检查填写的内容。",
+      ]);
       return;
     }
     if (scenario === "save-hint") {
@@ -4422,14 +4466,48 @@ for (const scenario of [
     }
     if (scenario === "ai" || scenario.startsWith("ai-")) {
       await settings
-        .getByRole("link", { name: "AI 连接", exact: true })
+        .getByRole("link", { name: "AI 服务", exact: true })
         .click();
       await expect(
-        settings.getByRole("button", {
-          name: "使用 ChatGPT 继续",
+        settings.getByRole("button", { name: "添加账户", exact: true }),
+      ).toBeEnabled();
+    }
+    if (scenario === "ai-trojan" || scenario === "ai-api-account") {
+      const table = settings.getByRole("table", {
+        name: scenario === "ai-trojan" ? "代理" : "AI 账户",
+        exact: true,
+      });
+      const row = table.getByRole("row").filter({
+        has: page.getByRole("rowheader", {
+          name: scenario === "ai-trojan" ? "Trojan 示例" : "OpenAI API",
           exact: true,
         }),
-      ).toBeEnabled();
+      });
+      await row.hover();
+      await row.getByRole("button", { name: "编辑", exact: true }).click();
+      const editor = settings.getByRole("region", {
+        name: scenario === "ai-trojan" ? "编辑代理" : "编辑 AI 账户",
+        exact: true,
+      });
+      await expect(editor).toBeVisible();
+      await editor.scrollIntoViewIfNeeded();
+      await expect(editor.locator('input[type="password"]')).toHaveValue("");
+    }
+    if (scenario === "ai-transcription") {
+      const feature = settings.getByRole("region", {
+        name: "语音转文字",
+        exact: true,
+      });
+      await feature.scrollIntoViewIfNeeded();
+      await expect(
+        feature.getByRole("combobox", { name: "模型", exact: true }),
+      ).toBeVisible();
+      await expect(
+        feature.getByRole("combobox", { name: "思考强度", exact: true }),
+      ).toHaveCount(0);
+      await expect(
+        feature.getByRole("combobox", { name: "图像精度", exact: true }),
+      ).toHaveCount(0);
     }
     if (scenario === "ai-description") {
       const row = settings
@@ -4635,10 +4713,15 @@ for (const scenario of [
     if (client || scenario.startsWith("storage")) {
       await settings.getByRole("link", { name: "存储", exact: true }).click();
       const usage = settings.getByRole("region", { name: "本机存储用量" });
-      await expect(usage.locator(".storage-usage-values > div")).toHaveCount(3);
+      await expect(usage.locator(".storage-usage-values > div")).toHaveCount(4);
       await expect(usage).toContainText("原文件");
     }
     if (scenario.startsWith("ai-")) {
+      if (["ai-loading", "ai-error", "ai-empty"].includes(scenario))
+        await page
+          .getByRole("region", { name: "OCR", exact: true })
+          .getByRole("combobox", { name: "模型", exact: true })
+          .click();
       await expect(
         page.getByRole("checkbox", { name: "自动识别新增图片" }),
       ).toBeVisible();
@@ -4880,8 +4963,11 @@ for (const scenario of [
         },
       }),
     );
-    await page.route("**/api/v1/ai/models", (route) =>
+    await page.route("**/api/v1/ai/accounts/*/models", (route) =>
       route.fulfill({ json: [{ id: "gpt-6-luna", name: "GPT-6 Luna" }] }),
+    );
+    await page.route("**/api/v1/ai/services", (route) =>
+      route.fulfill({ json: visualAIServices(scenario !== "disconnected") }),
     );
     if (scenario === "error")
       await page.route("**/api/v1/files/file-1/ocr", (route) =>
@@ -5700,7 +5786,7 @@ for (const anchor of [
     );
     if (taskSection) {
       const tasks = page.locator("#settings-background-tasks");
-      await expect(tasks.getByRole("rowheader")).toHaveCount(6);
+      await expect(tasks.getByRole("rowheader")).toHaveCount(7);
       const ocr = tasks
         .getByRole("row")
         .filter({ has: page.getByRole("rowheader", { name: /^OCR/ }) });
@@ -5737,7 +5823,7 @@ for (const anchor of [
         .getByRole("button", { name: "后台任务", exact: true })
         .hover();
       await expect(page.getByRole("tooltip")).toContainText("共用调度器");
-      await expect(page.getByRole("tooltip")).toContainText("独立后台执行器");
+      await expect(page.getByRole("tooltip")).toContainText("独立的按需执行器");
       await page.mouse.move(5, 5);
       const arrow = ocr.getByRole("button", {
         name: "展开OCR任务",
@@ -5748,7 +5834,7 @@ for (const anchor of [
       await expect(arrow.locator("..")).toHaveCSS("opacity", "1");
       if (expanded) {
         await ocr.getByRole("rowheader", { name: /^OCR/ }).click();
-        await expect(tasks.locator(".task-table > tbody > tr")).toHaveCount(6);
+        await expect(tasks.locator(".task-table > tbody > tr")).toHaveCount(7);
         const details = ocr.getByRole("table", {
           name: "OCR任务",
           exact: true,

@@ -51,7 +51,37 @@ const (
 // FeatureNames is the registry of configurable AI extraction routes. Local
 // metadata and GPS are deliberately not AI account consumers.
 func FeatureNames() []string {
-	return []string{"orientation", "ocr", "desc", "facts", "transcription"}
+	names := []string{}
+	for _, definition := range FeatureDefinitions() {
+		names = append(names, definition.Name)
+	}
+	return names
+}
+
+type FeatureDefinition struct {
+	Name         string              `json:"name"`
+	Parameters   []string            `json:"parameters"`
+	AccountTypes []string            `json:"account_types"`
+	Options      map[string][]string `json:"options"`
+}
+
+func ParameterValues(name string) []string {
+	switch name {
+	case "reasoning_effort":
+		return []string{"", "none", "minimal", "low", "medium", "high", "xhigh", "max"}
+	case "image_detail":
+		return []string{"", "auto", "low", "high", "original"}
+	default:
+		return nil
+	}
+}
+
+func FeatureDefinitions() []FeatureDefinition {
+	definitions := []FeatureDefinition{}
+	for _, name := range []string{"orientation", "ocr", "desc", "facts"} {
+		definitions = append(definitions, FeatureDefinition{Name: name, Parameters: []string{"reasoning_effort", "image_detail"}, AccountTypes: []string{AccountChatGPT, AccountOpenAI}, Options: map[string][]string{"reasoning_effort": ParameterValues("reasoning_effort"), "image_detail": ParameterValues("image_detail")}})
+	}
+	return append(definitions, FeatureDefinition{Name: "transcription", Parameters: []string{}, AccountTypes: []string{AccountOpenAI}, Options: map[string][]string{}})
 }
 
 func (s Services) Account(number int64) (Account, bool) {

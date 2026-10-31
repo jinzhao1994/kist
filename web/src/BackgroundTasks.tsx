@@ -10,6 +10,7 @@ import { result } from "./api";
 import type { components } from "./api-schema";
 import {
   settingsQueries,
+  aiFeatureAccess,
   queuePath,
   type MetadataTask,
 } from "./settingsQueries";
@@ -30,12 +31,20 @@ export function BackgroundTasks({
   const { t } = useI18n();
   const connection = useQuery(settingsQueries.connection);
   const ai = useQuery({
-    ...settingsQueries.ai,
+    ...settingsQueries.services,
     enabled: !!connection.data?.supported,
   });
   const location = useQuery(settingsQueries.location);
   const kinds: MetadataTask[] = connection.data?.supported
-    ? ["metadata", "orientation", "ocr", "desc", "facts", "geo"]
+    ? [
+        "metadata",
+        "orientation",
+        "ocr",
+        "desc",
+        "facts",
+        "transcription",
+        "geo",
+      ]
     : ["metadata", "geo"];
   return (
     <section
@@ -97,14 +106,14 @@ export function BackgroundTasks({
                     ? true
                     : kind === "geo"
                       ? !!location.data
-                      : !!connection.data?.connected
+                      : aiFeatureAccess(ai.data, kind).configured
                 }
                 model={
                   kind === "metadata"
                     ? "local"
                     : kind === "geo"
                       ? "photon"
-                      : ai.data?.model
+                      : aiFeatureAccess(ai.data, kind).feature?.model
                 }
               />
             ))}

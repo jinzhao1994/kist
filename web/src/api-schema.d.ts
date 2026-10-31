@@ -2249,6 +2249,7 @@ export interface components {
         AiAccountActionBody: Record<string, never>;
         AiServicesView: {
             accounts: components["schemas"]["AIAccountSettings"][] | null;
+            definitions: components["schemas"]["FeatureDefinition"][] | null;
             error: string;
             /** Format: int64 */
             error_account: number;
@@ -2430,6 +2431,14 @@ export interface components {
             image_detail: string;
             model: string;
             reasoning_effort: string;
+        };
+        FeatureDefinition: {
+            account_types: string[] | null;
+            name: string;
+            options: {
+                [key: string]: string[] | null;
+            };
+            parameters: string[] | null;
         };
         Field: {
             default: unknown;

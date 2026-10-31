@@ -134,9 +134,23 @@ export function InstanceSettings({
   useEffect(() => {
     const first = Object.keys(fieldErrors)[0];
     if (!first) return;
-    Array.from(document.querySelectorAll<HTMLElement>("[data-setting-field]"))
-      .find((element) => element.dataset.settingField === first)
-      ?.scrollIntoView({ block: "center" });
+    let observer: MutationObserver | undefined;
+    const locate = () => {
+      const field = Array.from(
+        document.querySelectorAll<HTMLElement>("[data-setting-field]"),
+      ).find((element) => element.dataset.settingField === first);
+      if (!field) return false;
+      field.scrollIntoView({ block: "center" });
+      observer?.disconnect();
+      return true;
+    };
+    // Object editors can open in response to this validation result. Wait for
+    // that render before positioning the error, without polling the page.
+    if (!locate()) {
+      observer = new MutationObserver(locate);
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+    return () => observer?.disconnect();
   }, [fieldErrors]);
   const [dismissedQueryError, setDismissedQueryError] = useState<unknown>();
   const clearFieldError = (key: string) =>
@@ -295,7 +309,7 @@ export function InstanceSettings({
         "PUT",
         {
           revision: snapshot.revision,
-          ai: aiDraft?.value,
+          ai_services: aiDraft?.value,
           location: locationDraft?.value,
           changes: Object.fromEntries(
             Object.entries(changes).map(([key, value]) => [
@@ -313,7 +327,8 @@ export function InstanceSettings({
       queries.setQueryData(["instance-settings"], value);
       await reload(signal);
       await queries.invalidateQueries({ queryKey: ["client"] });
-      if (aiDraft) await queries.invalidateQueries({ queryKey: ["ai-models"] });
+      if (aiDraft)
+        await queries.invalidateQueries({ queryKey: ["ai-account-models"] });
       setNotice(t("settingsSaved"));
       saved = true;
       // A new document is needed for the updated map resource CSP.

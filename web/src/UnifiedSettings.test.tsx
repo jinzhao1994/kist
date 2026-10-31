@@ -1,4 +1,5 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { aiServicesFixture } from "./aiServices.fixture";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, expect, it, vi } from "vitest";
@@ -13,21 +14,7 @@ afterEach(() => {
 
 it("saves all configuration drafts through the page toolbar in one request", async () => {
   localStorage.setItem(storageKey, JSON.stringify({ language: "en" }));
-  const aiDefaults = {
-    model: "",
-    proxy_url: "",
-    auto_ocr: false,
-    auto_desc: false,
-    auto_facts: false,
-    auto_orientation: false,
-  };
-  let ai = {
-    ...aiDefaults,
-    model: "test-model",
-    defaults: aiDefaults,
-    explicit: ["model"],
-    revision: "one",
-  };
+  let ai = aiServicesFixture({ model: "test-model" });
   const geoDefaults = {
     automatic: true,
     endpoint: "https://photon.komoot.io/reverse",
@@ -56,6 +43,7 @@ it("saves all configuration drafts through the page toolbar in one request", asy
     overrides: [],
     restart_required: [],
   };
+  let invalidAI = false;
   const writes: { path: string; body: any }[] = [];
   vi.stubGlobal(
     "fetch",
@@ -65,7 +53,22 @@ it("saves all configuration drafts through the page toolbar in one request", asy
         expect(path).toBe("/settings");
         const body = JSON.parse(String(init.body));
         writes.push({ path, body });
-        ai = { ...ai, ...body.ai, revision: "two" };
+        if (invalidAI)
+          return Response.json(
+            {
+              code: "invalid_input",
+              message: "Invalid settings",
+              fields: [
+                {
+                  field: "ai_services.accounts.1.id",
+                  code: "unique_id",
+                  message: "Enter a unique name.",
+                },
+              ],
+            },
+            { status: 400 },
+          );
+        ai = { ...ai, ...body.ai_services, revision: "two" };
         geo = { ...geo, ...body.location, revision: "two" };
         delete (ai as any).changed;
         delete (geo as any).changed;
@@ -96,9 +99,9 @@ it("saves all configuration drafts through the page toolbar in one request", asy
           connected: true,
           pending: false,
         });
-      if (path === "/ai/settings") return Response.json(ai);
+      if (path === "/ai/services") return Response.json(ai);
       if (path === "/geo/settings") return Response.json(geo);
-      if (path === "/ai/models")
+      if (path === "/ai/accounts/1/models")
         return Response.json([{ id: "test-model", name: "Test model" }]);
       if (path === "/info" || path === "/client") return Response.json({});
       return Response.json({
@@ -156,7 +159,10 @@ it("saves all configuration drafts through the page toolbar in one request", asy
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument(),
   );
   await user.clear(language);
-  await user.type(language, "en");
+  await user.paste("en");
+  await user.click(screen.getByRole("button", { name: "Add proxy" }));
+  await user.click(screen.getByRole("textbox", { name: "ID (name)" }));
+  await user.paste("Home proxy");
   await user.click(
     screen.getByLabelText("AI proxy address", { selector: "input" }),
   );
@@ -166,7 +172,7 @@ it("saves all configuration drafts through the page toolbar in one request", asy
   });
   await user.clear(interval);
   expect(saveButton).toBeEnabled();
-  await user.type(interval, "7");
+  await user.paste("7");
   expect(saveButton).toBeEnabled();
   await user.hover(saveHint);
   expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
@@ -182,7 +188,9 @@ it("saves all configuration drafts through the page toolbar in one request", asy
     body: {
       revision: "one",
       changes: { "library.language": "en" },
-      ai: { proxy_url: "http://127.0.0.1:7890", changed: ["proxy_url"] },
+      ai_services: {
+        proxies: [{ id: "Home proxy", url: "http://127.0.0.1:7890" }],
+      },
       location: {
         request_interval_seconds: 7,
         changed: ["request_interval_seconds"],
@@ -196,11 +204,32 @@ it("saves all configuration drafts through the page toolbar in one request", asy
   window.dispatchEvent(savedUnload);
   expect(savedUnload.defaultPrevented).toBe(false);
   await user.clear(interval);
-  await user.type(interval, "9");
+  await user.paste("9");
   await user.click(screen.getByRole("button", { name: "Reload settings" }));
   await waitFor(() => expect(interval).toHaveValue("7"));
   expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   expect(writes).toHaveLength(1);
+  invalidAI = true;
+  const scroll = vi.spyOn(Element.prototype, "scrollIntoView");
+  await user.click(screen.getByRole("button", { name: "Add account" }));
+  const newRow = screen
+    .getByRole("rowheader", { name: "Unnamed" })
+    .closest("tr")!;
+  await user.click(within(newRow).getByRole("button", { name: "Collapse" }));
+  scroll.mockClear();
+  await user.click(screen.getByRole("button", { name: "Save" }));
+  const editor = await screen.findByRole("region", { name: "Edit AI account" });
+  expect(within(editor).getByText("Enter a unique name.")).toBeInTheDocument();
+  await waitFor(() =>
+    expect(
+      scroll.mock.contexts.some(
+        (element) =>
+          element instanceof HTMLElement &&
+          element.dataset.settingField === "ai_services.accounts.1.id",
+      ),
+    ).toBe(true),
+  );
+  scroll.mockRestore();
   view.unmount();
   client.clear();
 });

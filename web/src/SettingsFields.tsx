@@ -27,6 +27,14 @@ export function useSettingsError(field: string) {
   const { errors } = useContext(SettingsErrorsContext);
   const error = errors[field];
   const messages: Record<string, MessageKey> = {
+    unique_id: "settingUniqueID",
+    reference: "settingInvalidReference",
+    number: "settingInvalidNumber",
+    capability: "settingInvalidCapability",
+    host: "settingInvalidHost",
+    port: "settingInvalidPort",
+    api_key: "settingInvalidAPIKey",
+    model: "settingInvalidModel",
     duration: "settingInvalidDuration",
     size: "settingInvalidSize",
     integer: "settingInvalidInteger",

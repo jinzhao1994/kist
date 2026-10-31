@@ -1,15 +1,9 @@
-import { settingsQueries, type MetadataTask } from "./settingsQueries";
+export { AIConnection } from "./AIServices";
 import {
-  SettingsCheckbox,
-  SettingsFieldHeading,
-  SettingsReset,
-  SettingsHint,
-  useSettingsPending,
-  settingsDraftValue,
-  SettingsErrorsContext,
-  useSettingsError,
-  type SettingsSectionDraft,
-} from "./SettingsFields";
+  settingsQueries,
+  aiFeatureAccess,
+  type MetadataTask,
+} from "./settingsQueries";
 import {
   TaskError,
   TaskStatus,
@@ -17,484 +11,32 @@ import {
   taskErrorMessage,
 } from "./TaskStatus";
 import { CopyTextPreview } from "./CopyTextPreview";
-import {
-  Alert,
-  Button,
-  Group,
-  Stack,
-  Text,
-  PasswordInput,
-} from "@mantine/core";
-import {
-  useEffect,
-  useContext,
-  useId,
-  useRef,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { Button } from "@mantine/core";
+import { useEffect, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, result } from "./api";
-import { Select } from "./Select";
 import { useI18n, type MessageKey } from "./i18n";
 import { errorMessage } from "./mutations";
 
-type Model = { id: string; name: string };
-async function post<T>(
-  path: string,
-  body: unknown = {},
-  method = "POST",
-): Promise<T> {
+type OCRJob = {
+  manual?: boolean;
+  state: "missing" | "queued" | "running" | "ready" | "failed";
+  error?: string;
+};
+export type ImageTask = Exclude<MetadataTask, "geo" | "metadata">;
+const taskMessage = (kind: MetadataTask, suffix: string) =>
+  `${kind}${suffix}` as MessageKey;
+async function post<T>(path: string, body: unknown): Promise<T> {
   return result<T>(
     await fetch(`/api/v1${path}`, {
-      method,
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }),
   );
 }
 function useStatus() {
-  return useQuery({
-    ...settingsQueries.connection,
-    refetchInterval: (query) => (query.state.data?.pending ? 1000 : false),
-  });
-}
-export function AIConnection({
-  disabled = false,
-  onChanged,
-  onPendingChange,
-  onDraftChange,
-  reloadVersion,
-  configurationPending = false,
-}: {
-  disabled?: boolean;
-  onChanged?: () => Promise<void>;
-  onPendingChange?: (pending: boolean) => void;
-  onDraftChange?: (draft: SettingsSectionDraft | null) => void;
-  reloadVersion?: number;
-  configurationPending?: boolean;
-} = {}) {
-  const { t } = useI18n();
-  const query = useStatus();
-  const queries = useQueryClient();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const [url, setURL] = useState("");
-  const wasPending = useRef(false);
-  useEffect(() => {
-    const pending = query.data?.pending;
-    if (wasPending.current && pending === false) void onChanged?.();
-    wasPending.current = !!pending;
-  }, [query.data?.pending, onChanged]);
-  async function connect() {
-    // Open synchronously within the click gesture so popup blockers allow it.
-    const login = window.open("about:blank", "_blank");
-    if (login) login.opener = null;
-    setBusy(true);
-    setError("");
-    setNotice("");
-    try {
-      const out = await post<{ url: string }>("/ai/connect");
-      setURL(out.url);
-      if (login && !login.closed) login.location.replace(out.url);
-    } catch (e) {
-      login?.close();
-      setError(errorMessage(e, t));
-    } finally {
-      setBusy(false);
-      await queries.invalidateQueries({ queryKey: ["ai-connection"] });
-      await onChanged?.();
-    }
-  }
-  async function disconnect() {
-    setBusy(true);
-    setError("");
-    setURL("");
-    try {
-      const out = await post<{ revoked: boolean }>("/ai/disconnect");
-      if (!out.revoked) setNotice(t("aiRevocationUnconfirmed"));
-    } catch (e) {
-      setError(errorMessage(e, t));
-    } finally {
-      setBusy(false);
-      await queries.invalidateQueries({ queryKey: ["ai-connection"] });
-      await onChanged?.();
-      await queries.invalidateQueries({ queryKey: ["ai-models"] });
-    }
-  }
-  const status = query.data;
-  return (
-    <section
-      id="settings-ai"
-      className="flat-page-section"
-      aria-labelledby="settings-ai-title"
-    >
-      <h2 id="settings-ai-title">{t("aiConnection")}</h2>
-      <Stack>
-        <SettingsHint>{t("aiLocalHint")}</SettingsHint>
-        {(error || query.error || status?.error) && (
-          <Alert role="alert" color="red">
-            {error ||
-              (query.error ? errorMessage(query.error, t) : status?.error)}
-          </Alert>
-        )}
-        {notice && <Text role="status">{notice}</Text>}
-        {disabled && (
-          <Text size="sm" c="dimmed">
-            {t("settingsPending")}
-          </Text>
-        )}
-        <Text>
-          {status?.connected
-            ? `${t("aiConnected")}: ${status.email}`
-            : t("aiDisconnected")}
-        </Text>
-        <Group>
-          <Button
-            disabled={
-              disabled ||
-              configurationPending ||
-              busy ||
-              !status?.supported ||
-              status.pending
-            }
-            onClick={connect}
-          >
-            {t("aiContinue")}
-          </Button>
-          {(status?.connected || status?.pending) && (
-            <Button
-              disabled={disabled || configurationPending || busy}
-              onClick={disconnect}
-            >
-              {t(status.pending ? "cancel" : "aiDisconnect")}
-            </Button>
-          )}
-          {url && status?.pending && (
-            <Button component="a" href={url} target="_blank" rel="noreferrer">
-              {t("aiOpenSignIn")}
-            </Button>
-          )}
-        </Group>
-        {status?.pending && (
-          <Text role="status" size="sm">
-            {t("aiWaiting")}
-          </Text>
-        )}
-        {status?.supported && (
-          <AISettings
-            connected={status.connected}
-            disabled={disabled || busy}
-            onChanged={onChanged}
-            onPendingChange={onPendingChange}
-            onDraftChange={onDraftChange}
-            reloadVersion={reloadVersion}
-          />
-        )}
-      </Stack>
-    </section>
-  );
-}
-type AISettingsData = NonNullable<ReturnType<typeof useAISettings>["data"]>;
-type OCRJob = {
-  manual?: boolean;
-  state: "missing" | "queued" | "running" | "ready" | "failed";
-  error?: string;
-};
-function useAISettings() {
-  return useQuery({
-    ...settingsQueries.ai,
-  });
-}
-export type ImageTask = Exclude<MetadataTask, "geo" | "metadata">;
-const taskMessage = (kind: MetadataTask, suffix: string) =>
-  `${kind}${suffix}` as MessageKey;
-function AISettings({
-  connected,
-  disabled,
-  onChanged,
-  onPendingChange,
-  onDraftChange,
-  reloadVersion = 0,
-}: {
-  connected: boolean;
-  disabled: boolean;
-  onChanged?: () => Promise<void>;
-  onPendingChange?: (pending: boolean) => void;
-  onDraftChange?: (draft: SettingsSectionDraft | null) => void;
-  reloadVersion?: number;
-}) {
-  const { t } = useI18n();
-  const query = useAISettings();
-  const { clear: clearFieldError } = useContext(SettingsErrorsContext);
-  const modelError = useSettingsError("ai_options.model");
-  const proxyError = useSettingsError("ai_options.proxy_url");
-  const proxyID = useId();
-  const modelID = useId();
-  const queries = useQueryClient();
-  const models = useQuery({
-    queryKey: ["ai-models"],
-    queryFn: ({ signal }) => get<Model[]>("/ai/models", signal),
-    enabled: connected,
-    retry: false,
-  });
-  const [draft, setDraft] = useState<AISettingsData>();
-  const [touched, setTouched] = useState(false);
-  const pending = useMemo(
-    () => (draft ? settingsDraftValue(draft, query.data) : undefined),
-    [draft, query.data],
-  );
-  const dirty = !!(pending?.changed.length || pending?.reset?.length);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  useSettingsPending(disabled || busy || dirty, onPendingChange);
-  useEffect(() => {
-    if (query.data && !touched) setDraft(query.data);
-  }, [query.data, touched]);
-  function edit(change: Partial<AISettingsData>) {
-    Object.keys(change).forEach((key) => clearFieldError(`ai_options.${key}`));
-    setTouched(true);
-    setDraft((old) =>
-      old
-        ? {
-            ...old,
-            ...change,
-            changed: [
-              ...new Set([...(old.changed || []), ...Object.keys(change)]),
-            ],
-            reset: (old.reset || []).filter(
-              (key) => !Object.hasOwn(change, key),
-            ),
-          }
-        : old,
-    );
-    setNotice("");
-  }
-  function resetAction(key: keyof NonNullable<AISettingsData["defaults"]>) {
-    const value = query.data?.defaults?.[key];
-    const specified =
-      !!draft &&
-      (draft.changed?.includes(key) ||
-        (!!query.data?.explicit?.includes(key) && !draft.reset?.includes(key)));
-    return (
-      <SettingsReset
-        specified={!!specified}
-        disabled={disabled || busy || value === undefined || !specified}
-        onReset={() => {
-          if (value === undefined) return;
-          clearFieldError(`ai_options.${key}`);
-          setDraft((old) =>
-            old
-              ? {
-                  ...old,
-                  [key]: value,
-                  changed: (old.changed || []).filter((field) => field !== key),
-                  reset: [...new Set([...(old.reset || []), key])],
-                }
-              : old,
-          );
-          setTouched(true);
-          setNotice("");
-        }}
-      />
-    );
-  }
-  useEffect(() => {
-    setTouched(false);
-    setError("");
-    setNotice("");
-    setDraft(queries.getQueryData(["ai-settings"]));
-  }, [reloadVersion, queries]);
-  useEffect(() => {
-    onDraftChange?.(dirty && pending ? { value: pending } : null);
-  }, [dirty, pending, onDraftChange]);
-  async function perform(fn: () => Promise<void>) {
-    setBusy(true);
-    setError("");
-    setNotice("");
-    try {
-      await fn();
-    } catch (e) {
-      setError(errorMessage(e, t));
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function save() {
-    if (!draft) return;
-    await perform(async () => {
-      const value = await post<AISettingsData>("/ai/settings", pending, "PUT");
-      queries.setQueryData(["ai-settings"], value);
-      setTouched(false);
-      setDraft(value);
-      await queries.invalidateQueries({ queryKey: ["ai-models"] });
-      await onChanged?.();
-      setNotice(t("settingsSaved"));
-    });
-  }
-  const modelOptions = (models.data || []).map((m) => ({
-    value: m.id,
-    label: m.name || m.id,
-  }));
-  if (draft?.model && !modelOptions.some((m) => m.value === draft.model))
-    modelOptions.unshift({ value: draft.model, label: draft.model });
-  return (
-    <div className="settings-blocks">
-      {query.isPending && (
-        <Text role="status" size="sm">
-          {t("loading")}
-        </Text>
-      )}
-      {(error || query.error) && (
-        <Alert color="red" role="alert">
-          {error || (query.error && errorMessage(query.error, t))}
-        </Alert>
-      )}
-      {query.error && !draft && (
-        <Button onClick={() => void query.refetch()}>{t("retry")}</Button>
-      )}
-      {notice && (
-        <Text role="status" size="sm">
-          {notice}
-        </Text>
-      )}
-      {draft && (
-        <div className="settings-fields">
-          <div className="setting-field" data-setting-field="ai_options.model">
-            <SettingsFieldHeading
-              label={t("aiModel")}
-              htmlFor={modelID}
-              action={resetAction("model")}
-            />
-            <Select
-              id={modelID}
-              aria-label={t("aiModel")}
-              error={modelError}
-              value={draft.model}
-              onValueChange={(model) => edit({ model })}
-              options={[
-                { value: "", label: t("aiChooseModel"), special: true },
-                ...modelOptions,
-              ]}
-              disabled={disabled || busy || models.isFetching || !connected}
-            />
-          </div>
-          {models.isFetching && (
-            <Text role="status" size="sm">
-              {t("aiModelsLoading")}
-            </Text>
-          )}
-          {connected && models.isError && (
-            <Group>
-              <Text role="alert" size="sm">
-                {errorMessage(models.error, t)}
-              </Text>
-              <Button disabled={busy} onClick={() => void models.refetch()}>
-                {t("retry")}
-              </Button>
-            </Group>
-          )}
-          {connected && models.isSuccess && models.data.length === 0 && (
-            <Text size="sm">{t("aiModelsEmpty")}</Text>
-          )}
-          {!draft.model && models.data?.some((m) => m.id === "gpt-6-luna") && (
-            <Button
-              disabled={disabled || busy}
-              onClick={() => edit({ model: "gpt-6-luna" })}
-            >
-              {t("aiUseLuna")}
-            </Button>
-          )}
-          <div
-            className="setting-field"
-            data-setting-field="ai_options.proxy_url"
-          >
-            <SettingsFieldHeading
-              label={t("aiProxy")}
-              action={resetAction("proxy_url")}
-              htmlFor={proxyID}
-              help={t("aiProxyHint")}
-            />
-            <PasswordInput
-              id={proxyID}
-              value={draft.proxy_url}
-              error={proxyError}
-              onChange={(e) => edit({ proxy_url: e.currentTarget.value })}
-              disabled={disabled || busy}
-              autoComplete="off"
-            />
-          </div>
-          <SettingsCheckbox
-            label={t("orientationAuto")}
-            action={resetAction("auto_orientation")}
-            help={t("orientationAutoHint")}
-            checked={!!draft.auto_orientation}
-            onChange={(e) =>
-              edit({ auto_orientation: e.currentTarget.checked })
-            }
-            disabled={disabled || busy}
-          />
-          <SettingsCheckbox
-            label={t("ocrAuto")}
-            action={resetAction("auto_ocr")}
-            help={t("ocrAutoHint")}
-            checked={draft.auto_ocr}
-            onChange={(e) => edit({ auto_ocr: e.currentTarget.checked })}
-            disabled={disabled || busy}
-          />
-          <SettingsCheckbox
-            label={t("descAuto")}
-            action={resetAction("auto_desc")}
-            help={t("descAutoHint")}
-            checked={!!draft.auto_desc}
-            onChange={(e) => edit({ auto_desc: e.currentTarget.checked })}
-            disabled={disabled || busy}
-          />
-          <SettingsCheckbox
-            label={t("factsAuto")}
-            action={resetAction("auto_facts")}
-            help={t("factsAutoHint")}
-            checked={!!draft.auto_facts}
-            onChange={(e) => edit({ auto_facts: e.currentTarget.checked })}
-            disabled={disabled || busy}
-          />
-          {!onDraftChange && (
-            <Group>
-              <Button
-                onClick={() => void save()}
-                disabled={
-                  disabled ||
-                  busy ||
-                  !dirty ||
-                  ((draft.auto_ocr ||
-                    draft.auto_desc ||
-                    draft.auto_facts ||
-                    draft.auto_orientation) &&
-                    !draft.model)
-                }
-              >
-                {t("aiSaveSettings")}
-              </Button>
-              <Button
-                disabled={busy || disabled}
-                onClick={() => {
-                  setTouched(false);
-                  setError("");
-                  void query.refetch();
-                  if (connected) void models.refetch();
-                }}
-              >
-                {t("aiReloadSettings")}
-              </Button>
-            </Group>
-          )}
-        </div>
-      )}
-    </div>
-  );
+  return useQuery(settingsQueries.connection);
 }
 export function OCRAction({
   fileID,
@@ -508,7 +50,11 @@ export function OCRAction({
   const { t } = useI18n();
   const queries = useQueryClient();
   const status = useStatus();
-  const settings = useAISettings();
+  const settings = useQuery({
+    ...settingsQueries.services,
+    enabled: !!status.data?.supported,
+  });
+  const access = aiFeatureAccess(settings.data, kind);
   const job = useQuery<OCRJob>({
     queryKey: [`${kind}-job`, fileID],
     queryFn: ({ signal }) => get<OCRJob>(`/files/${fileID}/${kind}`, signal),
@@ -553,10 +99,7 @@ export function OCRAction({
     (!settings.data && settings.isError) ||
     (!status.data && status.isError);
   const loading = job.isPending || settings.isPending || status.isPending;
-  const needsSetup =
-    !loading &&
-    !readFailed &&
-    (!status.data?.connected || !settings.data?.model);
+  const needsSetup = !loading && !readFailed && !access.configured;
   const label = t(
     busy || job.data?.state === "running"
       ? "extracting"
@@ -583,10 +126,7 @@ export function OCRAction({
         className="metadata-refresh-action"
         data-active
         disabled={
-          busy ||
-          !!waiting ||
-          loading ||
-          (!readFailed && (!status.data?.connected || !settings.data?.model))
+          busy || !!waiting || loading || (!readFailed && !access.configured)
         }
         onClick={() => {
           if (readFailed) {

@@ -68,6 +68,7 @@ export function MetadataGroup({
     (task.extractor === "ocr" ||
       task.extractor === "desc" ||
       task.extractor === "facts" ||
+      task.extractor === "transcription" ||
       task.extractor === "orientation")
   ) {
     return (
@@ -92,6 +93,7 @@ function useMetadataTask({
     extractor === "ocr" ||
     extractor === "desc" ||
     extractor === "facts" ||
+    extractor === "transcription" ||
     extractor === "orientation" ||
     extractor === "geo";
   const local = !!extractor && !ai;

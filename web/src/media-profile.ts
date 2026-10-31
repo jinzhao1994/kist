@@ -61,3 +61,15 @@ export function supportsDescriptionAI(
     ["pdf", "word", "slides"].includes(mediaProfile(file)?.id || "")
   );
 }
+
+// UI availability is a hint; the server checks actual audio bytes and limits.
+export function supportsTranscriptionAI(
+  file: Pick<ArchiveFile, "name" | "kind" | "media_type">,
+) {
+  return (
+    file.kind === "audio" ||
+    (file.media_type
+      ? file.media_type.startsWith("audio/")
+      : /\.(?:mp3|wav|m4a|flac|ogg|mpga|webm)$/i.test(file.name))
+  );
+}

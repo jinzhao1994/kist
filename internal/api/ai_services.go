@@ -20,9 +20,10 @@ type aiAccountAction struct {
 
 type aiServicesView struct {
 	library.AIServiceSettings
-	PendingAccount int64  `json:"pending_account"`
-	ErrorAccount   int64  `json:"error_account"`
-	Error          string `json:"error"`
+	Definitions    []ai.FeatureDefinition `json:"definitions"`
+	PendingAccount int64                  `json:"pending_account"`
+	ErrorAccount   int64                  `json:"error_account"`
+	Error          string                 `json:"error"`
 }
 
 func (s *Server) aiServiceRoutes() {
@@ -31,7 +32,7 @@ func (s *Server) aiServiceRoutes() {
 		if err != nil {
 			return nil, failure(err)
 		}
-		out := aiServicesView{AIServiceSettings: settings}
+		out := aiServicesView{AIServiceSettings: settings, Definitions: ai.FeatureDefinitions()}
 		s.aiMu.Lock()
 		if s.aiAttempt != nil {
 			out.PendingAccount = s.aiAttemptAccount
@@ -53,41 +54,61 @@ func (s *Server) aiServiceRoutes() {
 	})
 	huma.Post(s.contract, Prefix+"/ai/accounts/{number}/connect", func(ctx context.Context, in *aiAccountAction) (*output[struct {
 		URL string `json:"url"`
-	}], error) { s.aiMu.Lock(); defer s.aiMu.Unlock(); if s.aiAttempt != nil {
-		return nil, huma.Error409Conflict("ChatGPT sign-in is already pending")
-	}; before, err := s.library.PrepareAIAccountConnection(ctx, in.Number); if err != nil {
-		return nil, failure(err)
-	}; client, err := s.library.AIAccountHTTP(ctx, in.Number, 30*time.Second); if err != nil {
-		return nil, failure(err)
-	}; attempt, err := openai.Begin(before, func(ctx context.Context, next ai.Credentials) error {
-		return s.library.SaveAIAccountConnection(ctx, in.Number, before, next)
-	}, client); if err != nil {
-		return nil, failure(err)
-	}; s.aiAttempt, s.aiAttemptAccount, s.aiError, s.aiErrorAccount = attempt, in.Number, "", 0; go func() {
-		err := <-attempt.Done
+	}], error) {
 		s.aiMu.Lock()
 		defer s.aiMu.Unlock()
-		if s.aiAttempt != attempt {
-			return
+		if s.aiAttempt != nil {
+			return nil, huma.Error409Conflict("ChatGPT sign-in is already pending")
 		}
-		s.aiAttempt = nil
-		s.aiAttemptAccount = 0
+		before, err := s.library.PrepareAIAccountConnection(ctx, in.Number)
 		if err != nil {
-			s.aiError, s.aiErrorAccount = err.Error(), in.Number
+			return nil, failure(err)
 		}
-	}(); return response(struct {
-		URL string `json:"url"`
-	}{attempt.URL}, nil) })
+		client, err := s.library.AIAccountHTTP(ctx, in.Number, 30*time.Second)
+		if err != nil {
+			return nil, failure(err)
+		}
+		attempt, err := openai.Begin(before, func(ctx context.Context, next ai.Credentials) error {
+			return s.library.SaveAIAccountConnection(ctx, in.Number, before, next)
+		}, client)
+		if err != nil {
+			return nil, failure(err)
+		}
+		s.aiAttempt, s.aiAttemptAccount, s.aiError, s.aiErrorAccount = attempt, in.Number, "", 0
+		go func() {
+			err := <-attempt.Done
+			s.aiMu.Lock()
+			defer s.aiMu.Unlock()
+			if s.aiAttempt != attempt {
+				return
+			}
+			s.aiAttempt = nil
+			s.aiAttemptAccount = 0
+			if err != nil {
+				s.aiError, s.aiErrorAccount = err.Error(), in.Number
+			}
+		}()
+		return response(struct {
+			URL string `json:"url"`
+		}{attempt.URL}, nil)
+	})
 	huma.Post(s.contract, Prefix+"/ai/accounts/{number}/disconnect", func(ctx context.Context, in *aiAccountAction) (*output[struct {
 		Revoked bool `json:"revoked"`
-	}], error) { s.aiMu.Lock(); if s.aiAttempt != nil && s.aiAttemptAccount == in.Number {
-		s.aiAttempt.Cancel()
-		s.aiAttempt = nil
-		s.aiAttemptAccount = 0
-	}; if s.aiErrorAccount == in.Number {
-		s.aiError = ""
-		s.aiErrorAccount = 0
-	}; s.aiMu.Unlock(); revoked, err := s.library.DisconnectAIAccount(ctx, in.Number); return response(struct {
-		Revoked bool `json:"revoked"`
-	}{revoked}, err) })
+	}], error) {
+		s.aiMu.Lock()
+		if s.aiAttempt != nil && s.aiAttemptAccount == in.Number {
+			s.aiAttempt.Cancel()
+			s.aiAttempt = nil
+			s.aiAttemptAccount = 0
+		}
+		if s.aiErrorAccount == in.Number {
+			s.aiError = ""
+			s.aiErrorAccount = 0
+		}
+		s.aiMu.Unlock()
+		revoked, err := s.library.DisconnectAIAccount(ctx, in.Number)
+		return response(struct {
+			Revoked bool `json:"revoked"`
+		}{revoked}, err)
+	})
 }
