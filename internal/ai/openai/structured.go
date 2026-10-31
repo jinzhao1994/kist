@@ -13,9 +13,12 @@ func (c Client) ExtractFacts(ctx context.Context, model string, in ai.FactsInput
 	prompt := ai.FactsPrompt(options)
 	var part any
 	if in.Image != nil {
-		part = imagePart(*in.Image)
+		part = c.imagePart(*in.Image)
 	} else {
 		part = map[string]string{"type": "input_file", "filename": "document.pdf", "file_data": "data:application/pdf;base64," + base64.StdEncoding.EncodeToString(in.Document.Data), "detail": "high"}
+		if c.APIKey {
+			delete(part.(map[string]string), "detail")
+		}
 	}
 	return c.imageContent(ctx, model, prompt, []any{map[string]string{"type": "input_text", "text": prompt.Input}, part})
 }

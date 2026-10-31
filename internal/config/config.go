@@ -39,6 +39,7 @@ type Geocoding struct {
 }
 
 type Config struct {
+	AIServices     *ai.Services   `toml:"ai_services,omitempty" json:"-"`
 	RuntimeStorage int            `toml:"runtime_storage,omitempty"`
 	Geocoding      Geocoding      `toml:"geocoding"`
 	AIOptions      AIOptions      `toml:"ai_options" json:"-"`

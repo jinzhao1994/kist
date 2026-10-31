@@ -1,0 +1,73 @@
+package ai
+
+// Services is instance-private configuration, never archive data or API output.
+// Numbers identify references; IDs are independently editable display names.
+type Services struct {
+	NextProxy   int64              `toml:"next_proxy"`
+	NextAccount int64              `toml:"next_account"`
+	Proxies     []Proxy            `toml:"proxies"`
+	Accounts    []Account          `toml:"accounts"`
+	Features    map[string]Feature `toml:"features"`
+}
+
+type Proxy struct {
+	Number     int64  `toml:"number"`
+	ID         string `toml:"id"`
+	Type       string `toml:"type"`
+	URL        string `toml:"url,omitempty" json:"-"`
+	Host       string `toml:"host,omitempty"`
+	Port       int    `toml:"port,omitempty"`
+	Password   string `toml:"password,omitempty" json:"-"`
+	ServerName string `toml:"server_name,omitempty"`
+}
+
+type Account struct {
+	Number      int64       `toml:"number"`
+	ID          string      `toml:"id"`
+	Type        string      `toml:"type"`
+	Proxy       int64       `toml:"proxy"`
+	APIKey      string      `toml:"api_key,omitempty" json:"-"`
+	Credentials Credentials `toml:"credentials,omitempty" json:"-"`
+}
+
+// Feature resolves one independently configured extraction route. AfterOp is
+// an internal import boundary, not a caller-selectable inference parameter.
+type Feature struct {
+	Account         int64  `toml:"account" json:"account"`
+	Model           string `toml:"model" json:"model"`
+	ReasoningEffort string `toml:"reasoning_effort,omitempty" json:"reasoning_effort"`
+	ImageDetail     string `toml:"image_detail,omitempty" json:"image_detail"`
+	Automatic       bool   `toml:"automatic" json:"automatic"`
+	AfterOp         int64  `toml:"after_op" json:"-"`
+}
+
+const (
+	ProxyHTTP      = "http"
+	ProxyTrojan    = "trojan"
+	AccountChatGPT = "chatgpt"
+	AccountOpenAI  = "openai"
+)
+
+// FeatureNames is the registry of configurable AI extraction routes. Local
+// metadata and GPS are deliberately not AI account consumers.
+func FeatureNames() []string {
+	return []string{"orientation", "ocr", "desc", "facts", "transcription"}
+}
+
+func (s Services) Account(number int64) (Account, bool) {
+	for _, account := range s.Accounts {
+		if account.Number == number {
+			return account, true
+		}
+	}
+	return Account{}, false
+}
+
+func (s Services) Proxy(number int64) (Proxy, bool) {
+	for _, proxy := range s.Proxies {
+		if proxy.Number == number {
+			return proxy, true
+		}
+	}
+	return Proxy{}, false
+}

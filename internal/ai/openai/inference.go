@@ -25,9 +25,11 @@ const Resource = APIURL
 
 // Client is immutable and scoped to a freshly loaded access token.
 type Client struct {
-	Token   string
-	BaseURL string
-	HTTP    *http.Client
+	Token      string
+	BaseURL    string
+	HTTP       *http.Client
+	APIKey     bool
+	Parameters *ai.ModelParameters
 }
 
 func (c Client) http() *http.Client {
@@ -37,6 +39,9 @@ func (c Client) http() *http.Client {
 	return &http.Client{Timeout: 3 * time.Minute, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 }
 func (c Client) request(ctx context.Context, method, path string, body io.Reader) (*http.Response, error) {
+	return c.requestContent(ctx, method, path, body, "application/json")
+}
+func (c Client) requestContent(ctx context.Context, method, path string, body io.Reader, contentType string) (*http.Response, error) {
 	base := c.BaseURL
 	if base == "" {
 		base = APIURL
@@ -46,7 +51,7 @@ func (c Client) request(ctx context.Context, method, path string, body io.Reader
 		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+c.Token)
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", contentType)
 	res, err := c.http().Do(req)
 	if err != nil {
 		return nil, errors.New("OpenAI request failed; check connection and try again")
@@ -64,6 +69,9 @@ func (c Client) Models(ctx context.Context) ([]ai.Model, error) {
 	}
 	defer res.Body.Close()
 	var body struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
 		Models []struct {
 			Slug       string `json:"slug"`
 			Name       string `json:"display_name"`
@@ -74,6 +82,14 @@ func (c Client) Models(ctx context.Context) ([]ai.Model, error) {
 		return nil, errors.New("invalid OpenAI model catalog")
 	}
 	out := []ai.Model{}
+	if c.APIKey {
+		for _, m := range body.Data {
+			if m.ID != "" {
+				out = append(out, ai.Model{ID: m.ID, Name: m.ID})
+			}
+		}
+		return out, nil
+	}
 	for _, m := range body.Models {
 		if m.Visibility == "list" && m.Slug != "" {
 			out = append(out, ai.Model{ID: m.Slug, Name: m.Name})
@@ -91,7 +107,7 @@ func (c Client) imageText(ctx context.Context, model string, img ai.Image, promp
 	if len(img.Data) == 0 || len(img.Data) > ai.MaxImageBytes {
 		return ai.OCRResult{}, errors.New("image exceeds AI input limit")
 	}
-	content := []any{map[string]string{"type": "input_text", "text": prompt.Input}, imagePart(img)}
+	content := []any{map[string]string{"type": "input_text", "text": prompt.Input}, c.imagePart(img)}
 	return c.imageContent(ctx, model, prompt, content)
 }
 
@@ -101,11 +117,22 @@ func (c Client) DescribeDocument(ctx context.Context, model string, document ai.
 	}
 	prompt := ai.DocumentDescriptionPrompt(options, document.Pages)
 	content := []any{map[string]string{"type": "input_text", "text": prompt.Input}, map[string]string{"type": "input_file", "filename": "document.pdf", "file_data": "data:application/pdf;base64," + base64.StdEncoding.EncodeToString(document.Data), "detail": "high"}}
+	if c.APIKey {
+		delete(content[1].(map[string]string), "detail")
+	}
 	return c.imageContent(ctx, model, prompt, content)
 }
 
-func imagePart(img ai.Image) map[string]string {
-	return map[string]string{"type": "input_image", "image_url": "data:" + img.MIME + ";base64," + base64.StdEncoding.EncodeToString(img.Data), "detail": "original"}
+func (c Client) imagePart(img ai.Image) map[string]string {
+	detail := "original"
+	if c.Parameters != nil {
+		detail = c.Parameters.ImageDetail
+	}
+	part := map[string]string{"type": "input_image", "image_url": "data:" + img.MIME + ";base64," + base64.StdEncoding.EncodeToString(img.Data)}
+	if detail != "" {
+		part["detail"] = detail
+	}
+	return part
 }
 
 func (c Client) ChooseUpright(ctx context.Context, model string, images []ai.Image, overview bool) (ai.UprightChoice, error) {
@@ -118,7 +145,7 @@ func (c Client) ChooseUpright(ctx context.Context, model string, images []ai.Ima
 		if len(img.Data) == 0 || len(img.Data) > ai.MaxImageBytes {
 			return ai.UprightChoice{}, errors.New("image exceeds AI input limit")
 		}
-		content = append(content, map[string]string{"type": "input_text", "text": fmt.Sprintf("Image %c", 'A'+i)}, imagePart(img))
+		content = append(content, map[string]string{"type": "input_text", "text": fmt.Sprintf("Image %c", 'A'+i)}, c.imagePart(img))
 	}
 	result, err := c.imageContent(ctx, model, prompt, content)
 	if err != nil {
@@ -131,6 +158,12 @@ func (c Client) ChooseUpright(ctx context.Context, model string, images []ai.Ima
 
 func (c Client) imageContent(ctx context.Context, model string, prompt ai.Prompt, content []any) (ai.TextResult, error) {
 	body := map[string]any{"model": model, "store": false, "stream": true, "reasoning": map[string]string{"effort": "low"}, "instructions": prompt.Instructions, "input": []any{map[string]any{"role": "user", "content": content}}}
+	if c.Parameters != nil {
+		delete(body, "reasoning")
+		if c.Parameters.ReasoningEffort != "" {
+			body["reasoning"] = map[string]string{"effort": c.Parameters.ReasoningEffort}
+		}
+	}
 	raw, err := json.Marshal(body)
 	if err != nil {
 		return ai.OCRResult{}, err

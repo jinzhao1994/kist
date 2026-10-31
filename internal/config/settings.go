@@ -100,6 +100,9 @@ func Defaults(mode string) *Config {
 }
 
 func (c *Config) Validate() error {
+	if err := validateAIServices(c.AIServices); err != nil {
+		return err
+	}
 	if _, err := ParseCacheRetention(c.Previews.CacheMaxAge); err != nil {
 		return InvalidField("previews.cache_max_age", "duration", "Enter a positive duration, such as 30d or 1h30m, or inf.")
 	}

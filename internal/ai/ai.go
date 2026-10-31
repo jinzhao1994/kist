@@ -32,6 +32,26 @@ type TextOptions struct {
 	Supplement string
 }
 
+// ModelParameters describes inference controls independently of authentication.
+// Empty strings omit optional controls and use the selected model's defaults.
+type ModelParameters struct {
+	ReasoningEffort string
+	ImageDetail     string
+}
+
+const MaxAudioBytes = 25_000_000
+
+type Audio struct {
+	Name string
+	MIME string
+	Data []byte
+}
+
+// Transcriber is optional: a ChatGPT login need not offer the Audio API.
+type Transcriber interface {
+	Transcribe(context.Context, string, Audio, TextOptions) (TextResult, error)
+}
+
 // Provider does not write archive state. Only completed results may be committed.
 type Provider interface {
 	Models(context.Context) ([]Model, error)
