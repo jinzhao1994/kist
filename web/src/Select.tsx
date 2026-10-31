@@ -13,6 +13,31 @@ import { useRef, useState, type ReactNode } from "react";
 import { useI18n } from "./i18n";
 import { InputChevron } from "./InputChevron";
 
+type SelectOption = {
+  value: string;
+  label: string;
+  description?: string;
+  special?: boolean;
+  disabled?: boolean;
+};
+
+function optionText(option: SelectOption) {
+  return option.description
+    ? `${option.label} · ${option.description}`
+    : option.label;
+}
+
+function OptionLabel({ option }: { option: SelectOption }) {
+  return (
+    <>
+      {option.label}
+      {option.description && (
+        <span className="select-option-description">{` · ${option.description}`}</span>
+      )}
+    </>
+  );
+}
+
 export function SelectOptionContent({
   selected,
   special = false,
@@ -61,12 +86,7 @@ export function Select({
   "data-autofocus"?: boolean;
   value: string;
   onValueChange: (value: string) => void;
-  options: {
-    value: string;
-    label: string;
-    special?: boolean;
-    disabled?: boolean;
-  }[];
+  options: SelectOption[];
   disabled?: boolean;
   error?: string;
   label?: string;
@@ -120,17 +140,19 @@ export function Select({
       else void requestOpen();
     },
   };
-  const renderItem: NonNullable<SelectProps["renderOption"]> = (item) => (
-    <SelectOptionContent
-      selected={!!item.checked}
-      special={
-        item.option.value === "" ||
-        options.find((option) => option.value === item.option.value)?.special
-      }
-    >
-      {renderOption ? renderOption(item) : item.option.label}
-    </SelectOptionContent>
-  );
+  const renderItem: NonNullable<SelectProps["renderOption"]> = (item) => {
+    const option: SelectOption =
+      options.find((option) => option.value === item.option.value) ||
+      item.option;
+    return (
+      <SelectOptionContent
+        selected={!!item.checked}
+        special={option.value === "" || option.special}
+      >
+        {renderOption ? renderOption(item) : <OptionLabel option={option} />}
+      </SelectOptionContent>
+    );
+  };
   if (searchable) {
     const selected = options.find((option) => option.value === value);
     const customValue =
@@ -140,7 +162,7 @@ export function Select({
         ? search.trim()
         : undefined;
     const visible = options.filter((option) =>
-      option.label
+      optionText(option)
         .toLocaleLowerCase()
         .includes(search.trim().toLocaleLowerCase()),
     );
@@ -180,7 +202,7 @@ export function Select({
             onClick={() => dropdownStore.toggleDropdown()}
           >
             <FloatingTooltip
-              label={selected?.label}
+              label={selected && optionText(selected)}
               disabled={!selected?.label}
               position="bottom-start"
               offset={16}
@@ -190,7 +212,9 @@ export function Select({
               classNames={{ tooltip: "metadata-tooltip" }}
             >
               <span className="select-value">
-                {selected?.label ?? (
+                {selected ? (
+                  <OptionLabel option={selected} />
+                ) : (
                   <Input.Placeholder>{placeholder}</Input.Placeholder>
                 )}
               </span>
@@ -219,7 +243,7 @@ export function Select({
                 <Combobox.Option
                   key={option.value}
                   value={option.value}
-                  aria-label={option.label}
+                  aria-label={optionText(option)}
                   active={option.value === value}
                   aria-selected={option.value === value}
                   disabled={option.disabled}

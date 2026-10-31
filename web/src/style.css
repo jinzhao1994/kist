@@ -2461,6 +2461,9 @@ main.upload-drag-active {
 .select-option-content[data-selected] > .select-option-label {
   color: inherit;
 }
+.select-option-description {
+  color: var(--muted);
+}
 .mantine-Combobox-option:has(.select-option-content)[data-combobox-selected],
 .mantine-Select-option:has(.select-option-content)[data-combobox-selected] {
   background-color: var(--mantine-primary-color-light);

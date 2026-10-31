@@ -426,6 +426,10 @@ it("loads a selected account catalog on focus and preserves independent feature 
   expect(
     await screen.findByRole("option", { name: "other-model · Other model" }),
   ).toBeVisible();
+  await fill(search, "Second model");
+  expect(
+    screen.queryByRole("option", { name: "other-model · Other model" }),
+  ).not.toBeInTheDocument();
   await userEvent.click(
     await screen.findByRole("option", { name: "second-model · Second model" }),
   );

@@ -1563,13 +1563,11 @@ function ModelInput({
     : models.data || [];
   const selectOptions = choices.map((model) => ({
     value: model.id,
-    label:
-      model.name === model.id || !model.name
-        ? model.id
-        : `${model.id} · ${model.name}`,
+    label: model.id,
+    description: model.name && model.name !== model.id ? model.name : undefined,
   }));
   if (!selectOptions.some((option) => option.value === value) && value)
-    selectOptions.push({ value, label: value });
+    selectOptions.push({ value, label: value, description: undefined });
   selectOptions.sort((a, b) => compareModelIDs(a.value, b.value));
   return (
     <>

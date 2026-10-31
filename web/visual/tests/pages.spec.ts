@@ -5344,6 +5344,18 @@ for (const scenario of [
         .first()
         .evaluate((node) => getComputedStyle(node).color);
       await expect(label).toHaveCSS("color", accent);
+      const muted = await settings
+        .locator(".settings-number-column")
+        .first()
+        .evaluate((node) => getComputedStyle(node).color);
+      await expect(selected.locator(".select-option-description")).toHaveCSS(
+        "color",
+        muted,
+      );
+      await expect(model.locator(".select-option-description")).toHaveCSS(
+        "color",
+        muted,
+      );
       const rowBounds = await page.getByRole("option").evaluateAll((options) =>
         options.map((option) => ({
           height: option.getBoundingClientRect().height,
