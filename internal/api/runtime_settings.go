@@ -130,10 +130,15 @@ func (s *Server) reloadCombinedDraftSettings(ctx context.Context, revision strin
 		return nil, fmt.Errorf("metadata settings require a library")
 	}
 	afterCommit := s.prepareAISignInChange(services)
+	finishAuthorization, err := s.authorizeSignInDrafts(services)
+	if err != nil {
+		return nil, err
+	}
+	committed := false
+	defer func() { finishAuthorization(committed) }()
 
 	var next *runtimeSettings
 	validate := func(stored config.Server) (err error) { next, err = s.prepareSettings(stored); return }
-	var err error
 	var created []library.NewSyncCredential
 	if changes == nil {
 		if s.client != nil {
@@ -150,6 +155,7 @@ func (s *Server) reloadCombinedDraftSettings(ctx context.Context, revision strin
 		return nil, err
 	}
 	s.current.Store(next)
+	committed = true
 	afterCommit()
 	return created, nil
 }

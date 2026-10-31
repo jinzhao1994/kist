@@ -5,6 +5,8 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -172,6 +174,31 @@ func TestRevocationConfirmsRemoteOutcome(t *testing.T) {
 			err := Revoke(t.Context(), ai.Credentials{ClientID: "client", RefreshToken: "refresh"})
 			if (err == nil) != (status == 200) {
 				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestRefreshClassifiesRecoveryWithoutEchoingRemoteBody(t *testing.T) {
+	for _, tc := range []struct {
+		code     int
+		body     string
+		terminal bool
+	}{
+		{400, `{"error":"invalid_grant","secret":"private-secret"}`, true},
+		{400, `{"error":{"code":"invalid_refresh_token","message":"private-secret"}}`, true},
+		{401, `private-secret`, true},
+		{429, `{"error":"invalid_grant","secret":"private-secret"}`, false},
+		{503, `private-secret`, false},
+		{400, `{"error":"temporarily_unavailable","secret":"private-secret"}`, false},
+	} {
+		t.Run(fmt.Sprint(tc.code, tc.body), func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(tc.code); io.WriteString(w, tc.body) }))
+			defer server.Close()
+			_, err := Refresh(t.Context(), ai.Credentials{AccessToken: "expired", RefreshToken: "synthetic", ClientID: "issued"}, &http.Client{Transport: rewriteTransport{server.URL}})
+			var failure *TokenError
+			if !errors.As(err, &failure) || failure.Reauthenticate != tc.terminal || strings.Contains(err.Error(), "private-secret") {
+				t.Fatal("incorrect recovery classification or secret echo", err)
 			}
 		})
 	}

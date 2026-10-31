@@ -162,6 +162,16 @@ type tokens struct {
 	ExpiresIn    int64  `json:"expires_in"`
 }
 
+// TokenError exposes only a closed recovery classification, never the remote body.
+type TokenError struct{ Reauthenticate bool }
+
+func (e *TokenError) Error() string {
+	if e.Reauthenticate {
+		return "ChatGPT session expired; sign in again"
+	}
+	return "ChatGPT token renewal failed; try again later"
+}
+
 func exchange(ctx context.Context, form url.Values, client *http.Client) (tokens, error) {
 	var out tokens
 	req, err := http.NewRequestWithContext(ctx, "POST", Issuer+"/api/accounts/oauth/token", strings.NewReader(form.Encode()))
@@ -175,7 +185,26 @@ func exchange(ctx context.Context, form url.Values, client *http.Client) (tokens
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return out, fmt.Errorf("ChatGPT token exchange returned HTTP %d; reconnect your account", res.StatusCode)
+		var detail struct {
+			Error json.RawMessage `json:"error"`
+		}
+		_ = json.NewDecoder(io.LimitReader(res.Body, 16<<10)).Decode(&detail)
+		var code string
+		if json.Unmarshal(detail.Error, &code) != nil {
+			var nested struct {
+				Code string `json:"code"`
+			}
+			_ = json.Unmarshal(detail.Error, &nested)
+			code = nested.Code
+		}
+		terminal := res.StatusCode == http.StatusUnauthorized
+		if res.StatusCode == http.StatusBadRequest {
+			switch code {
+			case "invalid_grant", "invalid_refresh_token", "token_expired", "token_revoked", "refresh_token_expired", "refresh_token_reused", "refresh_token_invalidated":
+				terminal = true
+			}
+		}
+		return out, &TokenError{Reauthenticate: terminal}
 	}
 	if json.NewDecoder(io.LimitReader(res.Body, 1<<20)).Decode(&out) != nil || out.AccessToken == "" || !strings.EqualFold(out.TokenType, "Bearer") || out.ExpiresIn <= 0 {
 		return out, errors.New("invalid ChatGPT token response")
@@ -199,7 +228,7 @@ func Refresh(ctx context.Context, c ai.Credentials, clients ...*http.Client) (ai
 		return c, nil
 	}
 	if c.RefreshToken == "" {
-		return c, errors.New("ChatGPT session expired; reconnect your account")
+		return c, &TokenError{Reauthenticate: true}
 	}
 	t, err := exchange(ctx, url.Values{"grant_type": {"refresh_token"}, "client_id": {c.ClientID}, "refresh_token": {c.RefreshToken}, "resource": {Resource}}, client)
 	if err != nil {
@@ -209,7 +238,7 @@ func Refresh(ctx context.Context, c ai.Credentials, clients ...*http.Client) (ai
 		c.Scope = t.Scope
 	}
 	if !hasScope(c.Scope, "chatgpt.tokens.use.direct") || !hasScope(c.Scope, "resource.invoke") {
-		return c, errors.New("ChatGPT plan permission is missing")
+		return c, &TokenError{Reauthenticate: true}
 	}
 	c.AccessToken = t.AccessToken
 	if t.RefreshToken != "" {

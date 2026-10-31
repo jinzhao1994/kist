@@ -58,9 +58,12 @@ func (l *Library) TestAIAccount(ctx context.Context, number int64) (AIAccountTes
 func accountTestFailure(ctx context.Context, err error) AIAccountTestResult {
 	reason := "service"
 	var status *openai.HTTPStatusError
+	var token *openai.TokenError
 	switch {
 	case ctx.Err() != nil:
 		reason = "timeout"
+	case errors.As(err, &token) && token.Reauthenticate:
+		reason = "authentication"
 	case errors.As(err, &status):
 		switch status.StatusCode {
 		case 401:

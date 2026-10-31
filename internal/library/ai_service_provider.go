@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -279,4 +280,55 @@ func (l *Library) DisconnectAIAccount(ctx context.Context, number int64) (bool, 
 		return nil
 	})
 	return confirmed, err
+}
+
+// PrepareAIAccountDraft resolves an unsaved route without publishing any config.
+// Features are not needed for authorization and may still be unfinished.
+func (l *Library) PrepareAIAccountDraft(ctx context.Context, in AIServiceSettings, number int64) (ai.Credentials, *http.Client, error) {
+	if err := ctx.Err(); err != nil {
+		return ai.Credentials{}, nil, err
+	}
+	raw, err := os.ReadFile(l.layout.ConfigPath())
+	if err != nil {
+		return ai.Credentials{}, nil, err
+	}
+	if in.Revision != config.Revision(raw) {
+		return ai.Credentials{}, nil, config.ErrChanged
+	}
+	cfg, err := config.Decode(raw)
+	if err != nil {
+		return ai.Credentials{}, nil, err
+	}
+	in.Features = map[string]ai.Feature{}
+	in.Accounts = append([]AIAccountSettings(nil), in.Accounts...)
+	index := -1
+	for i := range in.Accounts {
+		in.Accounts[i].LoginDraft = ""
+		in.Accounts[i].AuthorizedCredentials = nil
+		if in.Accounts[i].Number == number {
+			index = i
+		}
+	}
+	if index < 0 || number == 0 {
+		return ai.Credentials{}, nil, errors.New("AI account no longer exists")
+	}
+	changes, err := l.aiServicesChanges(cfg, in)
+	if err != nil {
+		return ai.Credentials{}, nil, err
+	}
+	services := changes["ai_services"].(ai.Services)
+	cfg.AIServices = &services
+	if err := cfg.Validate(); err != nil {
+		return ai.Credentials{}, nil, err
+	}
+	account := services.Accounts[index]
+	if account.Type != ai.AccountChatGPT {
+		return ai.Credentials{}, nil, errors.New("this account does not use ChatGPT sign-in")
+	}
+	credentials := account.Credentials
+	if credentials.HostID == "" {
+		credentials.HostID = "urn:uuid:" + uuid.NewString()
+	}
+	client, err := accountHTTP(services, account.Number, 30*time.Second)
+	return credentials, client, err
 }

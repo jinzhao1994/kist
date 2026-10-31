@@ -4127,6 +4127,9 @@ for (const scenario of [
   "ai-loading",
   "ai-error",
   "ai-empty",
+  "ai-unconfigured",
+  "ai-account-sign-in",
+  "ai-account-sign-in-mobile",
   "ai-paused",
   "ai-description",
   "ai-facts",
@@ -4173,7 +4176,8 @@ for (const scenario of [
     if (
       scenario === "mobile" ||
       scenario === "storage-mobile" ||
-      scenario === "unsaved-mobile"
+      scenario === "unsaved-mobile" ||
+      scenario === "ai-account-sign-in-mobile"
     )
       await page.setViewportSize({ width: 390, height: 844 });
     const client = scenario === "client-storage";
@@ -4380,12 +4384,44 @@ for (const scenario of [
       );
       await page.route("**/api/v1/ai/services", (route) => {
         const view = visualAIServices();
+        if (scenario === "ai-unconfigured")
+          view.accounts =
+            view.accounts?.map((account) => ({
+              ...account,
+              connected: false,
+              email: "",
+            })) || [];
         if (scenario === "ai-http-auth")
           view.proxies![0] = { ...view.proxies![0], secret_configured: true };
         view.features.ocr.automatic = scenario === "ai-paused";
         view.features.desc.automatic = scenario === "ai-description";
         return route.fulfill({ json: view });
       });
+      if (scenario.startsWith("ai-account-sign-in")) {
+        await page.route("**/api/v1/ai/sign-ins", (route) =>
+          route.fulfill({
+            json: {
+              id: "visual-sign-in",
+              url: "https://auth.openai.com/synthetic",
+              pending: true,
+              connected: false,
+              email: "",
+              error: "",
+            },
+          }),
+        );
+        await page.route("**/api/v1/ai/sign-ins/visual-sign-in", (route) =>
+          route.fulfill({
+            json: {
+              id: "visual-sign-in",
+              pending: false,
+              connected: true,
+              email: "new-reader@example.test",
+              error: "",
+            },
+          }),
+        );
+      }
       await page.route("**/api/v1/ai/accounts/*/models", async (route) => {
         if (scenario === "ai-loading") return;
         if (scenario === "ai-error")
@@ -4546,13 +4582,53 @@ for (const scenario of [
       await expect(
         settings.getByRole("heading", { name: "AI 功能", exact: true }),
       ).toHaveCount(0);
+      if (scenario.startsWith("ai-")) {
+        const table = settings.getByRole("table", {
+          name: "AI 账户",
+          exact: true,
+        });
+        const chatgpt = table.getByRole("row").filter({
+          has: page.getByRole("rowheader", {
+            name: "日常 ChatGPT",
+            exact: true,
+          }),
+        });
+        await chatgpt.hover();
+        const login = chatgpt.getByRole("button", {
+          name: "登录",
+          exact: true,
+        });
+        const test = chatgpt.getByRole("button", { name: "测试", exact: true });
+        await expect(login).toBeEnabled();
+        const actions = await chatgpt.locator(".table-row-actions").innerText();
+        expect(actions.indexOf("登录")).toBeLessThan(actions.indexOf("测试"));
+        await expect(
+          table.getByText(
+            scenario === "ai-unconfigured" ? "未配置" : "已配置",
+            { exact: true },
+          ),
+        ).toHaveCount(2);
+        if (scenario === "ai-unconfigured") {
+          await expect(test).toBeDisabled();
+          const muted = await chatgpt
+            .locator(".settings-number-column")
+            .evaluate((node) => getComputedStyle(node).color);
+          await expect(chatgpt.getByText("未配置", { exact: true })).toHaveCSS(
+            "color",
+            muted,
+          );
+        }
+        await page.mouse.move(0, 0);
+      }
       await pairedFields(
         "ai_services.features.ocr.account",
         "ai_services.features.ocr.model",
+        scenario === "ai-account-sign-in-mobile",
       );
       await pairedFields(
         "ai_services.features.ocr.reasoning_effort",
         "ai_services.features.ocr.image_detail",
+        scenario === "ai-account-sign-in-mobile",
       );
     }
     if (scenario === "ai-proxy-test" || scenario === "ai-proxy-test-error") {
@@ -4644,7 +4720,14 @@ for (const scenario of [
       ).toBeVisible();
       await expect(table.getByRole("rowheader")).toHaveCount(count);
     }
-    if (["ai-proxy-create", "ai-account-create"].includes(scenario)) {
+    if (
+      [
+        "ai-proxy-create",
+        "ai-account-create",
+        "ai-account-sign-in",
+        "ai-account-sign-in-mobile",
+      ].includes(scenario)
+    ) {
       const proxy = scenario === "ai-proxy-create";
       const title = proxy ? "代理" : "AI 账户";
       const add = proxy ? "添加代理" : "添加账户";
@@ -4683,6 +4766,21 @@ for (const scenario of [
       await expect(
         settings.getByRole("button", { name: "保存", exact: true }),
       ).toBeEnabled();
+      if (scenario.startsWith("ai-account-sign-in")) {
+        await page.evaluate(() => {
+          window.open = () => null;
+        });
+        await editor.getByRole("button", { name: "登录", exact: true }).click();
+        await expect(
+          editor.getByText("new-reader@example.test", { exact: true }),
+        ).toBeVisible();
+        await expect(editor.getByRole("status")).toHaveText(
+          "已登录，保存页面后生效。临时登录保留 30 分钟。",
+        );
+        await expect(
+          settings.getByRole("button", { name: "保存", exact: true }),
+        ).toBeEnabled();
+      }
       const editorBounds = await editor.boundingBox(),
         tableBounds = await table.boundingBox();
       expect(

@@ -36,14 +36,19 @@ type AIProxySettings struct {
 }
 
 type AIAccountSettings struct {
-	Number      int64  `json:"number"`
-	ID          string `json:"id" maxLength:"128"`
-	Type        string `json:"type" enum:"chatgpt,openai"`
-	Proxy       int64  `json:"proxy"`
-	APIKey      string `json:"api_key,omitempty" writeOnly:"true" maxLength:"4096"`
-	ClearSecret bool   `json:"clear_secret,omitempty"`
-	Connected   bool   `json:"connected" readOnly:"true"`
-	Email       string `json:"email" readOnly:"true"`
+	CredentialVersion   string `json:"-"`
+	AuthenticationError string `json:"authentication_error,omitempty" readOnly:"true" enum:",temporary,reauthenticate"`
+	LoginDraft          string `json:"login_draft,omitempty" maxLength:"128" writeOnly:"true"`
+	// AuthorizedCredentials is populated only by the server's authorization vault.
+	AuthorizedCredentials *ai.Credentials `json:"-"`
+	Number                int64           `json:"number"`
+	ID                    string          `json:"id" maxLength:"128"`
+	Type                  string          `json:"type" enum:"chatgpt,openai"`
+	Proxy                 int64           `json:"proxy"`
+	APIKey                string          `json:"api_key,omitempty" writeOnly:"true" maxLength:"4096"`
+	ClearSecret           bool            `json:"clear_secret,omitempty"`
+	Connected             bool            `json:"connected" readOnly:"true"`
+	Email                 string          `json:"email" readOnly:"true"`
 }
 
 // effectiveAIServices interprets legacy settings without writing or signing in.
@@ -109,7 +114,7 @@ func (l *Library) AIServicesSettings(ctx context.Context) (AIServiceSettings, er
 		out.Proxies = append(out.Proxies, v)
 	}
 	for _, a := range s.Accounts {
-		out.Accounts = append(out.Accounts, AIAccountSettings{Number: a.Number, ID: a.ID, Type: a.Type, Proxy: a.Proxy, Connected: a.APIKey != "" || a.Credentials.AccessToken != "", Email: a.Credentials.Email})
+		out.Accounts = append(out.Accounts, AIAccountSettings{Number: a.Number, ID: a.ID, Type: a.Type, Proxy: a.Proxy, Connected: a.APIKey != "" || a.Credentials.AccessToken != "", Email: a.Credentials.Email, CredentialVersion: credentialVersion(a.Credentials)})
 	}
 	return out, nil
 }
@@ -196,6 +201,12 @@ func (l *Library) aiServicesChanges(cfg *config.Config, in AIServiceSettings) (m
 		if a.ClearSecret {
 			v.APIKey = ""
 			v.Credentials = ai.Credentials{}
+		}
+		if a.LoginDraft != "" {
+			if a.AuthorizedCredentials == nil || a.Type != ai.AccountChatGPT || a.ClearSecret {
+				return nil, config.InvalidField(field+".login_draft", "authorization", "Sign-in expired; sign in again before saving.")
+			}
+			v.Credentials = *a.AuthorizedCredentials
 		}
 		next.Accounts = append(next.Accounts, v)
 	}

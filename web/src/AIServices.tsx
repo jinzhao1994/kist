@@ -24,7 +24,7 @@ import type { components } from "./api-schema";
 import { get, result } from "./api";
 import { SettingsCollection } from "./SettingsCollection";
 import { AIProxyRow } from "./AIProxyRow";
-import { ConnectionTest } from "./ConnectionTest";
+import { ConnectionTest, ConnectionStatus } from "./ConnectionTest";
 import { SecretInput } from "./SecretInput";
 import { HelpTooltip } from "./HelpTooltip";
 import { Select } from "./Select";
@@ -70,7 +70,12 @@ export function aiServicesDraft(value: View) {
       }),
     ),
     accounts: (value.accounts || []).map(
-      ({ connected: _, email: _email, ...account }) => ({
+      ({
+        connected: _,
+        email: _email,
+        authentication_error: _auth,
+        ...account
+      }) => ({
         ...account,
         api_key: account.api_key || undefined,
         clear_secret: account.clear_secret || undefined,
@@ -164,6 +169,31 @@ export function AIConnection({
   const [notice, setNotice] = useState("");
   const [loginURL, setLoginURL] = useState("");
   const pendingAccount = useRef(0);
+  const ownedSignIns = useRef(new Set<string>());
+  const authorizationGeneration = useRef(0);
+  const [signIn, setSignIn] = useState<{ id: string; number: number }>();
+  const signInQuery = useQuery({
+    queryKey: ["ai-sign-in", signIn?.id],
+    queryFn: ({ signal }) =>
+      get<Schema["SignInDraftView"]>(`/ai/sign-ins/${signIn!.id}`, signal),
+    enabled: !!signIn,
+    refetchInterval: (query) => (query.state.data?.pending ? 1000 : false),
+    retry: false,
+  });
+  function discardSignIn(id: string) {
+    ownedSignIns.current.delete(id);
+    void fetch(`/api/v1/ai/sign-ins/${id}`, {
+      method: "DELETE",
+      keepalive: true,
+    }).catch(() => {});
+  }
+  useEffect(
+    () => () => {
+      authorizationGeneration.current++;
+      for (const id of [...ownedSignIns.current]) discardSignIn(id);
+    },
+    [],
+  );
   const temporary = useRef(-1);
   const context = useContext(SettingsErrorsContext);
   const [localErrors, setLocalErrors] = useState<SettingsErrors>({});
@@ -201,6 +231,11 @@ export function AIConnection({
     if (query.data && !touched) setDraft(query.data);
   }, [query.data, touched]);
   useEffect(() => {
+    authorizationGeneration.current++;
+    for (const id of [...ownedSignIns.current]) discardSignIn(id);
+    setBusy(undefined);
+    setSignIn(undefined);
+    setLoginURL("");
     setTouched(false);
     setDraft(queries.getQueryData(["ai-services"]));
     setError("");
@@ -299,10 +334,52 @@ export function AIConnection({
       ),
     });
   }
+  useEffect(() => {
+    const retained = new Set(
+      draft?.accounts?.map((a) => a.login_draft).filter(Boolean),
+    );
+    for (const id of [...ownedSignIns.current]) {
+      if (!retained.has(id)) {
+        discardSignIn(id);
+        if (signIn?.id === id) {
+          setSignIn(undefined);
+          setLoginURL("");
+        }
+      }
+    }
+  }, [draft, signIn]);
+  useEffect(() => {
+    if (!signIn || !signInQuery.data || signInQuery.data.pending) return;
+    const value = signInQuery.data;
+    if (value.connected) {
+      const index =
+        draft?.accounts?.findIndex((a) => a.number === signIn.number) ?? -1;
+      if (index >= 0) clear(`ai_services.accounts.${index}.login_draft`);
+    }
+    setDraft(
+      (current) =>
+        current && {
+          ...current,
+          accounts: (current.accounts || []).map((a) =>
+            a.number === signIn.number && a.login_draft === signIn.id
+              ? { ...a, connected: value.connected, email: value.email }
+              : a,
+          ),
+        },
+    );
+  }, [signIn, signInQuery.data]);
   async function accountAction(
     number: number,
     action: "connect" | "disconnect",
   ) {
+    const target = draft?.accounts?.find((a) => a.number === number);
+    if (!draft || !target) return;
+    if (
+      action === "connect" &&
+      !finishObject("accounts", target, draft.accounts!.indexOf(target))
+    )
+      return;
+    const generation = authorizationGeneration.current;
     const login =
       action === "connect" ? window.open("about:blank", "_blank") : null;
     if (login) login.opener = null;
@@ -310,13 +387,53 @@ export function AIConnection({
     setError("");
     setNotice("");
     try {
-      const value = await result<{ url?: string; revoked?: boolean }>(
-        await fetch(`/api/v1/ai/accounts/${number}/${action}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: "{}",
-        }),
+      if (action === "disconnect" && target.login_draft) {
+        discardSignIn(target.login_draft);
+        if (signIn?.id === target.login_draft) setSignIn(undefined);
+        const saved = query.data?.accounts?.find(
+          (a) => a.number === number && a.type === target.type,
+        );
+        accountChange(number, {
+          login_draft: undefined,
+          connected: saved?.connected || false,
+          email: saved?.email || "",
+        });
+        return;
+      }
+      const value = await result<{
+        id?: string;
+        url?: string;
+        revoked?: boolean;
+      }>(
+        await fetch(
+          action === "connect"
+            ? "/api/v1/ai/sign-ins"
+            : `/api/v1/ai/accounts/${number}/${action}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body:
+              action === "connect"
+                ? JSON.stringify({ number, settings: aiServicesDraft(draft) })
+                : "{}",
+          },
+        ),
       );
+      if (generation !== authorizationGeneration.current) {
+        if (value.id) discardSignIn(value.id);
+        login?.close();
+        return;
+      }
+      if (value.id) {
+        if (target.login_draft) discardSignIn(target.login_draft);
+        ownedSignIns.current.add(value.id);
+        setSignIn({ id: value.id, number });
+        accountChange(number, {
+          login_draft: value.id,
+          clear_secret: undefined,
+          connected: false,
+        });
+      }
       if (value.url) {
         setLoginURL(value.url);
         if (login && !login.closed) login.location.replace(value.url);
@@ -324,11 +441,14 @@ export function AIConnection({
       if (value.revoked === false) setNotice(t("aiRevocationUnconfirmed"));
     } catch (error) {
       login?.close();
-      setError(errorMessage(error, t));
+      if (generation === authorizationGeneration.current)
+        setError(errorMessage(error, t));
     } finally {
-      await queries.invalidateQueries({ queryKey: ["ai-services"] });
-      await onChanged?.();
-      setBusy(undefined);
+      if (generation === authorizationGeneration.current) {
+        await queries.invalidateQueries({ queryKey: ["ai-services"] });
+        if (action === "disconnect" && !target.login_draft) await onChanged?.();
+        setBusy(undefined);
+      }
     }
   }
   const locked = disabled || busy !== undefined;
@@ -375,6 +495,49 @@ export function AIConnection({
   );
   const connectionBlocked =
     disabled || configurationPending || dirty || busy !== undefined;
+  const signInPending =
+    !!signIn &&
+    (!signInQuery.data || signInQuery.data.pending) &&
+    !signInQuery.error;
+  const signInFeedback = (value: Account) =>
+    value.login_draft && (
+      <div
+        data-setting-field={`ai_services.accounts.${draft!.accounts!.indexOf(value)}.login_draft`}
+      >
+        {authorizationFeedback(value)}
+      </div>
+    );
+  function authorizationFeedback(value: Account) {
+    const failure =
+      errors[
+        `ai_services.accounts.${draft!.accounts!.indexOf(value)}.login_draft`
+      ];
+    if (failure)
+      return (
+        <TaskError>
+          {t(
+            failure.code === "authorization_pending"
+              ? "aiSignInPendingSave"
+              : "aiSignInExpired",
+          )}
+        </TaskError>
+      );
+    if (
+      (signIn?.id === value.login_draft &&
+        (signInQuery.error || signInQuery.data?.error)) ||
+      (signIn?.id !== value.login_draft && !value.connected)
+    )
+      return <TaskError>{t("aiSignInExpired")}</TaskError>;
+    return (
+      <TaskStatus>
+        {t(
+          signIn?.id === value.login_draft && signInPending
+            ? "aiSigningIn"
+            : "aiSignInUnsaved",
+        )}
+      </TaskStatus>
+    );
+  }
   function finishObject(
     kind: "proxies" | "accounts",
     value: Proxy | Account,
@@ -695,6 +858,7 @@ export function AIConnection({
                 connected: saved?.connected || false,
                 email: saved?.email || "",
                 clear_secret: undefined,
+                login_draft: undefined,
               });
             }}
           />
@@ -746,9 +910,22 @@ export function AIConnection({
           <SettingsHint>{account.email}</SettingsHint>
         </div>
       )}
-      {account.number <= 0 && account.type === "chatgpt" && (
+      {account.type === "chatgpt" && (
         <div className="settings-editor-wide">
-          <SettingsHint>{t("aiSaveBeforeSignIn")}</SettingsHint>
+          <Group gap="md">
+            {rowAction(
+              t("aiSignIn"),
+              () => void accountAction(account.number, "connect"),
+              locked || signInPending,
+            )}
+            {account.login_draft &&
+              rowAction(
+                t("cancel"),
+                () => void accountAction(account.number, "disconnect"),
+                locked,
+              )}
+          </Group>
+          {signInFeedback(account)}
         </div>
       )}
       <Group className="settings-editor-wide" gap="xs">
@@ -1023,16 +1200,24 @@ export function AIConnection({
                         : t("aiDirect")}
                     </Table.Td>
                     <Table.Td>
-                      {query.data?.pending_account === a.number
-                        ? t("aiWaiting")
-                        : a.connected
-                          ? t(
-                              a.type === "openai"
-                                ? "aiConfigured"
-                                : "aiConnected",
-                            )
-                          : t("aiDisconnected")}
+                      <ConnectionStatus
+                        configured={a.connected}
+                        pending={
+                          query.data?.pending_account === a.number ||
+                          (signIn?.number === a.number && signInPending)
+                        }
+                      />
+                      {a.authentication_error && !a.login_draft && (
+                        <TaskError>
+                          {t(
+                            a.authentication_error === "reauthenticate"
+                              ? "aiLoginRequired"
+                              : "aiRefreshFailed",
+                          )}
+                        </TaskError>
+                      )}
                       {feedback}
+                      {signInFeedback(a)}
                     </Table.Td>
                     <Table.Td>
                       <Group
@@ -1042,25 +1227,29 @@ export function AIConnection({
                         className="table-row-actions"
                         data-busy={busy === a.number || testing || undefined}
                       >
-                        {action}
                         {a.type === "chatgpt" &&
                           rowAction(
-                            t("aiContinue"),
+                            t("aiSignIn"),
                             () => void accountAction(a.number, "connect"),
-                            connectionBlocked ||
-                              a.number <= 0 ||
+                            locked ||
+                              signInPending ||
                               !!query.data?.pending_account,
                           )}
+                        {action}
                         {(a.connected ||
+                          a.login_draft ||
                           query.data?.pending_account === a.number) &&
                           rowAction(
                             t(
-                              query.data?.pending_account === a.number
+                              query.data?.pending_account === a.number ||
+                                a.login_draft
                                 ? "cancel"
                                 : "aiDisconnect",
                             ),
                             () => void accountAction(a.number, "disconnect"),
-                            connectionBlocked || a.number <= 0,
+                            a.login_draft
+                              ? locked
+                              : connectionBlocked || a.number <= 0,
                           )}
                         {rowAction(
                           t("aiEdit"),
@@ -1095,7 +1284,7 @@ export function AIConnection({
               </ConnectionTest>
             )}
           />
-          {loginURL && !!query.data?.pending_account && (
+          {loginURL && (!!query.data?.pending_account || signInPending) && (
             <Anchor href={loginURL} target="_blank" rel="noreferrer">
               {t("aiOpenSignIn")}
             </Anchor>

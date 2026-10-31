@@ -58,6 +58,7 @@ func (s *Server) prepareAISignInChange(next *library.AIServiceSettings) func() {
 }
 
 func (s *Server) aiServiceRoutes() {
+	s.signInDraftRoutes()
 	huma.Post(s.contract, Prefix+"/ai/accounts/{number}/test", func(ctx context.Context, in *aiAccountAction) (*output[library.AIAccountTestResult], error) {
 		result, err := s.library.TestAIAccount(ctx, in.Number)
 		if errors.Is(err, library.ErrNoSuchAIAccount) {
@@ -79,6 +80,12 @@ func (s *Server) aiServiceRoutes() {
 		}
 		out := aiServicesView{AIServiceSettings: settings, Definitions: ai.FeatureDefinitions()}
 		s.aiMu.Lock()
+		for i := range out.Accounts {
+			a := &out.Accounts[i]
+			if status := s.aiRenewals[a.Number]; status.Version == a.CredentialVersion {
+				a.AuthenticationError = status.Error
+			}
+		}
 		if s.aiAttempt != nil {
 			out.PendingAccount = s.aiAttemptAccount
 		}

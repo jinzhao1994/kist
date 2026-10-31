@@ -460,6 +460,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai/sign-ins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 ai sign ins */
+        post: operations["post-api-v1-ai-sign-ins"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/sign-ins/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 ai sign ins by ID */
+        get: operations["get-api-v1-ai-sign-ins-by-id"];
+        put?: never;
+        post?: never;
+        /** Delete API v1 ai sign ins by ID */
+        delete: operations["delete-api-v1-ai-sign-ins-by-id"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ai/transcription": {
         parameters: {
             query?: never;
@@ -2231,10 +2266,13 @@ export interface components {
     schemas: {
         AIAccountSettings: {
             api_key?: string;
+            /** @enum {string} */
+            readonly authentication_error?: "" | "temporary" | "reauthenticate";
             clear_secret?: boolean;
             readonly connected: boolean;
             readonly email: string;
             id: string;
+            login_draft?: string;
             /** Format: int64 */
             number: number;
             /** Format: int64 */
@@ -2875,6 +2913,11 @@ export interface components {
         "Post-api-v1-ai-orientation-pauseRequest": {
             paused: boolean;
         };
+        "Post-api-v1-ai-sign-insRequest": {
+            /** Format: int64 */
+            number: number;
+            settings: components["schemas"]["AIServiceSettings"];
+        };
         "Post-api-v1-ai-transcription-backfillRequest": {
             retry: boolean;
         };
@@ -3134,6 +3177,14 @@ export interface components {
             supported: boolean;
             truncated: boolean;
             widths: number[] | null;
+        };
+        SignInDraftView: {
+            connected: boolean;
+            email: string;
+            error: string;
+            id: string;
+            pending: boolean;
+            url?: string;
         };
         StorageUsage: {
             /** Format: int64 */
@@ -4216,6 +4267,101 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OCRSettings"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-ai-sign-ins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-ai-sign-insRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignInDraftView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-ai-sign-ins-by-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignInDraftView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "delete-api-v1-ai-sign-ins-by-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutputStruct {}Body"];
                 };
             };
             /** @description Error */

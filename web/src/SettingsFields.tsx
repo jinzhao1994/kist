@@ -36,6 +36,8 @@ export function useSettingsError(field: string) {
   const { errors } = useContext(SettingsErrorsContext);
   const error = errors[field];
   const messages: Record<string, MessageKey> = {
+    authorization: "aiSignInExpired",
+    authorization_pending: "aiSignInPendingSave",
     credential_note: "settingInvalidCredentialNote",
     unique_id: "settingUniqueID",
     reference: "settingInvalidReference",

@@ -1,10 +1,35 @@
-import { Anchor } from "@mantine/core";
+import { Anchor, Text } from "@mantine/core";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { result } from "./api";
 import { FullTextTooltip } from "./FullTextTooltip";
 import { TaskError, TaskStatus } from "./TaskStatus";
 import { errorMessage } from "./mutations";
 import { useI18n, type MessageKey } from "./i18n";
+
+export function ConnectionStatus({
+  configured,
+  pending = false,
+}: {
+  configured: boolean;
+  pending?: boolean;
+}) {
+  const { t } = useI18n();
+  return (
+    <Text
+      component="span"
+      inherit
+      c={!configured || pending ? "dimmed" : undefined}
+    >
+      {t(
+        pending
+          ? "aiSigningIn"
+          : configured
+            ? "aiConfigured"
+            : "aiUnconfigured",
+      )}
+    </Text>
+  );
+}
 
 // A test is explicit, cancelable and scoped to the displayed saved snapshot.
 export function ConnectionTest<T extends { error: string }>({

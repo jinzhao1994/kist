@@ -122,6 +122,9 @@ func TestAIAccountProbeCatalogAndSavedRoute(t *testing.T) {
 }
 
 func TestAIAccountProbeFailureBoundaries(t *testing.T) {
+	if result := accountTestFailure(t.Context(), &openai.TokenError{Reauthenticate: true}); result.Error != "authentication" {
+		t.Fatal(result)
+	}
 	l := openTestLibrary(t)
 	draft, _ := l.AIServicesSettings(t.Context())
 	draft.Accounts = []AIAccountSettings{{Number: -1, ID: "Synthetic", Type: ai.AccountChatGPT}}

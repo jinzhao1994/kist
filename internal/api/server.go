@@ -45,6 +45,8 @@ type Options struct {
 }
 
 type Server struct {
+	aiDrafts         signInDraftVault
+	aiRenewals       map[int64]library.AIAccountRenewal
 	aiMu             sync.Mutex
 	aiAttempt        *openai.Attempt
 	aiAttemptAccount int64

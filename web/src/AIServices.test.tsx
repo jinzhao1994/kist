@@ -555,26 +555,187 @@ it("opens ChatGPT during the click gesture and authenticates the selected accoun
     vi.fn(async (path: string, init?: RequestInit) => {
       if (init?.method === "POST") {
         order.push(path);
-        fixture = { ...fixture, pending_account: 7 };
-        return Response.json({ url: "https://auth.openai.com/synthetic" });
+        return Response.json({
+          id: "synthetic-login",
+          url: "https://auth.openai.com/synthetic",
+        });
       }
+      if (path.endsWith("/sign-ins/synthetic-login"))
+        return Response.json({
+          id: "synthetic-login",
+          pending: true,
+          connected: false,
+          email: "",
+          error: "",
+        });
       return Response.json(
         path.endsWith("/services") ? fixture : { supported: true },
       );
     }),
   );
   const { client, unmount } = mount(<AIConnection onDraftChange={vi.fn()} />);
-  await userEvent.click(
-    await screen.findByRole("button", { name: "Continue with ChatGPT" }),
-  );
+  const signIn = await screen.findByRole("button", { name: "Sign in" });
+  const row = signIn.closest("tr")!;
+  expect(within(row).getByText("Not configured")).toBeVisible();
+  const test = within(row).getByRole("button", { name: "Test" });
+  expect(test).toBeDisabled();
+  expect(
+    signIn.compareDocumentPosition(test) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  await userEvent.click(signIn);
   await waitFor(() =>
     expect(replace).toHaveBeenCalledWith("https://auth.openai.com/synthetic"),
   );
-  expect(order).toEqual(["open", "/api/v1/ai/accounts/7/connect"]);
+  expect(order).toEqual(["open", "/api/v1/ai/sign-ins"]);
   expect(login.opener).toBeNull();
   expect(
     await screen.findByRole("link", { name: "Open ChatGPT sign-in" }),
   ).toHaveAttribute("target", "_blank");
   unmount();
+  client.clear();
+});
+
+it("signs in a new account inside the creation form and leaves only a reference for unified save", async () => {
+  const fixture = aiServicesFixture({ accounts: [], proxies: [] });
+  const requests: { path: string; init?: RequestInit }[] = [];
+  const changed = vi.fn();
+  vi.spyOn(window, "open").mockReturnValue(null);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string, init?: RequestInit) => {
+      requests.push({ path, init });
+      if (path.endsWith("/sign-ins") && init?.method === "POST")
+        return Response.json({
+          id: "new-draft",
+          url: "https://auth.openai.com/synthetic",
+          pending: true,
+          connected: false,
+          email: "",
+          error: "",
+        });
+      if (path.endsWith("/sign-ins/new-draft"))
+        return Response.json({
+          id: "new-draft",
+          pending: false,
+          connected: true,
+          email: "synthetic@example.test",
+          error: "",
+        });
+      return Response.json(
+        path.endsWith("/services") ? fixture : { supported: true },
+      );
+    }),
+  );
+  const { client, unmount, rerender } = mount(
+    <AIConnection onDraftChange={changed} />,
+  );
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Add account" }),
+  );
+  const form = screen.getByRole("region", { name: "Add account" });
+  await userEvent.click(within(form).getByRole("button", { name: "Sign in" }));
+  expect(within(form).getByText("This value is required.")).toBeVisible();
+  expect(requests.filter((r) => r.init?.method === "POST")).toHaveLength(0);
+  await fill(
+    within(form).getByRole("textbox", { name: "Name" }),
+    "New ChatGPT",
+  );
+  await userEvent.click(within(form).getByRole("button", { name: "Sign in" }));
+  expect(await within(form).findByText("synthetic@example.test")).toBeVisible();
+  expect(within(form).getByRole("status")).toHaveTextContent(
+    "Signed in; save the page",
+  );
+  const request = JSON.parse(
+    String(requests.find((r) => r.init?.method === "POST")!.init!.body),
+  );
+  expect(request.number).toBeLessThan(0);
+  expect(request.settings.accounts[0].id).toBe("New ChatGPT");
+  expect(changed.mock.lastCall?.[0]?.value.accounts[0].login_draft).toBe(
+    "new-draft",
+  );
+  expect(requests.some((r) => r.init?.method === "PUT")).toBe(false);
+  await userEvent.click(
+    within(form).getByRole("button", { name: "Add account" }),
+  );
+  const row = screen
+    .getByRole("rowheader", { name: "New ChatGPT" })
+    .closest("tr")!;
+  expect(within(row).getByText("Configured")).toBeVisible();
+  expect(within(row).getByRole("button", { name: "Test" })).toBeDisabled();
+  rerender(
+    <QueryClientProvider client={client}>
+      <ThemeProvider env="test">
+        <I18nProvider>
+          <AIConnection reloadVersion={1} onDraftChange={changed} />
+        </I18nProvider>
+      </ThemeProvider>
+    </QueryClientProvider>,
+  );
+  await waitFor(() =>
+    expect(
+      requests.some(
+        (r) =>
+          r.path.endsWith("/sign-ins/new-draft") && r.init?.method === "DELETE",
+      ),
+    ).toBe(true),
+  );
+  await waitFor(() => expect(changed.mock.lastCall?.[0]).toBeNull());
+  unmount();
+  client.clear();
+});
+
+it("cleans up an authorization response that arrives after leaving the settings page", async () => {
+  let finish!: (value: Response) => void;
+  const requests: { path: string; method?: string }[] = [];
+  const close = vi.fn();
+  vi.spyOn(window, "open").mockReturnValue({
+    opener: null,
+    closed: false,
+    close,
+    location: { replace: vi.fn() },
+  } as unknown as Window);
+  const fixture = aiServicesFixture({
+    accounts: [
+      {
+        number: 7,
+        id: "ChatGPT",
+        type: "chatgpt",
+        proxy: 0,
+        connected: false,
+        email: "",
+      },
+    ],
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string, init?: RequestInit) => {
+      requests.push({ path, method: init?.method });
+      if (path.endsWith("/sign-ins") && init?.method === "POST")
+        return new Promise<Response>((resolve) => {
+          finish = resolve;
+        });
+      return Promise.resolve(
+        Response.json(
+          path.endsWith("/services") ? fixture : { supported: true },
+        ),
+      );
+    }),
+  );
+  const { client, unmount } = mount(<AIConnection />);
+  await userEvent.click(await screen.findByRole("button", { name: "Sign in" }));
+  unmount();
+  finish(
+    Response.json({
+      id: "abandoned-draft",
+      url: "https://auth.openai.com/synthetic",
+    }),
+  );
+  await waitFor(() =>
+    expect(requests).toContainEqual({
+      path: "/api/v1/ai/sign-ins/abandoned-draft",
+      method: "DELETE",
+    }),
+  );
+  expect(close).toHaveBeenCalled();
   client.clear();
 });

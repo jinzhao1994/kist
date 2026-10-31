@@ -83,7 +83,7 @@ func TestAIServiceLocalBoundaryIncludesEveryInvocation(t *testing.T) {
 	// Keep the exercised public routes independent of the feature registry used
 	// by the guard, including the newer structured and audio extraction paths.
 	for _, path := range []string{
-		"/ai/services", "/ai/accounts/1/models", "/ai/accounts/1/connect", "/ai/proxies/1/test", "/ai/accounts/1/test",
+		"/ai/services", "/ai/sign-ins", "/ai/sign-ins/synthetic", "/ai/accounts/1/models", "/ai/accounts/1/connect", "/ai/proxies/1/test", "/ai/accounts/1/test",
 		"/files/00000000-0000-7000-8000-000000000001/orientation",
 		"/files/00000000-0000-7000-8000-000000000001/ocr",
 		"/files/00000000-0000-7000-8000-000000000001/desc",

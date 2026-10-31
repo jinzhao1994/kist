@@ -1454,10 +1454,13 @@ export interface components {
     schemas: {
         AIAccountSettings: {
             api_key?: string;
+            /** @enum {string} */
+            readonly authentication_error?: "" | "temporary" | "reauthenticate";
             clear_secret?: boolean;
             readonly connected: boolean;
             readonly email: string;
             id: string;
+            login_draft?: string;
             /** Format: int64 */
             number: number;
             /** Format: int64 */
