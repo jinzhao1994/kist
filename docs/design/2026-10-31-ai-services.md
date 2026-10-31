@@ -169,3 +169,5 @@ CI 的 Linux 主检查暴露三条整页交互用例超出 Vitest 默认 5 秒�
 协议依据：[文件转录指南](https://developers.openai.com/api/docs/guides/speech-to-text)、[创建转录 API](https://developers.openai.com/api/reference/resources/audio/subresources/transcriptions/methods/create)、[gpt-transcribe](https://developers.openai.com/api/docs/models/gpt-transcribe)。官方输入上限为 25 MB，本地准备段保留余量；当前仅接入普通正文，不实现说话人分离、字幕时间戳或实时麦克风转录。
 
 验证：相关前端 87 项测试、API 类型契约、前端构建、视觉场景工具检查通过；后端相关 race 回归、静态检查和架构检查通过。实际 ffmpeg 合成视频测试完成音轨提取、PCM 分段大小／时长、无音轨拒绝、取消及网络播放列表拒绝；现有 HLS、视频预览和缩略图相关回归通过。分段测试验证顺序、尾段覆盖、中途失败不提交部分正文、保留失败诊断及临时文件清理。设置视觉场景断言默认模型与过滤后的选项。所有音视频与接口响应均为合成数据，没有上传私人录音或使用真实密钥；当前浏览器原生连接仍不可用，真实账户识别质量和实际页面验收未宣称完成。按 session 约定不等待 GitHub CI 结束。
+
+用户随后明确授权真实服务验收，现已下载公开真人演讲和 W3C 带字幕教学视频，以真实 `gpt-transcribe` 在隔离库完成队列、抽轨、上传、元数据保存、避免重复调用、重建及深校验。11 秒录音 22 个参考词无词级差异；128.64 秒视频转为 4,116,558 字节 WAV 后上传，与官方字幕 235 个参考词有 3 次编辑（WER 1.28%）。未向模型提供参考文本，未上传私人资料，凭据不复制到临时配置或日志。完整范围、局限及显式复验入口见[真实服务验收记录](../plans/2026-10-31-transcription-live-acceptance.md)；这补齐普通英语录音及视频的真实后端证据，不替代中文、长录音跨段或实际浏览器验收。
