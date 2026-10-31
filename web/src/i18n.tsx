@@ -271,6 +271,7 @@ export const en = {
     "Connect ChatGPT to use your plan for image orientation, OCR, descriptions and structured extraction. Images and documents requested manually or by enabled background tasks are sent to OpenAI; results are saved as metadata in the archive.",
   aiConnected: "Connected",
   aiSignIn: "Sign in",
+  aiSignInAndAdd: "Sign in and add",
   aiSigningIn: "Waiting for sign-in…",
   aiSignInPendingSave: "Complete sign-in before saving.",
   aiSignInUnsaved:
@@ -1427,6 +1428,7 @@ export const zh: Record<MessageKey, string> = {
     "连接 ChatGPT 后使用你的套餐判断图片方向、识别文字、生成描述和提取结构化信息。手动请求或已启用的后台任务会将图片或文档发送到 OpenAI，结果保存为资料库中的元数据。",
   aiConnected: "已连接",
   aiSignIn: "登录",
+  aiSignInAndAdd: "登录并添加",
   aiSigningIn: "正在等待登录…",
   aiSignInPendingSave: "请先完成登录，再保存设置。",
   aiSignInUnsaved: "已登录，保存页面后生效。临时登录保留 30 分钟。",

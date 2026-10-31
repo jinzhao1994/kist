@@ -152,3 +152,6 @@ CI 的 Linux 主检查暴露三条整页交互用例超出 Vitest 默认 5 秒�
 刷新协议及恢复边界依据 [OpenAI 账户与会话](https://developers.openai.com/siwc/token-sharing-open-source/profiles-and-sessions) 与 [错误恢复](https://developers.openai.com/siwc/token-sharing-open-source/errors-and-recovery)。此段取代此前“仅在使用前刷新”的行为记录。
 
 本阶段相关后端 race 回归覆盖授权引用的原子保存、校验失败保留、取消／过期／目标错配／单次消费、读取不泄露 token、空闲刷新、退避和终止错误，以及凭据更新后的旧错误失效；OAuth 协议验证与架构测试通过。前端相关 26 项测试、API 契约、TypeScript 构建、视觉场景工具与静态检查通过。视觉场景增加未配置状态及桌面／窄屏新建登录；当前原生浏览器连接仍不可用，未宣称已完成实际浏览器或真实账户登录验收。按 session 约定推送后检查 CI 已启动，不等待结束，不修改视觉基准或发布状态。
+
+
+新建 ChatGPT 账户进一步收敛为单一主操作“登录并添加”：先完成授权，成功后自动收起表单并进入列表；等待、失败或取消时保留表单，不先添加一条未配置记录。OpenAI API 账户仍填写密钥后添加。正式配置及凭据始终由页面统一保存。

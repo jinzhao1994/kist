@@ -235,7 +235,10 @@ it("opens a collapsed account editor and locates its server validation error", a
   await user.click(screen.getByRole("button", { name: "Add account" }));
   await user.click(screen.getByRole("textbox", { name: "Name" }));
   await user.paste("New account");
-  await user.click(screen.getByRole("button", { name: "Add account" }));
+  const form = screen.getByRole("region", { name: "Add account" });
+  await user.click(within(form).getByRole("combobox", { name: "Type" }));
+  await user.click(screen.getByRole("option", { name: "OpenAI API" }));
+  await user.click(within(form).getByRole("button", { name: "Add account" }));
 
   scroll.mockClear();
   await user.click(screen.getByRole("button", { name: "Save" }));

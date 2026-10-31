@@ -355,6 +355,11 @@ export function AIConnection({
       const index =
         draft?.accounts?.findIndex((a) => a.number === signIn.number) ?? -1;
       if (index >= 0) clear(`ai_services.accounts.${index}.login_draft`);
+      if (
+        creatingAccount === signIn.number &&
+        draft?.accounts?.[index]?.login_draft === signIn.id
+      )
+        setCreatingAccount(undefined);
     }
     setDraft(
       (current) =>
@@ -803,6 +808,14 @@ export function AIConnection({
       onSubmit={(event) => {
         event.preventDefault();
         if (!finishObject("accounts", account, accountIndex)) return;
+        if (
+          creatingAccount !== undefined &&
+          account.type === "chatgpt" &&
+          !account.connected
+        ) {
+          void accountAction(account.number, "connect");
+          return;
+        }
         setCreatingAccount(undefined);
         setAccountEditor(undefined);
       }}
@@ -913,11 +926,12 @@ export function AIConnection({
       {account.type === "chatgpt" && (
         <div className="settings-editor-wide">
           <Group gap="md">
-            {rowAction(
-              t("aiSignIn"),
-              () => void accountAction(account.number, "connect"),
-              locked || signInPending,
-            )}
+            {creatingAccount === undefined &&
+              rowAction(
+                t("aiSignIn"),
+                () => void accountAction(account.number, "connect"),
+                locked || signInPending,
+              )}
             {account.login_draft &&
               rowAction(
                 t("cancel"),
@@ -929,9 +943,17 @@ export function AIConnection({
         </div>
       )}
       <Group className="settings-editor-wide" gap="xs">
-        <Button type="submit" variant="filled" disabled={locked}>
+        <Button
+          type="submit"
+          variant="filled"
+          disabled={locked || signInPending}
+        >
           {t(
-            creatingAccount !== undefined ? "aiAddAccount" : "aiFinishEditing",
+            creatingAccount !== undefined
+              ? account.type === "chatgpt"
+                ? "aiSignInAndAdd"
+                : "aiAddAccount"
+              : "aiFinishEditing",
           )}
         </Button>
         <Button

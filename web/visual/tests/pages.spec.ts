@@ -4770,24 +4770,31 @@ for (const scenario of [
         await page.evaluate(() => {
           window.open = () => null;
         });
-        await editor.getByRole("button", { name: "登录", exact: true }).click();
-        await expect(
-          editor.getByText("new-reader@example.test", { exact: true }),
-        ).toBeVisible();
-        await expect(editor.getByRole("status")).toHaveText(
+        await editor
+          .getByRole("button", { name: "登录并添加", exact: true })
+          .click();
+        await expect(editor).toHaveCount(0);
+        const added = table
+          .getByRole("row")
+          .filter({
+            has: page.getByRole("rowheader", { name: "备用账户", exact: true }),
+          });
+        await expect(added.getByRole("status")).toHaveText(
           "已登录，保存页面后生效。临时登录保留 30 分钟。",
         );
         await expect(
           settings.getByRole("button", { name: "保存", exact: true }),
         ).toBeEnabled();
       }
-      const editorBounds = await editor.boundingBox(),
-        tableBounds = await table.boundingBox();
-      expect(
-        editorBounds &&
-          tableBounds &&
-          editorBounds.y + editorBounds.height <= tableBounds.y,
-      ).toBeTruthy();
+      if (!scenario.startsWith("ai-account-sign-in")) {
+        const editorBounds = await editor.boundingBox(),
+          tableBounds = await table.boundingBox();
+        expect(
+          editorBounds &&
+            tableBounds &&
+            editorBounds.y + editorBounds.height <= tableBounds.y,
+        ).toBeTruthy();
+      }
     }
     if (["ai-trojan", "ai-http-auth", "ai-api-account"].includes(scenario)) {
       const table = settings.getByRole("table", {

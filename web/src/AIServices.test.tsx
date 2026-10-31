@@ -633,16 +633,25 @@ it("signs in a new account inside the creation form and leaves only a reference 
     await screen.findByRole("button", { name: "Add account" }),
   );
   const form = screen.getByRole("region", { name: "Add account" });
-  await userEvent.click(within(form).getByRole("button", { name: "Sign in" }));
+  await userEvent.click(
+    within(form).getByRole("button", { name: "Sign in and add" }),
+  );
   expect(within(form).getByText("This value is required.")).toBeVisible();
   expect(requests.filter((r) => r.init?.method === "POST")).toHaveLength(0);
   await fill(
     within(form).getByRole("textbox", { name: "Name" }),
     "New ChatGPT",
   );
-  await userEvent.click(within(form).getByRole("button", { name: "Sign in" }));
-  expect(await within(form).findByText("synthetic@example.test")).toBeVisible();
-  expect(within(form).getByRole("status")).toHaveTextContent(
+  await userEvent.click(
+    within(form).getByRole("button", { name: "Sign in and add" }),
+  );
+  const row = (
+    await screen.findByRole("rowheader", { name: "New ChatGPT" })
+  ).closest("tr")!;
+  expect(
+    screen.queryByRole("region", { name: "Add account" }),
+  ).not.toBeInTheDocument();
+  expect(within(row).getByRole("status")).toHaveTextContent(
     "Signed in; save the page",
   );
   const request = JSON.parse(
@@ -654,12 +663,6 @@ it("signs in a new account inside the creation form and leaves only a reference 
     "new-draft",
   );
   expect(requests.some((r) => r.init?.method === "PUT")).toBe(false);
-  await userEvent.click(
-    within(form).getByRole("button", { name: "Add account" }),
-  );
-  const row = screen
-    .getByRole("rowheader", { name: "New ChatGPT" })
-    .closest("tr")!;
   expect(within(row).getByText("Configured")).toBeVisible();
   expect(within(row).getByRole("button", { name: "Test" })).toBeDisabled();
   rerender(
