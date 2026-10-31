@@ -3620,7 +3620,7 @@ main.upload-drag-active {
   gap: var(--mantine-spacing-md) calc(2 * var(--mantine-spacing-xl));
 }
 
-.settings-table th {
+.settings-table thead th {
   color: var(--muted);
   font-size: var(--mantine-font-size-xs);
   font-weight: 500;
@@ -3898,7 +3898,7 @@ main.upload-drag-active {
   padding-block: calc(var(--mantine-spacing-xs) / 2);
   font-size: var(--mantine-font-size-xs);
 }
-.settings-table--dense th {
+.settings-table--dense thead th {
   font-size: 0.6875rem;
 }
 .table-row-help {
