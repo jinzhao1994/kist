@@ -6,6 +6,8 @@ import {
   Combobox,
   Menu,
   Modal,
+  NumberInput,
+  PasswordInput,
 } from "@mantine/core";
 import {
   createContext,
@@ -115,6 +117,16 @@ export function ThemeProvider({
     autoContrast: true,
     components: {
       Button: Button.extend({ defaultProps: { variant: "default" } }),
+      PasswordInput: PasswordInput.extend({
+        defaultProps: { visibilityToggleButtonProps: { autoContrast: false } },
+      }),
+      NumberInput: NumberInput.extend({
+        defaultProps: { rightSectionWidth: "var(--input-height)" },
+        classNames: {
+          controls: "input-number-controls",
+          control: "input-number-control",
+        },
+      }),
       Modal: Modal.extend({
         styles: { title: { fontWeight: 600 } },
         defaultProps: {

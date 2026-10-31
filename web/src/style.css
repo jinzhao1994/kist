@@ -2605,6 +2605,17 @@ main.upload-drag-active {
   display: inline-flex;
 }
 
+/* Match numeric steppers to the quiet trailing icons of selection inputs. */
+.input-number-controls {
+  max-width: none;
+  margin-inline-start: 0;
+}
+.input-number-control {
+  --ni-chevron-size: var(--mantine-font-size-xs);
+  border-inline-start: 0;
+  color: var(--mantine-color-dimmed);
+}
+
 .gallery-header:focus {
   outline: none;
 }

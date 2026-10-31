@@ -53,7 +53,7 @@ export const en = {
   aiProxyPassword: "Password",
   aiTLSServerName: "TLS server name",
   aiTLSServerNameHint:
-    "Optional. Uses the server address when empty; certificates are always verified.",
+    "The domain used for the TLS handshake and certificate verification. Leave empty to use the server address. When connecting by IP, enter the domain on its certificate.",
   aiSecretKeepHint: "Leave empty to keep the saved secret.",
   aiSecretConfigured: "Configured; leave empty to keep",
   aiClearProxyAuth: "Remove saved proxy authentication",
@@ -1203,7 +1203,8 @@ export const zh: Record<MessageKey, string> = {
   aiProxyPort: "端口",
   aiProxyPassword: "密码",
   aiTLSServerName: "TLS 服务器名称",
-  aiTLSServerNameHint: "可选，留空时使用服务器地址，始终验证证书。",
+  aiTLSServerNameHint:
+    "用于 TLS 握手和证书校验，留空时使用服务器地址。若通过 IP 连接，可填写证书对应的域名。",
   aiSecretKeepHint: "留空时保留已保存的凭据。",
   aiSecretConfigured: "已配置，留空保留",
   aiClearProxyAuth: "移除已保存的代理认证",
