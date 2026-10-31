@@ -211,12 +211,50 @@ it("keeps secrets hidden and clears the dirty state when a secret edit is undone
   await userEvent.click(within(row).getByRole("button", { name: "Edit" }));
   const editor = screen.getByRole("region", { name: "Edit AI account" });
   const key = within(editor).getByLabelText("API Key", { selector: "input" });
-  expect(key).toHaveValue("");
+  expect(
+    within(editor).getByLabelText("API Key", { selector: "input" }),
+  ).toHaveAttribute("placeholder", "Configured; leave empty to keep");
   expect(key).toHaveAttribute("type", "password");
   await fill(key, "temporary");
   await waitFor(() => expect(changed.mock.lastCall?.[0]).not.toBeNull());
   await userEvent.clear(key);
   await waitFor(() => expect(changed.mock.lastCall?.[0]).toBeNull());
+  await choose(editor, "Type", "ChatGPT");
+  await choose(editor, "Type", "OpenAI API");
+  await waitFor(() => expect(changed.mock.lastCall?.[0]).toBeNull());
+  expect(within(row).getByRole("button", { name: "Disconnect" })).toBeEnabled();
+  expect(
+    within(editor).getByLabelText("API Key", { selector: "input" }),
+  ).toHaveAttribute("placeholder", "Configured; leave empty to keep");
+  const proxyRow = screen
+    .getByRole("rowheader", { name: "Private proxy" })
+    .closest("tr")!;
+  await userEvent.click(within(proxyRow).getByRole("button", { name: "Edit" }));
+  const proxy = screen.getByRole("region", { name: "Edit proxy" });
+  const clear = within(proxy).getByRole("checkbox", {
+    name: "Remove saved proxy authentication",
+  });
+  await userEvent.click(clear);
+  await waitFor(() =>
+    expect(changed.mock.lastCall?.[0]?.value.proxies[0].clear_secret).toBe(
+      true,
+    ),
+  );
+  await userEvent.click(clear);
+  await waitFor(() => expect(changed.mock.lastCall?.[0]).toBeNull());
+  await choose(proxy, "Type", "Trojan");
+  expect(
+    within(proxy).queryByRole("checkbox", {
+      name: "Remove saved proxy authentication",
+    }),
+  ).not.toBeInTheDocument();
+  await choose(proxy, "Type", "HTTP");
+  await waitFor(() => expect(changed.mock.lastCall?.[0]).toBeNull());
+  expect(
+    within(proxy).getByRole("checkbox", {
+      name: "Remove saved proxy authentication",
+    }),
+  ).not.toBeChecked();
   unmount();
   client.clear();
 });

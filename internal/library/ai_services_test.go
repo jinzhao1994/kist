@@ -140,6 +140,28 @@ func TestAIServicePerFeatureProviderAndSnapshot(t *testing.T) {
 	}
 }
 
+func TestAIServiceHTTPProxyAuthenticationExplicitRemoval(t *testing.T) {
+	l := openTestLibrary(t)
+	draft, _ := l.AIServicesSettings(t.Context())
+	draft.Proxies = []AIProxySettings{{Number: -1, ID: "Authenticated proxy", Type: ai.ProxyHTTP, URL: "http://user:synthetic-secret@proxy.example:7890"}}
+	draft = saveServiceDraft(t, l, draft)
+	if !draft.Proxies[0].SecretConfigured || strings.Contains(draft.Proxies[0].URL, "user") || strings.Contains(draft.Proxies[0].URL, "synthetic-secret") {
+		t.Fatal("proxy authentication was not redacted")
+	}
+	draft.Proxies[0].ID = "Renamed"
+	draft = saveServiceDraft(t, l, draft)
+	cfg, _ := config.Load(l.layout.ConfigPath())
+	if cfg.AIServices.Proxies[0].URL != "http://user:synthetic-secret@proxy.example:7890" {
+		t.Fatal("redacted save lost authentication")
+	}
+	draft.Proxies[0].ClearSecret = true
+	draft = saveServiceDraft(t, l, draft)
+	cfg, _ = config.Load(l.layout.ConfigPath())
+	if draft.Proxies[0].SecretConfigured || cfg.AIServices.Proxies[0].URL != "http://proxy.example:7890" {
+		t.Fatal("explicit removal did not clear authentication")
+	}
+}
+
 func TestAIServiceLegacyConversionAndAccountTokenIsolation(t *testing.T) {
 	l := openTestLibrary(t)
 	settings, _ := l.OCRSettings(t.Context())

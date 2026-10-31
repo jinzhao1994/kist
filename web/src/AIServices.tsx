@@ -503,7 +503,12 @@ export function AIConnection({
                         { value: "http", label: "HTTP" },
                         { value: "trojan", label: "Trojan" },
                       ]}
-                      onValueChange={(type) =>
+                      onValueChange={(type) => {
+                        const saved = query.data?.proxies?.find(
+                          (value) =>
+                            value.number === proxy.number &&
+                            value.type === type,
+                        );
                         proxyChange(proxy.number, {
                           type: type as Proxy["type"],
                           url: "",
@@ -512,32 +517,50 @@ export function AIConnection({
                           password: "",
                           server_name: "",
                           secret_configured: false,
-                        })
-                      }
+                          ...saved,
+                          id: proxy.id,
+                          clear_secret: undefined,
+                        });
+                      }}
                     />
                   )}
                 </ServiceField>
                 {proxy.type === "http" ? (
-                  <ServiceField
-                    path={`ai_services.proxies.${proxyIndex}.url`}
-                    label={t("aiProxy")}
-                    help={t("aiProxySecretHint")}
-                  >
-                    {(id, error) => (
-                      <PasswordInput
-                        id={id}
-                        value={proxy.url}
-                        error={error}
+                  <>
+                    <ServiceField
+                      path={`ai_services.proxies.${proxyIndex}.url`}
+                      label={t("aiProxy")}
+                      help={t("aiProxySecretHint")}
+                    >
+                      {(id, error) => (
+                        <PasswordInput
+                          id={id}
+                          value={proxy.url}
+                          error={error}
+                          disabled={locked}
+                          autoComplete="off"
+                          onChange={(e) =>
+                            proxyChange(proxy.number, {
+                              url: e.currentTarget.value,
+                            })
+                          }
+                        />
+                      )}
+                    </ServiceField>
+                    {proxy.secret_configured && (
+                      <SettingsCheckbox
+                        label={t("aiClearProxyAuth")}
+                        help={t("aiClearProxyAuthHint")}
+                        checked={!!proxy.clear_secret}
                         disabled={locked}
-                        autoComplete="off"
-                        onChange={(e) =>
+                        onChange={(event) =>
                           proxyChange(proxy.number, {
-                            url: e.currentTarget.value,
+                            clear_secret: event.currentTarget.checked,
                           })
                         }
                       />
                     )}
-                  </ServiceField>
+                  </>
                 ) : (
                   <>
                     <ServiceField
@@ -819,14 +842,20 @@ export function AIConnection({
                         { value: "chatgpt", label: "ChatGPT" },
                         { value: "openai", label: "OpenAI API" },
                       ]}
-                      onValueChange={(type) =>
+                      onValueChange={(type) => {
+                        const saved = query.data?.accounts?.find(
+                          (value) =>
+                            value.number === account.number &&
+                            value.type === type,
+                        );
                         accountChange(account.number, {
                           type: type as Account["type"],
                           api_key: "",
-                          connected: false,
-                          email: "",
-                        })
-                      }
+                          connected: saved?.connected || false,
+                          email: saved?.email || "",
+                          clear_secret: undefined,
+                        });
+                      }}
                     />
                   )}
                 </ServiceField>

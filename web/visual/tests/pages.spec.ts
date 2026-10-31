@@ -4133,6 +4133,7 @@ for (const scenario of [
   "ai-description",
   "ai-facts",
   "ai-trojan",
+  "ai-http-auth",
   "ai-api-account",
   "ai-transcription",
   "service",
@@ -4364,6 +4365,8 @@ for (const scenario of [
       );
       await page.route("**/api/v1/ai/services", (route) => {
         const view = visualAIServices();
+        if (scenario === "ai-http-auth")
+          view.proxies![0] = { ...view.proxies![0], secret_configured: true };
         view.features.ocr.automatic = scenario === "ai-paused";
         view.features.desc.automatic = scenario === "ai-description";
         return route.fulfill({ json: view });
@@ -4472,26 +4475,40 @@ for (const scenario of [
         settings.getByRole("button", { name: "添加账户", exact: true }),
       ).toBeEnabled();
     }
-    if (scenario === "ai-trojan" || scenario === "ai-api-account") {
+    if (["ai-trojan", "ai-http-auth", "ai-api-account"].includes(scenario)) {
       const table = settings.getByRole("table", {
-        name: scenario === "ai-trojan" ? "代理" : "AI 账户",
+        name: scenario === "ai-api-account" ? "AI 账户" : "代理",
         exact: true,
       });
       const row = table.getByRole("row").filter({
         has: page.getByRole("rowheader", {
-          name: scenario === "ai-trojan" ? "Trojan 示例" : "OpenAI API",
+          name:
+            scenario === "ai-trojan"
+              ? "Trojan 示例"
+              : scenario === "ai-http-auth"
+                ? "HTTP 示例"
+                : "OpenAI API",
           exact: true,
         }),
       });
       await row.hover();
       await row.getByRole("button", { name: "编辑", exact: true }).click();
       const editor = settings.getByRole("region", {
-        name: scenario === "ai-trojan" ? "编辑代理" : "编辑 AI 账户",
+        name: scenario === "ai-api-account" ? "编辑 AI 账户" : "编辑代理",
         exact: true,
       });
       await expect(editor).toBeVisible();
       await editor.scrollIntoViewIfNeeded();
-      await expect(editor.locator('input[type="password"]')).toHaveValue("");
+      await expect(editor.locator('input[type="password"]')).toHaveValue(
+        scenario === "ai-http-auth" ? "http://proxy.example:7890" : "",
+      );
+      if (scenario === "ai-http-auth")
+        await expect(
+          editor.getByRole("checkbox", {
+            name: "移除已保存的代理认证",
+            exact: true,
+          }),
+        ).not.toBeChecked();
     }
     if (scenario === "ai-transcription") {
       const feature = settings.getByRole("region", {

@@ -38,6 +38,9 @@ export const en = {
     "Optional. Uses the server address when empty; certificates are always verified.",
   aiSecretKeepHint: "Leave empty to keep the saved secret.",
   aiSecretConfigured: "Configured; leave empty to keep",
+  aiClearProxyAuth: "Remove saved proxy authentication",
+  aiClearProxyAuthHint:
+    "Save to remove the username and password from this proxy URL, keeping its address.",
   aiProxySecretHint:
     "Enter an HTTP(S) or SOCKS proxy URL. Saved URL credentials are hidden and preserved when omitted.",
   aiAccountProxy: "Proxy",
@@ -1170,6 +1173,8 @@ export const zh: Record<MessageKey, string> = {
   aiTLSServerNameHint: "可选，留空时使用服务器地址，始终验证证书。",
   aiSecretKeepHint: "留空时保留已保存的凭据。",
   aiSecretConfigured: "已配置，留空保留",
+  aiClearProxyAuth: "移除已保存的代理认证",
+  aiClearProxyAuthHint: "保存后移除代理地址中的用户名和密码，保留代理地址。",
   aiProxySecretHint:
     "填写 HTTP(S) 或 SOCKS 代理地址。已保存的地址认证信息会隐藏，未填写时保留。",
   aiAccountProxy: "代理",

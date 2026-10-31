@@ -12,7 +12,7 @@ afterEach(() => {
   localStorage.clear();
 });
 
-it("saves all configuration drafts through the page toolbar in one request", async () => {
+function setup() {
   localStorage.setItem(storageKey, JSON.stringify({ language: "en" }));
   let ai = aiServicesFixture({ model: "test-model" });
   const geoDefaults = {
@@ -125,6 +125,18 @@ it("saves all configuration drafts through the page toolbar in one request", asy
       </I18nProvider>
     </QueryClientProvider>,
   );
+  return {
+    client,
+    view,
+    writes,
+    failAI: () => {
+      invalidAI = true;
+    },
+  };
+}
+
+it("saves all configuration drafts through the page toolbar in one request", async () => {
+  const { client, view, writes } = setup();
   const language = await screen.findByRole("textbox", {
     name: "Library language",
   });
@@ -209,7 +221,15 @@ it("saves all configuration drafts through the page toolbar in one request", asy
   await waitFor(() => expect(interval).toHaveValue("7"));
   expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   expect(writes).toHaveLength(1);
-  invalidAI = true;
+  view.unmount();
+  client.clear();
+});
+
+it("opens a collapsed account editor and locates its server validation error", async () => {
+  const { client, view, failAI } = setup();
+  await screen.findByRole("button", { name: "Add account" });
+  failAI();
+  const user = userEvent.setup();
   const scroll = vi.spyOn(Element.prototype, "scrollIntoView");
   await user.click(screen.getByRole("button", { name: "Add account" }));
   const newRow = screen
