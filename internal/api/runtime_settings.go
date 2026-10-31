@@ -117,7 +117,11 @@ func (s *Server) reloadSettings(ctx context.Context, revision string, changes ma
 }
 
 func (s *Server) reloadCombinedSettings(ctx context.Context, revision string, changes map[string]any, ai *library.OCRSettings, location *library.LocationSettings) error {
-	if s.client != nil && (ai != nil || location != nil) {
+	return s.reloadCombinedServiceSettings(ctx, revision, changes, ai, location, nil)
+}
+
+func (s *Server) reloadCombinedServiceSettings(ctx context.Context, revision string, changes map[string]any, ai *library.OCRSettings, location *library.LocationSettings, services *library.AIServiceSettings) error {
+	if s.client != nil && (ai != nil || location != nil || services != nil) {
 		return fmt.Errorf("metadata settings require a library")
 	}
 
@@ -133,7 +137,7 @@ func (s *Server) reloadCombinedSettings(ctx context.Context, revision string, ch
 	} else if s.client != nil {
 		err = s.client.UpdateSettings(ctx, revision, changes, validate)
 	} else {
-		err = s.library.UpdateCombinedSettings(ctx, revision, changes, ai, location, validate)
+		err = s.library.UpdateCombinedAIServiceSettings(ctx, revision, changes, ai, location, services, validate)
 	}
 	if err != nil {
 		return err

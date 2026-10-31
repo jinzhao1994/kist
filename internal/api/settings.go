@@ -14,15 +14,16 @@ import (
 
 type settingsInput struct {
 	Body struct {
-		AI       *library.OCRSettings      `json:"ai,omitempty"`
-		Location *library.LocationSettings `json:"location,omitempty"`
-		Revision string                    `json:"revision" minLength:"1"`
-		Changes  map[string]any            `json:"changes"`
+		AIServices *library.AIServiceSettings `json:"ai_services,omitempty"`
+		AI         *library.OCRSettings       `json:"ai,omitempty"`
+		Location   *library.LocationSettings  `json:"location,omitempty"`
+		Revision   string                     `json:"revision" minLength:"1"`
+		Changes    map[string]any             `json:"changes"`
 	}
 }
 
 func (in *settingsInput) Resolve(ctx huma.Context) []error {
-	if in.Body.AI != nil && !localAIRequest(ctx.RemoteAddr(), ctx.Host()) {
+	if (in.Body.AI != nil || in.Body.AIServices != nil) && !localAIRequest(ctx.RemoteAddr(), ctx.Host()) {
 		return []error{huma.Error403Forbidden("AI settings require local access")}
 	}
 	return nil
@@ -125,7 +126,7 @@ func (s *Server) settingsRoutes(opt Options) error {
 		if changes == nil {
 			changes = map[string]any{}
 		}
-		err := s.reloadCombinedSettings(ctx, in.Body.Revision, changes, in.Body.AI, in.Body.Location)
+		err := s.reloadCombinedServiceSettings(ctx, in.Body.Revision, changes, in.Body.AI, in.Body.Location, in.Body.AIServices)
 		if errors.Is(err, config.ErrChanged) {
 			return nil, huma.Error409Conflict("Settings changed; reload before saving.")
 		}

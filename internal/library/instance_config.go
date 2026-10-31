@@ -218,6 +218,12 @@ func (l *Library) UpdateSettings(ctx context.Context, revision string, changes m
 // configuration write. Activation boundaries are decided while both the archive
 // and configuration locks are held, just as in the dedicated settings APIs.
 func (l *Library) UpdateCombinedSettings(ctx context.Context, revision string, changes map[string]any, ai *OCRSettings, location *LocationSettings, validators ...func(config.Server) error) error {
+	return l.UpdateCombinedAIServiceSettings(ctx, revision, changes, ai, location, nil, validators...)
+}
+
+// UpdateCombinedAIServiceSettings includes the layered AI draft in the same
+// atomic publication as general and location settings.
+func (l *Library) UpdateCombinedAIServiceSettings(ctx context.Context, revision string, changes map[string]any, ai *OCRSettings, location *LocationSettings, services *AIServiceSettings, validators ...func(config.Server) error) error {
 	normalized, err := config.NormalizeChanges("library", changes)
 	if err != nil {
 		return err
@@ -225,10 +231,13 @@ func (l *Library) UpdateCombinedSettings(ctx context.Context, revision string, c
 	if revision == "" {
 		return config.ErrChanged
 	}
-	if ai == nil && location == nil {
+	if ai == nil && location == nil && services == nil {
 		return l.configure(ctx, revision, normalized, validators...)
 	}
 	if (ai != nil && ai.Revision != revision) || (location != nil && location.Revision != revision) {
+		return config.ErrChanged
+	}
+	if services != nil && (services.Revision != revision || ai != nil) {
 		return config.ErrChanged
 	}
 	release, err := l.lock.Acquire(ctx)
@@ -250,7 +259,15 @@ func (l *Library) UpdateCombinedSettings(ctx context.Context, revision string, c
 			return nil
 		}
 		if ai != nil {
+			if cfg.AIServices != nil {
+				return config.InvalidField("ai_services", "choice", "Use per-feature AI settings after migration.")
+			}
 			if err := merge(l.ocrSettingsChanges(cfg, *ai)); err != nil {
+				return err
+			}
+		}
+		if services != nil {
+			if err := merge(l.aiServicesChanges(cfg, *services)); err != nil {
 				return err
 			}
 		}

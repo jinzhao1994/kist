@@ -61,6 +61,17 @@ func (l *Library) ensureImageOrientation(ctx context.Context, id domain.FileID, 
 	if job.State == "ready" {
 		return nil
 	}
+	cfg, err := l.aiConfiguration(ctx)
+	if err != nil {
+		return err
+	}
+	if cfg.AIServices != nil {
+		provider, err = l.AIFeatureProvider(ctx, "orientation")
+		if err != nil {
+			return err
+		}
+		model = cfg.AIServices.Features["orientation"].Model
+	}
 	unlock, err := q.state.Acquire(ctx)
 	if err != nil {
 		return err

@@ -76,7 +76,7 @@ func (l *Library) FactsQueue() *OCRQueue       { return l.imageTextQueue("facts"
 
 func (l *Library) DescriptionQueue() *OCRQueue { return l.imageTextQueue("desc") }
 func (l *Library) imageTextQueue(kind string) *OCRQueue {
-	return &OCRQueue{kind: kind, library: l, state: lockfile.New(filepath.Join(l.layout.Root, kind+"-state.lock")), worker: lockfile.New(filepath.Join(l.layout.Root, "ocr-worker.lock")), provider: l.AIProvider}
+	return &OCRQueue{kind: kind, library: l, state: lockfile.New(filepath.Join(l.layout.Root, kind+"-state.lock")), worker: lockfile.New(filepath.Join(l.layout.Root, "ocr-worker.lock")), provider: func(ctx context.Context) (ai.Provider, error) { return l.AIFeatureProvider(ctx, kind) }}
 }
 func (q *OCRQueue) path() string {
 	return filepath.Join(q.library.layout.Derived(), q.kind, "queue.json")
@@ -423,6 +423,7 @@ func (q *OCRQueue) stepLocked(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	ctx = context.WithValue(ctx, aiConfigurationContextKey{}, cfg)
 	pauseOnError := q.kind != "metadata" && (q.kind != "geo" || cfg.Geocoding.PauseOnError)
 	auto, after := cfg.AIOptions.AutoOCR, cfg.AIOptions.AfterOp
 	if q.kind == "metadata" {
@@ -439,6 +440,10 @@ func (q *OCRQueue) stepLocked(ctx context.Context) (bool, error) {
 	}
 	if q.kind == "orientation" {
 		auto, after = cfg.AIOptions.AutoOrientation, cfg.AIOptions.OrientationAfterOp
+	}
+	if cfg.AIServices != nil && q.kind != "metadata" && q.kind != "geo" {
+		feature := cfg.AIServices.Features[q.kind]
+		auto, after = feature.Automatic, feature.AfterOp
 	}
 	unlock, err := q.state.Acquire(ctx)
 	if err != nil {
@@ -586,7 +591,11 @@ func (q *OCRQueue) stepLocked(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	err = q.execute(context.WithValue(ctx, aiManualContextKey{}, job.Manual), job, cfg.AIOptions.Model, cfg.Library.Language)
+	model := cfg.AIOptions.Model
+	if cfg.AIServices != nil {
+		model = cfg.AIServices.Features[q.kind].Model
+	}
+	err = q.execute(context.WithValue(ctx, aiManualContextKey{}, job.Manual), job, model, cfg.Library.Language)
 	return true, q.finishJobWithPolicy(job, err, pauseOnError)
 }
 

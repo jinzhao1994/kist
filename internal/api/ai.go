@@ -42,6 +42,7 @@ func (s *Server) aiRoutes() {
 	if s.library == nil {
 		return
 	}
+	s.aiServiceRoutes()
 	huma.Post(s.contract, Prefix+"/ai/connect", func(ctx context.Context, _ *struct{ Body struct{} }) (*output[struct {
 		URL string `json:"url"`
 	}], error) {

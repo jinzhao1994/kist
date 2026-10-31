@@ -17,6 +17,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai/accounts/{number}/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 ai accounts by number connect */
+        post: operations["post-api-v1-ai-accounts-by-number-connect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/accounts/{number}/disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 ai accounts by number disconnect */
+        post: operations["post-api-v1-ai-accounts-by-number-disconnect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/accounts/{number}/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List API v1 ai accounts by number models */
+        get: operations["list-api-v1-ai-accounts-by-number-models"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ai/connect": {
         parameters: {
             query?: never;
@@ -334,6 +385,23 @@ export interface paths {
         put?: never;
         /** Post API v1 ai orientation pause */
         post: operations["post-api-v1-ai-orientation-pause"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 ai services */
+        get: operations["get-api-v1-ai-services"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2007,6 +2075,19 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AIAccountSettings: {
+            api_key?: string;
+            clear_secret?: boolean;
+            readonly connected: boolean;
+            readonly email: string;
+            id: string;
+            /** Format: int64 */
+            number: number;
+            /** Format: int64 */
+            proxy: number;
+            /** @enum {string} */
+            type: "chatgpt" | "openai";
+        };
         AIOptions: {
             auto_desc: boolean;
             auto_facts: boolean;
@@ -2015,12 +2096,49 @@ export interface components {
             model: string;
             proxy_url: string;
         };
+        AIProxySettings: {
+            clear_secret?: boolean;
+            host: string;
+            id: string;
+            /** Format: int64 */
+            number: number;
+            password?: string;
+            /** Format: int64 */
+            port: number;
+            readonly secret_configured: boolean;
+            server_name: string;
+            /** @enum {string} */
+            type: "http" | "trojan";
+            url: string;
+        };
+        AIServiceSettings: {
+            accounts: components["schemas"]["AIAccountSettings"][] | null;
+            features: {
+                [key: string]: components["schemas"]["Feature"];
+            };
+            proxies: components["schemas"]["AIProxySettings"][] | null;
+            revision: string;
+        };
         AIStatus: {
             connected: boolean;
             email: string;
             error: string;
             pending: boolean;
             supported: boolean;
+        };
+        AiAccountActionBody: Record<string, never>;
+        AiServicesView: {
+            accounts: components["schemas"]["AIAccountSettings"][] | null;
+            error: string;
+            /** Format: int64 */
+            error_account: number;
+            features: {
+                [key: string]: components["schemas"]["Feature"];
+            };
+            /** Format: int64 */
+            pending_account: number;
+            proxies: components["schemas"]["AIProxySettings"][] | null;
+            revision: string;
         };
         AttachTagInputBody: {
             ids: string[] | null;
@@ -2184,6 +2302,14 @@ export interface components {
         ExtractionQueuePage: {
             items: components["schemas"]["ExtractionQueueItem"][] | null;
             next_cursor: string;
+        };
+        Feature: {
+            /** Format: int64 */
+            account: number;
+            automatic: boolean;
+            image_detail: string;
+            model: string;
+            reasoning_effort: string;
         };
         Field: {
             default: unknown;
@@ -2753,6 +2879,7 @@ export interface components {
         };
         SettingsInputBody: {
             ai?: components["schemas"]["OCRSettings"];
+            ai_services?: components["schemas"]["AIServiceSettings"];
             changes: {
                 [key: string]: unknown;
             };
@@ -3008,6 +3135,107 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AIStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-ai-accounts-by-number-connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiAccountActionBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutputStruct { URL string \"json:\\\"url\\\"\" }Body"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-ai-accounts-by-number-disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiAccountActionBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutputStruct { Revoked bool \"json:\\\"revoked\\\"\" }Body"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "list-api-v1-ai-accounts-by-number-models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Model"][] | null;
                 };
             };
             /** @description Error */
@@ -3611,6 +3839,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OCRQueueStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-ai-services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiServicesView"];
                 };
             };
             /** @description Error */

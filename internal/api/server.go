@@ -45,6 +45,8 @@ type Options struct {
 type Server struct {
 	aiMu             sync.Mutex
 	aiAttempt        *openai.Attempt
+	aiAttemptAccount int64
+	aiErrorAccount   int64
 	aiError          string
 	autoSyncRunning  atomic.Int64
 	syncProgress     atomic.Pointer[library.ClientSyncProgress]

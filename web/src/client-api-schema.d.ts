@@ -1452,6 +1452,19 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AIAccountSettings: {
+            api_key?: string;
+            clear_secret?: boolean;
+            readonly connected: boolean;
+            readonly email: string;
+            id: string;
+            /** Format: int64 */
+            number: number;
+            /** Format: int64 */
+            proxy: number;
+            /** @enum {string} */
+            type: "chatgpt" | "openai";
+        };
         AIOptions: {
             auto_desc: boolean;
             auto_facts: boolean;
@@ -1459,6 +1472,29 @@ export interface components {
             auto_orientation: boolean;
             model: string;
             proxy_url: string;
+        };
+        AIProxySettings: {
+            clear_secret?: boolean;
+            host: string;
+            id: string;
+            /** Format: int64 */
+            number: number;
+            password?: string;
+            /** Format: int64 */
+            port: number;
+            readonly secret_configured: boolean;
+            server_name: string;
+            /** @enum {string} */
+            type: "http" | "trojan";
+            url: string;
+        };
+        AIServiceSettings: {
+            accounts: components["schemas"]["AIAccountSettings"][] | null;
+            features: {
+                [key: string]: components["schemas"]["Feature"];
+            };
+            proxies: components["schemas"]["AIProxySettings"][] | null;
+            revision: string;
         };
         AIStatus: {
             connected: boolean;
@@ -1788,6 +1824,14 @@ export interface components {
         };
         ExtractionInputBody: {
             force?: boolean;
+        };
+        Feature: {
+            /** Format: int64 */
+            account: number;
+            automatic: boolean;
+            image_detail: string;
+            model: string;
+            reasoning_effort: string;
         };
         Field: {
             default: unknown;
@@ -2302,6 +2346,7 @@ export interface components {
         };
         SettingsInputBody: {
             ai?: components["schemas"]["OCRSettings"];
+            ai_services?: components["schemas"]["AIServiceSettings"];
             changes: {
                 [key: string]: unknown;
             };

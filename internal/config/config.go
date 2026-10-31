@@ -15,7 +15,7 @@ import (
 )
 
 // CurrentVersion is the config schema this build writes.
-const CurrentVersion = 3
+const CurrentVersion = 4
 
 type AIOptions struct {
 	AutoFacts          bool   `toml:"auto_facts" json:"auto_facts"`

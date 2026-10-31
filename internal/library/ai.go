@@ -28,9 +28,14 @@ import (
 
 // AIConnection reloads private configuration without changing the settings revision.
 func (l *Library) AIConnection(ctx context.Context) (ai.Credentials, error) {
-	var out ai.Credentials
-	err := l.updateAI(ctx, func(c *ai.Credentials) error { out = *c; return nil })
-	return out, err
+	if err := ctx.Err(); err != nil {
+		return ai.Credentials{}, err
+	}
+	cfg, err := config.Load(l.layout.ConfigPath())
+	if err != nil {
+		return ai.Credentials{}, err
+	}
+	return cfg.AI, nil
 }
 
 // PrepareAIConnection persists a stable host before an explicit sign-in.
@@ -55,6 +60,9 @@ func (l *Library) updateAI(ctx context.Context, fn func(*ai.Credentials) error) 
 	if err != nil {
 		return err
 	}
+	if cfg.AIServices != nil {
+		return config.InvalidField("ai_services", "choice", "Use the selected account's connection controls.")
+	}
 	before := cfg.AI
 	if err = fn(&cfg.AI); err != nil {
 		return err
@@ -75,6 +83,13 @@ func (l *Library) SaveAIConnection(ctx context.Context, before, next ai.Credenti
 	})
 }
 func (l *Library) AIProvider(ctx context.Context) (ai.Provider, error) {
+	cfg, err := l.aiConfiguration(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.AIServices != nil {
+		return l.AIFeatureProvider(ctx, "ocr")
+	}
 	client, err := l.AIHTTP(3 * time.Minute)
 	if err != nil {
 		return nil, err
