@@ -24,7 +24,7 @@ export const en = {
   aiProxyTest: "Test",
   aiProxyTesting: "Testing…",
   aiProxyTestHint:
-    "Query IPWho.is through this saved proxy (15-second timeout). IP location is approximate; no archive data is sent.",
+    "Check this proxy’s exit IP and approximate location. Allow up to 15 seconds.",
   aiProxyTestSaveFirst: "Save this proxy before testing.",
   aiProxyTestResult: "Exit IP: {ip} · {location} · {ms} ms",
   aiProxyTestUnknownLocation: "Unknown location",
@@ -1180,8 +1180,7 @@ export const zh: Record<MessageKey, string> = {
   aiPendingNumber: "待保存",
   aiProxyTest: "测试",
   aiProxyTesting: "测试中…",
-  aiProxyTestHint:
-    "经已保存的代理查询 IPWho.is，15 秒超时。IP 位置仅供参考，不发送归档内容。",
+  aiProxyTestHint: "查询此代理的出口 IP 和大致位置，最多等待 15 秒。",
   aiProxyTestSaveFirst: "请先保存此代理，再进行测试。",
   aiProxyTestResult: "出口 IP：{ip} · {location} · {ms} ms",
   aiProxyTestUnknownLocation: "位置未知",

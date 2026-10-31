@@ -111,7 +111,7 @@ export function AIProxyRow({
           <FullTextTooltip
             text={t(saved ? "aiProxyTestHint" : "aiProxyTestSaveFirst")}
           >
-            <span tabIndex={!saved ? 0 : undefined}>
+            <span className="tooltip-target" tabIndex={!saved ? 0 : undefined}>
               <Anchor
                 component="button"
                 type="button"

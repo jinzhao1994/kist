@@ -4521,8 +4521,15 @@ for (const scenario of [
           "出口 IP：192.0.2.1 · 示例国家 · 示例地区 · 示例城市 · 120 ms",
         );
       await expect(test).toBeEnabled();
-      await page.mouse.move(0, 0);
-      await expect(page.getByRole("tooltip")).toHaveCount(0);
+      if (scenario === "ai-proxy-test") {
+        await test.hover();
+        await expect(page.getByRole("tooltip")).toHaveText(
+          "查询此代理的出口 IP 和大致位置，最多等待 15 秒。",
+        );
+      } else {
+        await page.mouse.move(0, 0);
+        await expect(page.getByRole("tooltip")).toHaveCount(0);
+      }
     }
     if (scenario === "ai-proxy-invalid") {
       const table = settings.getByRole("table", { name: "代理", exact: true });
