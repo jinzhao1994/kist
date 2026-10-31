@@ -26,6 +26,36 @@ type aiServicesView struct {
 	Error          string                 `json:"error"`
 }
 
+// prepareAISignInChange returns cleanup to run only after configuration has
+// committed. Keep a newer sign-in safe if the pending attempt changes meanwhile.
+func (s *Server) prepareAISignInChange(next *library.AIServiceSettings) func() {
+	noop := func() {}
+	if next == nil {
+		return noop
+	}
+	s.aiMu.Lock()
+	attempt, number := s.aiAttempt, s.aiAttemptAccount
+	s.aiMu.Unlock()
+	if attempt == nil {
+		return noop
+	}
+	for _, account := range next.Accounts {
+		if number > 0 && account.Number == number && account.Type == ai.AccountChatGPT && !account.ClearSecret {
+			return noop
+		}
+	}
+	return func() {
+		s.aiMu.Lock()
+		defer s.aiMu.Unlock()
+		if s.aiAttempt != attempt {
+			return
+		}
+		attempt.Cancel()
+		s.aiAttempt, s.aiAttemptAccount = nil, 0
+		s.aiError, s.aiErrorAccount = "", 0
+	}
+}
+
 func (s *Server) aiServiceRoutes() {
 	huma.Get(s.contract, Prefix+"/ai/services", func(ctx context.Context, _ *struct{}) (*output[aiServicesView], error) {
 		settings, err := s.library.AIServicesSettings(ctx)

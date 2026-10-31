@@ -8,8 +8,72 @@ import (
 	"testing"
 
 	"github.com/jinzhao1994/kist/internal/ai"
+	"github.com/jinzhao1994/kist/internal/ai/openai"
 	"github.com/jinzhao1994/kist/internal/library"
 )
+
+func TestAIServiceSaveCancelsOnlyObsoleteSignIn(t *testing.T) {
+	for _, mode := range []string{"rename", "delete", "change type", "clear credentials", "invalid save", "legacy attempt"} {
+		t.Run(mode, func(t *testing.T) {
+			s, l := testServer(t)
+			draft, _ := l.AIServicesSettings(t.Context())
+			draft.Accounts = []library.AIAccountSettings{{Number: -1, ID: "ChatGPT", Type: ai.AccountChatGPT}}
+			if err := l.UpdateCombinedAIServiceSettings(t.Context(), draft.Revision, map[string]any{}, nil, nil, &draft); err != nil {
+				t.Fatal(err)
+			}
+			draft, _ = l.AIServicesSettings(t.Context())
+			cancelled := false
+			pending := &openai.Attempt{Cancel: func() { cancelled = true }}
+			s.aiAttempt, s.aiAttemptAccount = pending, draft.Accounts[0].Number
+			switch mode {
+			case "rename":
+				draft.Accounts[0].ID = "Renamed"
+			case "delete":
+				draft.Accounts = nil
+			case "change type":
+				draft.Accounts[0].Type, draft.Accounts[0].APIKey = ai.AccountOpenAI, "synthetic-new-key"
+			case "clear credentials":
+				draft.Accounts[0].ClearSecret = true
+			case "invalid save":
+				draft.Accounts[0].ID = ""
+			case "legacy attempt":
+				s.aiAttemptAccount = 0
+			}
+			body, _ := json.Marshal(map[string]any{"revision": draft.Revision, "changes": map[string]any{}, "ai_services": draft})
+			r := httptest.NewRequest("PUT", "http://localhost:8473"+Prefix+"/settings", bytes.NewReader(body))
+			r.RemoteAddr = "127.0.0.1:1234"
+			r.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			s.ServeHTTP(w, r)
+			wantStatus, wantCancel := 200, mode != "rename" && mode != "invalid save"
+			if mode == "invalid save" {
+				wantStatus = 400
+			}
+			if w.Code != wantStatus || cancelled != wantCancel || (s.aiAttempt == nil) != wantCancel {
+				t.Fatalf("status=%d cancelled=%v pending=%v", w.Code, cancelled, s.aiAttempt != nil)
+			}
+			if mode == "change type" {
+				view, _ := l.AIServicesSettings(t.Context())
+				if len(view.Accounts) != 1 || view.Accounts[0].Type != ai.AccountOpenAI || !view.Accounts[0].Connected {
+					t.Fatal("canceling old login cleared the new API account")
+				}
+			}
+		})
+	}
+}
+
+func TestAIServiceSaveDoesNotCancelANewerSignIn(t *testing.T) {
+	s, _ := testServer(t)
+	cancelled := false
+	s.aiAttempt, s.aiAttemptAccount = &openai.Attempt{Cancel: func() { cancelled = true }}, 1
+	apply := s.prepareAISignInChange(&library.AIServiceSettings{})
+	newer := &openai.Attempt{Cancel: func() { cancelled = true }}
+	s.aiAttempt = newer
+	apply()
+	if cancelled || s.aiAttempt != newer {
+		t.Fatal("settings cleanup canceled a newer login")
+	}
+}
 
 func TestAIServiceLocalBoundaryIncludesEveryInvocation(t *testing.T) {
 	s, _ := testServer(t)

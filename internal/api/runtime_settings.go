@@ -124,6 +124,7 @@ func (s *Server) reloadCombinedServiceSettings(ctx context.Context, revision str
 	if s.client != nil && (ai != nil || location != nil || services != nil) {
 		return fmt.Errorf("metadata settings require a library")
 	}
+	afterCommit := s.prepareAISignInChange(services)
 
 	var next *runtimeSettings
 	validate := func(stored config.Server) (err error) { next, err = s.prepareSettings(stored); return }
@@ -143,5 +144,6 @@ func (s *Server) reloadCombinedServiceSettings(ctx context.Context, revision str
 		return err
 	}
 	s.current.Store(next)
+	afterCommit()
 	return nil
 }

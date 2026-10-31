@@ -148,6 +148,7 @@ const panorama = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="30
 const modelPage = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><rect width="512" height="512" fill="#f3f4f6"/><path d="M256 72L432 168 256 272 80 168Z" fill="#6796b5"/><path d="M80 168L256 272V440L80 336Z" fill="#355e7b"/><path d="M256 272L432 168V336L256 440Z" fill="#4f7c9c"/></svg>`;
 
 type Options = {
+  aiConnected?: boolean;
   client?: boolean;
   cover?: boolean;
   primaryColor?: Appearance["primaryColor"];
@@ -240,8 +241,8 @@ async function prepare(page: Page, options: Options = {}) {
       return route.fulfill({
         json: {
           supported: !options.client,
-          connected: false,
-          email: "",
+          connected: options.aiConnected || false,
+          email: options.aiConnected ? "reader@example.test" : "",
           pending: false,
           error: "",
         },
@@ -267,7 +268,9 @@ async function prepare(page: Page, options: Options = {}) {
         },
       });
     if (path === "/ai/services")
-      return route.fulfill({ json: emptyAIServices() });
+      return route.fulfill({
+        json: options.aiConnected ? visualAIServices() : emptyAIServices(),
+      });
     if (/^\/ai\/accounts\/\d+\/models$/.test(path))
       return route.fulfill({
         json: [
@@ -1106,12 +1109,7 @@ for (const state of [
   "cancelled",
 ] as const) {
   test(`detail-${state}`, async ({ page }, info) => {
-    const errors = await prepare(page, { state });
-    await page.route("**/api/v1/ai", (route) =>
-      route.fulfill({
-        json: { supported: true, connected: true, pending: false, error: "" },
-      }),
-    );
+    const errors = await prepare(page, { state, aiConnected: true });
     await page.goto("/files?file=file-1");
     await expect(
       page.getByRole("region", { name: "画廊", exact: true }),
@@ -5196,18 +5194,9 @@ for (const scenario of [
   "disconnected",
 ] as const) {
   test(`description-${scenario}`, async ({ page }, info) => {
-    const errors = await prepare(page);
-    await page.route("**/api/v1/ai", (route) =>
-      route.fulfill({
-        json: {
-          supported: true,
-          connected: scenario !== "disconnected",
-          email: "reader@example.test",
-          pending: false,
-          error: "",
-        },
-      }),
-    );
+    const errors = await prepare(page, {
+      aiConnected: scenario !== "disconnected",
+    });
     if (scenario === "error")
       await page.route("**/api/v1/files/file-1/desc", (route) =>
         route.fulfill({
@@ -5868,7 +5857,12 @@ for (const anchor of [
         ).toHaveAttribute("aria-expanded", "true");
       }
       await page.mouse.move(5, 5);
-      await capture(page, errors, info.title);
+      await capture(
+        page,
+        errors,
+        info.title,
+        expanded ? ["上次失败：任务已取消。"] : [],
+      );
       return;
     }
     const section = page.locator("#settings-location");
@@ -6366,18 +6360,7 @@ for (const variant of [
 
 for (const extension of ["pdf", "doc", "docx", "ppt", "pptx", "pdf-result"]) {
   test(`document-description-${extension}`, async ({ page }, info) => {
-    const errors = await prepare(page);
-    await page.route("**/api/v1/ai", (route) =>
-      route.fulfill({
-        json: {
-          supported: true,
-          connected: true,
-          email: "reader@example.test",
-          pending: false,
-          error: "",
-        },
-      }),
-    );
+    const errors = await prepare(page, { aiConnected: true });
     await page.route("**/api/v1/files/file-1", (route) =>
       route.fulfill({
         json: {
@@ -6424,6 +6407,10 @@ for (const extension of ["pdf", "doc", "docx", "ppt", "pptx", "pdf-result"]) {
     await expect(
       panel.getByRole("button", { name: "生成描述", exact: true }),
     ).toHaveCount(extension !== "pdf-result" ? 1 : 0);
+    if (extension !== "pdf-result")
+      await expect(
+        panel.getByRole("button", { name: "生成描述", exact: true }),
+      ).toBeEnabled();
     if (extension === "pdf-result")
       await expect(
         panel.getByText("综合全文的合成文档描述，用于验证描述正文展示。", {
@@ -6443,14 +6430,10 @@ for (const extension of ["pdf", "doc", "docx", "ppt", "pptx", "pdf-result"]) {
 for (const scenario of ["queued", "running", "mobile", "dark"] as const) {
   test(`description-initial-${scenario}`, async ({ page }, info) => {
     const errors = await prepare(page, {
+      aiConnected: true,
       mobile: scenario === "mobile",
       mode: scenario === "dark" ? "dark" : "light",
     });
-    await page.route("**/api/v1/ai", (route) =>
-      route.fulfill({
-        json: { supported: true, connected: true, pending: false, error: "" },
-      }),
-    );
     await page.route("**/api/v1/files/file-1/desc", (route) =>
       route.fulfill({
         json: {
