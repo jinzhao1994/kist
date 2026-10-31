@@ -5324,8 +5324,8 @@ for (const scenario of [
       await expect(search).toHaveValue("");
       await expect(page.getByRole("option")).toHaveText([
         "gpt-6-luna · GPT-6 Luna",
-        "synthetic-vision · Synthetic vision",
         "synthetic-text · Synthetic text",
+        "synthetic-vision · Synthetic vision",
       ]);
       const selected = page.getByRole("option", {
         name: "gpt-6-luna · GPT-6 Luna",

@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { AIConnection } from "./AIServices";
 import { aiServicesFixture } from "./aiServices.fixture";
+import modelCatalog from "./testdata/openai-model-ids-2026-11-01.json";
 import { SettingsErrorsContext } from "./SettingsFields";
 import { I18nProvider, storageKey } from "./i18n";
 import { ThemeProvider } from "./theme";
@@ -1064,6 +1065,65 @@ it.each(["blur", "escape", "failure"])(
         fetch.mock.calls.filter(([path]) => path.includes("/models")),
       ).toHaveLength(1);
     }
+    unmount();
+    client.clear();
+  },
+);
+
+it.each(["gpt-6-luna", "zz-local-model"])(
+  "naturally orders all 130 API models and the configured value %s",
+  async (current) => {
+    const fixture = aiServicesFixture({ model: current });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (path: string) =>
+        Response.json(
+          path.includes("/models")
+            ? modelCatalog.ids.map((id) => ({ id, name: id }))
+            : path.endsWith("/services")
+              ? fixture
+              : { supported: true },
+        ),
+      ),
+    );
+    const changed = vi.fn();
+    const { client, unmount } = mount(<AIConnection onDraftChange={changed} />);
+    const region = await screen.findByRole("region", {
+      name: "Text recognition (OCR)",
+    });
+    const model = within(region).getByRole("combobox", { name: "Model" });
+    await userEvent.click(model);
+    const search = await screen.findByRole("textbox", {
+      name: "Search options",
+    });
+    const expected =
+      current === "zz-local-model"
+        ? [...modelCatalog.expected_ids, current]
+        : modelCatalog.expected_ids;
+    expect(
+      screen.getAllByRole("option").map((option) => option.textContent),
+    ).toEqual(expected);
+    await fill(search, "gpt-6");
+    expect(
+      screen.getAllByRole("option").map((option) => option.textContent),
+    ).toEqual([
+      "gpt-6-astra",
+      "gpt-6-luna",
+      "gpt-6-sol",
+      "gpt-6.1-sol",
+      "gpt-6.1-terra",
+      "Use model ID: gpt-6",
+    ]);
+    expect(changed.mock.lastCall?.[0]).toBeNull();
+    await userEvent.click(
+      screen.getByRole("option", { name: "gpt-6.1-terra" }),
+    );
+    await waitFor(() =>
+      expect(changed.mock.lastCall?.[0]?.value.features.ocr.model).toBe(
+        "gpt-6.1-terra",
+      ),
+    );
+    expect(model).toHaveTextContent("gpt-6.1-terra");
     unmount();
     client.clear();
   },

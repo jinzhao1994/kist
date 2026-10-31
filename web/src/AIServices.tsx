@@ -26,6 +26,7 @@ import { ConnectionTest, ConnectionStatus } from "./ConnectionTest";
 import { SecretInput } from "./SecretInput";
 import { HelpTooltip } from "./HelpTooltip";
 import { Select } from "./Select";
+import { compareModelIDs } from "./model-order";
 import {
   SettingsCheckbox,
   SettingsErrorsContext,
@@ -1568,7 +1569,8 @@ function ModelInput({
         : `${model.id} · ${model.name}`,
   }));
   if (!selectOptions.some((option) => option.value === value) && value)
-    selectOptions.unshift({ value, label: value });
+    selectOptions.push({ value, label: value });
+  selectOptions.sort((a, b) => compareModelIDs(a.value, b.value));
   return (
     <>
       <div onFocusCapture={() => setRequested(true)}>
