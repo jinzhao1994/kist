@@ -4657,6 +4657,25 @@ for (const scenario of [
       await expect(
         ocr.getByRole("checkbox", { name: "失败后暂停后台处理", exact: true }),
       ).toBeChecked();
+      const orientation = settings.getByRole("region", {
+        name: "图片方向",
+        exact: true,
+      });
+      const orientationDetail = await fieldBounds(
+        "ai_services.features.orientation.image_detail",
+      );
+      const orientationAuto = await orientation
+        .getByRole("checkbox", { name: "自动校正新增图片方向", exact: true })
+        .boundingBox();
+      const orientationPause = await orientation
+        .getByRole("checkbox", { name: "失败后暂停后台处理", exact: true })
+        .boundingBox();
+      expect(orientationAuto!.y).toBeGreaterThanOrEqual(
+        orientationDetail.y + orientationDetail.height,
+      );
+      expect(orientationPause!.y).toBeGreaterThan(
+        orientationAuto!.y + orientationAuto!.height,
+      );
     }
     if (scenario === "ai-proxy-test" || scenario === "ai-proxy-test-error") {
       const table = settings.getByRole("table", { name: "代理", exact: true });

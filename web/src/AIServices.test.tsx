@@ -887,6 +887,24 @@ it("keeps per-feature failure policy in the page draft and can restore the inher
     automatic.compareDocumentPosition(account) &
       Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
+  const orientation = screen.getByRole("region", { name: "Image orientation" });
+  const orientationDetail = within(orientation).getByRole("combobox", {
+    name: "Image detail",
+  });
+  const orientationAuto = within(orientation).getByRole("checkbox", {
+    name: "Automatically orient new images",
+  });
+  const orientationPause = within(orientation).getByRole("checkbox", {
+    name: "Pause background processing on failure",
+  });
+  expect(
+    orientationDetail.compareDocumentPosition(orientationAuto) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(
+    orientationAuto.compareDocumentPosition(orientationPause) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
   await userEvent.click(pause);
   await waitFor(() =>
     expect(changed.mock.lastCall?.[0]?.value.features.ocr.pause_on_error).toBe(

@@ -1398,6 +1398,15 @@ function FeatureSettings({
     });
   const account = accounts.find((a) => a.number === value.account);
   const parameters = definition.parameters || [];
+  const automaticField = (
+    <SettingsCheckbox
+      label={t(`${definition.name}Auto` as MessageKey)}
+      help={t(`${definition.name}AutoHint` as MessageKey)}
+      checked={value.automatic}
+      disabled={disabled}
+      onChange={(event) => onChange({ automatic: event.currentTarget.checked })}
+    />
+  );
   const parameterField = (parameter: string) => (
     <ServiceField
       key={parameter}
@@ -1441,15 +1450,7 @@ function FeatureSettings({
           {t(`${definition.name}BackfillHint` as MessageKey)}
         </HelpTooltip>
       </div>
-      <SettingsCheckbox
-        label={t(`${definition.name}Auto` as MessageKey)}
-        help={t(`${definition.name}AutoHint` as MessageKey)}
-        checked={value.automatic}
-        disabled={disabled}
-        onChange={(event) =>
-          onChange({ automatic: event.currentTarget.checked })
-        }
-      />
+      {definition.name !== "orientation" && automaticField}
       <SettingsFieldRow
         columns={parameters.includes("reasoning_effort") ? 3 : 2}
       >
@@ -1493,6 +1494,7 @@ function FeatureSettings({
             .map(parameterField)}
         </SettingsFieldRow>
       )}
+      {definition.name === "orientation" && automaticField}
       <SettingsCheckbox
         label={t("backgroundPauseOnError")}
         help={t("backgroundPauseOnErrorHint")}
