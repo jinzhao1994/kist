@@ -34,6 +34,7 @@ import {
   SettingsFieldHeading,
   SettingsFieldRow,
   SettingsHint,
+  SettingsReset,
   useSettingsError,
   useSettingsPending,
   type SettingsSectionDraft,
@@ -508,6 +509,18 @@ export function AIConnection({
       {label}
     </Anchor>
   );
+  const signInLabel = (account: Account) =>
+    t(
+      account.connected ||
+        query.data?.accounts?.some(
+          (saved) =>
+            saved.number === account.number &&
+            saved.type === "chatgpt" &&
+            saved.connected,
+        )
+        ? "aiSignInAgain"
+        : "aiSignIn",
+    );
   const connectionBlocked =
     disabled || configurationPending || dirty || busy !== undefined;
   const signInPending =
@@ -938,7 +951,7 @@ export function AIConnection({
           <Group gap="md">
             {creatingAccount === undefined &&
               rowAction(
-                t("aiSignIn"),
+                signInLabel(account),
                 () => void accountAction(account.number, "connect"),
                 locked || signInPending,
               )}
@@ -1261,13 +1274,12 @@ export function AIConnection({
                       >
                         {a.type === "chatgpt" &&
                           rowAction(
-                            t("aiSignIn"),
+                            signInLabel(a),
                             () => void accountAction(a.number, "connect"),
                             locked ||
                               signInPending ||
                               !!query.data?.pending_account,
                           )}
-                        {action}
                         {(a.connected ||
                           a.login_draft ||
                           query.data?.pending_account === a.number) &&
@@ -1283,6 +1295,7 @@ export function AIConnection({
                               ? locked
                               : connectionBlocked || a.number <= 0,
                           )}
+                        {action}
                         {rowAction(
                           t("aiEdit"),
                           () => {
@@ -1384,6 +1397,35 @@ function FeatureSettings({
       disabled: true,
     });
   const account = accounts.find((a) => a.number === value.account);
+  const parameters = definition.parameters || [];
+  const parameterField = (parameter: string) => (
+    <ServiceField
+      key={parameter}
+      path={`${path}.${parameter}`}
+      label={
+        parameter === "reasoning_effort"
+          ? t("aiReasoningEffort")
+          : parameter === "image_detail"
+            ? t("aiImageDetail")
+            : parameter
+      }
+    >
+      {(id, error) => (
+        <Select
+          id={id}
+          error={error}
+          value={String(value[parameter as keyof Feature] || "")}
+          disabled={disabled}
+          options={(definition.options[parameter] || []).map((option) => ({
+            value: option,
+            label: option || t("aiModelDefault"),
+          }))}
+          onValueChange={(next) => onChange({ [parameter]: next })}
+        />
+      )}
+    </ServiceField>
+  );
+
   return (
     <div
       id={`settings-ai-${definition.name}`}
@@ -1399,7 +1441,18 @@ function FeatureSettings({
           {t(`${definition.name}BackfillHint` as MessageKey)}
         </HelpTooltip>
       </div>
-      <SettingsFieldRow>
+      <SettingsCheckbox
+        label={t(`${definition.name}Auto` as MessageKey)}
+        help={t(`${definition.name}AutoHint` as MessageKey)}
+        checked={value.automatic}
+        disabled={disabled}
+        onChange={(event) =>
+          onChange({ automatic: event.currentTarget.checked })
+        }
+      />
+      <SettingsFieldRow
+        columns={parameters.includes("reasoning_effort") ? 3 : 2}
+      >
         <ServiceField path={`${path}.account`} label={t("aiAccount")}>
           {(id, error) => (
             <Select
@@ -1429,47 +1482,31 @@ function FeatureSettings({
             />
           )}
         </ServiceField>
+        {parameters.includes("reasoning_effort") &&
+          parameterField("reasoning_effort")}
       </SettingsFieldRow>
-      {!!definition.parameters?.length && (
+      {!!parameters.filter((parameter) => parameter !== "reasoning_effort")
+        .length && (
         <SettingsFieldRow>
-          {definition.parameters.map((parameter) => (
-            <ServiceField
-              key={parameter}
-              path={`${path}.${parameter}`}
-              label={
-                parameter === "reasoning_effort"
-                  ? t("aiReasoningEffort")
-                  : parameter === "image_detail"
-                    ? t("aiImageDetail")
-                    : parameter
-              }
-            >
-              {(id, error) => (
-                <Select
-                  id={id}
-                  error={error}
-                  value={String(value[parameter as keyof Feature] || "")}
-                  disabled={disabled}
-                  options={(definition.options[parameter] || []).map(
-                    (option) => ({
-                      value: option,
-                      label: option || t("aiModelDefault"),
-                    }),
-                  )}
-                  onValueChange={(next) => onChange({ [parameter]: next })}
-                />
-              )}
-            </ServiceField>
-          ))}
+          {parameters
+            .filter((parameter) => parameter !== "reasoning_effort")
+            .map(parameterField)}
         </SettingsFieldRow>
       )}
       <SettingsCheckbox
-        label={t(`${definition.name}Auto` as MessageKey)}
-        help={t(`${definition.name}AutoHint` as MessageKey)}
-        checked={value.automatic}
+        label={t("backgroundPauseOnError")}
+        help={t("backgroundPauseOnErrorHint")}
+        checked={value.pause_on_error ?? true}
         disabled={disabled}
+        action={
+          <SettingsReset
+            specified={value.pause_on_error != null}
+            disabled={disabled || value.pause_on_error == null}
+            onReset={() => onChange({ pause_on_error: undefined })}
+          />
+        }
         onChange={(event) =>
-          onChange({ automatic: event.currentTarget.checked })
+          onChange({ pause_on_error: event.currentTarget.checked })
         }
       />
     </div>

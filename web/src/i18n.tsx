@@ -174,9 +174,9 @@ export const en = {
   geoRequestInterval: "Request interval (seconds)",
   geoRequestIntervalHint:
     "Minimum wait after each request. The default is 2 seconds. Rate-limit and temporary-failure cooldowns may be longer.",
-  geoPauseOnError: "Pause background queries on failure",
-  geoPauseOnErrorHint:
-    "Enabled by default. When disabled, failed items stay available for explicit retry and the queue continues with other files after the service cooldown.",
+  backgroundPauseOnError: "Pause background processing on failure",
+  backgroundPauseOnErrorHint:
+    "Failed tasks are never retried automatically. When enabled, a failure pauses this feature's automatic and batch processing. Manual requests still work; resume or retry in Background tasks.",
   geoAuto: "Look up locations of new files automatically",
   geoAutoHint:
     "Only supported files added after enabling this setting. Existing files use the Background tasks section.",
@@ -273,6 +273,7 @@ export const en = {
     "Connect ChatGPT to use your plan for image orientation, OCR, descriptions and structured extraction. Images and documents requested manually or by enabled background tasks are sent to OpenAI; results are saved as metadata in the archive.",
   aiConnected: "Connected",
   aiSignIn: "Sign in",
+  aiSignInAgain: "Sign in again",
   aiSignInAndAdd: "Sign in and add",
   aiCreateFinishSignIn: "Complete account sign-in before saving.",
   aiSigningIn: "Waiting for sign-in…",
@@ -1342,9 +1343,9 @@ export const zh: Record<MessageKey, string> = {
   geoRequestInterval: "请求间隔（秒）",
   geoRequestIntervalHint:
     "每次请求结束后的最短等待时间，默认 2 秒。服务限流或暂时不可用时，等待时间可能更长。",
-  geoPauseOnError: "查询失败后暂停后台处理",
-  geoPauseOnErrorHint:
-    "默认开启。关闭后，失败项仍需手动重试；等待服务冷却后继续处理其他文件。",
+  backgroundPauseOnError: "失败后暂停后台处理",
+  backgroundPauseOnErrorHint:
+    "失败任务不会自动重试。开启后，失败会暂停本功能的自动与批量处理，手动请求仍可运行；可在后台任务中继续处理或重试。",
   geoAuto: "自动查询新增文件的位置",
   geoAutoHint: "仅处理开启后新增的受支持文件，已有文件可在“后台任务”中补全。",
   geoEndpoint: "Photon 接口地址",
@@ -1432,6 +1433,7 @@ export const zh: Record<MessageKey, string> = {
     "连接 ChatGPT 后使用你的套餐判断图片方向、识别文字、生成描述和提取结构化信息。手动请求或已启用的后台任务会将图片或文档发送到 OpenAI，结果保存为资料库中的元数据。",
   aiConnected: "已连接",
   aiSignIn: "登录",
+  aiSignInAgain: "重新登录",
   aiSignInAndAdd: "登录并添加",
   aiCreateFinishSignIn: "请先完成新建账户的登录。",
   aiSigningIn: "正在等待登录…",

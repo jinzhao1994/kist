@@ -1841,6 +1841,7 @@ export interface components {
             automatic: boolean;
             image_detail: string;
             model: string;
+            pause_on_error?: boolean;
             reasoning_effort: string;
         };
         Field: {

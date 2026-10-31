@@ -4595,13 +4595,19 @@ for (const scenario of [
         });
         await chatgpt.hover();
         const login = chatgpt.getByRole("button", {
-          name: "登录",
+          name: scenario === "ai-unconfigured" ? "登录" : "重新登录",
           exact: true,
         });
         const test = chatgpt.getByRole("button", { name: "测试", exact: true });
         await expect(login).toBeEnabled();
         const actions = await chatgpt.locator(".table-row-actions").innerText();
         expect(actions.indexOf("登录")).toBeLessThan(actions.indexOf("测试"));
+        const common = await chatgpt.getByRole("button").allTextContents();
+        expect(common.slice(-3)).toEqual(["测试", "编辑", "删除"]);
+        if (scenario !== "ai-unconfigured")
+          expect(actions.indexOf("断开连接")).toBeLessThan(
+            actions.indexOf("测试"),
+          );
         await expect(
           table.getByText(
             scenario === "ai-unconfigured" ? "未配置" : "已配置",
@@ -4625,11 +4631,32 @@ for (const scenario of [
         "ai_services.features.ocr.model",
         scenario === "ai-account-sign-in-mobile",
       );
+      const mobile = scenario === "ai-account-sign-in-mobile";
       await pairedFields(
+        "ai_services.features.ocr.model",
         "ai_services.features.ocr.reasoning_effort",
-        "ai_services.features.ocr.image_detail",
-        scenario === "ai-account-sign-in-mobile",
+        mobile,
       );
+      const reasoning = await fieldBounds(
+        "ai_services.features.ocr.reasoning_effort",
+      );
+      const detail = await fieldBounds("ai_services.features.ocr.image_detail");
+      expect(detail.y).toBeGreaterThanOrEqual(reasoning.y + reasoning.height);
+      if (mobile)
+        expect(Math.abs(detail.width - reasoning.width)).toBeLessThan(1);
+      else {
+        expect(detail.width).toBeGreaterThan(reasoning.width * 1.4);
+        expect(detail.width).toBeLessThan(reasoning.width * 1.6);
+      }
+      const ocr = settings.getByRole("region", { name: "OCR", exact: true });
+      const automatic = await ocr
+        .getByRole("checkbox", { name: "自动识别新增图片", exact: true })
+        .boundingBox();
+      const account = await fieldBounds("ai_services.features.ocr.account");
+      expect(automatic!.y).toBeLessThan(account.y);
+      await expect(
+        ocr.getByRole("checkbox", { name: "失败后暂停后台处理", exact: true }),
+      ).toBeChecked();
     }
     if (scenario === "ai-proxy-test" || scenario === "ai-proxy-test-error") {
       const table = settings.getByRole("table", { name: "代理", exact: true });
@@ -6434,7 +6461,7 @@ for (const anchor of [
     ).toHaveValue("2");
     await expect(
       section.getByRole("checkbox", {
-        name: "查询失败后暂停后台处理",
+        name: "失败后暂停后台处理",
         exact: true,
       }),
     ).toBeChecked();

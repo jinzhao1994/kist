@@ -114,7 +114,7 @@ func (l *Library) ensureImageOrientation(ctx context.Context, id domain.FileID, 
 		return err
 	}
 	if err := q.selectAttemptModel(job, model); err != nil {
-		return errors.Join(err, q.finishJob(job, err))
+		return errors.Join(err, q.finishJobWithPolicy(job, err, q.pauseOnError(cfg)))
 	}
 	prepared, err := l.prepareImageText(q.attemptContext(ctx, job), id, provider, model, blob, "orientation", "", job.Force)
 	if err == nil {
@@ -139,7 +139,7 @@ func (l *Library) ensureImageOrientation(ctx context.Context, id domain.FileID, 
 			return nil
 		})
 	}
-	return errors.Join(err, q.finishJob(job, err))
+	return errors.Join(err, q.finishJobWithPolicy(job, err, q.pauseOnError(cfg)))
 }
 
 // SetImageRotation records an explicit human override, or releases it when nil.

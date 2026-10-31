@@ -12,10 +12,18 @@ import { HelpTooltip } from "./HelpTooltip";
 import { FullTextTooltip } from "./FullTextTooltip";
 
 // Related fields share a row; a lone field leaves the second column empty.
-export function SettingsFieldRow({ children }: { children: ReactNode }) {
+export function SettingsFieldRow({
+  children,
+  columns = 2,
+}: {
+  children: ReactNode;
+  columns?: 2 | 3;
+}) {
   return (
     <div className="settings-field-row">
-      <div className="settings-field-columns">{children}</div>
+      <div className="settings-field-columns" data-columns={columns}>
+        {children}
+      </div>
     </div>
   );
 }

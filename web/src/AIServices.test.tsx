@@ -525,75 +525,98 @@ it("opens field errors in the corresponding editor and lets the server own valid
   client.clear();
 });
 
-it("opens ChatGPT during the click gesture and authenticates the selected account", async () => {
-  let fixture = aiServicesFixture({
-    accounts: [
-      {
-        number: 7,
-        id: "ChatGPT home",
-        type: "chatgpt",
-        proxy: 0,
-        connected: false,
-        email: "",
-      },
-    ],
-  });
-  const order: string[] = [];
-  const replace = vi.fn();
-  const login = {
-    opener: {},
-    closed: false,
-    location: { replace },
-    close: vi.fn(),
-  };
-  vi.spyOn(window, "open").mockImplementation(() => {
-    order.push("open");
-    return login as unknown as Window;
-  });
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (path: string, init?: RequestInit) => {
-      if (init?.method === "POST") {
-        order.push(path);
-        return Response.json({
-          id: "synthetic-login",
-          url: "https://auth.openai.com/synthetic",
-        });
-      }
-      if (path.endsWith("/sign-ins/synthetic-login"))
-        return Response.json({
-          id: "synthetic-login",
-          pending: true,
-          connected: false,
+it.each([false, true])(
+  "opens ChatGPT during the click gesture and authenticates the selected account (configured=%s)",
+  async (configured) => {
+    let fixture = aiServicesFixture({
+      accounts: [
+        {
+          number: 7,
+          id: "ChatGPT home",
+          type: "chatgpt",
+          proxy: 0,
+          connected: configured,
           email: "",
-          error: "",
-        });
-      return Response.json(
-        path.endsWith("/services") ? fixture : { supported: true },
-      );
-    }),
-  );
-  const { client, unmount } = mount(<AIConnection onDraftChange={vi.fn()} />);
-  const signIn = await screen.findByRole("button", { name: "Sign in" });
-  const row = signIn.closest("tr")!;
-  expect(within(row).getByText("Not configured")).toBeVisible();
-  const test = within(row).getByRole("button", { name: "Test" });
-  expect(test).toBeDisabled();
-  expect(
-    signIn.compareDocumentPosition(test) & Node.DOCUMENT_POSITION_FOLLOWING,
-  ).toBeTruthy();
-  await userEvent.click(signIn);
-  await waitFor(() =>
-    expect(replace).toHaveBeenCalledWith("https://auth.openai.com/synthetic"),
-  );
-  expect(order).toEqual(["open", "/api/v1/ai/sign-ins"]);
-  expect(login.opener).toBeNull();
-  expect(
-    await screen.findByRole("link", { name: "Open ChatGPT sign-in" }),
-  ).toHaveAttribute("target", "_blank");
-  unmount();
-  client.clear();
-});
+        },
+      ],
+    });
+    const order: string[] = [];
+    const replace = vi.fn();
+    const login = {
+      opener: {},
+      closed: false,
+      location: { replace },
+      close: vi.fn(),
+    };
+    vi.spyOn(window, "open").mockImplementation(() => {
+      order.push("open");
+      return login as unknown as Window;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (path: string, init?: RequestInit) => {
+        if (init?.method === "POST") {
+          order.push(path);
+          return Response.json({
+            id: "synthetic-login",
+            url: "https://auth.openai.com/synthetic",
+          });
+        }
+        if (path.endsWith("/sign-ins/synthetic-login"))
+          return Response.json({
+            id: "synthetic-login",
+            pending: true,
+            connected: false,
+            email: "",
+            error: "",
+          });
+        return Response.json(
+          path.endsWith("/services") ? fixture : { supported: true },
+        );
+      }),
+    );
+    const { client, unmount } = mount(<AIConnection onDraftChange={vi.fn()} />);
+    const signIn = await screen.findByRole("button", {
+      name: configured ? "Sign in again" : "Sign in",
+    });
+    const row = signIn.closest("tr")!;
+    expect(
+      within(row).getByText(configured ? "Configured" : "Not configured"),
+    ).toBeVisible();
+    const test = within(row).getByRole("button", { name: "Test" });
+    if (configured) expect(test).toBeEnabled();
+    else expect(test).toBeDisabled();
+    expect(
+      within(row)
+        .getAllByRole("button")
+        .slice(-3)
+        .map((button) => button.textContent),
+    ).toEqual(["Test", "Edit", "Delete"]);
+    if (configured) {
+      const disconnect = within(row).getByRole("button", {
+        name: "Disconnect",
+      });
+      expect(
+        disconnect.compareDocumentPosition(test) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+    expect(
+      signIn.compareDocumentPosition(test) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    await userEvent.click(signIn);
+    await waitFor(() =>
+      expect(replace).toHaveBeenCalledWith("https://auth.openai.com/synthetic"),
+    );
+    expect(order).toEqual(["open", "/api/v1/ai/sign-ins"]);
+    expect(login.opener).toBeNull();
+    expect(
+      await screen.findByRole("link", { name: "Open ChatGPT sign-in" }),
+    ).toHaveAttribute("target", "_blank");
+    unmount();
+    client.clear();
+  },
+);
 
 it("signs in a new account inside the creation form and leaves only a reference for unified save", async () => {
   const fixture = aiServicesFixture({ accounts: [], proxies: [] });
@@ -843,6 +866,45 @@ it("retains the creation form and keeps a failed sign-in out of the account list
   expect(
     within(form).getByRole("button", { name: "Sign in and add" }),
   ).toBeEnabled();
+  unmount();
+  client.clear();
+});
+
+it("keeps per-feature failure policy in the page draft and can restore the inherited default", async () => {
+  const fetch = reads();
+  const changed = vi.fn();
+  const { client, unmount } = mount(<AIConnection onDraftChange={changed} />);
+  const ocr = await screen.findByRole("region", { name: "OCR" });
+  const pause = within(ocr).getByRole("checkbox", {
+    name: "Pause background processing on failure",
+  });
+  expect(pause).toBeChecked();
+  const automatic = within(ocr).getByRole("checkbox", {
+    name: "Automatically recognize new images",
+  });
+  const account = within(ocr).getByRole("combobox", { name: "AI account" });
+  expect(
+    automatic.compareDocumentPosition(account) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  await userEvent.click(pause);
+  await waitFor(() =>
+    expect(changed.mock.lastCall?.[0]?.value.features.ocr.pause_on_error).toBe(
+      false,
+    ),
+  );
+  expect(
+    within(screen.getByRole("region", { name: "Description" })).getByRole(
+      "checkbox",
+      { name: "Pause background processing on failure" },
+    ),
+  ).toBeChecked();
+  await userEvent.click(
+    within(ocr).getByRole("button", { name: "Restore default" }),
+  );
+  await waitFor(() => expect(changed.mock.lastCall?.[0]).toBeNull());
+  expect(pause).toBeChecked();
+  expect(fetch.mock.calls.every(([, init]) => !init?.method)).toBe(true);
   unmount();
   client.clear();
 });

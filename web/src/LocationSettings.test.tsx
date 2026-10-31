@@ -79,7 +79,7 @@ it("resets every GPS field in the draft and saves reset intent only on demand", 
   ).toBeChecked();
   expect(
     screen.getByRole("checkbox", {
-      name: "Pause background queries on failure",
+      name: "Pause background processing on failure",
     }),
   ).toBeChecked();
   expect(screen.getByRole("textbox", { name: "Photon endpoint" })).toHaveValue(
@@ -166,7 +166,7 @@ it("edits endpoint policy together without starting a lookup", async () => {
     name: "Request interval (seconds)",
   });
   const pause = screen.getByRole("checkbox", {
-    name: "Pause background queries on failure",
+    name: "Pause background processing on failure",
   });
   expect(input).toHaveValue("2");
   expect(pause).toBeChecked();
@@ -191,7 +191,7 @@ it("edits endpoint policy together without starting a lookup", async () => {
     labels.indexOf("Request interval (seconds)"),
   );
   expect(labels.indexOf("Request interval (seconds)")).toBeLessThan(
-    labels.indexOf("Pause background queries on failure"),
+    labels.indexOf("Pause background processing on failure"),
   );
   view.unmount();
   client.clear();

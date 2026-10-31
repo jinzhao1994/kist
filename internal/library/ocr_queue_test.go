@@ -433,3 +433,82 @@ func TestOCRQueueBulkRetryDoesNotBypassPause(t *testing.T) {
 		t.Fatalf("job=%+v calls=%d err=%v", job, failing.calls, err)
 	}
 }
+
+func TestAIQueueFailurePolicyAndConfigRoundTrip(t *testing.T) {
+	no, yes := false, true
+	for _, tc := range []struct {
+		name   string
+		value  *bool
+		paused bool
+	}{{"default", nil, true}, {"explicit-pause", &yes, true}, {"continue", &no, false}} {
+		t.Run(tc.name, func(t *testing.T) {
+			l := openTestLibrary(t)
+			draft, err := l.AIServicesSettings(t.Context())
+			if err != nil {
+				t.Fatal(err)
+			}
+			draft.Accounts = []AIAccountSettings{{Number: -1, ID: "Synthetic", Type: ai.AccountOpenAI, APIKey: "synthetic-key"}}
+			draft.Features["ocr"] = ai.Feature{Account: -1, Model: "test", PauseOnError: tc.value}
+			draft = saveServiceDraft(t, l, draft)
+			cfg, err := config.Load(l.layout.ConfigPath())
+			if err != nil {
+				t.Fatal(err)
+			}
+			feature := cfg.AIServices.Features["ocr"]
+			if feature.PausesOnError() != tc.paused || (feature.PauseOnError == nil) != (tc.value == nil) {
+				t.Fatal("configuration lost inherited or explicit failure policy")
+			}
+			ocrFile(t, l)
+			ocrFile(t, l)
+			bad := &failingOCR{}
+			q := queueFor(t, l, bad)
+			if _, err := q.Backfill(t.Context(), false); err != nil {
+				t.Fatal(err)
+			}
+			if err := q.Step(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			status, err := q.Status(t.Context())
+			if err != nil || status.Paused != tc.paused || status.Failed != 1 || status.Queued != 1 {
+				t.Fatalf("status=%+v err=%v", status, err)
+			}
+			good := &fakeOCR{text: "recognized"}
+			q.provider = func(context.Context) (ai.Provider, error) { return good, nil }
+			if tc.paused {
+				if err := q.Step(t.Context()); err != nil {
+					t.Fatal(err)
+				}
+				if good.calls != 0 {
+					t.Fatal("paused background job executed")
+				}
+				if _, err := q.Pause(t.Context(), false); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := q.Step(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := q.Backfill(t.Context(), false); err != nil {
+				t.Fatal(err)
+			}
+			if err := q.Step(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			status, err = q.Status(t.Context())
+			if err != nil || good.calls != 1 || status.Failed != 1 || status.Queued != 0 {
+				t.Fatal("failed task was automatically retried or next task was blocked", status, err)
+			}
+			draft, err = l.AIServicesSettings(t.Context())
+			if err != nil {
+				t.Fatal(err)
+			}
+			feature = draft.Features["ocr"]
+			feature.PauseOnError = nil
+			draft.Features["ocr"] = feature
+			draft = saveServiceDraft(t, l, draft)
+			if draft.Features["ocr"].PauseOnError != nil || !draft.Features["ocr"].PausesOnError() {
+				t.Fatal("restore default did not remove explicit policy")
+			}
+		})
+	}
+}

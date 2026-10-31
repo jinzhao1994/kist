@@ -3627,6 +3627,9 @@ main.upload-drag-active {
   .settings-field-columns {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .settings-field-columns[data-columns="3"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 .settings-editor-wide,
 .settings-field-wide {

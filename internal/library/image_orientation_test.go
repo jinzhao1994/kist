@@ -7,6 +7,8 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -353,6 +355,39 @@ func TestManualImageTextChecksOrientationWhileBackgroundPaused(t *testing.T) {
 			}
 			if p.directions != 1 || p.calls != 1 {
 				t.Fatalf("direction=%d text=%d", p.directions, p.calls)
+			}
+		})
+	}
+}
+
+func TestOrientationDependencyHonorsFailurePolicy(t *testing.T) {
+	previous := http.DefaultTransport
+	transport := previous.(*http.Transport).Clone()
+	transport.DialContext = func(context.Context, string, string) (net.Conn, error) {
+		return nil, errors.New("synthetic direction service failure")
+	}
+	http.DefaultTransport = transport
+	defer func() { http.DefaultTransport = previous; transport.CloseIdleConnections() }()
+	for _, pause := range []bool{false, true} {
+		t.Run(map[bool]string{false: "continue", true: "pause"}[pause], func(t *testing.T) {
+			l := openTestLibrary(t)
+			id := rotationFile(t, l)
+			draft, err := l.AIServicesSettings(t.Context())
+			if err != nil {
+				t.Fatal(err)
+			}
+			draft.Accounts = []AIAccountSettings{{Number: -1, ID: "Synthetic", Type: ai.AccountOpenAI, APIKey: "synthetic-key"}}
+			draft.Features["orientation"] = ai.Feature{Account: -1, Model: "test", PauseOnError: &pause}
+			saveServiceDraft(t, l, draft)
+			p := &fakeOCR{text: "must not run without direction"}
+			if _, err := l.PrepareOCR(t.Context(), id, p, "test"); err == nil {
+				t.Fatal("expected dependency failure")
+			}
+			q := l.OrientationQueue()
+			requireOCRState(t, q, id, "failed")
+			status, err := q.Status(t.Context())
+			if err != nil || status.Paused != pause || p.calls != 0 {
+				t.Fatal(status, err)
 			}
 		})
 	}

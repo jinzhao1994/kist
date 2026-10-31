@@ -212,9 +212,9 @@ export function LocationSettings({
               </div>
             </SettingsFieldRow>
             <SettingsCheckbox
-              label={t("geoPauseOnError")}
+              label={t("backgroundPauseOnError")}
               action={resetAction("pause_on_error")}
-              help={t("geoPauseOnErrorHint")}
+              help={t("backgroundPauseOnErrorHint")}
               checked={draft.pause_on_error}
               disabled={disabled || busy}
               onChange={(e) =>

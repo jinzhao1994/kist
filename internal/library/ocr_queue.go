@@ -422,7 +422,7 @@ func (q *OCRQueue) stepLocked(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	ctx = context.WithValue(ctx, aiConfigurationContextKey{}, cfg)
-	pauseOnError := q.kind != "metadata" && (q.kind != "geo" || cfg.Geocoding.PauseOnError)
+	pauseOnError := q.pauseOnError(cfg)
 	auto, after := cfg.AIOptions.AutoOCR, cfg.AIOptions.AfterOp
 	if q.kind == "transcription" {
 		auto, after = false, 0
@@ -600,8 +600,17 @@ func (q *OCRQueue) stepLocked(ctx context.Context) (bool, error) {
 	return true, q.finishJobWithPolicy(job, err, pauseOnError)
 }
 
-func (q *OCRQueue) finishJob(job OCRJob, err error) error {
-	return q.finishJobWithPolicy(job, err, true)
+func (q *OCRQueue) pauseOnError(cfg *config.Config) bool {
+	if q.kind == "metadata" {
+		return false
+	}
+	if q.kind == "geo" {
+		return cfg.Geocoding.PauseOnError
+	}
+	if cfg.AIServices != nil {
+		return cfg.AIServices.Features[q.kind].PausesOnError()
+	}
+	return true
 }
 func (q *OCRQueue) finishJobWithPolicy(job OCRJob, err error, pauseOnError bool) error {
 	// Use a bounded independent context to record shutdown/cancellation failures.

@@ -38,8 +38,13 @@ type Feature struct {
 	ReasoningEffort string `toml:"reasoning_effort,omitempty" json:"reasoning_effort"`
 	ImageDetail     string `toml:"image_detail,omitempty" json:"image_detail"`
 	Automatic       bool   `toml:"automatic" json:"automatic"`
+	PauseOnError    *bool  `toml:"pause_on_error,omitempty" json:"pause_on_error,omitempty"`
 	AfterOp         int64  `toml:"after_op" json:"-"`
 }
+
+// PausesOnError keeps omission on the established default, while an explicit
+// false allows subsequent jobs to proceed without retrying the failed job.
+func (f Feature) PausesOnError() bool { return f.PauseOnError == nil || *f.PauseOnError }
 
 const (
 	ProxyHTTP      = "http"
