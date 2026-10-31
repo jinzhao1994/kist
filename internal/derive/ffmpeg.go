@@ -22,6 +22,7 @@ const containers = "mov,matroska,webm,avi,mpeg,mpegts,ogg,flv,asf"
 type probeStream struct {
 	Index       int    `json:"index"`
 	CodecType   string `json:"codec_type"`
+	Duration    string `json:"duration"`
 	Width       int    `json:"width"`
 	Height      int    `json:"height"`
 	Disposition struct {
@@ -93,6 +94,10 @@ func run(ctx context.Context, path string, args []string, stdout io.Writer) erro
 }
 
 func (r Renderer) probe(ctx context.Context, input string) (probeResult, error) {
+	return r.probeFormats(ctx, input, containers)
+}
+
+func (r Renderer) probeFormats(ctx context.Context, input, formats string) (probeResult, error) {
 	var info probeResult
 	path, err := tool(r.FFprobe, "ffprobe")
 	if err != nil {
@@ -101,7 +106,7 @@ func (r Renderer) probe(ctx context.Context, input string) (probeResult, error) 
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	out := &limitedBuffer{limit: 1 << 20}
-	err = run(ctx, path, []string{"-v", "error", "-max_alloc", "268435456", "-protocol_whitelist", "file,pipe", "-format_whitelist", containers, "-show_entries", "stream=index,codec_type,width,height:stream_disposition=attached_pic,timed_thumbnails:stream_tags=filename:format=duration", "-of", "json", input}, out)
+	err = run(ctx, path, []string{"-v", "error", "-max_alloc", "268435456", "-protocol_whitelist", "file,pipe", "-format_whitelist", formats, "-show_entries", "stream=index,codec_type,width,height,duration:stream_disposition=attached_pic,timed_thumbnails:stream_tags=filename:format=duration", "-of", "json", input}, out)
 	if err != nil {
 		return info, err
 	}

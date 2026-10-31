@@ -257,3 +257,23 @@ it("opens a collapsed account editor and locates its server validation error", a
   view.unmount();
   client.clear();
 });
+
+it("keeps global save disabled until a new ChatGPT account has completed sign-in", async () => {
+  const { client, view, writes } = setup();
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Add account" }),
+  );
+  const form = screen.getByRole("region", { name: "Add account" });
+  await userEvent.click(within(form).getByRole("textbox", { name: "Name" }));
+  await userEvent.paste("Pending ChatGPT");
+  expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  expect(
+    within(form).getByRole("button", { name: "Sign in and add" }),
+  ).toBeEnabled();
+  expect(writes).toHaveLength(0);
+  await userEvent.click(within(form).getByRole("combobox", { name: "Type" }));
+  await userEvent.click(screen.getByRole("option", { name: "OpenAI API" }));
+  expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+  view.unmount();
+  client.clear();
+});

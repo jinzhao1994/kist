@@ -482,49 +482,57 @@ it.each([
   },
 );
 
-it("offers transcription for audio and keeps its output in metadata", async () => {
-  const writes: string[] = [];
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (path: string, init?: RequestInit) => {
-      if (init?.method === "POST") {
-        writes.push(path);
-        return Response.json({ state: "queued", manual: true });
-      }
-      return (
-        defaults(path) ||
-        Response.json(
-          path.endsWith("/ai") ? { supported: true } : { state: "missing" },
-        )
-      );
-    }),
-  );
-  mount(
-    <FileDetail
-      data={{
-        file: {
-          id: "audio-file",
-          name: "synthetic.wav",
-          captured_at: null,
-          folder_id: "folder",
-          blob_key: "blob",
-          created_at: "2026-01-01T00:00:00Z",
-          updated_at: "2026-01-01T00:00:00Z",
-          kind: "audio",
-          media_type: "audio/wave",
-        },
-        metadata: [],
-        extracted: [],
-        tags: [],
-      }}
-      tags={[]}
-    />,
-  );
-  const run = await screen.findByRole("button", { name: "Transcribe audio" });
-  await waitFor(() => expect(run).toBeEnabled());
-  expect(
-    screen.queryByRole("button", { name: "Extract text (OCR)" }),
-  ).not.toBeInTheDocument();
-  await userEvent.click(run);
-  expect(writes).toEqual(["/api/v1/files/audio-file/transcription"]);
-});
+it.each([
+  ["synthetic.wav", "audio", "audio/wave"],
+  ["synthetic.mov", "video", "video/quicktime"],
+] as const)(
+  "offers transcription for %s and keeps its output in metadata",
+  async (name, kind, media_type) => {
+    const writes: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (path: string, init?: RequestInit) => {
+        if (init?.method === "POST") {
+          writes.push(path);
+          return Response.json({ state: "queued", manual: true });
+        }
+        return (
+          defaults(path) ||
+          Response.json(
+            path.endsWith("/ai") ? { supported: true } : { state: "missing" },
+          )
+        );
+      }),
+    );
+    mount(
+      <FileDetail
+        data={{
+          file: {
+            id: "audio-file",
+            name,
+            captured_at: null,
+            folder_id: "folder",
+            blob_key: "blob",
+            created_at: "2026-01-01T00:00:00Z",
+            updated_at: "2026-01-01T00:00:00Z",
+            kind,
+            media_type,
+          },
+          metadata: [],
+          extracted: [],
+          tags: [],
+        }}
+        tags={[]}
+      />,
+    );
+    const run = await screen.findByRole("button", {
+      name: "Transcribe speech",
+    });
+    await waitFor(() => expect(run).toBeEnabled());
+    expect(
+      screen.queryByRole("button", { name: "Extract text (OCR)" }),
+    ).not.toBeInTheDocument();
+    await userEvent.click(run);
+    expect(writes).toEqual(["/api/v1/files/audio-file/transcription"]);
+  },
+);

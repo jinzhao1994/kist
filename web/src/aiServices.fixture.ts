@@ -37,6 +37,18 @@ export function aiServicesFixture({
     definitions: names.map(
       (name): NonNullable<View["definitions"]>[number] => ({
         name,
+        ...(name === "transcription"
+          ? {
+              default_model: "gpt-transcribe",
+              models: [
+                "gpt-transcribe",
+                "gpt-4o-transcribe",
+                "gpt-4o-mini-transcribe",
+                "gpt-4o-mini-transcribe-2025-12-15",
+                "whisper-1",
+              ],
+            }
+          : {}),
         options:
           name === "transcription"
             ? {}

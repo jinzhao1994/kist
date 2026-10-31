@@ -59,6 +59,12 @@ func effectiveAIServices(cfg *config.Config) ai.Services {
 		s.Proxies = slices.Clone(s.Proxies)
 		s.Accounts = slices.Clone(s.Accounts)
 		s.Features = maps.Clone(s.Features)
+		if s.Features == nil {
+			s.Features = map[string]ai.Feature{}
+		}
+		f := s.Features["transcription"]
+		f.Model = ai.FeatureModel("transcription", f)
+		s.Features["transcription"] = f
 		return s
 	}
 	s := ai.Services{NextProxy: 1, NextAccount: 1, Features: map[string]ai.Feature{}}
@@ -85,6 +91,7 @@ func effectiveAIServices(cfg *config.Config) ai.Services {
 		if name != "transcription" {
 			f.Account, f.Model, f.ReasoningEffort, f.ImageDetail = account, cfg.AIOptions.Model, "low", "original"
 		}
+		f.Model = ai.FeatureModel(name, f)
 		s.Features[name] = f
 	}
 	return s
@@ -218,6 +225,7 @@ func (l *Library) aiServicesChanges(cfg *config.Config, in AIServiceSettings) (m
 				return nil, config.InvalidField("ai_services.features."+name+".account", "reference", "Unknown temporary account.")
 			}
 		}
+		f.Model = ai.FeatureModel(name, f)
 		prior := old.Features[name]
 		f.AfterOp = prior.AfterOp
 		if f.Automatic && !prior.Automatic {

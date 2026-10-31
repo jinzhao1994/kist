@@ -36,7 +36,7 @@ func (q *OCRQueue) requireConfiguredFeature(ctx context.Context) error {
 		return nil
 	}
 	f := cfg.AIServices.Features[q.kind]
-	if f.Account == 0 || f.Model == "" {
+	if f.Account == 0 || ai.FeatureModel(q.kind, f) == "" {
 		return errors.New("choose an AI account and model for this feature in Settings")
 	}
 	return nil
@@ -60,7 +60,7 @@ func (l *Library) AIFeatureProvider(ctx context.Context, kind string) (ai.Provid
 		return l.AIProvider(ctx)
 	}
 	feature, ok := cfg.AIServices.Features[kind]
-	if !ok || feature.Account == 0 || feature.Model == "" {
+	if !ok || feature.Account == 0 || ai.FeatureModel(kind, feature) == "" {
 		return nil, errors.New("choose an AI account and model for this feature in Settings")
 	}
 	return l.aiAccountProvider(ctx, cfg, feature.Account, &ai.ModelParameters{ReasoningEffort: feature.ReasoningEffort, ImageDetail: feature.ImageDetail})

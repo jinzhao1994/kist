@@ -102,7 +102,7 @@ func validateAIServices(s *ai.Services) error {
 		if len(f.Model) > 200 || strings.TrimSpace(f.Model) != f.Model || strings.ContainsAny(f.Model, "\r\n\x00") {
 			return InvalidField(field+".model", "model", "Enter a model identifier, at most 200 bytes.")
 		}
-		if f.Automatic && (f.Account == 0 || f.Model == "") {
+		if f.Automatic && (f.Account == 0 || ai.FeatureModel(name, f) == "") {
 			return InvalidField(field+".account", "model_required", "Choose an account and model before enabling automatic processing.")
 		}
 		if !slices.Contains(ai.ParameterValues("reasoning_effort"), f.ReasoningEffort) {
@@ -115,6 +115,9 @@ func validateAIServices(s *ai.Services) error {
 			return InvalidField(field+".after_op", "number", "Invalid automatic processing boundary.")
 		}
 		if name == "transcription" {
+			if !ai.SupportedTranscriptionModel(ai.FeatureModel(name, f)) {
+				return InvalidField(field+".model", "transcription_model", "Choose a model supported by the file transcription endpoint.")
+			}
 			if f.ReasoningEffort != "" || f.ImageDetail != "" {
 				return InvalidField(field+".model", "capability", "Transcription does not accept image or reasoning parameters.")
 			}

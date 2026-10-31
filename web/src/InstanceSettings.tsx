@@ -167,7 +167,13 @@ export function InstanceSettings({
     !!locationDraft ||
     !!credentialsDraft;
   const [busy, setBusy] = useState(false);
-  const saveHint = busy ? "" : !unsaved ? t("settingsSaveNoChanges") : "";
+  const saveHint = busy
+    ? ""
+    : aiDraft?.blocked
+      ? t("aiCreateFinishSignIn")
+      : !unsaved
+        ? t("settingsSaveNoChanges")
+        : "";
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<SettingsErrors>({});
   useEffect(() => {
@@ -342,6 +348,7 @@ export function InstanceSettings({
     await queries.invalidateQueries({ queryKey: ["info"] });
   };
   const save = async (skipDocumentReload = false) => {
+    if (aiDraft?.blocked) return false;
     let saved = false;
     await run(async (signal) => {
       if (!snapshot) return;
@@ -546,7 +553,7 @@ export function InstanceSettings({
                 <Button
                   variant="filled"
                   loading={busy}
-                  disabled={!unsaved}
+                  disabled={!unsaved || aiDraft?.blocked}
                   onClick={() => void save()}
                 >
                   {t("save")}
@@ -733,7 +740,7 @@ export function InstanceSettings({
                 <Button
                   variant="filled"
                   loading={busy}
-                  disabled={busy}
+                  disabled={busy || aiDraft?.blocked}
                   onClick={async () => {
                     const reloadDocument = Object.keys(changes).some((key) =>
                       key.startsWith("server.map_"),

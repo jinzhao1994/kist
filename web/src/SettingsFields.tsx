@@ -20,7 +20,7 @@ export function SettingsFieldRow({ children }: { children: ReactNode }) {
   );
 }
 
-export type SettingsSectionDraft = { value: unknown };
+export type SettingsSectionDraft = { value: unknown; blocked?: boolean };
 export type SettingsErrors = Record<
   string,
   components["schemas"]["SettingFieldError"]
@@ -43,6 +43,7 @@ export function useSettingsError(field: string) {
     reference: "settingInvalidReference",
     number: "settingInvalidNumber",
     capability: "settingInvalidCapability",
+    transcription_model: "settingInvalidTranscriptionModel",
     host: "settingInvalidHost",
     port: "settingInvalidPort",
     api_key: "settingInvalidAPIKey",

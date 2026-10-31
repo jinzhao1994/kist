@@ -742,3 +742,107 @@ it("cleans up an authorization response that arrives after leaving the settings 
   expect(close).toHaveBeenCalled();
   client.clear();
 });
+
+it("offers only file transcription models and requests a capability-filtered catalog", async () => {
+  const fixture = aiServicesFixture();
+  const fetch = vi.fn(async (path: string) =>
+    Response.json(
+      path.includes("/models")
+        ? [
+            { id: "gpt-transcribe", name: "gpt-transcribe" },
+            { id: "gpt-4o-mini-transcribe", name: "gpt-4o-mini-transcribe" },
+            { id: "gpt-6-luna", name: "gpt-6-luna" },
+            { id: "gpt-live-transcribe", name: "gpt-live-transcribe" },
+            {
+              id: "gpt-4o-transcribe-diarize",
+              name: "gpt-4o-transcribe-diarize",
+            },
+          ]
+        : path.endsWith("/services")
+          ? fixture
+          : { supported: true },
+    ),
+  );
+  vi.stubGlobal("fetch", fetch);
+  const changed = vi.fn();
+  const { client, unmount } = mount(<AIConnection onDraftChange={changed} />);
+  const region = await screen.findByRole("region", { name: "Speech to text" });
+  const select = within(region).getByRole("combobox", { name: "Model" });
+  expect(select).toHaveValue("gpt-transcribe");
+  await userEvent.click(select);
+  await waitFor(() =>
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/v1/ai/accounts/1/models?feature=transcription",
+      expect.anything(),
+    ),
+  );
+  expect(
+    await screen.findByRole("option", { name: "gpt-transcribe" }),
+  ).toBeVisible();
+  expect(
+    screen.queryByRole("option", { name: "gpt-6-luna" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("option", { name: "gpt-live-transcribe" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("option", { name: "gpt-4o-transcribe-diarize" }),
+  ).not.toBeInTheDocument();
+  await userEvent.click(
+    screen.getByRole("option", { name: "gpt-4o-mini-transcribe" }),
+  );
+  await waitFor(() =>
+    expect(changed.mock.lastCall?.[0]?.value.features.transcription.model).toBe(
+      "gpt-4o-mini-transcribe",
+    ),
+  );
+  unmount();
+  client.clear();
+});
+
+it("retains the creation form and keeps a failed sign-in out of the account list", async () => {
+  const fixture = aiServicesFixture({ accounts: [] });
+  vi.spyOn(window, "open").mockReturnValue(null);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string, init?: RequestInit) =>
+      Response.json(
+        path.endsWith("/sign-ins") && init?.method === "POST"
+          ? { id: "failed-draft", url: "https://auth.openai.com/synthetic" }
+          : path.endsWith("/sign-ins/failed-draft")
+            ? {
+                id: "failed-draft",
+                pending: false,
+                connected: false,
+                email: "",
+                error: "Synthetic failure",
+              }
+            : path.endsWith("/services")
+              ? fixture
+              : { supported: true },
+      ),
+    ),
+  );
+  const changed = vi.fn();
+  const { client, unmount } = mount(<AIConnection onDraftChange={changed} />);
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Add account" }),
+  );
+  const form = screen.getByRole("region", { name: "Add account" });
+  await fill(within(form).getByRole("textbox", { name: "Name" }), "Not added");
+  await userEvent.click(
+    within(form).getByRole("button", { name: "Sign in and add" }),
+  );
+  expect(await within(form).findByRole("alert")).toHaveTextContent(
+    "Sign-in failed or expired",
+  );
+  expect(
+    screen.queryByRole("rowheader", { name: "Not added" }),
+  ).not.toBeInTheDocument();
+  expect(changed.mock.lastCall?.[0]?.blocked).toBe(true);
+  expect(
+    within(form).getByRole("button", { name: "Sign in and add" }),
+  ).toBeEnabled();
+  unmount();
+  client.clear();
+});

@@ -4,6 +4,10 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -53,7 +57,7 @@ func setTranscription(t *testing.T, l *Library, automatic bool) {
 	}
 	if len(draft.Accounts) == 0 {
 		draft.Accounts = []AIAccountSettings{{Number: -1, ID: "测试 API", Type: ai.AccountOpenAI, APIKey: "synthetic-key"}}
-		draft.Features["transcription"] = ai.Feature{Account: -1, Model: "synthetic-transcribe", Automatic: automatic}
+		draft.Features["transcription"] = ai.Feature{Account: -1, Model: "gpt-transcribe", Automatic: automatic}
 	} else {
 		f := draft.Features["transcription"]
 		f.Automatic = automatic
@@ -77,7 +81,7 @@ func TestTranscriptionMetadataReplayProtectionAndNoRepeat(t *testing.T) {
 	}
 	requireOCRState(t, q, file.ID, "ready")
 	rows := metaOf(t, l, file.ID)
-	if rows["transcription:text"].Value != p.text || rows["transcription:text"].Source != "transcription" || rows["transcription:model"].Value != "synthetic/synthetic-transcribe" {
+	if rows["transcription:text"].Value != p.text || rows["transcription:text"].Source != "transcription" || rows["transcription:model"].Value != "synthetic/gpt-transcribe" {
 		t.Fatal("missing transcription output")
 	}
 	if _, err := q.Backfill(t.Context(), false); err != nil {
@@ -173,7 +177,7 @@ func TestTranscriptionUndoRedoAndReplacedAudio(t *testing.T) {
 	l, box := openWithBox(t)
 	file := importOneFile(t, l, box, "sample.wav", syntheticWAV())
 	provider := &fakeTranscriber{fakeOCR: fakeOCR{text: strings.Repeat("Synthetic long transcript.\n", 200)}}
-	p, err := l.prepareTranscription(t.Context(), file.ID, provider, "synthetic-transcribe", "", false)
+	p, err := l.prepareTranscription(t.Context(), file.ID, provider, "gpt-transcribe", "", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +198,7 @@ func TestTranscriptionUndoRedoAndReplacedAudio(t *testing.T) {
 	if metaOf(t, l, file.ID)["transcription:text"].Value != provider.text || provider.audioCalls != 1 {
 		t.Fatal("redo did not restore the saved transcript without inference")
 	}
-	p, err = l.prepareTranscription(t.Context(), file.ID, provider, "synthetic-transcribe", "", true)
+	p, err = l.prepareTranscription(t.Context(), file.ID, provider, "gpt-transcribe", "", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -213,5 +217,67 @@ func TestTranscriptionUndoRedoAndReplacedAudio(t *testing.T) {
 	}
 	if report, err := l.Verify(t.Context(), VerifyOptions{Deep: true}); err != nil || report.Total() != 0 {
 		t.Fatal(report, err)
+	}
+}
+
+type segmentAudioRenderer struct {
+	duration        float64
+	starts, seconds []float64
+	outputs         []string
+}
+
+func (r *segmentAudioRenderer) TranscriptionDuration(context.Context, string) (float64, error) {
+	return r.duration, nil
+}
+func (r *segmentAudioRenderer) RenderTranscriptionAudio(ctx context.Context, input, output string, start, seconds float64) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	r.starts = append(r.starts, start)
+	r.seconds = append(r.seconds, seconds)
+	r.outputs = append(r.outputs, output)
+	return os.WriteFile(output, []byte(syntheticWAV()), 0600)
+}
+
+type segmentTranscriber struct {
+	fakeOCR
+	calls, failAt int
+}
+
+func (p *segmentTranscriber) Transcribe(ctx context.Context, model string, audio ai.Audio, options ai.TextOptions) (ai.TextResult, error) {
+	p.calls++
+	if p.calls == p.failAt {
+		return ai.TextResult{}, errors.New("synthetic segment failure")
+	}
+	if audio.MIME != "audio/wav" || audio.Name != "audio.wav" || string(audio.Data[:4]) != "RIFF" {
+		return ai.TextResult{}, errors.New("video frames or malformed audio uploaded")
+	}
+	return ai.TextResult{Text: fmt.Sprintf("part %d", p.calls), Provider: "synthetic", Model: model}, nil
+}
+func TestTranscriptionSegmentsInOrderWithoutSavingPartialResult(t *testing.T) {
+	for _, failAt := range []int{0, 2} {
+		t.Run(fmt.Sprint(failAt), func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "video.mov")
+			if err := os.WriteFile(path, []byte("\x00\x00\x00\x14ftypqt  0000qt  "), 0600); err != nil {
+				t.Fatal(err)
+			}
+			renderer := &segmentAudioRenderer{duration: 1201.5}
+			provider := &segmentTranscriber{failAt: failAt}
+			var lastDiagnostic string
+			ctx := context.WithValue(t.Context(), modelAttemptKey{}, modelAttempt{kind: "transcription", record: func(result ai.TextResult) error { lastDiagnostic = result.Text; return nil }})
+			result, err := transcribeMedia(ctx, provider, ai.DefaultTranscriptionModel, path, "video.mov", "", renderer)
+			if failAt == 0 {
+				if err != nil || result.Text != "part 1\npart 2\npart 3" || !slices.Equal(renderer.starts, []float64{0, 600, 1200}) || !slices.Equal(renderer.seconds, []float64{600, 600, 1.5}) {
+					t.Fatal(result.Text, renderer.starts, renderer.seconds, err)
+				}
+			} else if err == nil || result.Text != "" || provider.calls != 2 || lastDiagnostic != "part 1" {
+				t.Fatal("partial transcript returned as success or lost failure evidence", result.Text, lastDiagnostic, err)
+			}
+			for _, output := range renderer.outputs {
+				if _, err := os.Stat(output); !errors.Is(err, os.ErrNotExist) {
+					t.Fatal("temporary audio retained", err)
+				}
+			}
+		})
 	}
 }

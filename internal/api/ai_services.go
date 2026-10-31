@@ -11,8 +11,9 @@ import (
 	"github.com/jinzhao1994/kist/internal/library"
 )
 
-type aiAccountPath struct {
-	Number int64 `path:"number" minimum:"1"`
+type aiAccountModelsPath struct {
+	Number  int64  `path:"number" minimum:"1"`
+	Feature string `query:"feature"`
 }
 type aiAccountAction struct {
 	Number int64 `path:"number" minimum:"1"`
@@ -93,7 +94,7 @@ func (s *Server) aiServiceRoutes() {
 		s.aiMu.Unlock()
 		return response(out, nil)
 	})
-	huma.Get(s.contract, Prefix+"/ai/accounts/{number}/models", func(ctx context.Context, in *aiAccountPath) (*output[[]ai.Model], error) {
+	huma.Get(s.contract, Prefix+"/ai/accounts/{number}/models", func(ctx context.Context, in *aiAccountModelsPath) (*output[[]ai.Model], error) {
 		provider, err := s.library.AIAccountProvider(ctx, in.Number)
 		if err != nil {
 			return nil, huma.Error400BadRequest(err.Error())
@@ -102,7 +103,7 @@ func (s *Server) aiServiceRoutes() {
 		if err != nil {
 			return nil, huma.Error502BadGateway(err.Error())
 		}
-		return response(models, nil)
+		return response(ai.ModelsForFeature(in.Feature, models), nil)
 	})
 	huma.Post(s.contract, Prefix+"/ai/accounts/{number}/connect", func(ctx context.Context, in *aiAccountAction) (*output[struct {
 		URL string `json:"url"`

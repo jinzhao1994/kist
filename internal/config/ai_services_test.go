@@ -24,7 +24,7 @@ func serviceConfig() *Config {
 		},
 		Features: map[string]ai.Feature{
 			"ocr":           {Account: 1, Model: "synthetic-vision", ReasoningEffort: "low", ImageDetail: "original"},
-			"transcription": {Account: 2, Model: "synthetic-transcription"},
+			"transcription": {Account: 2, Model: "gpt-transcribe"},
 		},
 	}
 	return c
@@ -79,6 +79,7 @@ func TestAIServicesValidationRejectsDanglingAndAmbiguousRoutes(t *testing.T) {
 		{"unknown proxy", "accounts.1.proxy", func(s *ai.Services) { s.Accounts[1].Proxy = 7 }},
 		{"unknown account", "features.ocr.account", func(s *ai.Services) { s.Features["ocr"] = ai.Feature{Account: 7} }},
 		{"transcription login", "features.transcription.account", func(s *ai.Services) { s.Features["transcription"] = ai.Feature{Account: 1} }},
+		{"transcription model", "features.transcription.model", func(s *ai.Services) { s.Features["transcription"] = ai.Feature{Account: 2, Model: "gpt-6-luna"} }},
 		{"transcription controls", "features.transcription.model", func(s *ai.Services) { s.Features["transcription"] = ai.Feature{Account: 2, ImageDetail: "high"} }},
 		{"invalid host", "proxies.1.host", func(s *ai.Services) { s.Proxies[1].Host = "https://invalid.example" }},
 		{"invalid port", "proxies.1.port", func(s *ai.Services) { s.Proxies[1].Port = 65536 }},

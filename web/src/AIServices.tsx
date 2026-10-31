@@ -246,9 +246,19 @@ export function AIConnection({
     setCreatingAccount(undefined);
     setLocalErrors({});
   }, [reloadVersion, queries]);
+  const creationRequiresLogin = !!draft?.accounts?.some(
+    (a) => a.number === creatingAccount && a.type === "chatgpt" && !a.connected,
+  );
   useEffect(() => {
-    onDraftChange?.(dirty && pending ? { value: pending } : null);
-  }, [dirty, pending, onDraftChange]);
+    onDraftChange?.(
+      dirty && pending
+        ? {
+            value: pending,
+            ...(creationRequiresLogin ? { blocked: true } : {}),
+          }
+        : null,
+    );
+  }, [dirty, pending, onDraftChange, creationRequiresLogin]);
   useEffect(() => {
     const before = pendingAccount.current;
     pendingAccount.current = query.data?.pending_account || 0;
@@ -1409,8 +1419,10 @@ function FeatureSettings({
             <ModelInput
               id={id}
               error={error}
-              value={value.model}
+              value={value.model || definition.default_model || ""}
               account={account}
+              feature={definition.name}
+              allowedModels={definition.models || []}
               blocked={modelsBlocked}
               disabled={disabled}
               onChange={(model) => onChange({ model })}
@@ -1469,6 +1481,8 @@ function ModelInput({
   error,
   value,
   account,
+  feature,
+  allowedModels,
   blocked,
   disabled,
   onChange,
@@ -1477,6 +1491,8 @@ function ModelInput({
   error?: string;
   value: string;
   account?: Account;
+  feature: string;
+  allowedModels: string[];
   blocked: boolean;
   disabled: boolean;
   onChange: (model: string) => void;
@@ -1484,9 +1500,16 @@ function ModelInput({
   const { t } = useI18n();
   const [requested, setRequested] = useState(false);
   const models = useQuery({
-    queryKey: ["ai-account-models", account?.number],
+    queryKey: [
+      "ai-account-models",
+      account?.number,
+      ...(allowedModels.length ? [feature] : []),
+    ],
     queryFn: ({ signal }) =>
-      get<Schema["Model"][]>(`/ai/accounts/${account!.number}/models`, signal),
+      get<Schema["Model"][]>(
+        `/ai/accounts/${account!.number}/models${allowedModels.length ? `?feature=${encodeURIComponent(feature)}` : ""}`,
+        signal,
+      ),
     enabled:
       requested &&
       !!account?.connected &&
@@ -1496,34 +1519,68 @@ function ModelInput({
     staleTime: 60_000,
     retry: false,
   });
+  const choices = allowedModels.length
+    ? (models.data || allowedModels.map((id) => ({ id, name: id }))).filter(
+        (model) => allowedModels.includes(model.id),
+      )
+    : models.data || [];
+  const selectOptions = choices.map((model) => ({
+    value: model.id,
+    label:
+      model.name === model.id || !model.name
+        ? model.id
+        : `${model.id} · ${model.name}`,
+  }));
+  if (
+    allowedModels.length &&
+    !selectOptions.some((option) => option.value === value) &&
+    value
+  )
+    selectOptions.unshift({ value, label: value });
   return (
     <>
-      <Autocomplete
-        id={id}
-        value={value}
-        error={error}
-        disabled={disabled}
-        autoComplete="off"
-        placeholder={t("aiModelPlaceholder")}
-        data={(models.data || []).map((m) => ({
-          value: m.id,
-          label: m.name === m.id || !m.name ? m.id : `${m.id} · ${m.name}`,
-        }))}
-        onChange={onChange}
-        onFocus={() => setRequested(true)}
-        rightSection={
-          requested && models.isFetching ? <Loader size="xs" /> : undefined
-        }
-      />
+      {allowedModels.length ? (
+        <div onFocusCapture={() => setRequested(true)}>
+          <Select
+            id={id}
+            error={error}
+            value={value}
+            disabled={disabled}
+            options={selectOptions.map((option) => ({
+              ...option,
+              disabled:
+                !!models.data &&
+                !choices.some((model) => model.id === option.value),
+            }))}
+            onValueChange={onChange}
+          />
+        </div>
+      ) : (
+        <Autocomplete
+          id={id}
+          value={value}
+          error={error}
+          disabled={disabled}
+          autoComplete="off"
+          placeholder={t("aiModelPlaceholder")}
+          data={(models.data || []).map((m) => ({
+            value: m.id,
+            label: m.name === m.id || !m.name ? m.id : `${m.id} · ${m.name}`,
+          }))}
+          onChange={onChange}
+          onFocus={() => setRequested(true)}
+          rightSection={
+            requested && models.isFetching ? <Loader size="xs" /> : undefined
+          }
+        />
+      )}
       {requested && models.isFetching && (
         <TaskStatus>{t("aiModelsLoading")}</TaskStatus>
       )}
       {requested &&
         models.isSuccess &&
         !models.isFetching &&
-        models.data.length === 0 && (
-          <TaskStatus>{t("aiModelsEmpty")}</TaskStatus>
-        )}
+        choices.length === 0 && <TaskStatus>{t("aiModelsEmpty")}</TaskStatus>}
       {requested && models.isError && (
         <Group>
           <TaskError>{errorMessage(models.error, t)}</TaskError>

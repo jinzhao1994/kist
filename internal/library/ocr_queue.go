@@ -330,7 +330,7 @@ func (q *OCRQueue) request(ctx context.Context, id domain.FileID, retry, force b
 	}
 	if !q.eligible(j) {
 		if q.kind == "transcription" {
-			return j, errors.New("unsupported audio file for transcription")
+			return j, errors.New("unsupported audio or video file for transcription")
 		}
 		if q.kind == "desc" || q.kind == "facts" {
 			return j, errors.New("this extraction supports images, PDF, Word and PowerPoint files")
@@ -594,7 +594,7 @@ func (q *OCRQueue) stepLocked(ctx context.Context) (bool, error) {
 	}
 	model := cfg.AIOptions.Model
 	if cfg.AIServices != nil {
-		model = cfg.AIServices.Features[q.kind].Model
+		model = ai.FeatureModel(q.kind, cfg.AIServices.Features[q.kind])
 	}
 	err = q.execute(context.WithValue(ctx, aiManualContextKey{}, job.Manual), job, model, cfg.Library.Language)
 	return true, q.finishJobWithPolicy(job, err, pauseOnError)

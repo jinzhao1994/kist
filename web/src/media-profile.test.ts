@@ -3,6 +3,7 @@ import {
   mediaProfile,
   supportsDescriptionAI,
   supportsImageAI,
+  supportsTranscriptionAI,
 } from "./media-profile";
 
 it.each([
@@ -80,3 +81,57 @@ it.each(["sheet.xls", "sheet.xlsx", "table.csv", "clip.mp4"])(
     expect(supportsDescriptionAI({ name })).toBe(false);
   },
 );
+
+it.each([
+  "recording.mp3",
+  "recording.wav",
+  "recording.m4a",
+  "recording.flac",
+  "movie.mp4",
+  "movie.MOV",
+  "movie.mkv",
+  "movie.webm",
+  "movie.avi",
+])("offers speech transcription for %s", (name) => {
+  expect(supportsTranscriptionAI({ name, kind: "other" })).toBe(true);
+});
+it("does not treat documents or images as recordings", () => {
+  expect(
+    supportsTranscriptionAI({
+      name: "scan.pdf",
+      kind: "document",
+      media_type: "application/pdf",
+    }),
+  ).toBe(false);
+  expect(
+    supportsTranscriptionAI({
+      name: "scan.jpg",
+      kind: "image",
+      media_type: "image/jpeg",
+    }),
+  ).toBe(false);
+});
+
+it("offers byte-probed container fallbacks without treating text as media", () => {
+  expect(
+    supportsTranscriptionAI({
+      name: "clip.ts",
+      kind: "other",
+      media_type: "application/octet-stream",
+    }),
+  ).toBe(true);
+  expect(
+    supportsTranscriptionAI({
+      name: "recording.ogg",
+      kind: "other",
+      media_type: "application/ogg",
+    }),
+  ).toBe(true);
+  expect(
+    supportsTranscriptionAI({
+      name: "playlist.ts",
+      kind: "text",
+      media_type: "text/plain",
+    }),
+  ).toBe(false);
+});

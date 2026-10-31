@@ -2520,6 +2520,8 @@ export interface components {
         };
         FeatureDefinition: {
             account_types: string[] | null;
+            default_model?: string;
+            models?: string[] | null;
             name: string;
             options: {
                 [key: string]: string[] | null;
@@ -3487,7 +3489,9 @@ export interface operations {
     };
     "list-api-v1-ai-accounts-by-number-models": {
         parameters: {
-            query?: never;
+            query?: {
+                feature?: string;
+            };
             header?: never;
             path: {
                 number: number;

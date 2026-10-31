@@ -59,6 +59,8 @@ func FeatureNames() []string {
 }
 
 type FeatureDefinition struct {
+	Models       []string            `json:"models,omitempty"`
+	DefaultModel string              `json:"default_model,omitempty"`
 	Name         string              `json:"name"`
 	Parameters   []string            `json:"parameters"`
 	AccountTypes []string            `json:"account_types"`
@@ -81,7 +83,7 @@ func FeatureDefinitions() []FeatureDefinition {
 	for _, name := range []string{"orientation", "ocr", "desc", "facts"} {
 		definitions = append(definitions, FeatureDefinition{Name: name, Parameters: []string{"reasoning_effort", "image_detail"}, AccountTypes: []string{AccountChatGPT, AccountOpenAI}, Options: map[string][]string{"reasoning_effort": ParameterValues("reasoning_effort"), "image_detail": ParameterValues("image_detail")}})
 	}
-	return append(definitions, FeatureDefinition{Name: "transcription", Parameters: []string{}, AccountTypes: []string{AccountOpenAI}, Options: map[string][]string{}})
+	return append(definitions, FeatureDefinition{Name: "transcription", Models: TranscriptionModels(), DefaultModel: DefaultTranscriptionModel, Parameters: []string{}, AccountTypes: []string{AccountOpenAI}, Options: map[string][]string{}})
 }
 
 func (s Services) Account(number int64) (Account, bool) {

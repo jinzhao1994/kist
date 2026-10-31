@@ -4763,9 +4763,14 @@ for (const scenario of [
           .and(editor.locator("input"))
           .fill("http://proxy.example:7890");
       await expect(table.getByRole("rowheader")).toHaveCount(count);
-      await expect(
-        settings.getByRole("button", { name: "保存", exact: true }),
-      ).toBeEnabled();
+      if (proxy)
+        await expect(
+          settings.getByRole("button", { name: "保存", exact: true }),
+        ).toBeEnabled();
+      else
+        await expect(
+          settings.getByRole("button", { name: "保存", exact: true }),
+        ).toBeDisabled();
       if (scenario.startsWith("ai-account-sign-in")) {
         await page.evaluate(() => {
           window.open = () => null;
@@ -4774,11 +4779,9 @@ for (const scenario of [
           .getByRole("button", { name: "登录并添加", exact: true })
           .click();
         await expect(editor).toHaveCount(0);
-        const added = table
-          .getByRole("row")
-          .filter({
-            has: page.getByRole("rowheader", { name: "备用账户", exact: true }),
-          });
+        const added = table.getByRole("row").filter({
+          has: page.getByRole("rowheader", { name: "备用账户", exact: true }),
+        });
         await expect(added.getByRole("status")).toHaveText(
           "已登录，保存页面后生效。临时登录保留 30 分钟。",
         );
@@ -4944,9 +4947,19 @@ for (const scenario of [
         exact: true,
       });
       await feature.scrollIntoViewIfNeeded();
+      const model = feature.getByRole("combobox", {
+        name: "模型",
+        exact: true,
+      });
+      await expect(model).toHaveValue("gpt-transcribe");
+      await model.click();
       await expect(
-        feature.getByRole("combobox", { name: "模型", exact: true }),
+        page.getByRole("option", { name: /^gpt-transcribe/ }),
       ).toBeVisible();
+      await expect(
+        page.getByRole("option", { name: /gpt-6-luna/ }),
+      ).toHaveCount(0);
+      await page.keyboard.press("Escape");
       await expect(
         feature.getByRole("combobox", { name: "思考强度", exact: true }),
       ).toHaveCount(0);

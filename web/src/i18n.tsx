@@ -101,13 +101,15 @@ export const en = {
   settingInvalidPort: "Enter a port from 1 to 65535.",
   settingInvalidAPIKey: "Enter an API key without whitespace.",
   settingInvalidModel: "Enter a model ID of at most 200 bytes.",
+  settingInvalidTranscriptionModel:
+    "Choose a model supported by file transcription.",
   transcriptionTitle: "Speech to text",
-  transcriptionExtract: "Transcribe audio",
-  transcriptionAuto: "Automatically transcribe new audio files",
+  transcriptionExtract: "Transcribe speech",
+  transcriptionAuto: "Automatically transcribe new audio and video files",
   transcriptionAutoHint:
-    "Only supported audio files added after enabling this setting. Existing files use Background tasks.",
+    "Only supported audio and video files added after enabling this setting. Existing files use Background tasks.",
   transcriptionBackfillHint:
-    "Send supported audio files without a transcript to the selected API account. The input limit is 25 MB. Human edits remain protected.",
+    "Transcribe supported audio and video through the selected OpenAI API account. Videos send only audio. Media requiring conversion is limited to six hours and processed in segments. Human edits remain protected.",
   transcriptionText: "Transcript",
 
   factsTitle: "Structured information",
@@ -272,6 +274,7 @@ export const en = {
   aiConnected: "Connected",
   aiSignIn: "Sign in",
   aiSignInAndAdd: "Sign in and add",
+  aiCreateFinishSignIn: "Complete account sign-in before saving.",
   aiSigningIn: "Waiting for sign-in…",
   aiSignInPendingSave: "Complete sign-in before saving.",
   aiSignInUnsaved:
@@ -1271,13 +1274,14 @@ export const zh: Record<MessageKey, string> = {
   settingInvalidPort: "端口应在 1 至 65535 之间。",
   settingInvalidAPIKey: "API Key 中不能包含空白字符。",
   settingInvalidModel: "请填写不超过 200 字节的模型 ID。",
+  settingInvalidTranscriptionModel: "请选择支持文件语音转录的模型。",
   transcriptionTitle: "语音转文字",
   transcriptionExtract: "转录语音",
-  transcriptionAuto: "自动转录新增音频文件",
+  transcriptionAuto: "自动转录新增音视频文件",
   transcriptionAutoHint:
-    "仅处理启用后新增且支持的音频文件，已有文件可在后台任务中补全。",
+    "仅处理启用后新增且支持的音视频文件，已有文件可在后台任务中补全。",
   transcriptionBackfillHint:
-    "将尚未转录且支持的音频文件发送给所选 API 账户，输入上限为 25 MB；人工修改的正文保持受保护。",
+    "通过所选 OpenAI API 账户转录音视频。视频仅发送音轨；需要转换的文件最多 6 小时，按段处理。人工修改的正文保持受保护。",
   transcriptionText: "转录文字",
 
   factsTitle: "结构化信息",
@@ -1429,6 +1433,7 @@ export const zh: Record<MessageKey, string> = {
   aiConnected: "已连接",
   aiSignIn: "登录",
   aiSignInAndAdd: "登录并添加",
+  aiCreateFinishSignIn: "请先完成新建账户的登录。",
   aiSigningIn: "正在等待登录…",
   aiSignInPendingSave: "请先完成登录，再保存设置。",
   aiSignInUnsaved: "已登录，保存页面后生效。临时登录保留 30 分钟。",

@@ -68,7 +68,7 @@ func TestAPITranscriptionMultipartAndCompleteResult(t *testing.T) {
 			return
 		}
 		defer r.MultipartForm.RemoveAll()
-		if r.FormValue("model") != "synthetic-transcription" || r.FormValue("prompt") != "Synthetic terms" || r.FormValue("response_format") != "json" {
+		if r.FormValue("model") != "gpt-transcribe" || r.FormValue("prompt") != "Synthetic terms" || r.FormValue("response_format") != "json" {
 			t.Error("lost transcription fields")
 		}
 		if r.FormValue("reasoning") != "" || r.FormValue("detail") != "" {
@@ -88,8 +88,8 @@ func TestAPITranscriptionMultipartAndCompleteResult(t *testing.T) {
 	}))
 	defer server.Close()
 	client := Client{APIKey: true, Token: "synthetic-api-key", BaseURL: server.URL, HTTP: server.Client()}
-	result, err := client.Transcribe(context.Background(), "synthetic-transcription", ai.Audio{Name: "sample.wav", MIME: "audio/wav", Data: []byte("RIFF synthetic recording")}, ai.TextOptions{Supplement: "Synthetic terms"})
-	if err != nil || result.Text != "A synthetic transcript." || result.Model != "synthetic-transcription" {
+	result, err := client.Transcribe(context.Background(), "gpt-transcribe", ai.Audio{Name: "sample.wav", MIME: "audio/wav", Data: []byte("RIFF synthetic recording")}, ai.TextOptions{Supplement: "Synthetic terms"})
+	if err != nil || result.Text != "A synthetic transcript." || result.Model != "gpt-transcribe" {
 		t.Fatal(result, err)
 	}
 }
@@ -102,13 +102,18 @@ func TestTranscriptionRejectsUnsupportedInputAndInvalidResponses(t *testing.T) {
 	client := Client{APIKey: true, Token: "synthetic-api-key", BaseURL: server.URL, HTTP: server.Client()}
 	good := ai.Audio{Name: "test.wav", MIME: "audio/wav", Data: []byte("synthetic")}
 	for _, audio := range []ai.Audio{{Name: "file.txt", Data: []byte("synthetic")}, {Name: "test.wav"}, {Name: "test.wav", Data: make([]byte, ai.MaxAudioBytes+1)}} {
-		if _, err := client.Transcribe(context.Background(), "synthetic", audio, ai.TextOptions{}); err == nil {
+		if _, err := client.Transcribe(context.Background(), "gpt-transcribe", audio, ai.TextOptions{}); err == nil {
 			t.Fatal("accepted unsupported input")
+		}
+	}
+	for _, model := range []string{"gpt-6-luna", "gpt-live-transcribe", "gpt-4o-transcribe-diarize"} {
+		if _, err := client.Transcribe(context.Background(), model, good, ai.TextOptions{}); err == nil {
+			t.Fatal("incompatible model accepted")
 		}
 	}
 	login := client
 	login.APIKey = false
-	if _, err := login.Transcribe(context.Background(), "synthetic", good, ai.TextOptions{}); err == nil {
+	if _, err := login.Transcribe(context.Background(), "gpt-transcribe", good, ai.TextOptions{}); err == nil {
 		t.Fatal("accepted ChatGPT account")
 	}
 	if calls != 0 {
@@ -116,12 +121,12 @@ func TestTranscriptionRejectsUnsupportedInputAndInvalidResponses(t *testing.T) {
 	}
 	for _, value := range []string{"{}", `{"text":null}`, `{"text":1}`, `{"text":"partial"`, strings.Repeat("x", 2*ai.MaxTextBytes+1)} {
 		response = value
-		if result, err := client.Transcribe(context.Background(), "synthetic", good, ai.TextOptions{}); err == nil || result.Text != "" {
+		if result, err := client.Transcribe(context.Background(), "gpt-transcribe", good, ai.TextOptions{}); err == nil || result.Text != "" {
 			t.Fatal("incomplete response escaped")
 		}
 	}
 	response = `{"text":""}`
-	if _, err := client.Transcribe(context.Background(), "synthetic", good, ai.TextOptions{}); err != nil {
+	if _, err := client.Transcribe(context.Background(), "gpt-transcribe", good, ai.TextOptions{}); err != nil {
 		t.Fatal("valid silence rejected", err)
 	}
 }

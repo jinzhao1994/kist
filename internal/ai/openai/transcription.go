@@ -19,6 +19,9 @@ import (
 // Transcribe uses the API account's file transcription endpoint. No upload is
 // attempted for unsupported inputs, and a partial transcript is never saved.
 func (c Client) Transcribe(ctx context.Context, model string, audio ai.Audio, options ai.TextOptions) (ai.TextResult, error) {
+	if !ai.SupportedTranscriptionModel(model) {
+		return ai.TextResult{}, errors.New("choose a model supported by file transcription")
+	}
 	if !c.APIKey {
 		return ai.TextResult{}, errors.New("transcription requires an OpenAI API account")
 	}

@@ -62,14 +62,20 @@ export function supportsDescriptionAI(
   );
 }
 
-// UI availability is a hint; the server checks actual audio bytes and limits.
+// UI availability is a hint; the server validates bytes and the audio stream.
 export function supportsTranscriptionAI(
   file: Pick<ArchiveFile, "name" | "kind" | "media_type">,
 ) {
   return (
     file.kind === "audio" ||
-    (file.media_type
-      ? file.media_type.startsWith("audio/")
-      : /\.(?:mp3|wav|m4a|flac|ogg|mpga|webm)$/i.test(file.name))
+    file.kind === "video" ||
+    /^(audio|video)\//.test(file.media_type || "") ||
+    ((!file.media_type ||
+      ["application/octet-stream", "application/ogg"].includes(
+        file.media_type,
+      )) &&
+      /\.(?:mp3|wav|m4a|m4b|flac|ogg|opus|mpga|webm|mp4|m4v|mov|mkv|avi|mpeg|mpg|wmv|flv|ts|mts|m2ts|aac|wma)$/i.test(
+        file.name,
+      ))
   );
 }
