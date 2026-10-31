@@ -196,7 +196,11 @@ function reads(view = aiServicesFixture()) {
   return fetch;
 }
 
-it("tests a saved account explicitly and displays its full model list", async () => {
+it("tests a saved account explicitly and displays only the catalog summary", async () => {
+  const models = Array.from(
+    { length: 130 },
+    (_, index) => `synthetic-model-${index}`,
+  );
   let finish!: (value: Response) => void;
   const fetch = vi.fn((path: string, init?: RequestInit) =>
     path.endsWith("/accounts/1/test")
@@ -229,28 +233,24 @@ it("tests a saved account explicitly and displays its full model list", async ()
   );
   finish(
     Response.json({
-      models: ["synthetic-model-a", "synthetic-model-b"],
+      models,
       elapsed_ms: 120,
       error: "",
     }),
   );
   await waitFor(() =>
     expect(within(row).getByRole("status")).toHaveTextContent(
-      "Test passed · 2 models · 120 ms",
+      "Test passed · 130 models · 120 ms",
     ),
   );
-  expect(
-    within(row).getByText("synthetic-model-a, synthetic-model-b"),
-  ).toBeVisible();
+  expect(within(row).queryByText(/synthetic-model-/)).not.toBeInTheDocument();
   expect(within(row).getByText("Configured")).toBeVisible();
   await userEvent.click(within(row).getByRole("button", { name: "Edit" }));
   const editor = screen.getByRole("region", { name: "Edit AI account" });
   await fill(within(editor).getByRole("textbox", { name: "Name" }), "Changed");
   await userEvent.click(within(editor).getByRole("button", { name: "Done" }));
   expect(screen.getByRole("button", { name: "Test" })).toBeDisabled();
-  expect(
-    screen.queryByText("synthetic-model-a, synthetic-model-b"),
-  ).not.toBeInTheDocument();
+  expect(within(row).queryByRole("status")).not.toBeInTheDocument();
   unmount();
   client.clear();
 });

@@ -4608,7 +4608,7 @@ for (const scenario of [
           row.getByText("synthetic-vision, synthetic-text, synthetic-audio", {
             exact: true,
           }),
-        ).toBeVisible();
+        ).toHaveCount(0);
       }
       await expect(test).toBeEnabled();
       await expect(row.getByText("已配置", { exact: true })).toBeVisible();

@@ -1000,19 +1000,12 @@ export function AIConnection({
                   connection: "aiAccountTestConnection",
                   service: "aiAccountTestService",
                 }}
-                success={(value) => (
-                  <>
-                    {t("aiAccountTestResult", {
-                      count: value.models?.length || 0,
-                      ms: value.elapsed_ms,
-                    })}
-                    {!!value.models?.length && (
-                      <span className="connection-test-models">
-                        {value.models.join(", ")}
-                      </span>
-                    )}
-                  </>
-                )}
+                success={(value) =>
+                  t("aiAccountTestResult", {
+                    count: value.models?.length || 0,
+                    ms: value.elapsed_ms,
+                  })
+                }
               >
                 {({ action, feedback, testing }) => (
                   <>
