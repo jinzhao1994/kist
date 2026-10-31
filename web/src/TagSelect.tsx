@@ -2,6 +2,7 @@ import { Combobox, InputBase, ScrollArea, useCombobox } from "@mantine/core";
 import { useState } from "react";
 import { TagPath, type TagOption } from "./TagPath";
 import { useI18n } from "./i18n";
+import { SelectOptionContent } from "./Select";
 
 // A button target preserves rich path labels when closed; search stays in
 // the dropdown so it never replaces the selected label with indented text.
@@ -89,8 +90,11 @@ export function TagSelect({
                   value={option.value}
                   aria-label={option.label}
                   active={option.value === value}
+                  aria-selected={option.value === value}
                 >
-                  <TagPath option={option} />
+                  <SelectOptionContent selected={option.value === value}>
+                    <TagPath option={option} />
+                  </SelectOptionContent>
                 </Combobox.Option>
               ))
             ) : (

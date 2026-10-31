@@ -2437,6 +2437,35 @@ main.upload-drag-active {
   flex: 1;
 }
 
+.select-option-content {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+.select-option-label {
+  flex: 1;
+  min-inline-size: 0;
+}
+.select-option-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 12px;
+  block-size: 12px;
+}
+.select-option-content[data-selected] {
+  color: var(--mantine-primary-color-filled);
+}
+.select-option-content[data-selected] > .select-option-label {
+  color: inherit;
+}
+.mantine-Combobox-option:has(.select-option-content)[data-combobox-selected],
+.mantine-Select-option:has(.select-option-content)[data-combobox-selected] {
+  background-color: var(--mantine-primary-color-light);
+  color: var(--text);
+}
 .select-special-option {
   color: var(--muted);
   font-size: 12px;

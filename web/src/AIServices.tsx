@@ -1579,6 +1579,19 @@ function ModelInput({
           disabled={disabled}
           searchable
           placeholder={t("aiModelPlaceholder")}
+          onBeforeOpen={async () => {
+            if (
+              !models.isFetching &&
+              (blocked ||
+                !account?.connected ||
+                account.number <= 0 ||
+                models.isError ||
+                (models.isSuccess && !models.isStale))
+            )
+              return true;
+            const next = await models.refetch({ cancelRefetch: false });
+            return !next.isError;
+          }}
           options={selectOptions.map((option) => ({
             ...option,
             disabled:

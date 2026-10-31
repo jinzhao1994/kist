@@ -9,9 +9,35 @@ import {
   useCombobox,
   type SelectProps,
 } from "@mantine/core";
-import { useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useI18n } from "./i18n";
 import { InputChevron } from "./InputChevron";
+
+export function SelectOptionContent({
+  selected,
+  special = false,
+  children,
+}: {
+  selected: boolean;
+  special?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <span
+      className="select-option-content"
+      data-selected={selected || undefined}
+    >
+      <span
+        className={`select-option-label${special ? " select-special-option" : ""}`}
+      >
+        {children}
+      </span>
+      <span className="select-option-check" aria-hidden="true">
+        {selected && <CheckIcon size={12} />}
+      </span>
+    </span>
+  );
+}
 
 export function Select({
   id,
@@ -28,6 +54,7 @@ export function Select({
   nothingFoundMessage,
   placeholder,
   getCreateLabel,
+  onBeforeOpen,
 }: {
   id?: string;
   "aria-label"?: string;
@@ -48,9 +75,11 @@ export function Select({
   nothingFoundMessage?: string;
   placeholder?: string;
   getCreateLabel?: (value: string) => string;
+  onBeforeOpen?: () => boolean | Promise<boolean>;
 }) {
   const { t } = useI18n();
   const [search, setSearch] = useState("");
+  const openAttempt = useRef(0);
   const store = useCombobox({
     onDropdownOpen: () => store.focusSearchInput(),
     onDropdownClose: () => {
@@ -58,26 +87,49 @@ export function Select({
       store.resetSelectedOption();
     },
   });
+  async function requestOpen() {
+    const attempt = ++openAttempt.current;
+    try {
+      if (onBeforeOpen && !(await onBeforeOpen())) return;
+    } catch {
+      // The caller owns loading and error feedback for deferred options.
+      return;
+    }
+    const target = store.targetRef.current;
+    if (
+      attempt !== openAttempt.current ||
+      !target ||
+      target.matches(":disabled") ||
+      document.activeElement !== target ||
+      !document.hasFocus()
+    )
+      return;
+    store.openDropdown();
+  }
+  const dropdownStore: typeof store = {
+    ...store,
+    openDropdown: () => {
+      void requestOpen();
+    },
+    closeDropdown: () => {
+      openAttempt.current++;
+      store.closeDropdown();
+    },
+    toggleDropdown: () => {
+      if (store.dropdownOpened) dropdownStore.closeDropdown();
+      else void requestOpen();
+    },
+  };
   const renderItem: NonNullable<SelectProps["renderOption"]> = (item) => (
-    <>
-      {!renderOption && item.checked && (
-        <CheckIcon
-          size={12}
-          aria-hidden="true"
-          style={{ flexShrink: 0, opacity: 0.4 }}
-        />
-      )}
-      <span
-        className={
-          item.option.value === "" ||
-          options.find((option) => option.value === item.option.value)?.special
-            ? "select-special-option"
-            : undefined
-        }
-      >
-        {renderOption ? renderOption(item) : item.option.label}
-      </span>
-    </>
+    <SelectOptionContent
+      selected={!!item.checked}
+      special={
+        item.option.value === "" ||
+        options.find((option) => option.value === item.option.value)?.special
+      }
+    >
+      {renderOption ? renderOption(item) : item.option.label}
+    </SelectOptionContent>
   );
   if (searchable) {
     const selected = options.find((option) => option.value === value);
@@ -94,13 +146,13 @@ export function Select({
     );
     return (
       <Combobox
-        store={store}
+        store={dropdownStore}
         keepMounted={false}
         withinPortal
         returnFocus
         onOptionSubmit={(next) => {
           onValueChange(next);
-          store.closeDropdown();
+          dropdownStore.closeDropdown();
           store.focusTarget();
         }}
       >
@@ -116,13 +168,16 @@ export function Select({
             role="combobox"
             disabled={disabled}
             pointer
+            onBlur={() => {
+              openAttempt.current++;
+            }}
             rightSection={<InputChevron error={!!error} />}
             rightSectionPointerEvents="none"
             classNames={{
               root: "searchable-select",
               input: "tag-select-input",
             }}
-            onClick={() => store.toggleDropdown()}
+            onClick={() => dropdownStore.toggleDropdown()}
           >
             <FloatingTooltip
               label={selected?.label}
@@ -151,7 +206,7 @@ export function Select({
             }}
             onKeyDown={(event) => {
               if (event.key === "Tab") {
-                store.closeDropdown();
+                dropdownStore.closeDropdown();
                 store.focusTarget();
               }
             }}
@@ -166,6 +221,7 @@ export function Select({
                   value={option.value}
                   aria-label={option.label}
                   active={option.value === value}
+                  aria-selected={option.value === value}
                   disabled={option.disabled}
                 >
                   {renderItem({ option, checked: option.value === value })}
@@ -173,7 +229,9 @@ export function Select({
               ))}
               {customValue && (
                 <Combobox.Option value={customValue}>
-                  {getCreateLabel!(customValue)}
+                  <SelectOptionContent selected={false}>
+                    {getCreateLabel!(customValue)}
+                  </SelectOptionContent>
                 </Combobox.Option>
               )}
               {!visible.length && !customValue && (

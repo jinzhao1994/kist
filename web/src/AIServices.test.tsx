@@ -409,15 +409,19 @@ it("loads a selected account catalog on focus and preserves independent feature 
   await userEvent.click(model);
   expect(await screen.findByText("Loading models…")).toBeInTheDocument();
   expect(model).toBeEnabled();
-  const search = screen.getByRole("textbox", { name: "Search options" });
-  expect(search).toHaveValue("");
-  expect(search).toHaveFocus();
+  expect(
+    screen.queryByRole("textbox", { name: "Search options" }),
+  ).not.toBeInTheDocument();
+  expect(model).toHaveAttribute("aria-expanded", "false");
   release(
     Response.json([
       { id: "second-model", name: "Second model" },
       { id: "other-model", name: "Other model" },
     ]),
   );
+  const search = await screen.findByRole("textbox", { name: "Search options" });
+  expect(search).toHaveValue("");
+  await waitFor(() => expect(search).toHaveFocus());
   expect(
     await screen.findByRole("option", { name: "other-model · Other model" }),
   ).toBeVisible();
@@ -977,7 +981,7 @@ it("keeps model search separate from the chosen value and explicitly accepts cus
   const model = within(ocr).getByRole("combobox", { name: "Model" });
   expect(model).toHaveTextContent("gpt-6-luna");
   await userEvent.click(model);
-  let search = screen.getByRole("textbox", { name: "Search options" });
+  let search = await screen.findByRole("textbox", { name: "Search options" });
   expect(search).toHaveValue("");
   await fill(search, "private-vision-model");
   expect(changed.mock.lastCall?.[0]).toBeNull();
@@ -1007,3 +1011,60 @@ it("keeps model search separate from the chosen value and explicitly accepts cus
   unmount();
   client.clear();
 });
+
+it.each(["blur", "escape", "failure"])(
+  "does not open a delayed model list after %s",
+  async (outcome) => {
+    let finish!: (value: Response) => void;
+    const fetch = vi.fn(async (path: string) =>
+      path.includes("/models")
+        ? new Promise<Response>((resolve) => {
+            finish = resolve;
+          })
+        : Response.json(
+            path.endsWith("/services")
+              ? aiServicesFixture()
+              : { supported: true },
+          ),
+    );
+    vi.stubGlobal("fetch", fetch);
+    const { client, unmount } = mount(<AIConnection />);
+    const region = await screen.findByRole("region", {
+      name: "Text recognition (OCR)",
+    });
+    const model = within(region).getByRole("combobox", { name: "Model" });
+    await userEvent.click(model);
+    await screen.findByText("Loading models…");
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    const automatic = within(region).getByRole("checkbox", {
+      name: "Automatically recognize new images",
+    });
+    if (outcome === "blur") await userEvent.click(automatic);
+    if (outcome === "escape") await userEvent.keyboard("{Escape}");
+    finish(
+      outcome === "failure"
+        ? Response.json(
+            { code: "internal", message: "Catalog unavailable" },
+            { status: 502 },
+          )
+        : Response.json([{ id: "another-model", name: "Another model" }]),
+    );
+    await waitFor(() =>
+      expect(screen.queryByText("Loading models…")).not.toBeInTheDocument(),
+    );
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    if (outcome === "blur") expect(automatic).toHaveFocus();
+    if (outcome === "failure") {
+      expect(screen.getByText(/Catalog unavailable/)).toBeVisible();
+      await userEvent.click(model);
+      expect(
+        await screen.findByRole("textbox", { name: "Search options" }),
+      ).toBeVisible();
+      expect(
+        fetch.mock.calls.filter(([path]) => path.includes("/models")),
+      ).toHaveLength(1);
+    }
+    unmount();
+    client.clear();
+  },
+);

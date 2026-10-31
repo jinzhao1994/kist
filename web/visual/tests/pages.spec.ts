@@ -5327,6 +5327,35 @@ for (const scenario of [
         "synthetic-vision · Synthetic vision",
         "synthetic-text · Synthetic text",
       ]);
+      const selected = page.getByRole("option", {
+        name: "gpt-6-luna · GPT-6 Luna",
+        exact: true,
+      });
+      await expect(selected).toHaveAttribute("aria-selected", "true");
+      const label = selected.locator(".select-option-label");
+      const check = selected.locator(".select-option-check svg");
+      const labelBounds = (await label.boundingBox())!;
+      const checkBounds = (await check.boundingBox())!;
+      expect(checkBounds.x).toBeGreaterThanOrEqual(
+        labelBounds.x + labelBounds.width,
+      );
+      const accent = await settings
+        .locator(".text-action-link:not(:disabled)")
+        .first()
+        .evaluate((node) => getComputedStyle(node).color);
+      await expect(label).toHaveCSS("color", accent);
+      const rowBounds = await page.getByRole("option").evaluateAll((options) =>
+        options.map((option) => ({
+          height: option.getBoundingClientRect().height,
+          x: option
+            .querySelector(".select-option-label")!
+            .getBoundingClientRect().x,
+        })),
+      );
+      for (const row of rowBounds) {
+        expect(Math.abs(row.height - rowBounds[0].height)).toBeLessThan(1);
+        expect(Math.abs(row.x - rowBounds[0].x)).toBeLessThan(1);
+      }
       if (scenario === "ai-model-custom") {
         await search.fill("private-vision-model");
         await expect(
@@ -5350,12 +5379,19 @@ for (const scenario of [
       await expect(
         page.getByRole("checkbox", { name: "自动识别新增图片" }),
       ).toBeVisible();
-      if (scenario === "ai-loading")
+      if (scenario === "ai-loading") {
         await expect(
           page.getByText("正在加载模型列表…", { exact: true }),
         ).toBeVisible();
-      if (scenario === "ai-error")
+        await expect(page.getByRole("listbox")).toHaveCount(0);
+        await expect(
+          page.getByRole("textbox", { name: "搜索选项", exact: true }),
+        ).toHaveCount(0);
+      }
+      if (scenario === "ai-error") {
         await expect(page.getByText(/Model service unavailable/)).toBeVisible();
+        await expect(page.getByRole("listbox")).toHaveCount(0);
+      }
       if (scenario === "ai-empty")
         await expect(
           page.getByText("当前账号没有可用模型。", { exact: true }),
