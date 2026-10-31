@@ -162,14 +162,6 @@ export function LocationSettings({
         {query.isPending && <Text role="status">{t("mapLoading")}</Text>}
         {draft && (
           <div className="settings-fields">
-            <SettingsCheckbox
-              label={t("geoAuto")}
-              action={resetAction("automatic")}
-              help={t("geoAutoHint")}
-              checked={draft.automatic}
-              disabled={disabled || busy}
-              onChange={(e) => edit({ automatic: e.currentTarget.checked })}
-            />
             <div
               className="setting-field"
               data-setting-field="geocoding.endpoint"
@@ -211,6 +203,14 @@ export function LocationSettings({
                 />
               </div>
             </SettingsFieldRow>
+            <SettingsCheckbox
+              label={t("geoAuto")}
+              action={resetAction("automatic")}
+              help={t("geoAutoHint")}
+              checked={draft.automatic}
+              disabled={disabled || busy}
+              onChange={(e) => edit({ automatic: e.currentTarget.checked })}
+            />
             <SettingsCheckbox
               label={t("backgroundPauseOnError")}
               action={resetAction("pause_on_error")}

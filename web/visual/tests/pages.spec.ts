@@ -4657,34 +4657,36 @@ for (const scenario of [
         expect(detail.width).toBeGreaterThan(reasoning.width * 1.4);
         expect(detail.width).toBeLessThan(reasoning.width * 1.6);
       }
-      const ocr = settings.getByRole("region", { name: "OCR", exact: true });
-      const automatic = await ocr
-        .getByRole("checkbox", { name: "自动识别新增图片", exact: true })
-        .boundingBox();
-      const account = await fieldBounds("ai_services.features.ocr.account");
-      expect(automatic!.y).toBeLessThan(account.y);
-      await expect(
-        ocr.getByRole("checkbox", { name: "失败后暂停后台处理", exact: true }),
-      ).toBeChecked();
-      const orientation = settings.getByRole("region", {
-        name: "图片方向",
-        exact: true,
-      });
-      const orientationDetail = await fieldBounds(
-        "ai_services.features.orientation.image_detail",
-      );
-      const orientationAuto = await orientation
-        .getByRole("checkbox", { name: "自动校正新增图片方向", exact: true })
-        .boundingBox();
-      const orientationPause = await orientation
-        .getByRole("checkbox", { name: "失败后暂停后台处理", exact: true })
-        .boundingBox();
-      expect(orientationAuto!.y).toBeGreaterThanOrEqual(
-        orientationDetail.y + orientationDetail.height,
-      );
-      expect(orientationPause!.y).toBeGreaterThan(
-        orientationAuto!.y + orientationAuto!.height,
-      );
+      for (const [feature, title, automaticLabel] of [
+        ["orientation", "图片方向", "自动校正新增图片方向"],
+        ["ocr", "OCR", "自动识别新增图片"],
+        ["desc", "描述", "自动描述新增文件"],
+        ["facts", "结构化信息", "自动提取新增文件的结构化信息"],
+        ["transcription", "语音转文字", "自动转录新增音视频文件"],
+      ]) {
+        const region = settings.getByRole("region", {
+          name: title,
+          exact: true,
+        });
+        const lastParameter = await fieldBounds(
+          `ai_services.features.${feature}.${feature === "transcription" ? "model" : "image_detail"}`,
+        );
+        const automatic = await region
+          .getByRole("checkbox", { name: automaticLabel, exact: true })
+          .boundingBox();
+        const failurePolicy = region.getByRole("checkbox", {
+          name: "失败后暂停后台处理",
+          exact: true,
+        });
+        const failureBounds = await failurePolicy.boundingBox();
+        expect(automatic!.y).toBeGreaterThanOrEqual(
+          lastParameter.y + lastParameter.height,
+        );
+        expect(failureBounds!.y).toBeGreaterThan(
+          automatic!.y + automatic!.height,
+        );
+        await expect(failurePolicy).toBeChecked();
+      }
     }
     if (scenario === "ai-proxy-test" || scenario === "ai-proxy-test-error") {
       const table = settings.getByRole("table", { name: "代理", exact: true });
@@ -5086,6 +5088,17 @@ for (const scenario of [
       const endpoint = await fieldBounds("geocoding.endpoint"),
         interval = await fieldBounds("geocoding.request_interval_seconds");
       expect(interval.width).toBeLessThan(endpoint.width * 0.6);
+      const section = settings.locator("#settings-location");
+      const automatic = await section
+        .getByRole("checkbox", { name: "自动查询新增文件的位置", exact: true })
+        .boundingBox();
+      const failurePolicy = await section
+        .getByRole("checkbox", { name: "失败后暂停后台处理", exact: true })
+        .boundingBox();
+      expect(automatic!.y).toBeGreaterThanOrEqual(interval.y + interval.height);
+      expect(failurePolicy!.y).toBeGreaterThan(
+        automatic!.y + automatic!.height,
+      );
       await expect(
         settings.locator("#settings-location-title"),
       ).toBeInViewport();

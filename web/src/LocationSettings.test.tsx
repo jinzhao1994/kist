@@ -107,11 +107,12 @@ it("resets every GPS field in the draft and saves reset intent only on demand", 
   ).toBeEnabled();
   await user.click(screen.getByRole("button", { name: "Save GPS settings" }));
   await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0].reset).toHaveLength(3);
   expect(writes[0]).toEqual({
     ...defaults,
     request_interval_seconds: 5,
     revision: "one",
-    reset: ["automatic", "endpoint", "pause_on_error"],
+    reset: expect.arrayContaining(["automatic", "endpoint", "pause_on_error"]),
     changed: ["request_interval_seconds"],
   });
   view.unmount();
@@ -191,8 +192,11 @@ it("edits endpoint policy together without starting a lookup", async () => {
     labels.indexOf("Request interval (seconds)"),
   );
   expect(labels.indexOf("Request interval (seconds)")).toBeLessThan(
-    labels.indexOf("Pause background processing on failure"),
+    labels.indexOf("Look up locations of new files automatically"),
   );
+  expect(
+    labels.indexOf("Look up locations of new files automatically"),
+  ).toBeLessThan(labels.indexOf("Pause background processing on failure"));
   view.unmount();
   client.clear();
 });

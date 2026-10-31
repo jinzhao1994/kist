@@ -890,32 +890,30 @@ it("keeps per-feature failure policy in the page draft and can restore the inher
     name: "Pause background processing on failure",
   });
   expect(pause).toBeChecked();
-  const automatic = within(ocr).getByRole("checkbox", {
-    name: "Automatically recognize new images",
-  });
-  const account = within(ocr).getByRole("combobox", { name: "AI account" });
-  expect(
-    automatic.compareDocumentPosition(account) &
-      Node.DOCUMENT_POSITION_FOLLOWING,
-  ).toBeTruthy();
-  const orientation = screen.getByRole("region", { name: "Image orientation" });
-  const orientationDetail = within(orientation).getByRole("combobox", {
-    name: "Image detail",
-  });
-  const orientationAuto = within(orientation).getByRole("checkbox", {
-    name: "Automatically orient new images",
-  });
-  const orientationPause = within(orientation).getByRole("checkbox", {
-    name: "Pause background processing on failure",
-  });
-  expect(
-    orientationDetail.compareDocumentPosition(orientationAuto) &
-      Node.DOCUMENT_POSITION_FOLLOWING,
-  ).toBeTruthy();
-  expect(
-    orientationAuto.compareDocumentPosition(orientationPause) &
-      Node.DOCUMENT_POSITION_FOLLOWING,
-  ).toBeTruthy();
+  for (const name of [
+    "Image orientation",
+    "OCR",
+    "Description",
+    "Structured information",
+    "Speech to text",
+  ]) {
+    const region = screen.getByRole("region", { name });
+    const failurePolicy = within(region).getByRole("checkbox", {
+      name: "Pause background processing on failure",
+    });
+    const automatic = within(region)
+      .getAllByRole("checkbox")
+      .find((field) => field !== failurePolicy)!;
+    const lastParameter = within(region).getAllByRole("combobox").at(-1)!;
+    expect(
+      lastParameter.compareDocumentPosition(automatic) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      automatic.compareDocumentPosition(failurePolicy) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  }
   await userEvent.click(pause);
   await waitFor(() =>
     expect(changed.mock.lastCall?.[0]?.value.features.ocr.pause_on_error).toBe(
