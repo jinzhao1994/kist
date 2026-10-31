@@ -31,6 +31,7 @@ import {
   SettingsCheckbox,
   SettingsErrorsContext,
   SettingsFieldHeading,
+  SettingsFieldRow,
   SettingsHint,
   useSettingsError,
   useSettingsPending,
@@ -1132,58 +1133,68 @@ function FeatureSettings({
           {t(`${definition.name}BackfillHint` as MessageKey)}
         </HelpTooltip>
       </div>
-      <ServiceField path={`${path}.account`} label={t("aiAccount")}>
-        {(id, error) => (
-          <Select
-            id={id}
-            value={String(value.account)}
-            error={error}
-            disabled={disabled}
-            options={options}
-            onValueChange={(account) => onChange({ account: Number(account) })}
-          />
-        )}
-      </ServiceField>
-      <ServiceField path={`${path}.model`} label={t("aiModel")}>
-        {(id, error) => (
-          <ModelInput
-            id={id}
-            error={error}
-            value={value.model}
-            account={account}
-            blocked={modelsBlocked}
-            disabled={disabled}
-            onChange={(model) => onChange({ model })}
-          />
-        )}
-      </ServiceField>
-      {(definition.parameters || []).map((parameter) => (
-        <ServiceField
-          key={parameter}
-          path={`${path}.${parameter}`}
-          label={
-            parameter === "reasoning_effort"
-              ? t("aiReasoningEffort")
-              : parameter === "image_detail"
-                ? t("aiImageDetail")
-                : parameter
-          }
-        >
+      <SettingsFieldRow>
+        <ServiceField path={`${path}.account`} label={t("aiAccount")}>
           {(id, error) => (
             <Select
               id={id}
+              value={String(value.account)}
               error={error}
-              value={String(value[parameter as keyof Feature] || "")}
               disabled={disabled}
-              options={(definition.options[parameter] || []).map((option) => ({
-                value: option,
-                label: option || t("aiModelDefault"),
-              }))}
-              onValueChange={(next) => onChange({ [parameter]: next })}
+              options={options}
+              onValueChange={(account) =>
+                onChange({ account: Number(account) })
+              }
             />
           )}
         </ServiceField>
-      ))}
+        <ServiceField path={`${path}.model`} label={t("aiModel")}>
+          {(id, error) => (
+            <ModelInput
+              id={id}
+              error={error}
+              value={value.model}
+              account={account}
+              blocked={modelsBlocked}
+              disabled={disabled}
+              onChange={(model) => onChange({ model })}
+            />
+          )}
+        </ServiceField>
+      </SettingsFieldRow>
+      {!!definition.parameters?.length && (
+        <SettingsFieldRow>
+          {definition.parameters.map((parameter) => (
+            <ServiceField
+              key={parameter}
+              path={`${path}.${parameter}`}
+              label={
+                parameter === "reasoning_effort"
+                  ? t("aiReasoningEffort")
+                  : parameter === "image_detail"
+                    ? t("aiImageDetail")
+                    : parameter
+              }
+            >
+              {(id, error) => (
+                <Select
+                  id={id}
+                  error={error}
+                  value={String(value[parameter as keyof Feature] || "")}
+                  disabled={disabled}
+                  options={(definition.options[parameter] || []).map(
+                    (option) => ({
+                      value: option,
+                      label: option || t("aiModelDefault"),
+                    }),
+                  )}
+                  onValueChange={(next) => onChange({ [parameter]: next })}
+                />
+              )}
+            </ServiceField>
+          ))}
+        </SettingsFieldRow>
+      )}
       <SettingsCheckbox
         label={t(`${definition.name}Auto` as MessageKey)}
         help={t(`${definition.name}AutoHint` as MessageKey)}

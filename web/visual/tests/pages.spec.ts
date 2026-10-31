@@ -4141,6 +4141,7 @@ for (const scenario of [
   "ai-transcription",
   "service",
   "maps",
+  "location",
   "credentials",
   "credentials-create",
   "credentials-empty",
@@ -4258,6 +4259,15 @@ for (const scenario of [
               default: "zh-CN",
               explicit: false,
               restart: false,
+            },
+            {
+              key: "storage.link_mode",
+              kind: "select",
+              value: "",
+              default: "",
+              explicit: false,
+              restart: false,
+              options: ["", "copy", "reflink", "hardlink", "symlink"],
             },
             {
               key: "previews.cache_max_age",
@@ -4417,6 +4427,24 @@ for (const scenario of [
     }
     await page.goto("/settings");
     const settings = page.getByRole("region", { name: "设置", exact: true });
+    const fieldBounds = async (key: string) =>
+      (await settings.locator(`[data-setting-field="${key}"]`).boundingBox())!;
+    const pairedFields = async (
+      first: string,
+      second: string,
+      stacked = false,
+    ) => {
+      const a = await fieldBounds(first),
+        b = await fieldBounds(second);
+      expect(Math.abs(a.width - b.width)).toBeLessThan(1);
+      if (stacked) {
+        expect(Math.abs(a.x - b.x)).toBeLessThan(1);
+        expect(b.y).toBeGreaterThanOrEqual(a.y + a.height);
+      } else {
+        expect(Math.abs(a.y - b.y)).toBeLessThan(1);
+        expect(b.x).toBeGreaterThanOrEqual(a.x + a.width);
+      }
+    };
     await expect(settings.locator(".color-choice")).toHaveCount(colors.length);
     await expect(
       settings.getByRole("radio", { name: "蓝色", exact: true }),
@@ -4502,6 +4530,14 @@ for (const scenario of [
       await expect(
         settings.getByRole("heading", { name: "AI 功能", exact: true }),
       ).toHaveCount(0);
+      await pairedFields(
+        "ai_services.features.ocr.account",
+        "ai_services.features.ocr.model",
+      );
+      await pairedFields(
+        "ai_services.features.ocr.reasoning_effort",
+        "ai_services.features.ocr.image_detail",
+      );
     }
     if (scenario === "ai-proxy-test" || scenario === "ai-proxy-test-error") {
       const table = settings.getByRole("table", { name: "代理", exact: true });
@@ -4795,7 +4831,49 @@ for (const scenario of [
       await expect(backfill).toBeEnabled();
       await expect(row.getByText("空闲", { exact: true })).toBeVisible();
     }
+    if (
+      ["storage", "storage-mobile", "storage-dark", "client-storage"].includes(
+        scenario,
+      )
+    ) {
+      const mobile = scenario === "storage-mobile";
+      if (client)
+        await pairedFields("client.cache_max_age", "client.cache_max_bytes");
+      else {
+        await pairedFields("library.timezone", "library.language", mobile);
+        await pairedFields(
+          "previews.cache_max_age",
+          "previews.cache_max_bytes",
+          mobile,
+        );
+        await pairedFields(
+          "video.cache_max_age",
+          "video.cache_max_bytes",
+          mobile,
+        );
+        const row = settings
+          .locator('[data-setting-field="storage.link_mode"]')
+          .locator("../..");
+        const mode = await fieldBounds("storage.link_mode"),
+          container = (await row.boundingBox())!;
+        expect(mode.width).toBeLessThanOrEqual(container.width);
+        if (!mobile) expect(mode.width).toBeLessThan(container.width * 0.6);
+      }
+    }
+    if (scenario === "location") {
+      await settings.getByRole("link", { name: "GPS", exact: true }).click();
+      const endpoint = await fieldBounds("geocoding.endpoint"),
+        interval = await fieldBounds("geocoding.request_interval_seconds");
+      expect(interval.width).toBeLessThan(endpoint.width * 0.6);
+      await expect(
+        settings.locator("#settings-location-title"),
+      ).toBeInViewport();
+    }
     if (scenario === "service") {
+      await pairedFields("server.max_upload_bytes", "server.max_upload_files");
+      const listenBounds = await fieldBounds("server.listen"),
+        originsBounds = await fieldBounds("server.allowed_origins");
+      expect(listenBounds.width).toBeLessThan(originsBounds.width * 0.6);
       await settings.getByRole("link", { name: "服务", exact: true }).click();
       const origins = settings.getByRole("textbox", {
         name: "允许使用的访问网址",

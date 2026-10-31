@@ -3614,7 +3614,22 @@ main.upload-drag-active {
   gap: var(--mantine-spacing-md);
   align-items: start;
 }
-.settings-editor-wide {
+.settings-field-row {
+  container: settings-field-row / inline-size;
+}
+.settings-field-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--mantine-spacing-md);
+  align-items: start;
+}
+@container settings-field-row (min-width: 600px) {
+  .settings-field-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.settings-editor-wide,
+.settings-field-wide {
   grid-column: 1 / -1;
 }
 .settings-create-trigger[data-open="true"] {

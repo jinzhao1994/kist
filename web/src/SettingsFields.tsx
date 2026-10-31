@@ -11,6 +11,15 @@ import type { components } from "./api-schema";
 import { HelpTooltip } from "./HelpTooltip";
 import { FullTextTooltip } from "./FullTextTooltip";
 
+// Related fields share a row; a lone field leaves the second column empty.
+export function SettingsFieldRow({ children }: { children: ReactNode }) {
+  return (
+    <div className="settings-field-row">
+      <div className="settings-field-columns">{children}</div>
+    </div>
+  );
+}
+
 export type SettingsSectionDraft = { value: unknown };
 export type SettingsErrors = Record<
   string,

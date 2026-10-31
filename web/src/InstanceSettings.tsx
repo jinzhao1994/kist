@@ -3,6 +3,7 @@ import { BackgroundTasks } from "./BackgroundTasks";
 import { loadSettingsPage, settingsQueries } from "./settingsQueries";
 import {
   SettingsFieldHeading,
+  SettingsFieldRow,
   SettingsReset,
   hasSettingChange,
   SettingsErrorsContext,
@@ -82,6 +83,36 @@ function category(field: SettingField) {
       : field.key.startsWith("server.")
         ? "service"
         : "storage";
+}
+
+// Pair only settings with a shared purpose. Unknown text fields keep room for
+// URLs or descriptive content instead of being squeezed by registry order.
+function settingRows(fields: SettingField[]) {
+  const rows = new Map<string, { field: SettingField; wide: boolean }[]>();
+  for (const field of fields) {
+    const cache = field.key.match(/^(.+)\.cache_max_(?:age|bytes)$/);
+    const locale =
+      field.key === "library.timezone" || field.key === "library.language";
+    const upload = field.key.startsWith("server.max_upload_");
+    const row = cache
+      ? `${cache[1]}.cache_limits`
+      : locale
+        ? "library.locale"
+        : upload
+          ? "server.upload_limits"
+          : field.key;
+    const wide =
+      (!cache &&
+        !locale &&
+        !upload &&
+        field.key !== "server.listen" &&
+        !["select", "integer", "bytes"].includes(field.kind)) ||
+      field.key === "appearance.primary_color";
+    const values = rows.get(row) || [];
+    values.push({ field, wide });
+    rows.set(row, values);
+  }
+  return [...rows.values()];
 }
 async function request<T>(
   path: string,
@@ -401,72 +432,87 @@ export function InstanceSettings({
           {group === "storage" && (
             <StorageUsage canClearVideo={snapshot.mode === "library"} />
           )}
-          {(snapshot.fields || [])
-            .filter((field) => category(field) === group)
-            .map((field) => {
-              const changed = Object.hasOwn(draftChanges, field.key);
-              const value = changed
-                ? draftChanges[field.key] === null
-                  ? field.default
-                  : draftChanges[field.key]
-                : field.value;
-              const overridden = (snapshot.overrides || []).includes(field.key);
-              return (
-                <div
-                  key={field.key}
-                  className="setting-field"
-                  data-setting-field={field.key}
-                >
-                  <SettingInput
-                    field={field}
-                    value={value}
-                    disabled={busy}
-                    action={
-                      <SettingsReset
-                        specified={
-                          changed
-                            ? draftChanges[field.key] !== null
-                            : field.explicit
-                        }
-                        disabled={
-                          busy ||
-                          (changed
-                            ? draftChanges[field.key] === null
-                            : !field.explicit)
-                        }
-                        onReset={() => {
-                          clearFieldError(field.key);
-                          setChanges((old) => ({ ...old, [field.key]: null }));
-                        }}
-                      />
+          {settingRows(
+            (snapshot.fields || []).filter(
+              (field) => category(field) === group,
+            ),
+          ).map((row) => (
+            <SettingsFieldRow key={row[0].field.key}>
+              {row.map(({ field, wide }) => {
+                const changed = Object.hasOwn(draftChanges, field.key);
+                const value = changed
+                  ? draftChanges[field.key] === null
+                    ? field.default
+                    : draftChanges[field.key]
+                  : field.value;
+                const overridden = (snapshot.overrides || []).includes(
+                  field.key,
+                );
+                return (
+                  <div
+                    key={field.key}
+                    className={
+                      wide
+                        ? "setting-field settings-field-wide"
+                        : "setting-field"
                     }
-                    change={(value) => {
-                      clearFieldError(field.key);
-                      setChanges((old) => ({
-                        ...old,
-                        [field.key]: value,
-                      }));
-                    }}
-                  />
-                  {overridden && (
-                    <div className="setting-field-footer">
-                      <Text size="sm" c="var(--mantine-primary-color-filled)">
-                        {t("settingOverride")}{" "}
-                        {typeof snapshot.effective[field.key] === "string"
-                          ? String(snapshot.effective[field.key])
-                          : JSON.stringify(snapshot.effective[field.key])}
-                      </Text>
-                    </div>
-                  )}
-                  {!overridden &&
-                    (snapshot.restart_required || []).includes(field.key) && (
-                      <Text size="sm" c="dimmed">
-                        {t("settingRestartPending")}
-                      </Text>
+                    data-setting-field={field.key}
+                  >
+                    <SettingInput
+                      field={field}
+                      value={value}
+                      disabled={busy}
+                      action={
+                        <SettingsReset
+                          specified={
+                            changed
+                              ? draftChanges[field.key] !== null
+                              : field.explicit
+                          }
+                          disabled={
+                            busy ||
+                            (changed
+                              ? draftChanges[field.key] === null
+                              : !field.explicit)
+                          }
+                          onReset={() => {
+                            clearFieldError(field.key);
+                            setChanges((old) => ({
+                              ...old,
+                              [field.key]: null,
+                            }));
+                          }}
+                        />
+                      }
+                      change={(value) => {
+                        clearFieldError(field.key);
+                        setChanges((old) => ({
+                          ...old,
+                          [field.key]: value,
+                        }));
+                      }}
+                    />
+                    {overridden && (
+                      <div className="setting-field-footer">
+                        <Text size="sm" c="var(--mantine-primary-color-filled)">
+                          {t("settingOverride")}{" "}
+                          {typeof snapshot.effective[field.key] === "string"
+                            ? String(snapshot.effective[field.key])
+                            : JSON.stringify(snapshot.effective[field.key])}
+                        </Text>
+                      </div>
                     )}
-                </div>
-              );
-            })}
+                    {!overridden &&
+                      (snapshot.restart_required || []).includes(field.key) && (
+                        <Text size="sm" c="dimmed">
+                          {t("settingRestartPending")}
+                        </Text>
+                      )}
+                  </div>
+                );
+              })}
+            </SettingsFieldRow>
+          ))}
         </Stack>
       </section>
     );
@@ -1005,31 +1051,33 @@ function ConnectionSettings({
             type="url"
           />
         </div>
-        <div>
-          <Group className="setting-field-heading" gap="xs" mb={4}>
-            <Input.Label htmlFor={tokenId} required>
-              {t("clientToken")}
-            </Input.Label>
-            <HelpTooltip label={t("clientCredentialHelp")}>
-              {t("clientConnectionHint")}
-              {settings.credential_configured &&
-                ` ${t("settingCredentialStored")}`}
-            </HelpTooltip>
-            {settings.credential_configured && (
-              <Text size="xs" c="dimmed">
-                {t("clientCredentialSaved")}
-              </Text>
-            )}
-          </Group>
-          <PasswordInput
-            id={tokenId}
-            value={token}
-            onChange={(e) => setToken(e.currentTarget.value)}
-            disabled={busy}
-            required
-            autoComplete="off"
-          />
-        </div>
+        <SettingsFieldRow>
+          <div className="setting-field">
+            <Group className="setting-field-heading" gap="xs" mb={4}>
+              <Input.Label htmlFor={tokenId} required>
+                {t("clientToken")}
+              </Input.Label>
+              <HelpTooltip label={t("clientCredentialHelp")}>
+                {t("clientConnectionHint")}
+                {settings.credential_configured &&
+                  ` ${t("settingCredentialStored")}`}
+              </HelpTooltip>
+              {settings.credential_configured && (
+                <Text size="xs" c="dimmed">
+                  {t("clientCredentialSaved")}
+                </Text>
+              )}
+            </Group>
+            <PasswordInput
+              id={tokenId}
+              value={token}
+              onChange={(e) => setToken(e.currentTarget.value)}
+              disabled={busy}
+              required
+              autoComplete="off"
+            />
+          </div>
+        </SettingsFieldRow>
         <Checkbox
           label={t("clientAllowHTTP")}
           size="sm"

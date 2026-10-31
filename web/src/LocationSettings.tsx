@@ -3,6 +3,7 @@ import { HelpTooltip } from "./HelpTooltip";
 import {
   SettingsCheckbox,
   SettingsFieldHeading,
+  SettingsFieldRow,
   SettingsReset,
   useSettingsPending,
   settingsDraftValue,
@@ -187,25 +188,29 @@ export function LocationSettings({
                 onChange={(e) => edit({ endpoint: e.currentTarget.value })}
               />
             </div>
-            <div
-              className="setting-field"
-              data-setting-field="geocoding.request_interval_seconds"
-            >
-              <SettingsFieldHeading
-                htmlFor={intervalID}
-                label={t("geoRequestInterval")}
-                action={resetAction("request_interval_seconds")}
-                help={t("geoRequestIntervalHint")}
-              />
-              <NumberInput
-                id={intervalID}
-                error={intervalError}
-                allowDecimal={false}
-                value={draft.request_interval_seconds}
-                disabled={disabled || busy}
-                onChange={(value) => edit({ request_interval_seconds: value })}
-              />
-            </div>
+            <SettingsFieldRow>
+              <div
+                className="setting-field"
+                data-setting-field="geocoding.request_interval_seconds"
+              >
+                <SettingsFieldHeading
+                  htmlFor={intervalID}
+                  label={t("geoRequestInterval")}
+                  action={resetAction("request_interval_seconds")}
+                  help={t("geoRequestIntervalHint")}
+                />
+                <NumberInput
+                  id={intervalID}
+                  error={intervalError}
+                  allowDecimal={false}
+                  value={draft.request_interval_seconds}
+                  disabled={disabled || busy}
+                  onChange={(value) =>
+                    edit({ request_interval_seconds: value })
+                  }
+                />
+              </div>
+            </SettingsFieldRow>
             <SettingsCheckbox
               label={t("geoPauseOnError")}
               action={resetAction("pause_on_error")}
