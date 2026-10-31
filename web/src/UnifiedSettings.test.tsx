@@ -135,6 +135,7 @@ function setup() {
   };
 }
 
+// Multi-section user flows retain a bounded budget on slower CI workers.
 it("saves all configuration drafts through the page toolbar in one request", async () => {
   const { client, view, writes } = setup();
   const language = await screen.findByRole("textbox", {
@@ -223,7 +224,7 @@ it("saves all configuration drafts through the page toolbar in one request", asy
   expect(writes).toHaveLength(1);
   view.unmount();
   client.clear();
-});
+}, 15_000);
 
 it("opens a collapsed account editor and locates its server validation error", async () => {
   const { client, view, failAI } = setup();

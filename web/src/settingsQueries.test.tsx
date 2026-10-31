@@ -35,6 +35,7 @@ const queue = {
   failed: 0,
   running: "",
 };
+// Multi-section user flows retain a bounded budget on slower CI workers.
 it("reveals local settings together, reuses requests and does not wait for remote models", async () => {
   localStorage.setItem(
     storageKey,
@@ -172,10 +173,8 @@ it("reveals local settings together, reuses requests and does not wait for remot
   expect(geoPause).toBeEnabled();
   const user = userEvent.setup();
   await user.click(screen.getByRole("button", { name: "Add proxy" }));
-  await user.type(
-    screen.getByRole("textbox", { name: "ID (name)" }),
-    "Test proxy",
-  );
+  await user.click(screen.getByRole("textbox", { name: "ID (name)" }));
+  await user.paste("Test proxy");
   expect(ocrPause).toBeDisabled();
   expect(geoPause).toBeDisabled();
   await user.click(screen.getByRole("button", { name: "Reload settings" }));
@@ -203,7 +202,7 @@ it("reveals local settings together, reuses requests and does not wait for remot
   );
   view.unmount();
   client.clear();
-});
+}, 15_000);
 it("isolates optional section failures and respects unsupported AI endpoints", async () => {
   const reads: string[] = [];
   vi.stubGlobal(

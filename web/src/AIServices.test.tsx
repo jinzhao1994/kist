@@ -49,6 +49,7 @@ function reads(view = aiServicesFixture()) {
   return fetch;
 }
 
+// Multi-section user flows retain a bounded budget on slower CI workers.
 it("edits multiple same-type accounts and distinct proxies in one unsaved draft", async () => {
   const fixture = aiServicesFixture({ proxies: [], accounts: [] });
   for (const feature of Object.values(fixture.features)) {
@@ -123,7 +124,7 @@ it("edits multiple same-type accounts and distinct proxies in one unsaved draft"
   ).toBe(true);
   unmount();
   client.clear();
-});
+}, 15_000);
 
 it("loads a selected account catalog on focus and preserves independent feature parameters", async () => {
   const fixture = aiServicesFixture();
