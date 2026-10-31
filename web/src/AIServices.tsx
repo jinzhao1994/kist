@@ -99,12 +99,14 @@ function ServiceField({
   label,
   help,
   wide = false,
+  required = false,
   children,
 }: {
   path: string;
   label: string;
   help?: string;
   wide?: boolean;
+  required?: boolean;
   children: (id: string, error?: string) => ReactNode;
 }) {
   const id = useId();
@@ -114,7 +116,12 @@ function ServiceField({
       className={wide ? "setting-field settings-editor-wide" : "setting-field"}
       data-setting-field={path}
     >
-      <SettingsFieldHeading label={label} help={help} htmlFor={id} />
+      <SettingsFieldHeading
+        label={label}
+        help={help}
+        htmlFor={id}
+        required={required}
+      />
       {children(id, error)}
     </div>
   );
@@ -360,6 +367,7 @@ export function AIConnection({
       )}
     >
       <ServiceField
+        required
         path={`ai_services.proxies.${proxyIndex}.id`}
         label={t("aiObjectID")}
         help={t("aiObjectIDHint")}
@@ -368,6 +376,7 @@ export function AIConnection({
           <TextInput
             id={id}
             autoFocus
+            aria-required="true"
             value={proxy.id}
             error={error}
             disabled={locked}
@@ -420,12 +429,15 @@ export function AIConnection({
             help={t("aiProxySecretHint")}
           >
             {(id, error) => (
-              <PasswordInput
+              <TextInput
                 id={id}
+                type="text"
                 value={proxy.url}
                 error={error}
                 disabled={locked}
                 autoComplete="off"
+                spellCheck={false}
+                autoCapitalize="none"
                 onChange={(e) =>
                   proxyChange(proxy.number, {
                     url: e.currentTarget.value,

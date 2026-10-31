@@ -144,6 +144,14 @@ it("edits multiple same-type accounts and distinct proxies in one unsaved draft"
   ).not.toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "Add proxy" }));
   let editor = screen.getByRole("region", { name: "Add proxy" });
+  expect(within(editor).getByRole("textbox", { name: "Name" })).toHaveAttribute(
+    "aria-required",
+    "true",
+  );
+  expect(
+    within(editor).getByRole("textbox", { name: "Proxy address" }),
+  ).toHaveAttribute("type", "text");
+  expect(editor.querySelector('input[type="password"]')).toBeNull();
   await fill(within(editor).getByRole("textbox", { name: "Name" }), "Home");
   await fill(
     within(editor).getByLabelText("Proxy address", { selector: "input" }),

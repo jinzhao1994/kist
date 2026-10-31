@@ -69,6 +69,10 @@ func TestAIServicesValidationRejectsDanglingAndAmbiguousRoutes(t *testing.T) {
 		name, field string
 		change      func(*ai.Services)
 	}{
+		{"empty proxy name", "proxies.0.id", func(s *ai.Services) { s.Proxies[0].ID = "" }},
+		{"blank proxy name", "proxies.0.id", func(s *ai.Services) { s.Proxies[0].ID = " \t\u3000" }},
+		{"invalid HTTP port", "proxies.0.url", func(s *ai.Services) { s.Proxies[0].URL = "http://proxy.example:65536" }},
+		{"invalid HTTP host", "proxies.0.url", func(s *ai.Services) { s.Proxies[0].URL = "http://invalid..example" }},
 		{"duplicate proxy ID", "proxies.1.id", func(s *ai.Services) { s.Proxies[1].ID = s.Proxies[0].ID }},
 		{"duplicate account ID", "accounts.2.id", func(s *ai.Services) { s.Accounts[2].ID = s.Accounts[1].ID }},
 		{"duplicate number", "accounts.2.number", func(s *ai.Services) { s.Accounts[2].Number = 1 }},

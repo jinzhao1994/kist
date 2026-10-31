@@ -4502,6 +4502,14 @@ for (const scenario of [
         .getByRole("textbox", { name: "名称", exact: true })
         .fill(proxy ? "家庭代理" : "备用账户");
       if (proxy)
+        await expect(
+          editor.getByRole("textbox", { name: "名称", exact: true }),
+        ).toHaveAttribute("aria-required", "true");
+      if (proxy)
+        await expect(
+          editor.getByRole("textbox", { name: "代理地址", exact: true }),
+        ).toHaveAttribute("type", "text");
+      if (proxy)
         await editor
           .getByLabel("代理地址", { exact: true })
           .and(editor.locator("input"))
@@ -4551,9 +4559,17 @@ for (const scenario of [
         editor.getByRole("button", { name: "完成", exact: true }),
       ).toBeVisible();
       await editor.scrollIntoViewIfNeeded();
-      await expect(editor.locator('input[type="password"]')).toHaveValue(
-        scenario === "ai-http-auth" ? "http://proxy.example:7890" : "",
-      );
+      if (scenario === "ai-http-auth") {
+        const address = editor.getByRole("textbox", {
+          name: "代理地址",
+          exact: true,
+        });
+        await expect(address).toHaveAttribute("type", "text");
+        await expect(address).toHaveValue("http://proxy.example:7890");
+        await expect(editor.locator('input[type="password"]')).toHaveCount(0);
+      } else {
+        await expect(editor.locator('input[type="password"]')).toHaveValue("");
+      }
       if (scenario === "ai-http-auth")
         await expect(
           editor.getByRole("checkbox", {

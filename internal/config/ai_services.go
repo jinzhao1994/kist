@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"net"
 	"slices"
 	"strings"
 	"time"
@@ -27,6 +26,9 @@ func validateAIServices(s *ai.Services) error {
 		if p.Number < 1 || p.Number >= s.NextProxy || proxyNumbers[p.Number] {
 			return InvalidField(field+".number", "number", "Proxy numbers must be unique and allocated automatically.")
 		}
+		if strings.TrimSpace(p.ID) == "" {
+			return InvalidField(field+".id", "required", "Enter a proxy name.")
+		}
 		if !validObjectID(p.ID) || proxyIDs[p.ID] {
 			return InvalidField(field+".id", "unique_id", "Enter a unique proxy ID, at most 128 UTF-8 bytes.")
 		}
@@ -43,7 +45,7 @@ func validateAIServices(s *ai.Services) error {
 				return InvalidField(field+".type", "choice", "HTTP proxies cannot contain Trojan settings.")
 			}
 		case ai.ProxyTrojan:
-			if !validNetworkHost(p.Host) {
+			if !ai.ValidNetworkHost(p.Host) {
 				return InvalidField(field+".host", "host", "Enter a proxy hostname or IP address without a scheme or port.")
 			}
 			if p.Port < 1 || p.Port > 65535 {
@@ -52,7 +54,7 @@ func validateAIServices(s *ai.Services) error {
 			if len(p.Password) < 1 || len(p.Password) > 4096 {
 				return InvalidField(field+".password", "required", "Enter a Trojan password, at most 4096 bytes.")
 			}
-			if p.ServerName != "" && !validNetworkHost(p.ServerName) {
+			if p.ServerName != "" && !ai.ValidNetworkHost(p.ServerName) {
 				return InvalidField(field+".server_name", "host", "Enter a valid TLS server name.")
 			}
 			if p.URL != "" {
@@ -126,24 +128,4 @@ func validateAIServices(s *ai.Services) error {
 
 func validObjectID(id string) bool {
 	return id != "" && len(id) <= 128 && utf8.ValidString(id) && strings.TrimSpace(id) == id && !strings.ContainsFunc(id, unicode.IsControl)
-}
-
-func validNetworkHost(host string) bool {
-	if host == "" || len(host) > 253 {
-		return false
-	}
-	if net.ParseIP(host) != nil {
-		return true
-	}
-	for _, label := range strings.Split(strings.TrimSuffix(host, "."), ".") {
-		if label == "" || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
-			return false
-		}
-		for _, c := range label {
-			if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-') {
-				return false
-			}
-		}
-	}
-	return true
 }
