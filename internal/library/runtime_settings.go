@@ -99,6 +99,10 @@ func (l *Library) ReloadSettings(ctx context.Context, validate func(config.Serve
 }
 
 func (c *Client) configure(ctx context.Context, revision string, changes map[string]any, validators ...func(config.Server) error) error {
+	return c.configurePrepared(ctx, revision, changes, nil, validators...)
+}
+
+func (c *Client) configurePrepared(ctx context.Context, revision string, changes map[string]any, prepare func(*config.Config) error, validators ...func(config.Server) error) error {
 	return configureInstance(ctx, c.root, revision, changes, func(cfg *config.Config) error {
 		if cfg.Mode != "client" {
 			return ErrNotALibrary
@@ -112,7 +116,7 @@ func (c *Client) configure(ctx context.Context, revision string, changes map[str
 			}
 		}
 		return nil
-	}, func() {})
+	}, func() {}, prepare)
 }
 
 // ReloadSettings validates client configuration without reopening its catalog.

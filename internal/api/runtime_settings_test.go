@@ -16,7 +16,7 @@ import (
 
 func saveRuntimeSettings(t *testing.T, s *Server, changes map[string]any) {
 	t.Helper()
-	current := decodeBody[settingsResponse](t, s, "/settings")
+	current := decodeBody[SettingsResponse](t, s, "/settings")
 	raw, _ := json.Marshal(map[string]any{"revision": current.Revision, "changes": changes})
 	result := call(s, "PUT", Prefix+"/settings", "", string(raw))
 	if result.Code != 200 {

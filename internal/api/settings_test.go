@@ -8,7 +8,46 @@ import (
 	"testing"
 
 	"github.com/jinzhao1994/kist/internal/config"
+	"github.com/jinzhao1994/kist/internal/library"
 )
+
+func TestSettingsCredentialDraftReturnsSecretsOnlyAfterSuccessfulSave(t *testing.T) {
+	s, l := testServer(t)
+	settings, _ := l.InstanceSettings(t.Context())
+	save := func(revision, note string) *httptest.ResponseRecorder {
+		raw, _ := json.Marshal(map[string]any{"revision": revision, "changes": map[string]any{"appearance.primary_color": "green"}, "credentials": library.CredentialSettings{Items: []library.CredentialDraft{{Note: note}}}})
+		return call(s, "PUT", Prefix+"/settings", "", string(raw))
+	}
+	bad := save(settings.Revision, strings.Repeat("字", 201))
+	if bad.Code != 400 || !strings.Contains(bad.Body.String(), "credentials.items.0.note") || strings.Contains(bad.Body.String(), "kist_sync.") {
+		t.Fatal(bad.Code, bad.Body.String())
+	}
+	list, _ := l.SyncCredentials(t.Context())
+	if len(list) != 0 {
+		t.Fatal("failed save issued a credential")
+	}
+	ok := save(settings.Revision, "new device")
+	if ok.Code != 200 {
+		t.Fatal(ok.Code, ok.Body.String())
+	}
+	var out settingsSavedResponse
+	if err := json.Unmarshal(ok.Body.Bytes(), &out); err != nil || len(out.CreatedCredentials) != 1 {
+		t.Fatal(err, ok.Body.String())
+	}
+	secret := out.CreatedCredentials[0].Token
+	if valid, err := l.CheckSyncCredential(t.Context(), secret); err != nil || !valid {
+		t.Fatal(err)
+	}
+	if again := save(settings.Revision, "retry"); again.Code != 409 || strings.Contains(again.Body.String(), "kist_sync.") {
+		t.Fatal("retry did not reject stale draft", again.Code)
+	}
+	for _, path := range []string{"/settings", "/settings/credentials"} {
+		result := call(s, "GET", Prefix+path, "", "")
+		if result.Code != 200 || strings.Contains(result.Body.String(), secret) || strings.Contains(result.Body.String(), "digest") || strings.Contains(result.Body.String(), "created_credentials") {
+			t.Fatal("read exposed a secret", result.Body.String())
+		}
+	}
+}
 
 func TestSettingsPresenceAndEmptyChangedListHTTP(t *testing.T) {
 	s, _ := testServer(t)
@@ -91,7 +130,7 @@ func TestInstanceSettingsCASDefaultsAndSecrets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fetch := func() settingsResponse {
+	fetch := func() SettingsResponse {
 		t.Helper()
 		w := call(s, "GET", Prefix+"/settings", "", "")
 		if w.Code != 200 {
@@ -100,7 +139,7 @@ func TestInstanceSettingsCASDefaultsAndSecrets(t *testing.T) {
 		if strings.Contains(w.Body.String(), credential.Token) || strings.Contains(w.Body.String(), "digest") {
 			t.Fatal("settings leaked credential")
 		}
-		var v settingsResponse
+		var v SettingsResponse
 		if err := json.Unmarshal(w.Body.Bytes(), &v); err != nil {
 			t.Fatal(err)
 		}

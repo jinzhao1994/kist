@@ -121,14 +121,20 @@ func (s *Server) reloadCombinedSettings(ctx context.Context, revision string, ch
 }
 
 func (s *Server) reloadCombinedServiceSettings(ctx context.Context, revision string, changes map[string]any, ai *library.OCRSettings, location *library.LocationSettings, services *library.AIServiceSettings) error {
+	_, err := s.reloadCombinedDraftSettings(ctx, revision, changes, ai, location, services, nil)
+	return err
+}
+
+func (s *Server) reloadCombinedDraftSettings(ctx context.Context, revision string, changes map[string]any, ai *library.OCRSettings, location *library.LocationSettings, services *library.AIServiceSettings, credentials *library.CredentialSettings) ([]library.NewSyncCredential, error) {
 	if s.client != nil && (ai != nil || location != nil || services != nil) {
-		return fmt.Errorf("metadata settings require a library")
+		return nil, fmt.Errorf("metadata settings require a library")
 	}
 	afterCommit := s.prepareAISignInChange(services)
 
 	var next *runtimeSettings
 	validate := func(stored config.Server) (err error) { next, err = s.prepareSettings(stored); return }
 	var err error
+	var created []library.NewSyncCredential
 	if changes == nil {
 		if s.client != nil {
 			err = s.client.ReloadSettings(ctx, validate)
@@ -136,14 +142,14 @@ func (s *Server) reloadCombinedServiceSettings(ctx context.Context, revision str
 			err = s.library.ReloadSettings(ctx, validate)
 		}
 	} else if s.client != nil {
-		err = s.client.UpdateSettings(ctx, revision, changes, validate)
+		created, err = s.client.UpdateSettingsWithCredentials(ctx, revision, changes, credentials, validate)
 	} else {
-		err = s.library.UpdateCombinedAIServiceSettings(ctx, revision, changes, ai, location, services, validate)
+		created, err = s.library.UpdateCombinedDraftSettings(ctx, revision, changes, ai, location, services, credentials, validate)
 	}
 	if err != nil {
-		return err
+		return nil, err
 	}
 	s.current.Store(next)
 	afterCommit()
-	return nil
+	return created, nil
 }

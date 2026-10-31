@@ -4677,6 +4677,13 @@ for (const scenario of [
       await expect(
         settings.getByRole("textbox", { name: "备注（可选）", exact: true }),
       ).toBeFocused();
+      await settings
+        .getByRole("textbox", { name: "备注（可选）", exact: true })
+        .fill("旅行备用机");
+      await expect(
+        settings.getByRole("button", { name: "保存", exact: true }),
+      ).toBeEnabled();
+      await expect(settings.locator(".setting-secret")).toHaveCount(0);
     }
     if (scenario === "credentials") {
       await page.goto("/settings#settings-service");
@@ -4723,6 +4730,14 @@ for (const scenario of [
           .getByRole("textbox", { name: "备注（可选）", exact: true })
           .first(),
       ).toHaveValue("旅行备用机");
+      await expect(
+        settings
+          .locator("#settings-access")
+          .getByRole("button", { name: "完成", exact: true }),
+      ).toBeVisible();
+      await expect(
+        settings.getByRole("button", { name: "保存", exact: true }),
+      ).toBeDisabled();
     }
     if (scenario === "maps") {
       await settings.getByRole("link", { name: "地图", exact: true }).click();

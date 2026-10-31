@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/jinzhao1994/kist/internal/config"
 	"github.com/jinzhao1994/kist/internal/lockfile"
@@ -224,31 +225,39 @@ func (l *Library) UpdateCombinedSettings(ctx context.Context, revision string, c
 // UpdateCombinedAIServiceSettings includes the layered AI draft in the same
 // atomic publication as general and location settings.
 func (l *Library) UpdateCombinedAIServiceSettings(ctx context.Context, revision string, changes map[string]any, ai *OCRSettings, location *LocationSettings, services *AIServiceSettings, validators ...func(config.Server) error) error {
+	_, err := l.UpdateCombinedDraftSettings(ctx, revision, changes, ai, location, services, nil, validators...)
+	return err
+}
+
+// UpdateCombinedDraftSettings saves credentials and all settings in one atomic
+// configuration publication. Newly created secrets are returned only on success.
+func (l *Library) UpdateCombinedDraftSettings(ctx context.Context, revision string, changes map[string]any, ai *OCRSettings, location *LocationSettings, services *AIServiceSettings, credentials *CredentialSettings, validators ...func(config.Server) error) ([]NewSyncCredential, error) {
 	normalized, err := config.NormalizeChanges("library", changes)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if revision == "" {
-		return config.ErrChanged
+		return nil, config.ErrChanged
 	}
-	if ai == nil && location == nil && services == nil {
-		return l.configure(ctx, revision, normalized, validators...)
+	if ai == nil && location == nil && services == nil && credentials == nil {
+		return nil, l.configure(ctx, revision, normalized, validators...)
 	}
 	if (ai != nil && ai.Revision != revision) || (location != nil && location.Revision != revision) {
-		return config.ErrChanged
+		return nil, config.ErrChanged
 	}
 	if services != nil && (services.Revision != revision || ai != nil) {
-		return config.ErrChanged
+		return nil, config.ErrChanged
 	}
 	release, err := l.lock.Acquire(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer release()
 	if err = l.catchUpLocked(ctx); err != nil {
-		return err
+		return nil, err
 	}
-	return l.configurePrepared(ctx, revision, normalized, func(cfg *config.Config) error {
+	var created []NewSyncCredential
+	err = l.configurePrepared(ctx, revision, normalized, func(cfg *config.Config) error {
 		merge := func(values map[string]any, err error) error {
 			if err != nil {
 				return err
@@ -271,11 +280,26 @@ func (l *Library) UpdateCombinedAIServiceSettings(ctx context.Context, revision 
 				return err
 			}
 		}
+
+		if credentials != nil {
+			var grants []config.Grant
+			var err error
+			grants, created, err = credentialSettingsChanges(cfg, *credentials, l.now())
+			if err != nil {
+				return err
+			}
+			normalized["sync.grants"] = grants
+		}
 		if location != nil {
 			return merge(l.locationSettingsChanges(cfg, *location))
 		}
+
 		return nil
 	}, validators...)
+	if err != nil {
+		return nil, err
+	}
+	return created, nil
 }
 func (c *Client) UpdateSettings(ctx context.Context, revision string, changes map[string]any, validators ...func(config.Server) error) error {
 	normalized, err := config.NormalizeChanges("client", changes)
@@ -286,4 +310,36 @@ func (c *Client) UpdateSettings(ctx context.Context, revision string, changes ma
 		return config.ErrChanged
 	}
 	return c.configure(ctx, revision, normalized, validators...)
+}
+
+// UpdateSettingsWithCredentials atomically saves relay settings and grant drafts.
+func (c *Client) UpdateSettingsWithCredentials(ctx context.Context, revision string, changes map[string]any, credentials *CredentialSettings, validators ...func(config.Server) error) ([]NewSyncCredential, error) {
+	normalized, err := config.NormalizeChanges("client", changes)
+	if err != nil {
+		return nil, err
+	}
+	if revision == "" {
+		return nil, config.ErrChanged
+	}
+	if credentials == nil {
+		return nil, c.configure(ctx, revision, normalized, validators...)
+	}
+	release, err := c.lock.Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+	var created []NewSyncCredential
+	err = c.configurePrepared(ctx, revision, normalized, func(cfg *config.Config) error {
+		grants, secrets, err := credentialSettingsChanges(cfg, *credentials, time.Now())
+		if err != nil {
+			return err
+		}
+		normalized["sync.grants"], created = grants, secrets
+		return nil
+	}, validators...)
+	if err != nil {
+		return nil, err
+	}
+	return created, nil
 }

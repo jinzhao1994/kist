@@ -7,6 +7,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 	"github.com/jinzhao1994/kist/internal/lockfile"
 	"path/filepath"
 	"strings"
@@ -73,18 +74,11 @@ func (l syncAccessStore) AuthorizeSyncWithNote(ctx context.Context, note string)
 	if err != nil {
 		return NewSyncCredential{}, err
 	}
-	var id [16]byte
-	var secret [32]byte
-	if _, err := rand.Read(id[:]); err != nil {
+	credential, digest, err := newSyncCredential(note, l.now().UTC())
+	if err != nil {
 		return NewSyncCredential{}, err
 	}
-	if _, err := rand.Read(secret[:]); err != nil {
-		return NewSyncCredential{}, err
-	}
-	credential := NewSyncCredential{SyncCredential: SyncCredential{ID: hex.EncodeToString(id[:]), CreatedAt: l.now().UTC(), Note: note}}
-	credential.Token = "kist_sync." + credential.ID + "." + base64.RawURLEncoding.EncodeToString(secret[:])
-	digest := sha256.Sum256([]byte(credential.Token))
-	access.Grants = append(access.Grants, syncGrant{SyncCredential: credential.SyncCredential, Digest: hex.EncodeToString(digest[:])})
+	access.Grants = append(access.Grants, syncGrant{SyncCredential: credential.SyncCredential, Digest: digest})
 	if err := l.saveSyncAccess(ctx, access); err != nil {
 		return NewSyncCredential{}, err
 	}
@@ -238,4 +232,69 @@ func (l *Client) SetSyncCredentialNote(ctx context.Context, id, note string) (bo
 
 func (l *Client) CheckSyncCredential(ctx context.Context, token string) (bool, error) {
 	return (syncAccessStore{root: l.root, lock: l.lock, now: time.Now}).CheckSyncCredential(ctx, token)
+}
+
+// CredentialDraft names an existing grant or requests a new one with an empty ID.
+// Omitted existing grants are explicitly revoked when the whole draft is saved.
+type CredentialDraft struct {
+	ID   string `json:"id"`
+	Note string `json:"note"`
+}
+
+type CredentialSettings struct {
+	Items []CredentialDraft `json:"items"`
+}
+
+func newSyncCredential(note string, now time.Time) (NewSyncCredential, string, error) {
+	var id [16]byte
+	var secret [32]byte
+	if _, err := rand.Read(id[:]); err != nil {
+		return NewSyncCredential{}, "", err
+	}
+	if _, err := rand.Read(secret[:]); err != nil {
+		return NewSyncCredential{}, "", err
+	}
+	credential := NewSyncCredential{SyncCredential: SyncCredential{ID: hex.EncodeToString(id[:]), CreatedAt: now.UTC(), Note: note}}
+	credential.Token = "kist_sync." + credential.ID + "." + base64.RawURLEncoding.EncodeToString(secret[:])
+	digest := sha256.Sum256([]byte(credential.Token))
+	return credential, hex.EncodeToString(digest[:]), nil
+}
+
+func credentialSettingsChanges(cfg *config.Config, draft CredentialSettings, now time.Time) ([]config.Grant, []NewSyncCredential, error) {
+	existing := map[string]config.Grant{}
+	for _, grant := range cfg.Sync.Grants {
+		existing[grant.ID] = grant
+	}
+	seen := map[string]bool{}
+	for i, item := range draft.Items {
+		field := fmt.Sprintf("credentials.items.%d", i)
+		if !config.ValidCredentialNote(strings.TrimSpace(item.Note)) {
+			return nil, nil, config.InvalidField(field+".note", "credential_note", "Use at most 200 characters.")
+		}
+		if item.ID == "" {
+			continue
+		}
+		if _, ok := existing[item.ID]; !ok || seen[item.ID] {
+			return nil, nil, config.InvalidField(field+".id", "reference", "Use a distinct existing credential.")
+		}
+		seen[item.ID] = true
+	}
+	grants := make([]config.Grant, 0, len(draft.Items))
+	created := []NewSyncCredential{}
+	for _, item := range draft.Items {
+		note := strings.TrimSpace(item.Note)
+		if item.ID != "" {
+			grant := existing[item.ID]
+			grant.Note = note
+			grants = append(grants, grant)
+			continue
+		}
+		credential, digest, err := newSyncCredential(note, now)
+		if err != nil {
+			return nil, nil, err
+		}
+		grants = append(grants, config.Grant{ID: credential.ID, CreatedAt: credential.CreatedAt, Note: note, Digest: digest})
+		created = append(created, credential)
+	}
+	return grants, created, nil
 }

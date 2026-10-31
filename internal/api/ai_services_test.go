@@ -165,7 +165,7 @@ func TestAIServiceSettingsAtomicSaveAndRedaction(t *testing.T) {
 		t.Fatal("missing field error", result.Code, result.Body.String())
 	}
 	settings := call("GET", "/settings", nil, "127.0.0.1:1234")
-	var view settingsResponse
+	var view SettingsResponse
 	if err := json.Unmarshal(settings.Body.Bytes(), &view); err != nil {
 		t.Fatal(err)
 	}

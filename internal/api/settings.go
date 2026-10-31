@@ -14,11 +14,12 @@ import (
 
 type settingsInput struct {
 	Body struct {
-		AIServices *library.AIServiceSettings `json:"ai_services,omitempty"`
-		AI         *library.OCRSettings       `json:"ai,omitempty"`
-		Location   *library.LocationSettings  `json:"location,omitempty"`
-		Revision   string                     `json:"revision" minLength:"1"`
-		Changes    map[string]any             `json:"changes"`
+		Credentials *library.CredentialSettings `json:"credentials,omitempty"`
+		AIServices  *library.AIServiceSettings  `json:"ai_services,omitempty"`
+		AI          *library.OCRSettings        `json:"ai,omitempty"`
+		Location    *library.LocationSettings   `json:"location,omitempty"`
+		Revision    string                      `json:"revision" minLength:"1"`
+		Changes     map[string]any              `json:"changes"`
 	}
 }
 
@@ -29,11 +30,17 @@ func (in *settingsInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
-type settingsResponse struct {
+type SettingsResponse struct {
 	library.InstanceSettings
 	Effective       map[string]any `json:"effective"`
 	Overrides       []string       `json:"overrides"`
 	RestartRequired []string       `json:"restart_required"`
+}
+
+// settingsSavedResponse contains one-time secrets only on the saving response.
+type settingsSavedResponse struct {
+	SettingsResponse
+	CreatedCredentials []library.NewSyncCredential `json:"created_credentials,omitempty"`
 }
 
 func (s *Server) currentSettings(ctx context.Context) (library.InstanceSettings, error) {
@@ -42,12 +49,12 @@ func (s *Server) currentSettings(ctx context.Context) (library.InstanceSettings,
 	}
 	return s.library.InstanceSettings(ctx)
 }
-func (s *Server) settingsView(ctx context.Context) (settingsResponse, error) {
+func (s *Server) settingsView(ctx context.Context) (SettingsResponse, error) {
 	settings, err := s.currentSettings(ctx)
 	if err != nil {
-		return settingsResponse{}, err
+		return SettingsResponse{}, err
 	}
-	out := settingsResponse{InstanceSettings: settings, Effective: map[string]any{}, Overrides: s.settingOverrides, RestartRequired: []string{}}
+	out := SettingsResponse{InstanceSettings: settings, Effective: map[string]any{}, Overrides: s.settingOverrides, RestartRequired: []string{}}
 	runtime := s.current.Load()
 	var timezone, projection string
 	if s.library != nil {
@@ -106,7 +113,7 @@ func (s *Server) settingsRoutes(opt Options) error {
 			s.startupSettings["server."+key] = value
 		}
 	}
-	huma.Get(s.contract, Prefix+"/settings", func(ctx context.Context, _ *struct{}) (*output[settingsResponse], error) {
+	huma.Get(s.contract, Prefix+"/settings", func(ctx context.Context, _ *struct{}) (*output[SettingsResponse], error) {
 		out, err := s.settingsView(ctx)
 		return response(out, err)
 	})
@@ -119,14 +126,14 @@ func (s *Server) settingsRoutes(opt Options) error {
 		return response(usage, err)
 	})
 
-	huma.Put(s.contract, Prefix+"/settings", func(ctx context.Context, in *settingsInput) (*output[settingsResponse], error) {
+	huma.Put(s.contract, Prefix+"/settings", func(ctx context.Context, in *settingsInput) (*output[settingsSavedResponse], error) {
 		s.reloadMu.Lock()
 		defer s.reloadMu.Unlock()
 		changes := in.Body.Changes
 		if changes == nil {
 			changes = map[string]any{}
 		}
-		err := s.reloadCombinedServiceSettings(ctx, in.Body.Revision, changes, in.Body.AI, in.Body.Location, in.Body.AIServices)
+		created, err := s.reloadCombinedDraftSettings(ctx, in.Body.Revision, changes, in.Body.AI, in.Body.Location, in.Body.AIServices, in.Body.Credentials)
 		if errors.Is(err, config.ErrChanged) {
 			return nil, huma.Error409Conflict("Settings changed; reload before saving.")
 		}
@@ -134,7 +141,7 @@ func (s *Server) settingsRoutes(opt Options) error {
 			return nil, settingsFailure(err)
 		}
 		out, err := s.settingsView(ctx)
-		return response(out, err)
+		return response(settingsSavedResponse{SettingsResponse: out, CreatedCredentials: created}, err)
 	})
 	{
 		access := s.syncAccessBackend()

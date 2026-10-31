@@ -1,3 +1,4 @@
+import { Credentials } from "./Credentials";
 import { BackgroundTasks } from "./BackgroundTasks";
 import { loadSettingsPage, settingsQueries } from "./settingsQueries";
 import {
@@ -15,7 +16,6 @@ import { ColorChoiceGroup } from "./ColorChoiceGroup";
 import { CacheLimitInput } from "./CacheLimitInput";
 import { FloatingFeedback } from "./FloatingFeedback";
 import { AIConnection } from "./AI";
-import { EmptyHint } from "./EmptyHint";
 import { HelpTooltip } from "./HelpTooltip";
 import { FullTextTooltip } from "./FullTextTooltip";
 import { SectionIndex } from "./SectionIndex";
@@ -25,7 +25,6 @@ import type {
   RegisterNavigationBlocker,
 } from "./navigation";
 import {
-  Alert,
   Button,
   Checkbox,
   Group,
@@ -33,7 +32,6 @@ import {
   NumberInput,
   PasswordInput,
   Stack,
-  Table,
   Text,
   Textarea,
   TextInput,
@@ -50,7 +48,7 @@ import { useElementSize } from "@mantine/hooks";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { APIError, result } from "./api";
 import type { components } from "./api-schema";
-import { useI18n, formatInstant, type MessageKey } from "./i18n";
+import { useI18n, type MessageKey } from "./i18n";
 import { errorMessage } from "./mutations";
 import { Select } from "./Select";
 
@@ -124,11 +122,19 @@ export function InstanceSettings({
   const [aiPending, setAIPending] = useState(false);
   const [locationPending, setLocationPending] = useState(false);
   const [aiDraft, setAIDraft] = useState<SettingsSectionDraft | null>(null);
+  const [credentialsDraft, setCredentialsDraft] =
+    useState<SettingsSectionDraft | null>(null);
+  const [createdCredentials, setCreatedCredentials] = useState<
+    components["schemas"]["NewSyncCredential"][]
+  >([]);
   const [locationDraft, setLocationDraft] =
     useState<SettingsSectionDraft | null>(null);
   const [reloadVersion, setReloadVersion] = useState(0);
   const unsaved =
-    Object.keys(changes).length > 0 || !!aiDraft || !!locationDraft;
+    Object.keys(changes).length > 0 ||
+    !!aiDraft ||
+    !!locationDraft ||
+    !!credentialsDraft;
   const [busy, setBusy] = useState(false);
   const saveHint = busy ? "" : !unsaved ? t("settingsSaveNoChanges") : "";
   const [error, setError] = useState("");
@@ -291,13 +297,15 @@ export function InstanceSettings({
       setBusy(false);
     }
   }
-  const reload = async (signal?: AbortSignal) => {
+  const reload = async (signal?: AbortSignal, preserveSecrets = false) => {
     const value = await loadSettingsPage(queries, signal, true);
     setSnapshot(value);
     setFieldErrors({});
     setChanges({});
     setAIDraft(null);
     setLocationDraft(null);
+    setCredentialsDraft(null);
+    if (!preserveSecrets) setCreatedCredentials([]);
     setReloadVersion((old) => old + 1);
     queries.setQueryData(["instance-settings"], value);
     await queries.invalidateQueries({ queryKey: ["info"] });
@@ -306,11 +314,14 @@ export function InstanceSettings({
     let saved = false;
     await run(async (signal) => {
       if (!snapshot) return;
-      const value = await request<SettingsData>(
+      const response = await request<
+        components["schemas"]["SettingsSavedResponse"]
+      >(
         "/settings",
         "PUT",
         {
           revision: snapshot.revision,
+          credentials: credentialsDraft?.value,
           ai_services: aiDraft?.value,
           location: locationDraft?.value,
           changes: Object.fromEntries(
@@ -326,11 +337,33 @@ export function InstanceSettings({
         },
         signal,
       );
+      const { created_credentials, ...value } = response;
+      setCreatedCredentials((old) => [
+        ...old.filter(
+          (item) =>
+            !credentialsDraft ||
+            (
+              credentialsDraft.value as components["schemas"]["CredentialSettings"]
+            ).items?.some((value) => value.id === item.id),
+        ),
+        ...(created_credentials || []),
+      ]);
       queries.setQueryData(["instance-settings"], value);
-      await reload(signal);
+      await reload(signal, true);
       await queries.invalidateQueries({ queryKey: ["client"] });
       if (aiDraft)
         await queries.invalidateQueries({ queryKey: ["ai-account-models"] });
+      if (created_credentials?.length) {
+        // Newly issued secrets must remain visible before any navigation or
+        // full reload, including the "save and leave" path and map CSP changes.
+        pendingNavigation.current = null;
+        setLeaving(false);
+        setNotice(t("settingsSavedCopyCredentials"));
+        document
+          .getElementById("settings-access")
+          ?.scrollIntoView({ block: "start" });
+        return;
+      }
       setNotice(t("settingsSaved"));
       saved = true;
       // A new document is needed for the updated map resource CSP.
@@ -589,15 +622,11 @@ export function InstanceSettings({
                       {t("settingCredentialsHint")}
                     </HelpTooltip>
                   </h2>
-                  {Object.keys(changes).length > 0 && (
-                    <Text size="sm" c="dimmed" mb="md">
-                      {t("settingsPending")}
-                    </Text>
-                  )}
                   <Credentials
-                    busy={busy || unsaved}
-                    run={run}
-                    saved={reload}
+                    busy={busy}
+                    onDraftChange={setCredentialsDraft}
+                    reloadVersion={reloadVersion}
+                    created={createdCredentials}
                   />
                 </section>
                 {snapshot.mode === "library" && (
@@ -1015,231 +1044,5 @@ function ConnectionSettings({
         </Group>
       </Stack>
     </form>
-  );
-}
-function Credentials({
-  busy,
-  run,
-  saved,
-}: {
-  busy: boolean;
-  run: Run;
-  saved: (signal?: AbortSignal) => Promise<void>;
-}) {
-  const { t, prefs } = useI18n();
-  const queries = useQueryClient();
-  const [secret, setSecret] = useState("");
-  const [note, setNote] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [editing, setEditing] = useState<{ id: string; note: string }>();
-  const query = useQuery({
-    ...settingsQueries.credentials,
-  });
-  return (
-    <Stack gap="md">
-      {!creating && (
-        <Group
-          justify={query.data?.length === 0 ? "space-between" : "flex-end"}
-        >
-          {query.data?.length === 0 && (
-            <EmptyHint>{t("settingCredentialsEmpty")}</EmptyHint>
-          )}
-          <Button
-            disabled={busy || !!editing}
-            onClick={() => setCreating(true)}
-          >
-            {t("settingCreateCredential")}
-          </Button>
-        </Group>
-      )}
-      {creating && (
-        <form
-          className="credential-create-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void run(async (signal) => {
-              const result = await request<{ token: string }>(
-                "/settings/credentials",
-                "POST",
-                { note },
-                signal,
-              );
-              setSecret(result.token);
-              setNote("");
-              setCreating(false);
-              await queries.invalidateQueries({
-                queryKey: ["sync-credentials"],
-              });
-              await saved(signal);
-            });
-          }}
-        >
-          <TextInput
-            label={t("settingCredentialNote")}
-            placeholder={t("settingCredentialNoteExample")}
-            value={note}
-            onChange={(event) => setNote(event.currentTarget.value)}
-            maxLength={200}
-            disabled={busy}
-            autoFocus
-          />
-          <Group gap="xs">
-            <Button type="submit" variant="filled" disabled={busy}>
-              {t("settingCreateCredential")}
-            </Button>
-            <Button
-              disabled={busy}
-              onClick={() => {
-                setCreating(false);
-                setNote("");
-              }}
-            >
-              {t("cancel")}
-            </Button>
-          </Group>
-        </form>
-      )}
-      {query.error && <Text role="alert">{errorMessage(query.error, t)}</Text>}
-      {secret && (
-        <Alert>
-          <Text size="sm">{t("settingCredentialOnce")}</Text>
-          <code className="setting-secret">{secret}</code>
-        </Alert>
-      )}
-      {!!query.data?.length && (
-        <Table.ScrollContainer minWidth={720}>
-          <Table
-            highlightOnHover
-            verticalSpacing="xs"
-            horizontalSpacing="sm"
-            className="settings-table"
-          >
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>{t("settingCredentialNoteHeading")}</Table.Th>
-                <Table.Th>{t("settingCredentialDetails")}</Table.Th>
-                <Table.Th>{t("settingCredentialCreated")}</Table.Th>
-                <Table.Th>
-                  <span className="sr-only">
-                    {t("settingCredentialActions")}
-                  </span>
-                </Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {query.data?.map((item) => (
-                <Table.Tr key={item.id} className="credential-row">
-                  <Table.Td>
-                    {editing?.id === item.id ? (
-                      <TextInput
-                        aria-label={t("settingCredentialNote")}
-                        value={editing.note}
-                        maxLength={200}
-                        disabled={busy}
-                        onChange={(event) =>
-                          setEditing({
-                            id: item.id,
-                            note: event.currentTarget.value,
-                          })
-                        }
-                        autoFocus
-                      />
-                    ) : (
-                      <Text size="sm" className="credential-note">
-                        {item.note || t("settingCredentialUnnamed")}
-                      </Text>
-                    )}
-                  </Table.Td>
-                  <Table.Td className="credential-id">
-                    <Text size="xs" c="dimmed" ff="monospace">
-                      {item.id}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td className="credential-created">
-                    <Text size="xs" c="dimmed">
-                      {formatInstant(item.created_at, prefs)}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Group gap="xs" justify="flex-end" wrap="nowrap">
-                      {editing?.id === item.id ? (
-                        <>
-                          <Button
-                            size="compact-sm"
-                            variant="subtle"
-                            disabled={busy}
-                            onClick={() =>
-                              void run(async (signal) => {
-                                await request(
-                                  `/settings/credentials/${encodeURIComponent(item.id)}`,
-                                  "PUT",
-                                  { note: editing.note },
-                                  signal,
-                                );
-                                setEditing(undefined);
-                                await queries.invalidateQueries({
-                                  queryKey: ["sync-credentials"],
-                                });
-                                await saved(signal);
-                              })
-                            }
-                          >
-                            {t("save")}
-                          </Button>
-                          <Button
-                            size="compact-sm"
-                            variant="subtle"
-                            disabled={busy}
-                            onClick={() => setEditing(undefined)}
-                          >
-                            {t("cancel")}
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button
-                            size="compact-sm"
-                            variant="subtle"
-                            disabled={busy || !!editing || creating}
-                            onClick={() =>
-                              setEditing({ id: item.id, note: item.note || "" })
-                            }
-                          >
-                            {t("settingEditCredentialNote")}
-                          </Button>
-                          <Button
-                            size="compact-sm"
-                            variant="subtle"
-                            disabled={busy || !!editing || creating}
-                            color="red"
-                            onClick={() =>
-                              void run(async (signal) => {
-                                await request(
-                                  `/settings/credentials/${encodeURIComponent(item.id)}`,
-                                  "DELETE",
-                                  undefined,
-                                  signal,
-                                );
-                                setSecret("");
-                                await queries.invalidateQueries({
-                                  queryKey: ["sync-credentials"],
-                                });
-                                await saved(signal);
-                              })
-                            }
-                          >
-                            {t("settingRevoke")}
-                          </Button>
-                        </>
-                      )}
-                    </Group>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
-      )}
-    </Stack>
   );
 }

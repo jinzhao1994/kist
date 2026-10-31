@@ -253,6 +253,8 @@ export const en = {
 
   pageContents: "On this page",
   instanceSettings: "Settings",
+  settingsSavedCopyCredentials:
+    "Settings saved. Copy the new access credentials before refreshing or leaving; they cannot be shown again.",
   settingsSaved: "Settings saved.",
   settingsNotSaved: "Settings were not saved. Check the values you entered.",
   settingsPending:
@@ -361,9 +363,12 @@ export const en = {
   clientOriginalUnavailable:
     "This file is not cached and could not be downloaded. Check the remote connection and retry.",
   settingCredentialsHint:
-    "Used to connect to this instance. Use a separate credential for each device; revoking it stops synchronization.",
+    "Used to connect to this instance. Use a separate credential for each device. Creation, note changes and revocation take effect after saving settings.",
   settingCredentialOnce:
     "Copy this credential now. It will not be shown again.",
+  settingInvalidCredentialNote: "Use at most 200 characters.",
+  settingCredentialPending: "Generated on save",
+  settingFinishCredential: "Done",
   settingRevoke: "Revoke",
   settingCredentialNote: "Note (optional)",
   settingCredentialNoteHeading: "Note",
@@ -1371,6 +1376,8 @@ export const zh: Record<MessageKey, string> = {
 
   pageContents: "页面目录",
   instanceSettings: "设置",
+  settingsSavedCopyCredentials:
+    "设置已保存，请先复制新访问凭据。刷新或离开后无法再次查看。",
   settingsSaved: "设置已保存。",
   settingsNotSaved: "设置未保存，请检查填写的内容。",
   settingsPending: "请先保存其他设置，再修改连接或凭据。",
@@ -1467,8 +1474,11 @@ export const zh: Record<MessageKey, string> = {
   clientOriginalUnavailable:
     "此文件尚未缓存，暂时无法从远端下载。请检查连接后重试。",
   settingCredentialsHint:
-    "用于连接此实例。建议每台设备使用独立凭据，撤销后无法继续同步。",
+    "用于连接此实例。建议每台设备使用独立凭据。新建、备注修改和撤销均在保存设置后生效。",
   settingCredentialOnce: "请现在复制此凭据，之后不会再次显示。",
+  settingInvalidCredentialNote: "备注最多 200 个字符。",
+  settingCredentialPending: "保存后生成",
+  settingFinishCredential: "完成",
   settingRevoke: "撤销凭据",
   settingCredentialNote: "备注（可选）",
   settingCredentialNoteHeading: "备注",

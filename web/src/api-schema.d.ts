@@ -2331,6 +2331,13 @@ export interface components {
             name: string;
             parent_id?: string;
         };
+        CredentialDraft: {
+            id: string;
+            note: string;
+        };
+        CredentialSettings: {
+            items: components["schemas"]["CredentialDraft"][] | null;
+        };
         "Delete-api-v1-boxes-by-idRequest": {
             /** Format: int64 */
             revision: number;
@@ -3025,11 +3032,27 @@ export interface components {
             changes: {
                 [key: string]: unknown;
             };
+            credentials?: components["schemas"]["CredentialSettings"];
             location?: components["schemas"]["LocationSettings"];
             revision: string;
         };
         SettingsResponse: {
             connection?: components["schemas"]["ClientConnection"];
+            credential_configured: boolean;
+            effective: {
+                [key: string]: unknown;
+            };
+            fields: components["schemas"]["Field"][] | null;
+            id: string;
+            library_id: string;
+            mode: string;
+            overrides: string[] | null;
+            restart_required: string[] | null;
+            revision: string;
+        };
+        SettingsSavedResponse: {
+            connection?: components["schemas"]["ClientConnection"];
+            created_credentials?: components["schemas"]["NewSyncCredential"][] | null;
             credential_configured: boolean;
             effective: {
                 [key: string]: unknown;
@@ -7361,7 +7384,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SettingsResponse"];
+                    "application/json": components["schemas"]["SettingsSavedResponse"];
                 };
             };
             /** @description Error */

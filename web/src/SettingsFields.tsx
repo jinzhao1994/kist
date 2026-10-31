@@ -27,6 +27,7 @@ export function useSettingsError(field: string) {
   const { errors } = useContext(SettingsErrorsContext);
   const error = errors[field];
   const messages: Record<string, MessageKey> = {
+    credential_note: "settingInvalidCredentialNote",
     unique_id: "settingUniqueID",
     reference: "settingInvalidReference",
     number: "settingInvalidNumber",
