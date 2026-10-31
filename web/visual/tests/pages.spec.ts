@@ -4133,6 +4133,8 @@ for (const scenario of [
   "ai-trojan",
   "ai-http-auth",
   "ai-api-account",
+  "ai-proxy-create",
+  "ai-account-create",
   "ai-transcription",
   "service",
   "maps",
@@ -4485,6 +4487,37 @@ for (const scenario of [
         settings.getByRole("heading", { name: "AI 功能", exact: true }),
       ).toHaveCount(0);
     }
+    if (["ai-proxy-create", "ai-account-create"].includes(scenario)) {
+      const proxy = scenario === "ai-proxy-create";
+      const title = proxy ? "代理" : "AI 账户";
+      const add = proxy ? "添加代理" : "添加账户";
+      const table = settings.getByRole("table", { name: title, exact: true });
+      const count = await table.getByRole("rowheader").count();
+      await settings.getByRole("button", { name: add, exact: true }).click();
+      const editor = settings.getByRole("region", { name: add, exact: true });
+      await expect(
+        editor.getByRole("textbox", { name: "名称", exact: true }),
+      ).toBeFocused();
+      await editor
+        .getByRole("textbox", { name: "名称", exact: true })
+        .fill(proxy ? "家庭代理" : "备用账户");
+      if (proxy)
+        await editor
+          .getByLabel("代理地址", { exact: true })
+          .and(editor.locator("input"))
+          .fill("http://proxy.example:7890");
+      await expect(table.getByRole("rowheader")).toHaveCount(count);
+      await expect(
+        settings.getByRole("button", { name: "保存", exact: true }),
+      ).toBeEnabled();
+      const editorBounds = await editor.boundingBox(),
+        tableBounds = await table.boundingBox();
+      expect(
+        editorBounds &&
+          tableBounds &&
+          editorBounds.y + editorBounds.height <= tableBounds.y,
+      ).toBeTruthy();
+    }
     if (["ai-trojan", "ai-http-auth", "ai-api-account"].includes(scenario)) {
       const table = settings.getByRole("table", {
         name: scenario === "ai-api-account" ? "AI 账户" : "代理",
@@ -4508,6 +4541,15 @@ for (const scenario of [
         exact: true,
       });
       await expect(editor).toBeVisible();
+      await expect(
+        table.getByRole("region", {
+          name: scenario === "ai-api-account" ? "编辑 AI 账户" : "编辑代理",
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(
+        editor.getByRole("button", { name: "完成", exact: true }),
+      ).toBeVisible();
       await editor.scrollIntoViewIfNeeded();
       await expect(editor.locator('input[type="password"]')).toHaveValue(
         scenario === "ai-http-auth" ? "http://proxy.example:7890" : "",

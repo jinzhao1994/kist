@@ -22,7 +22,7 @@ import {
 } from "react";
 import type { components } from "./api-schema";
 import { get, result } from "./api";
-import { EmptyHint } from "./EmptyHint";
+import { SettingsCollection } from "./SettingsCollection";
 import { HelpTooltip } from "./HelpTooltip";
 import { Select } from "./Select";
 import {
@@ -98,17 +98,22 @@ function ServiceField({
   path,
   label,
   help,
+  wide = false,
   children,
 }: {
   path: string;
   label: string;
   help?: string;
+  wide?: boolean;
   children: (id: string, error?: string) => ReactNode;
 }) {
   const id = useId();
   const error = useSettingsError(path);
   return (
-    <div className="setting-field" data-setting-field={path}>
+    <div
+      className={wide ? "setting-field settings-editor-wide" : "setting-field"}
+      data-setting-field={path}
+    >
       <SettingsFieldHeading label={label} help={help} htmlFor={id} />
       {children(id, error)}
     </div>
@@ -136,6 +141,10 @@ export function AIConnection({
   const [touched, setTouched] = useState(false);
   const [proxyEditor, setProxyEditor] = useState<number>();
   const [accountEditor, setAccountEditor] = useState<number>();
+  const [creatingProxy, setCreatingProxy] = useState<number>();
+  const [creatingAccount, setCreatingAccount] = useState<number>();
+  const originalProxy = useRef<Proxy | undefined>(undefined);
+  const originalAccount = useRef<Account | undefined>(undefined);
   const [busy, setBusy] = useState<number>();
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -168,6 +177,10 @@ export function AIConnection({
     setDraft(queries.getQueryData(["ai-services"]));
     setError("");
     setNotice("");
+    setProxyEditor(undefined);
+    setAccountEditor(undefined);
+    setCreatingProxy(undefined);
+    setCreatingAccount(undefined);
   }, [reloadVersion, queries]);
   useEffect(() => {
     onDraftChange?.(dirty && pending ? { value: pending } : null);
@@ -201,10 +214,30 @@ export function AIConnection({
     if (match && draft) {
       const number =
         draft[match[1] as "proxies" | "accounts"]?.[Number(match[2])]?.number;
-      if (match[1] === "proxies") setProxyEditor(number);
-      else setAccountEditor(number);
+      if (match[1] === "proxies" && number !== creatingProxy) {
+        if (proxyEditor !== number)
+          originalProxy.current = draft.proxies?.find(
+            (p) => p.number === number,
+          );
+        setCreatingProxy(undefined);
+        setProxyEditor(number);
+      } else if (match[1] === "accounts" && number !== creatingAccount) {
+        if (accountEditor !== number)
+          originalAccount.current = draft.accounts?.find(
+            (a) => a.number === number,
+          );
+        setCreatingAccount(undefined);
+        setAccountEditor(number);
+      }
     }
-  }, [errors, draft]);
+  }, [
+    errors,
+    draft,
+    creatingProxy,
+    creatingAccount,
+    proxyEditor,
+    accountEditor,
+  ]);
   function edit(next: View, path?: string) {
     if (path) clear(path);
     setTouched(true);
@@ -270,12 +303,20 @@ export function AIConnection({
     }
   }
   const locked = disabled || busy !== undefined;
-  const proxy = draft?.proxies?.find((p) => p.number === proxyEditor);
+  const proxy = draft?.proxies?.find(
+    (p) => p.number === (creatingProxy ?? proxyEditor),
+  );
   const proxyIndex =
-    draft?.proxies?.findIndex((p) => p.number === proxyEditor) ?? -1;
-  const account = draft?.accounts?.find((a) => a.number === accountEditor);
+    draft?.proxies?.findIndex(
+      (p) => p.number === (creatingProxy ?? proxyEditor),
+    ) ?? -1;
+  const account = draft?.accounts?.find(
+    (a) => a.number === (creatingAccount ?? accountEditor),
+  );
   const accountIndex =
-    draft?.accounts?.findIndex((a) => a.number === accountEditor) ?? -1;
+    draft?.accounts?.findIndex(
+      (a) => a.number === (creatingAccount ?? accountEditor),
+    ) ?? -1;
   const proxyOptions = [
     { value: "0", label: t("aiDirect") },
     ...(draft?.proxies || []).map((p) => ({
@@ -305,6 +346,377 @@ export function AIConnection({
   );
   const connectionBlocked =
     disabled || configurationPending || dirty || busy !== undefined;
+  const proxyForm = proxy && (
+    <form
+      className="settings-object-editor"
+      onSubmit={(event) => {
+        event.preventDefault();
+        setCreatingProxy(undefined);
+        setProxyEditor(undefined);
+      }}
+      role="region"
+      aria-label={t(
+        creatingProxy !== undefined ? "aiAddProxy" : "aiProxyEditor",
+      )}
+    >
+      <ServiceField
+        path={`ai_services.proxies.${proxyIndex}.id`}
+        label={t("aiObjectID")}
+        help={t("aiObjectIDHint")}
+      >
+        {(id, error) => (
+          <TextInput
+            id={id}
+            autoFocus
+            value={proxy.id}
+            error={error}
+            disabled={locked}
+            onChange={(e) =>
+              proxyChange(proxy.number, { id: e.currentTarget.value })
+            }
+          />
+        )}
+      </ServiceField>
+      <ServiceField
+        path={`ai_services.proxies.${proxyIndex}.type`}
+        label={t("type")}
+      >
+        {(id, error) => (
+          <Select
+            id={id}
+            value={proxy.type}
+            error={error}
+            disabled={locked}
+            options={[
+              { value: "http", label: "HTTP" },
+              { value: "trojan", label: "Trojan" },
+            ]}
+            onValueChange={(type) => {
+              const saved = query.data?.proxies?.find(
+                (value) => value.number === proxy.number && value.type === type,
+              );
+              proxyChange(proxy.number, {
+                type: type as Proxy["type"],
+                url: "",
+                host: "",
+                port: type === "http" ? 0 : 443,
+                password: "",
+                server_name: "",
+                secret_configured: false,
+                ...saved,
+                id: proxy.id,
+                clear_secret: undefined,
+              });
+            }}
+          />
+        )}
+      </ServiceField>
+      {proxy.type === "http" ? (
+        <>
+          <ServiceField
+            wide
+            path={`ai_services.proxies.${proxyIndex}.url`}
+            label={t("aiProxyAddress")}
+            help={t("aiProxySecretHint")}
+          >
+            {(id, error) => (
+              <PasswordInput
+                id={id}
+                value={proxy.url}
+                error={error}
+                disabled={locked}
+                autoComplete="off"
+                onChange={(e) =>
+                  proxyChange(proxy.number, {
+                    url: e.currentTarget.value,
+                  })
+                }
+              />
+            )}
+          </ServiceField>
+          {proxy.secret_configured && (
+            <div className="settings-editor-wide">
+              <SettingsCheckbox
+                label={t("aiClearProxyAuth")}
+                help={t("aiClearProxyAuthHint")}
+                checked={!!proxy.clear_secret}
+                disabled={locked}
+                onChange={(event) =>
+                  proxyChange(proxy.number, {
+                    clear_secret: event.currentTarget.checked,
+                  })
+                }
+              />
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <ServiceField
+            path={`ai_services.proxies.${proxyIndex}.host`}
+            label={t("aiProxyHost")}
+          >
+            {(id, error) => (
+              <TextInput
+                id={id}
+                value={proxy.host}
+                error={error}
+                disabled={locked}
+                onChange={(e) =>
+                  proxyChange(proxy.number, {
+                    host: e.currentTarget.value,
+                  })
+                }
+              />
+            )}
+          </ServiceField>
+          <ServiceField
+            path={`ai_services.proxies.${proxyIndex}.port`}
+            label={t("aiProxyPort")}
+          >
+            {(id, error) => (
+              <NumberInput
+                id={id}
+                value={proxy.port}
+                error={error}
+                disabled={locked}
+                onChange={(value) =>
+                  proxyChange(proxy.number, { port: Number(value) })
+                }
+              />
+            )}
+          </ServiceField>
+          <ServiceField
+            path={`ai_services.proxies.${proxyIndex}.server_name`}
+            label={t("aiTLSServerName")}
+            help={t("aiTLSServerNameHint")}
+          >
+            {(id, error) => (
+              <TextInput
+                id={id}
+                value={proxy.server_name}
+                error={error}
+                disabled={locked}
+                onChange={(e) =>
+                  proxyChange(proxy.number, {
+                    server_name: e.currentTarget.value,
+                  })
+                }
+              />
+            )}
+          </ServiceField>
+          <ServiceField
+            path={`ai_services.proxies.${proxyIndex}.password`}
+            label={t("aiProxyPassword")}
+            help={proxy.secret_configured ? t("aiSecretKeepHint") : undefined}
+          >
+            {(id, error) => (
+              <PasswordInput
+                id={id}
+                value={proxy.password || ""}
+                error={error}
+                disabled={locked}
+                autoComplete="new-password"
+                placeholder={
+                  proxy.secret_configured ? t("aiSecretConfigured") : undefined
+                }
+                onChange={(e) =>
+                  proxyChange(proxy.number, {
+                    password: e.currentTarget.value,
+                  })
+                }
+              />
+            )}
+          </ServiceField>
+        </>
+      )}
+      <Group className="settings-editor-wide" gap="xs">
+        <Button type="submit" variant="filled" disabled={locked}>
+          {t(creatingProxy !== undefined ? "aiAddProxy" : "aiFinishEditing")}
+        </Button>
+        <Button
+          disabled={locked}
+          onClick={() => {
+            Object.keys(errors)
+              .filter((key) => key.startsWith("ai_services.proxies."))
+              .forEach(clear);
+            if (creatingProxy !== undefined) {
+              edit({
+                ...draft!,
+                proxies: draft!.proxies!.filter(
+                  (p) => p.number !== creatingProxy,
+                ),
+              });
+              setCreatingProxy(undefined);
+            } else if (originalProxy.current) {
+              const original = originalProxy.current;
+              edit({
+                ...draft!,
+                proxies: draft!.proxies!.map((p) =>
+                  p.number === original.number ? original : p,
+                ),
+              });
+            }
+            setProxyEditor(undefined);
+          }}
+        >
+          {t("cancel")}
+        </Button>
+      </Group>
+    </form>
+  );
+  const accountForm = account && (
+    <form
+      className="settings-object-editor"
+      onSubmit={(event) => {
+        event.preventDefault();
+        setCreatingAccount(undefined);
+        setAccountEditor(undefined);
+      }}
+      role="region"
+      aria-label={t(
+        creatingAccount !== undefined ? "aiAddAccount" : "aiAccountEditor",
+      )}
+    >
+      <ServiceField
+        path={`ai_services.accounts.${accountIndex}.id`}
+        label={t("aiObjectID")}
+        help={t("aiObjectIDHint")}
+      >
+        {(id, error) => (
+          <TextInput
+            id={id}
+            autoFocus
+            value={account.id}
+            error={error}
+            disabled={locked}
+            onChange={(e) =>
+              accountChange(account.number, {
+                id: e.currentTarget.value,
+              })
+            }
+          />
+        )}
+      </ServiceField>
+      <ServiceField
+        path={`ai_services.accounts.${accountIndex}.type`}
+        label={t("type")}
+      >
+        {(id, error) => (
+          <Select
+            id={id}
+            value={account.type}
+            error={error}
+            disabled={locked}
+            options={[
+              { value: "chatgpt", label: "ChatGPT" },
+              { value: "openai", label: "OpenAI API" },
+            ]}
+            onValueChange={(type) => {
+              const saved = query.data?.accounts?.find(
+                (value) =>
+                  value.number === account.number && value.type === type,
+              );
+              accountChange(account.number, {
+                type: type as Account["type"],
+                api_key: "",
+                connected: saved?.connected || false,
+                email: saved?.email || "",
+                clear_secret: undefined,
+              });
+            }}
+          />
+        )}
+      </ServiceField>
+      <ServiceField
+        path={`ai_services.accounts.${accountIndex}.proxy`}
+        label={t("aiAccountProxy")}
+      >
+        {(id, error) => (
+          <Select
+            id={id}
+            value={String(account.proxy)}
+            error={error}
+            disabled={locked}
+            options={proxyOptions}
+            onValueChange={(proxy) =>
+              accountChange(account.number, { proxy: Number(proxy) })
+            }
+          />
+        )}
+      </ServiceField>
+      {account.type === "openai" && (
+        <ServiceField
+          path={`ai_services.accounts.${accountIndex}.api_key`}
+          label="API Key"
+          help={account.connected ? t("aiSecretKeepHint") : t("aiAPIKeyHint")}
+        >
+          {(id, error) => (
+            <PasswordInput
+              id={id}
+              value={account.api_key || ""}
+              error={error}
+              disabled={locked}
+              autoComplete="new-password"
+              placeholder={
+                account.connected ? t("aiSecretConfigured") : undefined
+              }
+              onChange={(e) =>
+                accountChange(account.number, {
+                  api_key: e.currentTarget.value,
+                })
+              }
+            />
+          )}
+        </ServiceField>
+      )}
+      {account.email && (
+        <div className="settings-editor-wide">
+          <SettingsHint>{account.email}</SettingsHint>
+        </div>
+      )}
+      {account.number <= 0 && account.type === "chatgpt" && (
+        <div className="settings-editor-wide">
+          <SettingsHint>{t("aiSaveBeforeSignIn")}</SettingsHint>
+        </div>
+      )}
+      <Group className="settings-editor-wide" gap="xs">
+        <Button type="submit" variant="filled" disabled={locked}>
+          {t(
+            creatingAccount !== undefined ? "aiAddAccount" : "aiFinishEditing",
+          )}
+        </Button>
+        <Button
+          disabled={locked}
+          onClick={() => {
+            Object.keys(errors)
+              .filter((key) => key.startsWith("ai_services.accounts."))
+              .forEach(clear);
+            if (creatingAccount !== undefined) {
+              edit({
+                ...draft!,
+                accounts: draft!.accounts!.filter(
+                  (a) => a.number !== creatingAccount,
+                ),
+              });
+              setCreatingAccount(undefined);
+            } else if (originalAccount.current) {
+              const original = originalAccount.current;
+              edit({
+                ...draft!,
+                accounts: draft!.accounts!.map((a) =>
+                  a.number === original.number ? original : a,
+                ),
+              });
+            }
+            setAccountEditor(undefined);
+          }}
+        >
+          {t("cancel")}
+        </Button>
+      </Group>
+    </form>
+  );
   return (
     <section
       id="settings-ai"
@@ -348,574 +760,215 @@ export function AIConnection({
       {notice && <TaskStatus>{notice}</TaskStatus>}
       {draft && (
         <div className="settings-blocks">
-          <section
+          <SettingsCollection
             id="settings-ai-proxies"
-            className="settings-fields settings-subsection"
-            aria-labelledby="ai-proxies-title"
-          >
-            <div className="settings-section-heading">
-              <h3 id="ai-proxies-title" className="settings-subsection-heading">
-                {t("aiProxies")}
-              </h3>
-              <HelpTooltip label={t("aiProxies")}>
-                {t("aiProxiesHint")}
-              </HelpTooltip>
-            </div>
-            <Group justify="space-between">
-              <EmptyHint>
-                {draft.proxies?.length
-                  ? t("aiObjectCount", { count: draft.proxies.length })
-                  : t("aiNoProxies")}
-              </EmptyHint>
-              <Button
-                disabled={locked}
-                onClick={() => {
-                  const number = temporary.current--;
-                  edit({
-                    ...draft,
-                    proxies: [
-                      ...(draft.proxies || []),
-                      {
-                        number,
-                        id: "",
-                        type: "http",
-                        url: "",
-                        host: "",
-                        port: 0,
-                        server_name: "",
-                        secret_configured: false,
-                      },
-                    ],
-                  });
-                  setProxyEditor(number);
-                }}
-              >
-                {t("aiAddProxy")}
-              </Button>
-            </Group>
-            {!!draft.proxies?.length && (
-              <Table.ScrollContainer minWidth={480}>
-                <Table
-                  highlightOnHover
-                  className="settings-table settings-table--compact"
-                  aria-label={t("aiProxies")}
-                >
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>{t("aiNumber")}</Table.Th>
-                      <Table.Th>ID</Table.Th>
-                      <Table.Th>{t("type")}</Table.Th>
-                      <Table.Th>{t("aiEndpoint")}</Table.Th>
-                      <Table.Th>
-                        <span className="sr-only">
-                          {t("settingCredentialActions")}
-                        </span>
-                      </Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {draft.proxies.map((p) => (
-                      <Table.Tr key={p.number}>
-                        <Table.Td>{objectNumber(p.number)}</Table.Td>
-                        <Table.Th scope="row">
-                          {p.id || t("aiUnnamed")}
-                        </Table.Th>
-                        <Table.Td>
-                          {p.type === "http" ? "HTTP" : "Trojan"}
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm" truncate>
-                            {p.type === "http"
-                              ? proxyAddress(p.url)
-                              : `${p.host}:${p.port}`}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Group
-                            gap="md"
-                            justify="flex-end"
-                            wrap="nowrap"
-                            className="table-row-actions"
-                          >
-                            {rowAction(
-                              t(
-                                p.number === proxyEditor
-                                  ? "aiCollapse"
-                                  : "aiEdit",
-                              ),
-                              () =>
-                                setProxyEditor(
-                                  p.number === proxyEditor
-                                    ? undefined
-                                    : p.number,
-                                ),
-                            )}
-                            {rowAction(t("aiDelete"), () => {
-                              edit({
-                                ...draft,
-                                proxies: draft.proxies!.filter(
-                                  (value) => value.number !== p.number,
-                                ),
-                              });
-                              if (proxyEditor === p.number)
-                                setProxyEditor(undefined);
-                            })}
-                          </Group>
-                        </Table.Td>
-                      </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
-              </Table.ScrollContainer>
-            )}
-            {proxy && (
-              <div
-                className="settings-fields"
-                role="region"
-                aria-label={t("aiProxyEditor")}
-              >
-                <ServiceField
-                  path={`ai_services.proxies.${proxyIndex}.id`}
-                  label={t("aiObjectID")}
-                >
-                  {(id, error) => (
-                    <TextInput
-                      id={id}
-                      value={proxy.id}
-                      error={error}
-                      disabled={locked}
-                      onChange={(e) =>
-                        proxyChange(proxy.number, { id: e.currentTarget.value })
-                      }
-                    />
-                  )}
-                </ServiceField>
-                <ServiceField
-                  path={`ai_services.proxies.${proxyIndex}.type`}
-                  label={t("type")}
-                >
-                  {(id, error) => (
-                    <Select
-                      id={id}
-                      value={proxy.type}
-                      error={error}
-                      disabled={locked}
-                      options={[
-                        { value: "http", label: "HTTP" },
-                        { value: "trojan", label: "Trojan" },
-                      ]}
-                      onValueChange={(type) => {
-                        const saved = query.data?.proxies?.find(
-                          (value) =>
-                            value.number === proxy.number &&
-                            value.type === type,
-                        );
-                        proxyChange(proxy.number, {
-                          type: type as Proxy["type"],
-                          url: "",
-                          host: "",
-                          port: type === "http" ? 0 : 443,
-                          password: "",
-                          server_name: "",
-                          secret_configured: false,
-                          ...saved,
-                          id: proxy.id,
-                          clear_secret: undefined,
-                        });
-                      }}
-                    />
-                  )}
-                </ServiceField>
-                {proxy.type === "http" ? (
-                  <>
-                    <ServiceField
-                      path={`ai_services.proxies.${proxyIndex}.url`}
-                      label={t("aiProxy")}
-                      help={t("aiProxySecretHint")}
-                    >
-                      {(id, error) => (
-                        <PasswordInput
-                          id={id}
-                          value={proxy.url}
-                          error={error}
-                          disabled={locked}
-                          autoComplete="off"
-                          onChange={(e) =>
-                            proxyChange(proxy.number, {
-                              url: e.currentTarget.value,
-                            })
-                          }
-                        />
-                      )}
-                    </ServiceField>
-                    {proxy.secret_configured && (
-                      <SettingsCheckbox
-                        label={t("aiClearProxyAuth")}
-                        help={t("aiClearProxyAuthHint")}
-                        checked={!!proxy.clear_secret}
-                        disabled={locked}
-                        onChange={(event) =>
-                          proxyChange(proxy.number, {
-                            clear_secret: event.currentTarget.checked,
-                          })
-                        }
-                      />
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <ServiceField
-                      path={`ai_services.proxies.${proxyIndex}.host`}
-                      label={t("aiProxyHost")}
-                    >
-                      {(id, error) => (
-                        <TextInput
-                          id={id}
-                          value={proxy.host}
-                          error={error}
-                          disabled={locked}
-                          onChange={(e) =>
-                            proxyChange(proxy.number, {
-                              host: e.currentTarget.value,
-                            })
-                          }
-                        />
-                      )}
-                    </ServiceField>
-                    <ServiceField
-                      path={`ai_services.proxies.${proxyIndex}.port`}
-                      label={t("aiProxyPort")}
-                    >
-                      {(id, error) => (
-                        <NumberInput
-                          id={id}
-                          value={proxy.port}
-                          error={error}
-                          disabled={locked}
-                          onChange={(value) =>
-                            proxyChange(proxy.number, { port: Number(value) })
-                          }
-                        />
-                      )}
-                    </ServiceField>
-                    <ServiceField
-                      path={`ai_services.proxies.${proxyIndex}.server_name`}
-                      label={t("aiTLSServerName")}
-                      help={t("aiTLSServerNameHint")}
-                    >
-                      {(id, error) => (
-                        <TextInput
-                          id={id}
-                          value={proxy.server_name}
-                          error={error}
-                          disabled={locked}
-                          onChange={(e) =>
-                            proxyChange(proxy.number, {
-                              server_name: e.currentTarget.value,
-                            })
-                          }
-                        />
-                      )}
-                    </ServiceField>
-                    <ServiceField
-                      path={`ai_services.proxies.${proxyIndex}.password`}
-                      label={t("aiProxyPassword")}
-                      help={
-                        proxy.secret_configured
-                          ? t("aiSecretKeepHint")
-                          : undefined
-                      }
-                    >
-                      {(id, error) => (
-                        <PasswordInput
-                          id={id}
-                          value={proxy.password || ""}
-                          error={error}
-                          disabled={locked}
-                          autoComplete="new-password"
-                          placeholder={
-                            proxy.secret_configured
-                              ? t("aiSecretConfigured")
-                              : undefined
-                          }
-                          onChange={(e) =>
-                            proxyChange(proxy.number, {
-                              password: e.currentTarget.value,
-                            })
-                          }
-                        />
-                      )}
-                    </ServiceField>
-                  </>
-                )}
-              </div>
-            )}
-          </section>
-          <section
-            id="settings-ai-accounts"
-            className="settings-fields settings-subsection"
-            aria-labelledby="ai-accounts-title"
-          >
-            <div className="settings-section-heading">
-              <h3
-                id="ai-accounts-title"
-                className="settings-subsection-heading"
-              >
-                {t("aiAccounts")}
-              </h3>
-              <HelpTooltip label={t("aiAccounts")}>
-                {t("aiAccountsHint")}
-              </HelpTooltip>
-            </div>
-            <Group justify="space-between">
-              <EmptyHint>
-                {draft.accounts?.length
-                  ? t("aiObjectCount", { count: draft.accounts.length })
-                  : t("aiNoAccounts")}
-              </EmptyHint>
-              <Button
-                disabled={locked}
-                onClick={() => {
-                  const number = temporary.current--;
-                  edit({
-                    ...draft,
-                    accounts: [
-                      ...(draft.accounts || []),
-                      {
-                        number,
-                        id: "",
-                        type: "chatgpt",
-                        proxy: 0,
-                        connected: false,
-                        email: "",
-                      },
-                    ],
-                  });
-                  setAccountEditor(number);
-                }}
-              >
-                {t("aiAddAccount")}
-              </Button>
-            </Group>
-            {!!draft.accounts?.length && (
-              <Table.ScrollContainer minWidth={560}>
-                <Table
-                  highlightOnHover
-                  className="settings-table settings-table--compact"
-                  aria-label={t("aiAccounts")}
-                >
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>{t("aiNumber")}</Table.Th>
-                      <Table.Th>ID</Table.Th>
-                      <Table.Th>{t("type")}</Table.Th>
-                      <Table.Th>{t("aiAccountProxy")}</Table.Th>
-                      <Table.Th>{t("backgroundTaskState")}</Table.Th>
-                      <Table.Th>
-                        <span className="sr-only">
-                          {t("settingCredentialActions")}
-                        </span>
-                      </Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {draft.accounts.map((a) => (
-                      <Table.Tr key={a.number}>
-                        <Table.Td>{objectNumber(a.number)}</Table.Td>
-                        <Table.Th scope="row">
-                          {a.id || t("aiUnnamed")}
-                        </Table.Th>
-                        <Table.Td>
-                          {a.type === "chatgpt" ? "ChatGPT" : "OpenAI API"}
-                        </Table.Td>
-                        <Table.Td>
-                          {a.proxy
-                            ? draft.proxies?.find((p) => p.number === a.proxy)
-                                ?.id ||
-                              t("aiRemovedReference", { number: a.proxy })
-                            : t("aiDirect")}
-                        </Table.Td>
-                        <Table.Td>
-                          {query.data?.pending_account === a.number
-                            ? t("aiWaiting")
-                            : a.connected
-                              ? t("aiConnected")
-                              : t("aiDisconnected")}
-                        </Table.Td>
-                        <Table.Td>
-                          <Group
-                            gap="md"
-                            justify="flex-end"
-                            wrap="nowrap"
-                            className="table-row-actions"
-                            data-busy={busy === a.number || undefined}
-                          >
-                            {a.type === "chatgpt" &&
-                              rowAction(
-                                t("aiContinue"),
-                                () => void accountAction(a.number, "connect"),
-                                connectionBlocked ||
-                                  a.number <= 0 ||
-                                  !!query.data?.pending_account,
-                              )}
-                            {(a.connected ||
-                              query.data?.pending_account === a.number) &&
-                              rowAction(
-                                t(
-                                  query.data?.pending_account === a.number
-                                    ? "cancel"
-                                    : "aiDisconnect",
-                                ),
-                                () =>
-                                  void accountAction(a.number, "disconnect"),
-                                connectionBlocked || a.number <= 0,
-                              )}
-                            {rowAction(
-                              t(
-                                a.number === accountEditor
-                                  ? "aiCollapse"
-                                  : "aiEdit",
-                              ),
-                              () =>
-                                setAccountEditor(
-                                  a.number === accountEditor
-                                    ? undefined
-                                    : a.number,
-                                ),
-                            )}
-                            {rowAction(t("aiDelete"), () => {
-                              edit({
-                                ...draft,
-                                accounts: draft.accounts!.filter(
-                                  (value) => value.number !== a.number,
-                                ),
-                              });
-                              if (accountEditor === a.number)
-                                setAccountEditor(undefined);
-                            })}
-                          </Group>
-                        </Table.Td>
-                      </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
-              </Table.ScrollContainer>
-            )}
-            {loginURL && !!query.data?.pending_account && (
-              <Anchor href={loginURL} target="_blank" rel="noreferrer">
-                {t("aiOpenSignIn")}
-              </Anchor>
-            )}
-            {account && (
-              <div
-                className="settings-fields"
-                role="region"
-                aria-label={t("aiAccountEditor")}
-              >
-                <ServiceField
-                  path={`ai_services.accounts.${accountIndex}.id`}
-                  label={t("aiObjectID")}
-                >
-                  {(id, error) => (
-                    <TextInput
-                      id={id}
-                      value={account.id}
-                      error={error}
-                      disabled={locked}
-                      onChange={(e) =>
-                        accountChange(account.number, {
-                          id: e.currentTarget.value,
-                        })
-                      }
-                    />
-                  )}
-                </ServiceField>
-                <ServiceField
-                  path={`ai_services.accounts.${accountIndex}.type`}
-                  label={t("type")}
-                >
-                  {(id, error) => (
-                    <Select
-                      id={id}
-                      value={account.type}
-                      error={error}
-                      disabled={locked}
-                      options={[
-                        { value: "chatgpt", label: "ChatGPT" },
-                        { value: "openai", label: "OpenAI API" },
-                      ]}
-                      onValueChange={(type) => {
-                        const saved = query.data?.accounts?.find(
-                          (value) =>
-                            value.number === account.number &&
-                            value.type === type,
-                        );
-                        accountChange(account.number, {
-                          type: type as Account["type"],
-                          api_key: "",
-                          connected: saved?.connected || false,
-                          email: saved?.email || "",
-                          clear_secret: undefined,
-                        });
-                      }}
-                    />
-                  )}
-                </ServiceField>
-                <ServiceField
-                  path={`ai_services.accounts.${accountIndex}.proxy`}
-                  label={t("aiAccountProxy")}
-                >
-                  {(id, error) => (
-                    <Select
-                      id={id}
-                      value={String(account.proxy)}
-                      error={error}
-                      disabled={locked}
-                      options={proxyOptions}
-                      onValueChange={(proxy) =>
-                        accountChange(account.number, { proxy: Number(proxy) })
-                      }
-                    />
-                  )}
-                </ServiceField>
-                {account.type === "openai" && (
-                  <ServiceField
-                    path={`ai_services.accounts.${accountIndex}.api_key`}
-                    label="API Key"
-                    help={
-                      account.connected
-                        ? t("aiSecretKeepHint")
-                        : t("aiAPIKeyHint")
-                    }
+            title={t("aiProxies")}
+            help={t("aiProxiesHint")}
+            addLabel={t("aiAddProxy")}
+            emptyLabel={t("aiNoProxies")}
+            items={draft.proxies || []}
+            creating={creatingProxy}
+            editing={proxyEditor}
+            disabled={locked}
+            minWidth={480}
+            headers={[
+              t("aiNumber"),
+              t("aiObjectID"),
+              t("type"),
+              t("aiEndpoint"),
+            ]}
+            onCreate={() => {
+              const number = temporary.current--;
+              edit({
+                ...draft,
+                proxies: [
+                  ...(draft.proxies || []),
+                  {
+                    number,
+                    id: "",
+                    type: "http",
+                    url: "",
+                    host: "",
+                    port: 0,
+                    server_name: "",
+                    secret_configured: false,
+                  },
+                ],
+              });
+              setCreatingProxy(number);
+              setProxyEditor(undefined);
+            }}
+            editor={proxyForm}
+            renderRow={(p) => (
+              <>
+                <Table.Td>{objectNumber(p.number)}</Table.Td>
+                <Table.Th scope="row">{p.id || t("aiUnnamed")}</Table.Th>
+                <Table.Td>{p.type === "http" ? "HTTP" : "Trojan"}</Table.Td>
+                <Table.Td>
+                  <Text size="sm" truncate>
+                    {p.type === "http"
+                      ? proxyAddress(p.url)
+                      : `${p.host}:${p.port}`}
+                  </Text>
+                </Table.Td>
+                <Table.Td>
+                  <Group
+                    gap="md"
+                    justify="flex-end"
+                    wrap="nowrap"
+                    className="table-row-actions"
                   >
-                    {(id, error) => (
-                      <PasswordInput
-                        id={id}
-                        value={account.api_key || ""}
-                        error={error}
-                        disabled={locked}
-                        autoComplete="new-password"
-                        placeholder={
-                          account.connected
-                            ? t("aiSecretConfigured")
-                            : undefined
-                        }
-                        onChange={(e) =>
-                          accountChange(account.number, {
-                            api_key: e.currentTarget.value,
-                          })
-                        }
-                      />
+                    {rowAction(
+                      t("aiEdit"),
+                      () => {
+                        originalProxy.current = p;
+                        setProxyEditor(p.number);
+                      },
+                      locked ||
+                        creatingProxy !== undefined ||
+                        proxyEditor !== undefined,
                     )}
-                  </ServiceField>
-                )}
-                {account.email && <SettingsHint>{account.email}</SettingsHint>}
-                {account.number <= 0 && account.type === "chatgpt" && (
-                  <SettingsHint>{t("aiSaveBeforeSignIn")}</SettingsHint>
-                )}
-              </div>
+                    {rowAction(
+                      t("aiDelete"),
+                      () => {
+                        edit({
+                          ...draft,
+                          proxies: draft.proxies!.filter(
+                            (value) => value.number !== p.number,
+                          ),
+                        });
+                        if (proxyEditor === p.number) setProxyEditor(undefined);
+                      },
+                      locked ||
+                        creatingProxy !== undefined ||
+                        proxyEditor !== undefined,
+                    )}
+                  </Group>
+                </Table.Td>
+              </>
             )}
-          </section>
+          />
+          <SettingsCollection
+            id="settings-ai-accounts"
+            title={t("aiAccounts")}
+            help={t("aiAccountsHint")}
+            addLabel={t("aiAddAccount")}
+            emptyLabel={t("aiNoAccounts")}
+            items={draft.accounts || []}
+            creating={creatingAccount}
+            editing={accountEditor}
+            disabled={locked}
+            minWidth={560}
+            headers={[
+              t("aiNumber"),
+              t("aiObjectID"),
+              t("type"),
+              t("aiAccountProxy"),
+              t("backgroundTaskState"),
+            ]}
+            onCreate={() => {
+              const number = temporary.current--;
+              edit({
+                ...draft,
+                accounts: [
+                  ...(draft.accounts || []),
+                  {
+                    number,
+                    id: "",
+                    type: "chatgpt",
+                    proxy: 0,
+                    connected: false,
+                    email: "",
+                  },
+                ],
+              });
+              setCreatingAccount(number);
+              setAccountEditor(undefined);
+            }}
+            editor={accountForm}
+            renderRow={(a) => (
+              <>
+                <Table.Td>{objectNumber(a.number)}</Table.Td>
+                <Table.Th scope="row">{a.id || t("aiUnnamed")}</Table.Th>
+                <Table.Td>
+                  {a.type === "chatgpt" ? "ChatGPT" : "OpenAI API"}
+                </Table.Td>
+                <Table.Td>
+                  {a.proxy
+                    ? draft.proxies?.find((p) => p.number === a.proxy)?.id ||
+                      t("aiRemovedReference", { number: a.proxy })
+                    : t("aiDirect")}
+                </Table.Td>
+                <Table.Td>
+                  {query.data?.pending_account === a.number
+                    ? t("aiWaiting")
+                    : a.connected
+                      ? t("aiConnected")
+                      : t("aiDisconnected")}
+                </Table.Td>
+                <Table.Td>
+                  <Group
+                    gap="md"
+                    justify="flex-end"
+                    wrap="nowrap"
+                    className="table-row-actions"
+                    data-busy={busy === a.number || undefined}
+                  >
+                    {a.type === "chatgpt" &&
+                      rowAction(
+                        t("aiContinue"),
+                        () => void accountAction(a.number, "connect"),
+                        connectionBlocked ||
+                          a.number <= 0 ||
+                          !!query.data?.pending_account,
+                      )}
+                    {(a.connected ||
+                      query.data?.pending_account === a.number) &&
+                      rowAction(
+                        t(
+                          query.data?.pending_account === a.number
+                            ? "cancel"
+                            : "aiDisconnect",
+                        ),
+                        () => void accountAction(a.number, "disconnect"),
+                        connectionBlocked || a.number <= 0,
+                      )}
+                    {rowAction(
+                      t("aiEdit"),
+                      () => {
+                        originalAccount.current = a;
+                        setAccountEditor(a.number);
+                      },
+                      locked ||
+                        creatingAccount !== undefined ||
+                        accountEditor !== undefined,
+                    )}
+                    {rowAction(
+                      t("aiDelete"),
+                      () => {
+                        edit({
+                          ...draft,
+                          accounts: draft.accounts!.filter(
+                            (value) => value.number !== a.number,
+                          ),
+                        });
+                        if (accountEditor === a.number)
+                          setAccountEditor(undefined);
+                      },
+                      locked ||
+                        creatingAccount !== undefined ||
+                        accountEditor !== undefined,
+                    )}
+                  </Group>
+                </Table.Td>
+              </>
+            )}
+          />
+          {loginURL && !!query.data?.pending_account && (
+            <Anchor href={loginURL} target="_blank" rel="noreferrer">
+              {t("aiOpenSignIn")}
+            </Anchor>
+          )}
           {(draft.definitions || []).map((definition) => (
             <FeatureSettings
               key={definition.name}

@@ -41,6 +41,85 @@ async function fill(input: HTMLElement, value: string) {
   await user.click(input);
   await user.paste(value);
 }
+
+it("keeps creation above the table without a placeholder row and can cancel it", async () => {
+  reads();
+  const changed = vi.fn();
+  const { client, unmount } = mount(<AIConnection onDraftChange={changed} />);
+  const table = await screen.findByRole("table", { name: "AI accounts" });
+  const before = within(table).getAllByRole("row").length;
+  await userEvent.click(screen.getByRole("button", { name: "Add account" }));
+  const form = screen.getByRole("region", { name: "Add account" });
+  expect(form.closest("table")).toBeNull();
+  expect(
+    form.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(within(table).getAllByRole("row")).toHaveLength(before);
+  await fill(
+    within(form).getByRole("textbox", { name: "Name" }),
+    "Unsaved account",
+  );
+  await userEvent.click(within(form).getByRole("button", { name: "Cancel" }));
+  await waitFor(() => expect(changed.mock.lastCall?.[0]).toBeNull());
+  expect(
+    screen.queryByRole("region", { name: "Add account" }),
+  ).not.toBeInTheDocument();
+  unmount();
+  client.clear();
+});
+
+it("edits one table row and cancels newly entered secrets without retaining hidden fields", async () => {
+  reads(
+    aiServicesFixture({
+      proxies: [
+        {
+          number: 1,
+          id: "Home proxy",
+          type: "http",
+          url: "http://proxy.example:7890",
+          host: "",
+          port: 0,
+          server_name: "",
+          secret_configured: true,
+        },
+      ],
+    }),
+  );
+  const changed = vi.fn();
+  const { client, unmount } = mount(<AIConnection onDraftChange={changed} />);
+  const accounts = await screen.findByRole("table", { name: "AI accounts" });
+  await userEvent.click(within(accounts).getByRole("button", { name: "Edit" }));
+  const account = screen.getByRole("region", { name: "Edit AI account" });
+  expect(account.closest("tr")?.closest("table")).toBe(accounts);
+  expect(
+    within(accounts).queryByRole("rowheader", { name: "Test account" }),
+  ).not.toBeInTheDocument();
+  await fill(
+    within(account).getByLabelText("API Key", { selector: "input" }),
+    "temporary-secret",
+  );
+  await userEvent.click(
+    within(account).getByRole("button", { name: "Cancel" }),
+  );
+  await waitFor(() => expect(changed.mock.lastCall?.[0]).toBeNull());
+  expect(
+    within(accounts).getByRole("rowheader", { name: "Test account" }),
+  ).toBeVisible();
+  const proxies = screen.getByRole("table", { name: "Proxies" });
+  await userEvent.click(within(proxies).getByRole("button", { name: "Edit" }));
+  const proxy = screen.getByRole("region", { name: "Edit proxy" });
+  expect(proxy.closest("tr")?.closest("table")).toBe(proxies);
+  await choose(proxy, "Type", "Trojan");
+  await fill(
+    within(proxy).getByLabelText("Password", { selector: "input" }),
+    "temporary-password",
+  );
+  await userEvent.click(within(proxy).getByRole("button", { name: "Cancel" }));
+  await waitFor(() => expect(changed.mock.lastCall?.[0]).toBeNull());
+  expect(within(proxies).getByRole("cell", { name: "HTTP" })).toBeVisible();
+  unmount();
+  client.clear();
+});
 function reads(view = aiServicesFixture()) {
   const fetch = vi.fn(async (path: string, _init?: RequestInit) =>
     Response.json(path.endsWith("/services") ? view : { supported: true }),
@@ -64,22 +143,17 @@ it("edits multiple same-type accounts and distinct proxies in one unsaved draft"
     screen.queryByRole("table", { name: "Proxies" }),
   ).not.toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "Add proxy" }));
-  let editor = screen.getByRole("region", { name: "Edit proxy" });
+  let editor = screen.getByRole("region", { name: "Add proxy" });
+  await fill(within(editor).getByRole("textbox", { name: "Name" }), "Home");
   await fill(
-    within(editor).getByRole("textbox", { name: "ID (name)" }),
-    "Home",
-  );
-  await fill(
-    within(editor).getByLabelText("AI proxy address", { selector: "input" }),
+    within(editor).getByLabelText("Proxy address", { selector: "input" }),
     "http://localhost:7890",
   );
   await userEvent.click(screen.getByRole("button", { name: "Add proxy" }));
-  editor = screen.getByRole("region", { name: "Edit proxy" });
+  await userEvent.click(screen.getByRole("button", { name: "Add proxy" }));
+  editor = screen.getByRole("region", { name: "Add proxy" });
   await choose(editor, "Type", "Trojan");
-  await fill(
-    within(editor).getByRole("textbox", { name: "ID (name)" }),
-    "Travel",
-  );
+  await fill(within(editor).getByRole("textbox", { name: "Name" }), "Travel");
   await fill(
     within(editor).getByRole("textbox", { name: "Server address" }),
     "proxy.example",
@@ -88,22 +162,21 @@ it("edits multiple same-type accounts and distinct proxies in one unsaved draft"
     within(editor).getByLabelText("Password", { selector: "input" }),
     "synthetic-password",
   );
+  await userEvent.click(screen.getByRole("button", { name: "Add proxy" }));
   for (const [name, proxy] of [
     ["Primary", "Home"],
     ["Backup", "Travel"],
   ]) {
     await userEvent.click(screen.getByRole("button", { name: "Add account" }));
-    editor = screen.getByRole("region", { name: "Edit AI account" });
-    await fill(
-      within(editor).getByRole("textbox", { name: "ID (name)" }),
-      name,
-    );
+    editor = screen.getByRole("region", { name: "Add account" });
+    await fill(within(editor).getByRole("textbox", { name: "Name" }), name);
     await choose(editor, "Type", "OpenAI API");
     await choose(editor, "Proxy", proxy);
     await fill(
       within(editor).getByLabelText("API Key", { selector: "input" }),
       `synthetic-${name}`,
     );
+    await userEvent.click(screen.getByRole("button", { name: "Add account" }));
   }
   await waitFor(() =>
     expect(changed.mock.lastCall?.[0]?.value.accounts).toHaveLength(2),
@@ -223,10 +296,11 @@ it("keeps secrets hidden and clears the dirty state when a secret edit is undone
   await choose(editor, "Type", "ChatGPT");
   await choose(editor, "Type", "OpenAI API");
   await waitFor(() => expect(changed.mock.lastCall?.[0]).toBeNull());
-  expect(within(row).getByRole("button", { name: "Disconnect" })).toBeEnabled();
   expect(
     within(editor).getByLabelText("API Key", { selector: "input" }),
   ).toHaveAttribute("placeholder", "Configured; leave empty to keep");
+  await userEvent.click(within(editor).getByRole("button", { name: "Done" }));
+  expect(within(row).getByRole("button", { name: "Disconnect" })).toBeEnabled();
   const proxyRow = screen
     .getByRole("rowheader", { name: "Private proxy" })
     .closest("tr")!;
@@ -281,10 +355,7 @@ it("opens field errors in the corresponding editor and lets the server own valid
   );
   const editor = await screen.findByRole("region", { name: "Edit AI account" });
   expect(within(editor).getByText("Enter a unique name.")).toBeInTheDocument();
-  await fill(
-    within(editor).getByRole("textbox", { name: "ID (name)" }),
-    " updated",
-  );
+  await fill(within(editor).getByRole("textbox", { name: "Name" }), " updated");
   expect(clear).toHaveBeenCalledWith("ai_services.accounts.0.id");
   unmount();
   client.clear();

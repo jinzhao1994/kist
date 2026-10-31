@@ -21,8 +21,11 @@ export const en = {
   aiAddProxy: "Add proxy",
   aiAddAccount: "Add account",
   aiNumber: "Number",
-  aiObjectID: "ID (name)",
-  aiObjectCount: "{count} configured",
+  aiObjectID: "Name",
+  aiFinishEditing: "Done",
+  aiObjectIDHint:
+    "Unique within this list; used when selecting a proxy or account.",
+  aiProxyAddress: "Proxy address",
   aiEndpoint: "Address",
   aiDirect: "Direct",
   aiUnnamed: "Unnamed",
@@ -52,7 +55,6 @@ export const en = {
   aiModelDefault: "Model default",
   aiModelPlaceholder: "Choose or enter a model ID",
   aiEdit: "Edit",
-  aiCollapse: "Collapse",
   aiDelete: "Delete",
   settingUniqueID: "Enter a unique name.",
   settingInvalidReference: "Choose an existing item.",
@@ -207,7 +209,6 @@ export const en = {
   aiModelsLoading: "Loading models…",
   aiModelsEmpty: "No models are available for this account.",
   aiUseLuna: "Use GPT-6 Luna",
-  aiProxy: "AI proxy address",
   aiProxyHint:
     "HTTP or SOCKS5 URL. Leave empty to use the server's proxy environment. The browser sign-in page uses its own network settings.",
   ocrAuto: "Automatically recognize new images",
@@ -1161,8 +1162,10 @@ export const zh: Record<MessageKey, string> = {
   aiAddProxy: "添加代理",
   aiAddAccount: "添加账户",
   aiNumber: "编号",
-  aiObjectID: "ID（名称）",
-  aiObjectCount: "共 {count} 项",
+  aiObjectID: "名称",
+  aiFinishEditing: "完成",
+  aiObjectIDHint: "同类列表内唯一，选择代理或账户时使用此名称。",
+  aiProxyAddress: "代理地址",
   aiEndpoint: "地址",
   aiDirect: "直连",
   aiUnnamed: "未命名",
@@ -1190,7 +1193,6 @@ export const zh: Record<MessageKey, string> = {
   aiModelDefault: "模型默认",
   aiModelPlaceholder: "选择或填写模型 ID",
   aiEdit: "编辑",
-  aiCollapse: "收起",
   aiDelete: "删除",
   settingUniqueID: "请填写不重复的名称。",
   settingInvalidReference: "请选择仍然存在的配置项。",
@@ -1334,7 +1336,6 @@ export const zh: Record<MessageKey, string> = {
   aiModelsLoading: "正在加载模型列表…",
   aiModelsEmpty: "当前账号没有可用模型。",
   aiUseLuna: "使用 GPT-6 Luna",
-  aiProxy: "AI 代理地址",
   aiProxyHint:
     "填写 HTTP 或 SOCKS5 地址；留空使用服务进程的代理环境变量。浏览器登录页沿用浏览器自己的网络设置。",
   ocrAuto: "自动识别新增图片",
@@ -2269,7 +2270,6 @@ interface Parameters {
   extractionQueueRunning: { name: string };
   ocrQueueCounts: { queued: number; failed: number };
   aiRemovedReference: { number: number };
-  aiObjectCount: { count: number };
   backgroundTaskLastFailure: { error: string };
   geoNearby: { address: string };
   clientSelectLoaded: { count: number };

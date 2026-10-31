@@ -174,10 +174,10 @@ it("saves all configuration drafts through the page toolbar in one request", asy
   await user.clear(language);
   await user.paste("en");
   await user.click(screen.getByRole("button", { name: "Add proxy" }));
-  await user.click(screen.getByRole("textbox", { name: "ID (name)" }));
+  await user.click(screen.getByRole("textbox", { name: "Name" }));
   await user.paste("Home proxy");
   await user.click(
-    screen.getByLabelText("AI proxy address", { selector: "input" }),
+    screen.getByLabelText("Proxy address", { selector: "input" }),
   );
   await user.paste("http://127.0.0.1:7890");
   const interval = screen.getByRole("textbox", {
@@ -233,10 +233,8 @@ it("opens a collapsed account editor and locates its server validation error", a
   const user = userEvent.setup();
   const scroll = vi.spyOn(Element.prototype, "scrollIntoView");
   await user.click(screen.getByRole("button", { name: "Add account" }));
-  const newRow = screen
-    .getByRole("rowheader", { name: "Unnamed" })
-    .closest("tr")!;
-  await user.click(within(newRow).getByRole("button", { name: "Collapse" }));
+  await user.click(screen.getByRole("button", { name: "Add account" }));
+
   scroll.mockClear();
   await user.click(screen.getByRole("button", { name: "Save" }));
   const editor = await screen.findByRole("region", { name: "Edit AI account" });

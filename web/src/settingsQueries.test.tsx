@@ -192,7 +192,7 @@ it("reveals local settings together, reuses requests and does not wait for remot
   expect(geoPause).toBeEnabled();
   const user = userEvent.setup();
   await user.click(screen.getByRole("button", { name: "Add proxy" }));
-  await user.click(screen.getByRole("textbox", { name: "ID (name)" }));
+  await user.click(screen.getByRole("textbox", { name: "Name" }));
   await user.paste("Test proxy");
   expect(ocrPause).toBeDisabled();
   expect(geoPause).toBeDisabled();
