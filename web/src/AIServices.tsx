@@ -427,7 +427,7 @@ export function AIConnection({
         {(id, error) => (
           <TextInput
             id={id}
-            autoFocus
+            autoFocus={creatingProxy === undefined}
             aria-required="true"
             value={proxy.id}
             error={error}
@@ -652,7 +652,7 @@ export function AIConnection({
         {(id, error) => (
           <TextInput
             id={id}
-            autoFocus
+            autoFocus={creatingAccount === undefined}
             aria-required="true"
             value={account.id}
             error={error}

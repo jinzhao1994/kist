@@ -116,6 +116,7 @@ it("keeps creation above the table without a placeholder row and can cancel it",
   const before = within(table).getAllByRole("row").length;
   await userEvent.click(screen.getByRole("button", { name: "Add account" }));
   const form = screen.getByRole("region", { name: "Add account" });
+  expect(within(form).getByRole("textbox", { name: "Name" })).toHaveFocus();
   expect(form.closest("table")).toBeNull();
   expect(
     form.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING,
@@ -130,6 +131,7 @@ it("keeps creation above the table without a placeholder row and can cancel it",
   expect(
     screen.queryByRole("region", { name: "Add account" }),
   ).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Add account" })).toHaveFocus();
   unmount();
   client.clear();
 });

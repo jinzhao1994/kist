@@ -3559,6 +3559,13 @@ main.upload-drag-active {
 .settings-editor-wide {
   grid-column: 1 / -1;
 }
+.settings-create-trigger[data-open="true"] {
+  visibility: hidden;
+  pointer-events: none;
+}
+.settings-reveal-content {
+  padding-block-end: var(--mantine-spacing-lg);
+}
 @media (max-width: 600px) {
   .settings-object-editor {
     grid-template-columns: minmax(0, 1fr);

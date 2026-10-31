@@ -4528,6 +4528,14 @@ for (const scenario of [
       await expect(
         editor.getByRole("textbox", { name: "名称", exact: true }),
       ).toBeFocused();
+      await editor.getByRole("button", { name: "取消", exact: true }).click();
+      const trigger = settings.getByRole("button", { name: add, exact: true });
+      await expect(trigger).toBeFocused();
+      await expect(editor).toHaveCount(0);
+      await trigger.click();
+      await expect(
+        editor.getByRole("textbox", { name: "名称", exact: true }),
+      ).toBeFocused();
       await editor
         .getByRole("textbox", { name: "名称", exact: true })
         .fill(proxy ? "家庭代理" : "备用账户");
