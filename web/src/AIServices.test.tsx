@@ -339,6 +339,7 @@ it("loads a selected account catalog on focus and preserves independent feature 
 });
 
 it("keeps secrets hidden and clears the dirty state when a secret edit is undone", async () => {
+  vi.stubGlobal("CSS", { ...globalThis.CSS, supports: vi.fn(() => true) });
   const fixture = aiServicesFixture();
   fixture.proxies = [
     {
@@ -364,7 +365,8 @@ it("keeps secrets hidden and clears the dirty state when a secret edit is undone
   expect(
     within(editor).getByLabelText("API Key", { selector: "input" }),
   ).toHaveAttribute("placeholder", "Configured; leave empty to keep");
-  expect(key).toHaveAttribute("type", "password");
+  expect(key).toHaveAttribute("type", "text");
+  expect(key).toHaveAttribute("autocomplete", "off");
   await fill(key, "temporary");
   await waitFor(() => expect(changed.mock.lastCall?.[0]).not.toBeNull());
   await userEvent.clear(key);

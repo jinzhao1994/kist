@@ -24,6 +24,7 @@ import type { components } from "./api-schema";
 import { get, result } from "./api";
 import { SettingsCollection } from "./SettingsCollection";
 import { AIProxyRow } from "./AIProxyRow";
+import { SecretInput } from "./SecretInput";
 import { HelpTooltip } from "./HelpTooltip";
 import { Select } from "./Select";
 import {
@@ -633,6 +634,7 @@ export function AIConnection({
   const accountForm = account && (
     <form
       className="settings-object-editor"
+      autoComplete="off"
       onSubmit={(event) => {
         event.preventDefault();
         if (!finishObject("accounts", account, accountIndex)) return;
@@ -720,12 +722,11 @@ export function AIConnection({
           help={account.connected ? t("aiSecretKeepHint") : t("aiAPIKeyHint")}
         >
           {(id, error) => (
-            <PasswordInput
+            <SecretInput
               id={id}
               value={account.api_key || ""}
               error={error}
               disabled={locked}
-              autoComplete="new-password"
               placeholder={
                 account.connected ? t("aiSecretConfigured") : undefined
               }

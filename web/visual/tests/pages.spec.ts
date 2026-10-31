@@ -4703,6 +4703,37 @@ for (const scenario of [
         await expect(address).toHaveAttribute("type", "text");
         await expect(address).toHaveValue("http://proxy.example:7890");
         await expect(editor.locator('input[type="password"]')).toHaveCount(0);
+      } else if (scenario === "ai-api-account") {
+        const key = editor
+          .getByLabel("API Key", { exact: true })
+          .and(editor.locator("input"));
+        await expect(key).toHaveAttribute("type", "text");
+        await expect(key).toHaveAttribute("autocomplete", "off");
+        await expect(key).toHaveValue("");
+        await expect(key).toHaveCSS("-webkit-text-security", "disc");
+        expect(
+          await key.evaluate((node) =>
+            getComputedStyle(node, "::placeholder").getPropertyValue(
+              "-webkit-text-security",
+            ),
+          ),
+        ).toBe("none");
+        await key.fill("synthetic-api-key-not-real");
+        await editor
+          .getByRole("button", { name: "显示密钥", exact: true })
+          .click();
+        await expect(key).toHaveAttribute("type", "text");
+        await expect(key).not.toHaveCSS("-webkit-text-security", "disc");
+        await editor
+          .getByRole("button", { name: "隐藏密钥", exact: true })
+          .click();
+        await expect(key).toHaveCSS("-webkit-text-security", "disc");
+        await key.clear();
+        await expect(key).toHaveAttribute("placeholder", "已配置，留空保留");
+        await expect(editor.locator('input[type="password"]')).toHaveCount(0);
+        await editor
+          .getByRole("textbox", { name: "名称", exact: true })
+          .focus();
       } else {
         await expect(editor.locator('input[type="password"]')).toHaveValue("");
       }

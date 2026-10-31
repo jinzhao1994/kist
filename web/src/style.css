@@ -2651,6 +2651,17 @@ main.upload-drag-active {
 .input-visibility-toggle svg {
   color: var(--muted);
 }
+.secret-input[data-masked-secret] .mantine-PasswordInput-innerInput {
+  -webkit-text-security: disc;
+}
+.secret-input[data-masked-secret]
+  .mantine-PasswordInput-innerInput::placeholder {
+  -webkit-text-security: none;
+}
+.secret-visibility-icon {
+  width: var(--psi-icon-size);
+  height: var(--psi-icon-size);
+}
 
 .gallery-header:focus {
   outline: none;
