@@ -10,6 +10,7 @@ import {
 } from "@mantine/core";
 import { useState } from "react";
 import { useI18n } from "./i18n";
+import { InputChevron } from "./InputChevron";
 
 export function Select({
   id,
@@ -104,7 +105,7 @@ export function Select({
             role="combobox"
             disabled={disabled}
             pointer
-            rightSection={<Combobox.Chevron />}
+            rightSection={<InputChevron error={!!error} />}
             rightSectionPointerEvents="none"
             classNames={{
               root: "searchable-select",
@@ -175,6 +176,8 @@ export function Select({
       label={label}
       error={error}
       value={value}
+      rightSection={<InputChevron error={!!error} />}
+      rightSectionPointerEvents="none"
       onChange={(next) => {
         if (next !== null) onValueChange(next);
       }}

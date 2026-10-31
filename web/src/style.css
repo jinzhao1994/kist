@@ -2605,15 +2605,44 @@ main.upload-drag-active {
   display: inline-flex;
 }
 
-/* Match numeric steppers to the quiet trailing icons of selection inputs. */
+/* Both controls paint one vector; numeric buttons keep their full hit areas. */
+.input-chevron,
+.input-number-controls::after {
+  display: inline-block;
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+  color: var(--muted);
+  background: currentColor;
+  mask: url("./input-chevron.svg") center / contain no-repeat;
+  pointer-events: none;
+}
+.input-chevron[data-error] {
+  color: var(--mantine-color-error);
+}
 .input-number-controls {
+  position: relative;
   max-width: none;
   margin-inline-start: 0;
 }
+.input-number-controls::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
 .input-number-control {
-  --ni-chevron-size: var(--mantine-font-size-xs);
   border-inline-start: 0;
-  color: var(--mantine-color-dimmed);
+}
+.input-number-control svg {
+  visibility: hidden;
+}
+.mantine-NumberInput-root[data-error] .input-number-controls::after {
+  color: var(--mantine-color-error);
+}
+.input-visibility-toggle svg {
+  color: var(--muted);
 }
 
 .gallery-header:focus {

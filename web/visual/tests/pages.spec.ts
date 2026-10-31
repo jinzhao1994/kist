@@ -4640,6 +4640,53 @@ for (const scenario of [
         editor.getByRole("button", { name: "完成", exact: true }),
       ).toBeVisible();
       await editor.scrollIntoViewIfNeeded();
+      if (scenario === "ai-trojan") {
+        const typeIcon = editor.locator(".input-chevron");
+        const numberControls = editor.locator(".input-number-controls");
+        const eye = editor.getByRole("button", {
+          name: "Toggle password visibility",
+        });
+        const icon = await typeIcon.evaluate((node) => {
+          const style = getComputedStyle(node);
+          return {
+            width: style.width,
+            height: style.height,
+            color: style.color,
+          };
+        });
+        const stepper = await numberControls.evaluate((node) => {
+          const style = getComputedStyle(node, "::after");
+          return {
+            width: style.width,
+            height: style.height,
+            color: style.color,
+          };
+        });
+        expect(stepper).toEqual(icon);
+        expect(
+          await eye
+            .locator("svg")
+            .evaluate((node) => getComputedStyle(node).color),
+        ).toBe(icon.color);
+        const port = editor
+          .getByLabel("端口", { exact: true })
+          .and(editor.locator("input"));
+        await numberControls.locator('button[data-direction="up"]').click();
+        await expect(port).toHaveValue("444");
+        await numberControls.locator('button[data-direction="down"]').click();
+        await expect(port).toHaveValue("443");
+        const password = editor
+          .getByLabel("密码", { exact: true })
+          .and(editor.locator("input"));
+        await eye.click();
+        await expect(password).toHaveAttribute("type", "text");
+        await eye.click();
+        await expect(password).toHaveAttribute("type", "password");
+        await editor
+          .getByRole("textbox", { name: "名称", exact: true })
+          .focus();
+        await page.mouse.move(0, 0);
+      }
       if (scenario === "ai-http-auth") {
         const address = editor.getByRole("textbox", {
           name: "代理地址",

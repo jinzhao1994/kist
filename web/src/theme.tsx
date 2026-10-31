@@ -118,7 +118,7 @@ export function ThemeProvider({
     components: {
       Button: Button.extend({ defaultProps: { variant: "default" } }),
       PasswordInput: PasswordInput.extend({
-        defaultProps: { visibilityToggleButtonProps: { autoContrast: false } },
+        classNames: { visibilityToggle: "input-visibility-toggle" },
       }),
       NumberInput: NumberInput.extend({
         defaultProps: { rightSectionWidth: "var(--input-height)" },
