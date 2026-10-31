@@ -9,8 +9,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { createWrite, get, requestKey, result } from "./api";
-import type { components } from "./api-schema";
+import { api, createWrite, get, requestKey, result } from "./api";
 import { useI18n } from "./i18n";
 import { errorMessage } from "./mutations";
 
@@ -95,26 +94,39 @@ function useMetadataTask({
     extractor === "facts" ||
     extractor === "orientation" ||
     extractor === "geo";
+  const local = !!extractor && !ai;
+  const instance = useQuery({
+    queryKey: ["info"],
+    queryFn: ({ signal }) => api.info(signal),
+    enabled: local,
+    staleTime: 10_000,
+  });
+  const queued = ai || (local && !!instance.data && !instance.data.client);
+  const task = local ? "metadata" : extractor;
   const key = ["metadata-refresh", fileID, extractor];
   const busy = useIsMutating({ mutationKey: key }) > 0;
   const [error, setError] = useState("");
   const write = useRef<ReturnType<typeof createWrite> | undefined>(undefined);
   const request = useRef<string | undefined>(undefined);
   const job = useQuery<Job>({
-    queryKey: [`${extractor}-job`, fileID],
-    queryFn: ({ signal }) => get<Job>(`/files/${fileID}/${extractor}`, signal),
-    enabled: ai,
+    queryKey: [`${task}-job`, fileID],
+    queryFn: ({ signal }) => get<Job>(`/files/${fileID}/${task}`, signal),
+    enabled: queued,
     retry: false,
     staleTime: 10_000,
     refetchInterval: taskPollInterval,
   });
   const backgroundQueued =
-    ai && !empty && job.data?.state === "queued" && !job.data.manual;
+    queued && !empty && job.data?.state === "queued" && !job.data.manual;
   const queue = useQuery({
-    queryKey: [`${extractor}-queue`],
+    queryKey: [`${task}-queue`],
     queryFn: ({ signal }) =>
       get<{ paused: boolean }>(
-        extractor === "geo" ? "/geo" : `/ai/${extractor}`,
+        task === "metadata"
+          ? "/metadata"
+          : extractor === "geo"
+            ? "/geo"
+            : `/ai/${extractor}`,
         signal,
       ),
     enabled: backgroundQueued,
@@ -123,7 +135,7 @@ function useMetadataTask({
       query.state.error || query.state.data?.paused ? 15000 : 2000,
   });
   const pending =
-    ai && (job.data?.state === "queued" || job.data?.state === "running");
+    queued && (job.data?.state === "queued" || job.data?.state === "running");
   const waiting =
     pending &&
     (job.data?.state === "running" ||
@@ -138,22 +150,22 @@ function useMetadataTask({
     mutationKey: key,
     mutationFn: async () => {
       setError("");
-      if (ai) {
+      if (queued) {
         request.current ??= requestKey();
-        const body: components["schemas"]["Post-api-v1-files-by-id-descRequest"] &
-          components["schemas"]["Post-api-v1-files-by-id-ocrRequest"] = {
+        const body = {
           force: !missing,
           retry: job.data?.state === "failed",
           request_id: request.current,
+          ...(local ? { extractor } : {}),
         };
         const value = await result<Job>(
-          await fetch(`/api/v1/files/${fileID}/${extractor}`, {
+          await fetch(`/api/v1/files/${fileID}/${task}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body),
           }),
         );
-        queries.setQueryData([`${extractor}-job`, fileID], value);
+        queries.setQueryData([`${task}-job`, fileID], value);
         request.current = undefined;
       } else {
         write.current ??= createWrite(
@@ -170,13 +182,13 @@ function useMetadataTask({
   });
   const issue =
     error ||
-    (ai &&
+    (queued &&
       (taskErrorMessage(job.data?.error, t) ||
         (!job.data && job.error && errorMessage(job.error, t))));
   return {
     hidden:
       empty &&
-      ai &&
+      queued &&
       (job.isPending ||
         (!!job.data && job.data.state !== "missing" && !job.data.manual)),
     action: extractor ? (
@@ -185,7 +197,12 @@ function useMetadataTask({
         size="compact-xs"
         className="metadata-refresh-action"
         data-active={missing || busy || pending || !!issue || undefined}
-        disabled={busy || !!waiting || (ai && job.isPending)}
+        disabled={
+          busy ||
+          !!waiting ||
+          (queued && job.isPending) ||
+          (local && instance.isPending)
+        }
         aria-label={
           extractor === "geo"
             ? t(missing ? "geoExtract" : "geoRefresh")
@@ -194,7 +211,7 @@ function useMetadataTask({
         onClick={() => mutation.mutate()}
       >
         {t(
-          busy || (ai && job.data?.state === "running")
+          busy || (queued && job.data?.state === "running")
             ? "extracting"
             : waiting
               ? "reextractQueued"

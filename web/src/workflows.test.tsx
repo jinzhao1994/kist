@@ -186,7 +186,7 @@ it("bounds derived media to visible images including HEIC", () => {
     expect(Number(id)).toBeLessThan(200);
   }
 });
-it("serializes extraction per file, caps concurrency and retries failures without upload", async () => {
+it("serializes client extraction per file, caps concurrency and retries failures without upload", async () => {
   const active = new Set<string>();
   let peak = 0;
   let fail = true;
@@ -212,7 +212,19 @@ it("serializes extraction per file, caps concurrency and retries failures withou
     ...file(String(i)),
     extraction_pending: ["media", "exif"],
   }));
-  const hook = renderHook(useExtraction, { wrapper });
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  queryClient.setQueryData(["info"], { client: true });
+  const hook = renderHook(useExtraction, {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider env="test">
+          <I18nProvider>{children}</I18nProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    ),
+  });
   await act(() => hook.result.current.run(files));
   expect(peak).toBeLessThanOrEqual(3);
   expect(peak).toBeGreaterThan(1);
@@ -953,6 +965,7 @@ it("extracts a collapsed combination's non-primary and nested members", async ()
   vi.stubGlobal(
     "fetch",
     vi.fn(async (path: string, init?: RequestInit) => {
+      if (path === "/api/v1/info") return Response.json({ client: false });
       if (init?.method === "POST") {
         calls.push(path);
         completed = true;
@@ -986,9 +999,7 @@ it("extracts a collapsed combination's non-primary and nested members", async ()
     .click(await screen.findByRole("button", { name: "Read metadata" }));
   await waitFor(() => expect(calls).toHaveLength(3));
   expect(calls.sort()).toEqual(
-    ["first", "movie", "still"].map(
-      (id) => `/api/v1/files/${id}/extractions/media`,
-    ),
+    ["first", "movie", "still"].map((id) => `/api/v1/files/${id}/metadata`),
   );
   await waitFor(() =>
     expect(

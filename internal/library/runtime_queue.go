@@ -69,7 +69,7 @@ func (q *OCRQueue) load() (ocrQueueState, error) {
 	if s.Backfill, err = decode(ba, bt, br, bf); err != nil {
 		return s, err
 	}
-	rows, err := db.DB.Query(`SELECT file_id,blob_key,name,state,error,request_id,automatic,manual,force FROM background_jobs WHERE kind=? ORDER BY position,job_key`, q.kind)
+	rows, err := db.DB.Query(`SELECT file_id,blob_key,name,state,error,request_id,automatic,manual,force,recipe FROM background_jobs WHERE kind=? ORDER BY position,job_key`, q.kind)
 	if err != nil {
 		return s, err
 	}
@@ -89,7 +89,7 @@ type rowScanner interface{ Scan(...any) error }
 func scanOCRJob(row rowScanner) (OCRJob, error) {
 	var j OCRJob
 	var id string
-	err := row.Scan(&id, &j.BlobKey, &j.Name, &j.State, &j.Error, &j.RequestID, &j.Automatic, &j.Manual, &j.Force)
+	err := row.Scan(&id, &j.BlobKey, &j.Name, &j.State, &j.Error, &j.RequestID, &j.Automatic, &j.Manual, &j.Force, &j.Extractor)
 	if err != nil {
 		return j, err
 	}
@@ -186,10 +186,10 @@ func (q *OCRQueue) saveTx(tx *sql.Tx, s ocrQueueState) error {
 		} else {
 			nextPosition++
 		}
-		_, err = tx.Exec(`INSERT INTO background_jobs(kind,job_key,file_id,blob_key,name,state,error,request_id,automatic,manual,force,position)
-		 VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(kind,job_key) DO UPDATE SET name=excluded.name,state=excluded.state,
-		 error=excluded.error,request_id=excluded.request_id,automatic=excluded.automatic,manual=excluded.manual,force=excluded.force,position=excluded.position WHERE (background_jobs.name,background_jobs.state,background_jobs.error,background_jobs.request_id,background_jobs.automatic,background_jobs.manual,background_jobs.force,background_jobs.position) IS NOT (excluded.name,excluded.state,excluded.error,excluded.request_id,excluded.automatic,excluded.manual,excluded.force,excluded.position)`,
-			q.kind, key, j.FileID.String(), j.BlobKey, j.Name, j.State, j.Error, j.RequestID, j.Automatic, j.Manual, j.Force, position)
+		_, err = tx.Exec(`INSERT INTO background_jobs(kind,job_key,file_id,blob_key,name,state,error,request_id,automatic,manual,force,position,recipe)
+		 VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(kind,job_key) DO UPDATE SET name=excluded.name,state=excluded.state,
+		 error=excluded.error,request_id=excluded.request_id,automatic=excluded.automatic,manual=excluded.manual,force=excluded.force,position=excluded.position,recipe=excluded.recipe WHERE (background_jobs.name,background_jobs.state,background_jobs.error,background_jobs.request_id,background_jobs.automatic,background_jobs.manual,background_jobs.force,background_jobs.position,background_jobs.recipe) IS NOT (excluded.name,excluded.state,excluded.error,excluded.request_id,excluded.automatic,excluded.manual,excluded.force,excluded.position,excluded.recipe)`,
+			q.kind, key, j.FileID.String(), j.BlobKey, j.Name, j.State, j.Error, j.RequestID, j.Automatic, j.Manual, j.Force, position, j.Extractor)
 		if err != nil {
 			return err
 		}

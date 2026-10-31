@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,6 +31,7 @@ type OCRJob struct {
 	Automatic bool          `json:"automatic"`
 	Manual    bool          `json:"manual,omitempty"`
 	Force     bool          `json:"force,omitempty"`
+	Extractor string        `json:"extractor,omitempty"`
 }
 type OCRQueueStatus struct {
 	Paused   bool   `json:"paused"`
@@ -151,7 +153,7 @@ func (q *OCRQueue) Backfill(ctx context.Context, retry bool) (OCRQueueStatus, er
 	if err != nil {
 		return OCRQueueStatus{}, err
 	}
-	if q.kind != "geo" && cfg.Model == "" {
+	if q.kind != "geo" && q.kind != "metadata" && cfg.Model == "" {
 		return OCRQueueStatus{}, errors.New("choose an AI model in Settings first")
 	}
 	head, err := q.library.SyncHead(ctx)
@@ -195,7 +197,15 @@ func (q *OCRQueue) resolve(ctx context.Context, id domain.FileID) (OCRJob, error
 		j.Name = f.Name
 		j.BlobKey = f.BlobKey
 		versions, err := store.Extractions(tx.Queryer(), id)
-		if q.kind == "orientation" {
+		if q.kind == "metadata" {
+			j.State = "ready"
+			for _, e := range extract.All() {
+				if versions[e.ID()] < e.Version() {
+					j.State = "missing"
+					break
+				}
+			}
+		} else if q.kind == "orientation" {
 			rows, e := store.FileMetadata(tx.Queryer(), id)
 			if e != nil {
 				return e
@@ -224,7 +234,7 @@ func (q *OCRQueue) FileStatus(ctx context.Context, id domain.FileID) (OCRJob, er
 	if err != nil {
 		return j, err
 	}
-	old, err := scanOCRJob(db.DB.QueryRowContext(ctx, `SELECT file_id,blob_key,name,state,error,request_id,automatic,manual,force
+	old, err := scanOCRJob(db.DB.QueryRowContext(ctx, `SELECT file_id,blob_key,name,state,error,request_id,automatic,manual,force,recipe
 	 FROM background_jobs WHERE kind=? AND job_key=?`, q.kind, id.String()+"/"+j.BlobKey))
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return j, err
@@ -235,6 +245,9 @@ func (q *OCRQueue) FileStatus(ctx context.Context, id domain.FileID) (OCRJob, er
 	return j, nil
 }
 func (q *OCRQueue) eligible(j OCRJob) bool {
+	if q.kind == "metadata" {
+		return true
+	}
 	path, ok := q.library.blobs.LocalPath(blobKey(j.BlobKey))
 	if !ok {
 		return false
@@ -285,11 +298,17 @@ func enqueueOCR(s *ocrQueueState, j OCRJob, retry, automatic bool) OCRJob {
 	return j
 }
 func (q *OCRQueue) Request(ctx context.Context, id domain.FileID, retry bool) (OCRJob, error) {
+	if q.kind == "metadata" {
+		return q.RequestExtraction(ctx, id, retry, false, "", "")
+	}
 	return q.request(ctx, id, retry, false, "")
 }
 
 // Reextract uses a stable caller key to avoid rebilling successful HTTP retries.
 func (q *OCRQueue) Reextract(ctx context.Context, id domain.FileID, key string) (OCRJob, error) {
+	if q.kind == "metadata" {
+		return q.RequestExtraction(ctx, id, true, true, key, "")
+	}
 	if _, err := uuid.Parse(key); err != nil {
 		return OCRJob{}, ErrInvalidRequest
 	}
@@ -343,7 +362,13 @@ func (q *OCRQueue) request(ctx context.Context, id domain.FileID, retry, force b
 
 // scanBatch runs under the short state lock and never performs network I/O.
 func (q *OCRQueue) scanBatch(ctx context.Context, s *ocrQueueState, scan *ocrScan, automatic bool) (bool, error) {
-	ids, err := store.ImageTextCandidates(q.library.db, q.kind, scan.After, scan.Through, scan.Cursor, 100)
+	var ids []domain.FileID
+	var err error
+	if q.kind == "metadata" {
+		ids, err = store.MetadataCandidates(q.library.db, localExtractionVersions(), scan.After, scan.Through, scan.Cursor, 100)
+	} else {
+		ids, err = store.ImageTextCandidates(q.library.db, q.kind, scan.After, scan.Through, scan.Cursor, 100)
+	}
 	if err != nil {
 		return false, err
 	}
@@ -372,17 +397,37 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 		return err
 	}
 	defer release()
+	if q.kind != "metadata" {
+		local := q.library.MetadataQueue()
+		for {
+			ran, e := local.stepLocked(ctx)
+			if e != nil {
+				return e
+			}
+			if !ran {
+				break
+			}
+		}
+	}
+	_, err = q.stepLocked(ctx)
+	return err
+}
+
+func (q *OCRQueue) stepLocked(ctx context.Context) (bool, error) {
 	ctx = context.WithValue(ctx, aiWorkerContextKey{}, q.library)
 	head, err := q.library.SyncHead(ctx)
 	if err != nil {
-		return err
+		return false, err
 	}
 	cfg, err := config.Load(q.library.layout.ConfigPath())
 	if err != nil {
-		return err
+		return false, err
 	}
-	pauseOnError := q.kind != "geo" || cfg.Geocoding.PauseOnError
+	pauseOnError := q.kind != "metadata" && (q.kind != "geo" || cfg.Geocoding.PauseOnError)
 	auto, after := cfg.AIOptions.AutoOCR, cfg.AIOptions.AfterOp
+	if q.kind == "metadata" {
+		auto, after = true, 0
+	}
 	if q.kind == "geo" {
 		auto, after = cfg.Geocoding.Automatic, cfg.Geocoding.AfterOp
 	}
@@ -397,12 +442,12 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 	}
 	unlock, err := q.state.Acquire(ctx)
 	if err != nil {
-		return err
+		return false, err
 	}
 	s, err := q.load()
 	if err != nil {
 		unlock()
-		return err
+		return false, err
 	}
 	for i := range s.Jobs {
 		if s.Jobs[i].State == "running" {
@@ -412,13 +457,17 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 				_, found, err := q.library.CheckRequest(ctx, q.jobRequest(s.Jobs[i]))
 				if err != nil {
 					unlock()
-					return err
+					return false, err
 				}
 				completed = found
 			}
 			if completed {
 				s.Jobs[i].State = "ready"
 				s.completed = append(s.completed, s.Jobs[i].RequestID)
+			} else if q.kind == "metadata" {
+				// Local stages are idempotent and never incur provider charges.
+				s.Jobs[i].State = "queued"
+				s.Jobs[i].Error = ""
 			} else {
 				s.Jobs[i].State = "failed"
 				s.Jobs[i].Error = "Metadata extraction was interrupted; retry explicitly"
@@ -442,7 +491,7 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 			}
 			if e != nil {
 				unlock()
-				return e
+				return false, e
 			}
 		}
 		kept = append(kept, j)
@@ -467,7 +516,7 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 			done, e := q.scanBatch(ctx, &s, s.Backfill, false)
 			if e != nil {
 				unlock()
-				return e
+				return false, e
 			}
 			if done {
 				s.Backfill = nil
@@ -477,7 +526,7 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 			done, e := q.scanBatch(ctx, &s, s.AutoScan, true)
 			if e != nil {
 				unlock()
-				return e
+				return false, e
 			}
 			if done {
 				s.AutoCursor = s.AutoScan.Through
@@ -499,7 +548,16 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 		}
 		if e != nil {
 			unlock()
-			return e
+			return false, e
+		}
+		ready, e := q.metadataReady(ctx, j)
+		if e != nil {
+			unlock()
+			return false, e
+		}
+		if !ready {
+			i++
+			continue
 		}
 		index = i
 		break
@@ -507,18 +565,18 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 	if index < 0 {
 		err = q.save(s)
 		unlock()
-		return err
+		return false, err
 	}
 	if q.kind == "geo" {
 		cooling, e := q.library.locationCoolingDown(ctx)
 		if e != nil {
 			unlock()
-			return e
+			return false, e
 		}
 		if cooling {
 			err = q.save(s)
 			unlock()
-			return err
+			return false, err
 		}
 	}
 	s.Jobs[index].State = "running"
@@ -526,10 +584,10 @@ func (q *OCRQueue) Step(ctx context.Context) error {
 	err = q.save(s)
 	unlock()
 	if err != nil {
-		return err
+		return false, err
 	}
 	err = q.execute(context.WithValue(ctx, aiManualContextKey{}, job.Manual), job, cfg.AIOptions.Model, cfg.Library.Language)
-	return q.finishJobWithPolicy(job, err, pauseOnError)
+	return true, q.finishJobWithPolicy(job, err, pauseOnError)
 }
 
 func (q *OCRQueue) finishJob(job OCRJob, err error) error {
@@ -553,6 +611,9 @@ func (q *OCRQueue) finishJobWithPolicy(job OCRJob, err error, pauseOnError bool)
 			if err == nil {
 				s.completed = append(s.completed, j.RequestID)
 				s.Jobs = append(s.Jobs[:i], s.Jobs[i+1:]...)
+			} else if q.kind == "metadata" && errors.Is(err, context.Canceled) {
+				s.Jobs[i].State = "queued"
+				s.Jobs[i].Error = ""
 			} else {
 				s.Jobs[i].State = "failed"
 				s.Jobs[i].Error = err.Error()
@@ -567,6 +628,9 @@ func (q *OCRQueue) finishJobWithPolicy(job OCRJob, err error, pauseOnError bool)
 	return q.save(s)
 }
 func (q *OCRQueue) execute(ctx context.Context, j OCRJob, model, language string) error {
+	if q.kind == "metadata" {
+		return q.executeMetadata(ctx, j)
+	}
 	ctx = q.attemptContext(ctx, j)
 	if err := q.selectAttemptModel(j, model); err != nil {
 		return err
@@ -587,22 +651,6 @@ func (q *OCRQueue) execute(ctx context.Context, j OCRJob, model, language string
 	request := q.jobRequest(j)
 	if _, found, err := q.library.CheckRequest(ctx, request); err != nil || found {
 		return err
-	}
-	// Basic extraction always precedes network metadata. Each stage has its own
-	// idempotency key, so interruption does not repeat completed work.
-	for _, kind := range []string{"media", "exif"} {
-		prepared, err := q.library.PrepareExtraction(ctx, j.FileID, kind)
-		if err != nil {
-			return err
-		}
-		if len(prepared.payload) == 0 {
-			continue
-		}
-		stage := q.jobRequest(j)
-		stage.ID = j.RequestID + "." + kind
-		if _, err = q.library.ExecuteRequest(ctx, stage, prepared.Commit); err != nil {
-			return err
-		}
 	}
 	if q.kind == "geo" {
 		prepared, err := q.library.prepareLocation(ctx, j.FileID, j.BlobKey, j.Force)
@@ -632,42 +680,79 @@ func (q *OCRQueue) execute(ctx context.Context, j OCRJob, model, language string
 
 func (q *OCRQueue) jobRequest(j OCRJob) Request {
 	input := j.FileID.String() + "\n" + j.BlobKey + "\n" + q.kind + ":1"
+	if j.Extractor != "" {
+		input += ":" + j.Extractor
+	}
 	if j.Force {
 		input += ":force"
 	}
 	sum := sha256.Sum256([]byte(input))
 	return Request{ID: j.RequestID, Digest: hex.EncodeToString(sum[:])}
 }
+
+// Run selects the highest-priority runnable group at each task boundary.
+// Same-priority groups rotate; no scheduling cursor is an archive fact.
 func (q *OCRQueue) Run(ctx context.Context, companions ...*OCRQueue) {
 	queues := append([]*OCRQueue{q}, companions...)
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
-	for {
-		if ctx.Err() != nil {
-			return
+	slices.SortStableFunc(queues, func(a, b *OCRQueue) int { return b.Priority() - a.Priority() })
+	cursors := map[int]int{}
+	for ctx.Err() == nil {
+		ran, err := q.dispatch(ctx, queues, cursors)
+		if err != nil && ctx.Err() == nil {
+			q.library.log.Error("metadata scheduler", "error", err)
 		}
-		for _, queue := range queues {
-			if ctx.Err() != nil {
-				return
-			}
-			if err := queue.Step(ctx); err != nil && ctx.Err() == nil {
-				// A state/config failure must not start network work; surface it when possible.
+		if ran {
+			continue
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(time.Second):
+		}
+	}
+}
+
+func (q *OCRQueue) dispatch(ctx context.Context, queues []*OCRQueue, cursors map[int]int) (bool, error) {
+	release, ok, err := q.worker.TryAcquire()
+	if err != nil || !ok {
+		return false, err
+	}
+	defer release()
+	for start := 0; start < len(queues); {
+		end := start + 1
+		for end < len(queues) && queues[end].Priority() == queues[start].Priority() {
+			end++
+		}
+		priority := queues[start].Priority()
+		size := end - start
+		for offset := 0; offset < size; offset++ {
+			i := start + (cursors[priority]+offset)%size
+			queue := queues[i]
+			ran, err := queue.stepLocked(ctx)
+			if err != nil && ctx.Err() == nil {
 				unlock, e := queue.state.Acquire(ctx)
 				if e == nil {
 					s, e := queue.load()
 					if e == nil {
 						s.Paused = true
 						s.Error = "Metadata task queue could not continue; check configuration and storage"
-						_ = queue.save(s)
+						e = queue.save(s)
 					}
 					unlock()
+					if e != nil {
+						return false, e
+					}
 				}
 			}
+			if ctx.Err() != nil {
+				return false, ctx.Err()
+			}
+			if ran {
+				cursors[priority] = (i - start + 1) % size
+				return true, nil
+			}
 		}
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-		}
+		start = end
 	}
+	return false, nil
 }

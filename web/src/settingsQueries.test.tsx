@@ -133,6 +133,7 @@ it("reveals local settings together, reuses requests and does not wait for remot
     "/ai/settings",
     "/geo/settings",
     "/geo",
+    "/metadata",
     "/ai/ocr",
   ])
     expect(reads.filter((p) => p === path)).toHaveLength(1);
@@ -156,7 +157,7 @@ it("reveals local settings together, reuses requests and does not wait for remot
     sectionIDs.slice(-3).map((id) => `#${id}`),
   );
   const background = screen.getByRole("region", { name: "Background tasks" });
-  expect(within(background).getAllByRole("rowheader")).toHaveLength(5);
+  expect(within(background).getAllByRole("rowheader")).toHaveLength(6);
   for (const id of ["settings-ai", "settings-location"])
     expect(view.container.querySelector(`#${id} table.task-table`)).toBeNull();
   const ocr = within(background)
@@ -307,7 +308,7 @@ it("keeps task commands scoped to their row and distinguishes backfill from retr
     { path: "/geo/backfill", body: { retry: true } },
     { path: "/geo/pause", body: { paused: true } },
   ]);
-  expect(screen.getAllByRole("rowheader")).toHaveLength(1);
+  expect(screen.getAllByRole("rowheader")).toHaveLength(2);
   view.unmount();
   client.clear();
 });

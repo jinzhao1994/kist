@@ -138,12 +138,13 @@ func (s *Server) aiRoutes() {
 	})
 	s.queueRoutes("/ai/", map[string]*library.OCRQueue{"orientation": s.library.OrientationQueue(), "ocr": s.library.OCRQueue(), "desc": s.library.DescriptionQueue(), "facts": s.library.FactsQueue()})
 	s.locationRoutes()
+	s.queueRoutes("/", map[string]*library.OCRQueue{"metadata": s.library.MetadataQueue()})
 }
 
 // RunOCR joins the server lifetime; requests only update the persistent queue.
 func (s *Server) RunOCR(ctx context.Context) {
 	if s.library != nil {
-		s.library.OrientationQueue().Run(ctx, s.library.OCRQueue(), s.library.DescriptionQueue(), s.library.FactsQueue(), s.library.LocationQueue())
+		s.library.MetadataQueue().Run(ctx, s.library.OrientationQueue(), s.library.OCRQueue(), s.library.DescriptionQueue(), s.library.FactsQueue(), s.library.LocationQueue())
 	}
 }
 
@@ -217,6 +218,7 @@ func (s *Server) queueRoutes(prefix string, queues map[string]*library.OCRQueue)
 				Retry     bool   `json:"retry"`
 				Force     bool   `json:"force,omitempty"`
 				RequestID string `json:"request_id,omitempty"`
+				Extractor string `json:"extractor,omitempty" doc:"Local metadata refresh only: optionally limit force=true to one registered extractor."`
 			}
 		}) (*output[library.OCRJob], error) {
 			id, err := parseID(in.ID)
@@ -224,7 +226,11 @@ func (s *Server) queueRoutes(prefix string, queues map[string]*library.OCRQueue)
 				return nil, err
 			}
 			var v library.OCRJob
-			if in.Body.Force {
+			if kind == "metadata" {
+				v, err = q.RequestExtraction(ctx, domain.FileID{ID: id}, in.Body.Retry, in.Body.Force, in.Body.RequestID, in.Body.Extractor)
+			} else if in.Body.Extractor != "" {
+				return nil, invalid("Extractor selection is only available for local metadata")
+			} else if in.Body.Force {
 				v, err = q.Reextract(ctx, domain.FileID{ID: id}, in.Body.RequestID)
 			} else {
 				v, err = q.Request(ctx, domain.FileID{ID: id}, in.Body.Retry)

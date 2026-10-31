@@ -303,7 +303,8 @@ export function FileBrowser({
               resumableVersion={info.data.resumable_upload_version}
               chunkBytes={info.data.upload_chunk_bytes}
               onComplete={async () => {
-                await extraction.run(await pendingFiles(box.id));
+                if (info.data?.client)
+                  await extraction.run(await pendingFiles(box.id));
               }}
             />
           </Dialog>
@@ -336,7 +337,10 @@ export function FileBrowser({
           maxBytes={info.data.max_upload_bytes}
           resumableVersion={info.data.resumable_upload_version}
           chunkBytes={info.data.upload_chunk_bytes}
-          onComplete={async () => extraction.run(await pendingFiles(box.id))}
+          onComplete={async () => {
+            if (info.data?.client)
+              await extraction.run(await pendingFiles(box.id));
+          }}
         >
           {content}
         </Upload>

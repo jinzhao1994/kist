@@ -35,8 +35,8 @@ export function BackgroundTasks({
   });
   const location = useQuery(settingsQueries.location);
   const kinds: MetadataTask[] = connection.data?.supported
-    ? ["orientation", "ocr", "desc", "facts", "geo"]
-    : ["geo"];
+    ? ["metadata", "orientation", "ocr", "desc", "facts", "geo"]
+    : ["metadata", "geo"];
   return (
     <section
       id="settings-background-tasks"
@@ -85,14 +85,27 @@ export function BackgroundTasks({
                 key={kind}
                 kind={kind}
                 disabled={
-                  disabled || (kind === "geo" ? locationPending : aiPending)
+                  disabled ||
+                  (kind === "metadata"
+                    ? false
+                    : kind === "geo"
+                      ? locationPending
+                      : aiPending)
                 }
                 connected={
-                  kind === "geo"
-                    ? !!location.data
-                    : !!connection.data?.connected
+                  kind === "metadata"
+                    ? true
+                    : kind === "geo"
+                      ? !!location.data
+                      : !!connection.data?.connected
                 }
-                model={kind === "geo" ? "photon" : ai.data?.model}
+                model={
+                  kind === "metadata"
+                    ? "local"
+                    : kind === "geo"
+                      ? "photon"
+                      : ai.data?.model
+                }
               />
             ))}
           </Table.Tbody>

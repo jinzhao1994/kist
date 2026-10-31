@@ -75,23 +75,30 @@ it("retains original text and the same AI request key after a lost response", as
   await waitFor(() => expect(button).toBeEnabled());
   expect(screen.getByText("Original result")).toBeVisible();
 });
-it("uses the regular idempotent extraction endpoint for EXIF", async () => {
+it("queues an idempotent EXIF refresh without losing its extractor scope", async () => {
   const writes: { url: string; body: string }[] = [];
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method !== "POST")
+        return Response.json(
+          url.endsWith("/info") ? { client: false } : { state: "ready" },
+        );
       writes.push({ url, body: String(init?.body) });
-      return Response.json({ op_id: 1 });
+      return Response.json({ state: "queued", manual: true });
     }),
   );
   mount("exif");
-  await userEvent.click(
-    screen.getByRole("button", { name: "Re-extract Test" }),
-  );
+  const button = screen.getByRole("button", { name: "Re-extract Test" });
+  await waitFor(() => expect(button).toBeEnabled());
+  await userEvent.click(button);
   await waitFor(() => expect(writes).toHaveLength(1));
-  expect(writes[0]).toEqual({
-    url: "/api/v1/files/file/extractions/exif",
-    body: '{"force":true}',
+  expect(writes[0].url).toBe("/api/v1/files/file/metadata");
+  expect(JSON.parse(writes[0].body)).toMatchObject({
+    force: true,
+    retry: false,
+    extractor: "exif",
+    request_id: expect.stringMatching(/^[\da-f-]{36}$/),
   });
 });
 it("has no action or background request for non-extractable groups", () => {
@@ -100,6 +107,28 @@ it("has no action or background request for non-extractable groups", () => {
   mount();
   expect(screen.queryByRole("button")).not.toBeInTheDocument();
   expect(fetch).not.toHaveBeenCalled();
+});
+
+it("keeps offline-client EXIF extraction local without querying NAS task endpoints", async () => {
+  const paths: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      paths.push(url);
+      if (url === "/api/v1/info") return Response.json({ client: true });
+      expect(url).toBe("/api/v1/files/file/extractions/exif");
+      expect(init?.method).toBe("POST");
+      return Response.json({ op_id: 1 });
+    }),
+  );
+  mount("exif");
+  const button = screen.getByRole("button", { name: "Re-extract Test" });
+  await waitFor(() => expect(button).toBeEnabled());
+  await userEvent.click(button);
+  await waitFor(() =>
+    expect(paths).toContain("/api/v1/files/file/extractions/exif"),
+  );
+  expect(paths.some((path) => path.endsWith("/metadata"))).toBe(false);
 });
 
 it("keeps one actionable button for a paused bulk task", async () => {

@@ -873,9 +873,45 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Get API v1 files by ID metadata */
+        get: operations["get-api-v1-files-by-id-metadata"];
         /** Put API v1 files by ID metadata */
         put: operations["put-api-v1-files-by-id-metadata"];
+        /** Post API v1 files by ID metadata */
+        post: operations["post-api-v1-files-by-id-metadata"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{id}/metadata/attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List API v1 files by ID metadata attempts */
+        get: operations["list-api-v1-files-by-id-metadata-attempts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{id}/metadata/attempts/{request_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 files by ID metadata attempts by request ID */
+        get: operations["get-api-v1-files-by-id-metadata-attempts-by-request-id"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -1239,6 +1275,74 @@ export interface paths {
         get: operations["get-api-v1-map-provider"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 metadata */
+        get: operations["get-api-v1-metadata"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/metadata/backfill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 metadata backfill */
+        post: operations["post-api-v1-metadata-backfill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/metadata/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get API v1 metadata jobs */
+        get: operations["get-api-v1-metadata-jobs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/metadata/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 metadata pause */
+        post: operations["post-api-v1-metadata-pause"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2395,6 +2499,7 @@ export interface components {
             automatic: boolean;
             blob_key: string;
             error?: string;
+            extractor?: string;
             file_id: string;
             force?: boolean;
             manual?: boolean;
@@ -2472,26 +2577,43 @@ export interface components {
             parent?: string;
         };
         "Post-api-v1-files-by-id-descRequest": {
+            /** @description Local metadata refresh only: optionally limit force=true to one registered extractor. */
+            extractor?: string;
             force?: boolean;
             request_id?: string;
             retry: boolean;
         };
         "Post-api-v1-files-by-id-factsRequest": {
+            /** @description Local metadata refresh only: optionally limit force=true to one registered extractor. */
+            extractor?: string;
             force?: boolean;
             request_id?: string;
             retry: boolean;
         };
         "Post-api-v1-files-by-id-geoRequest": {
+            /** @description Local metadata refresh only: optionally limit force=true to one registered extractor. */
+            extractor?: string;
+            force?: boolean;
+            request_id?: string;
+            retry: boolean;
+        };
+        "Post-api-v1-files-by-id-metadataRequest": {
+            /** @description Local metadata refresh only: optionally limit force=true to one registered extractor. */
+            extractor?: string;
             force?: boolean;
             request_id?: string;
             retry: boolean;
         };
         "Post-api-v1-files-by-id-ocrRequest": {
+            /** @description Local metadata refresh only: optionally limit force=true to one registered extractor. */
+            extractor?: string;
             force?: boolean;
             request_id?: string;
             retry: boolean;
         };
         "Post-api-v1-files-by-id-orientationRequest": {
+            /** @description Local metadata refresh only: optionally limit force=true to one registered extractor. */
+            extractor?: string;
             force?: boolean;
             request_id?: string;
             retry: boolean;
@@ -2500,6 +2622,12 @@ export interface components {
             retry: boolean;
         };
         "Post-api-v1-geo-pauseRequest": {
+            paused: boolean;
+        };
+        "Post-api-v1-metadata-backfillRequest": {
+            retry: boolean;
+        };
+        "Post-api-v1-metadata-pauseRequest": {
             paused: boolean;
         };
         "Post-api-v1-settings-credentialsRequest": {
@@ -5035,6 +5163,37 @@ export interface operations {
             };
         };
     };
+    "get-api-v1-files-by-id-metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRJob"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
     "put-api-v1-files-by-id-metadata": {
         parameters: {
             query?: never;
@@ -5059,6 +5218,106 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RequestResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-files-by-id-metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-files-by-id-metadataRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRJob"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "list-api-v1-files-by-id-metadata-attempts": {
+        parameters: {
+            query?: {
+                before?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtractionAttempt"][] | null;
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-files-by-id-metadata-attempts-by-request-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtractionAttemptDetail"];
                 };
             };
             /** @description Error */
@@ -5918,6 +6177,133 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MapProvider"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRQueueStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-metadata-backfill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-metadata-backfillRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRQueueStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "get-api-v1-metadata-jobs": {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtractionQueuePage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-metadata-pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Post-api-v1-metadata-pauseRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCRQueueStatus"];
                 };
             };
             /** @description Error */

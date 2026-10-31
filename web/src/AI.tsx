@@ -208,7 +208,7 @@ function useAISettings() {
     ...settingsQueries.ai,
   });
 }
-export type ImageTask = Exclude<MetadataTask, "geo">;
+export type ImageTask = Exclude<MetadataTask, "geo" | "metadata">;
 const taskMessage = (kind: MetadataTask, suffix: string) =>
   `${kind}${suffix}` as MessageKey;
 function AISettings({

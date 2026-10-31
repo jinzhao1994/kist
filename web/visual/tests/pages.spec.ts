@@ -201,6 +201,11 @@ async function prepare(page: Page, options: Options = {}) {
     const path = new URL(route.request().url()).pathname.slice(
       "/api/v1".length,
     );
+    if (
+      /^\/files\/[^/]+\/metadata$/.test(path) &&
+      route.request().method() === "GET"
+    )
+      return route.fulfill({ json: { state: "ready" } });
     if (path === "/geo/settings")
       return route.fulfill({
         json: {
@@ -227,9 +232,12 @@ async function prepare(page: Page, options: Options = {}) {
           revision: "visual",
         },
       });
-    if (/^\/(?:ai\/(?:ocr|desc|facts|orientation)|geo)\/jobs$/.test(path))
+    if (
+      /^\/(?:ai\/(?:ocr|desc|facts|orientation)|geo|metadata)\/jobs$/.test(path)
+    )
       return route.fulfill({ json: { items: [], next_cursor: "" } });
     if (
+      path === "/metadata" ||
       path === "/geo" ||
       path === "/ai/ocr" ||
       path === "/ai/desc" ||
@@ -5335,10 +5343,15 @@ for (const refresh of [false, true]) {
         }),
       );
       let requests = 0;
-      await page.route("**/api/v1/files/file-1/extractions/exif", (route) => {
-        expect(route.request().postDataJSON()).toEqual({ force: true });
+      await page.route("**/api/v1/files/file-1/metadata", (route) => {
+        if (route.request().method() === "GET")
+          return route.fulfill({ json: { state: "ready" } });
+        expect(route.request().postDataJSON()).toMatchObject({
+          force: true,
+          extractor: "exif",
+        });
         requests++;
-        return route.fulfill({ json: { op_id: 20 } });
+        return route.fulfill({ json: { state: "ready", manual: true } });
       });
       await page.goto("/files?file=file-1");
       await page.getByRole("button", { name: "文件详情", exact: true }).click();
@@ -5687,7 +5700,7 @@ for (const anchor of [
     );
     if (taskSection) {
       const tasks = page.locator("#settings-background-tasks");
-      await expect(tasks.getByRole("rowheader")).toHaveCount(5);
+      await expect(tasks.getByRole("rowheader")).toHaveCount(6);
       const ocr = tasks
         .getByRole("row")
         .filter({ has: page.getByRole("rowheader", { name: /^OCR/ }) });
@@ -5735,7 +5748,7 @@ for (const anchor of [
       await expect(arrow.locator("..")).toHaveCSS("opacity", "1");
       if (expanded) {
         await arrow.click();
-        await expect(tasks.locator(".task-table > tbody > tr")).toHaveCount(5);
+        await expect(tasks.locator(".task-table > tbody > tr")).toHaveCount(6);
         const details = ocr.getByRole("table", {
           name: "OCR任务",
           exact: true,
@@ -5936,6 +5949,7 @@ for (const variant of [
       }),
     );
     await page.route("**/api/v1/files/file-1/metadata", (route) => {
+      if (route.request().method() === "GET") return route.fallback();
       const body = route.request().postDataJSON();
       writes++;
       expect(body.before_value).toBe(value);
@@ -6170,6 +6184,7 @@ for (const variant of [
       }),
     );
     await page.route("**/api/v1/files/file-1/metadata", (route) => {
+      if (route.request().method() === "GET") return route.fallback();
       const body = route.request().postDataJSON();
       expect(body.key).toBe("ocr:hint");
       expect(body.before_value).toBe(hint);

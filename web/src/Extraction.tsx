@@ -1,7 +1,7 @@
 import { Button } from "@mantine/core";
 import { useEffect, useRef, useState } from "react";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
-import { api, boxFiles, createWrite, type ArchiveFile } from "./api";
+import { api, boxFiles, createWrite, result, type ArchiveFile } from "./api";
 import { useI18n } from "./i18n";
 import type { Fileset } from "./Filesets";
 import { errorMessage } from "./mutations";
@@ -31,6 +31,46 @@ export function useExtraction() {
     setError(undefined);
     setDone(0);
     const work = files.filter((file) => file.extraction_pending?.length);
+    let clientMode: boolean;
+    try {
+      clientMode =
+        (
+          await client.ensureQueryData({
+            queryKey: ["info"],
+            queryFn: ({ signal }) => api.info(signal),
+          })
+        ).client === true;
+    } catch (error) {
+      running.current = false;
+      if (mounted.current) {
+        setFailed(true);
+        setError(error);
+        setBusy(false);
+      }
+      return;
+    }
+    if (!clientMode) {
+      try {
+        for (const file of work)
+          await result(
+            await fetch(`/api/v1/files/${file.id}/metadata`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ retry: true }),
+            }),
+          );
+        await client.invalidateQueries();
+      } catch (error) {
+        if (mounted.current) {
+          setFailed(true);
+          setError(error);
+        }
+      } finally {
+        running.current = false;
+        if (mounted.current) setBusy(false);
+      }
+      return;
+    }
     setTotal(
       work.reduce(
         (count, file) => count + (file.extraction_pending?.length || 0),

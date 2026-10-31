@@ -12,9 +12,10 @@ const read = <T>(key: string, path: string) =>
     retryOnMount: false,
   });
 
-export type MetadataTask = "ocr" | "desc" | "facts" | "orientation" | "geo";
+export type MetadataTask =
+  "metadata" | "ocr" | "desc" | "facts" | "orientation" | "geo";
 export const queuePath = (kind: MetadataTask) =>
-  kind === "geo" ? "/geo" : `/ai/${kind}`;
+  kind === "geo" ? "/geo" : kind === "metadata" ? "/metadata" : `/ai/${kind}`;
 export const settingsQueries = {
   storage: read<Schema["StorageUsage"]>(
     "instance-storage-usage",
@@ -56,6 +57,9 @@ export async function loadSettingsPage(
   ];
   const settings = await get<Schema["SettingsResponse"]>("/settings", signal);
   if (settings.mode === "library") {
+    pending.push(
+      client.prefetchQuery({ ...settingsQueries.queue("metadata"), ...fresh }),
+    );
     pending.push(
       client.prefetchQuery({ ...settingsQueries.location, ...fresh }),
     );

@@ -17,6 +17,24 @@ import (
 	"github.com/jinzhao1994/kist/internal/store"
 )
 
+type contextReadSeeker struct {
+	context context.Context
+	io.ReadSeeker
+}
+
+func (r contextReadSeeker) Read(p []byte) (int, error) {
+	if err := r.context.Err(); err != nil {
+		return 0, err
+	}
+	return r.ReadSeeker.Read(p)
+}
+func (r contextReadSeeker) Seek(offset int64, whence int) (int64, error) {
+	if err := r.context.Err(); err != nil {
+		return 0, err
+	}
+	return r.ReadSeeker.Seek(offset, whence)
+}
+
 // DefaultExtractBatch is how many files go into one op.
 //
 // Bounded rather than one op for the whole library: spec 3.7.1 rejected
@@ -238,7 +256,7 @@ func (l *Library) extractOne(
 		return nil, r
 	}
 
-	found, err := e.Extract(ctx, f, mime)
+	found, err := e.Extract(ctx, contextReadSeeker{context: ctx, ReadSeeker: f}, mime)
 	if err != nil {
 		r.Err = err
 		return nil, r

@@ -82,7 +82,7 @@ it("loads mixed queue details only when expanded and links filenames with the ca
   await userEvent.click(toggle);
   const table = await screen.findByRole("table", { name: "OCR tasks" });
   expect(row).toContainElement(table);
-  expect(document.querySelectorAll(".task-table > tbody > tr")).toHaveLength(5);
+  expect(document.querySelectorAll(".task-table > tbody > tr")).toHaveLength(6);
   expect(
     within(table).getByRole("link", { name: "Certificate.pdf" }),
   ).toHaveAttribute("href", "/files?file=file-1");

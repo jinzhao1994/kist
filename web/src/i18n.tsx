@@ -51,7 +51,10 @@ export const en = {
   backgroundTaskResume: "Resume",
   backgroundTasks: "Background tasks",
   backgroundTasksHint:
-    "The metadata tasks listed here share one scheduler and run one at a time. Thumbnails, previews and transcoding use a separate background worker. Basic metadata is extracted on request and checked before these tasks. Each type can be paused or retried separately. Pausing does not cancel the request already in progress or block manual extraction. Fill missing skips completed and queued files; retry queues failed tasks.",
+    "The metadata tasks listed here share one scheduler and run one at a time. Local metadata has higher priority and runs automatically after import. AI and GPS wait for it; image direction precedes OCR and descriptions. Thumbnails, previews and transcoding use separate on-demand workers. Each type can be paused or retried separately. Pausing does not cancel the request already in progress or block manual extraction. Fill missing skips completed and queued files; retry queues failed tasks.",
+  metadataTitle: "Metadata",
+  metadataBackfillHint:
+    "Automatically extracts local metadata after import, before AI and GPS tasks. Fill missing completes unfinished extractors; failures remain available for explicit retry.",
   geoTitle: "GPS",
   geoRefresh: "Update address",
   geoSaveSettings: "Save GPS settings",
@@ -1116,7 +1119,10 @@ export const zh: Record<MessageKey, string> = {
   backgroundTaskResume: "继续",
   backgroundTasks: "后台任务",
   backgroundTasksHint:
-    "此处列出的元数据任务共用调度器，依次执行。缩略图、预览与转码使用独立后台执行器；普通元数据按请求提取，这些任务执行前也会补齐。各类任务可以分别暂停或重试；暂停不会取消已经开始的请求，也不阻止手动提取。补全会跳过已完成和已排队的文件；重试会将失败任务重新排队。",
+    "此处列出的元数据任务共用调度器，依次执行。普通元数据在导入后自动处理，优先级高于 AI 和 GPS；后续提取等待前置元数据完成，图片方向先于 OCR 和描述。缩略图、预览与转码继续使用独立的按需执行器。各类任务可以分别暂停或重试；暂停不会取消已经开始的请求，也不阻止手动提取。补全会跳过已完成和已排队的文件；重试会将失败任务重新排队。",
+  metadataTitle: "普通元数据",
+  metadataBackfillHint:
+    "导入后自动提取本地元数据，优先于 AI 和 GPS 任务；补全只处理尚未完成的提取器，失败项保留供手动重试。",
   geoTitle: "GPS",
   geoRefresh: "更新地址",
   geoSaveSettings: "保存 GPS 设置",
