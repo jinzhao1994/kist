@@ -111,6 +111,8 @@ export function InstanceSettings({
     queryKey: ["instance-settings"],
     queryFn: ({ signal }) => loadSettingsPage(queries, signal),
   });
+  // Subscribe to the already loaded registry without issuing another request.
+  const services = useQuery({ ...settingsQueries.services, enabled: false });
   const [snapshot, setSnapshot] = useState<SettingsData>();
   const [draftChanges, setChanges] = useState<Record<string, unknown>>({});
   const changes = Object.fromEntries(
@@ -515,6 +517,27 @@ export function InstanceSettings({
                   ...(snapshot.mode === "library"
                     ? [
                         { id: "settings-ai", label: t("aiConnection") },
+                        ...(services.data
+                          ? [
+                              {
+                                id: "settings-ai-proxies",
+                                label: t("aiProxies"),
+                                subsection: true,
+                              },
+                              {
+                                id: "settings-ai-accounts",
+                                label: t("aiAccounts"),
+                                subsection: true,
+                              },
+                              ...(services.data.definitions || []).map(
+                                ({ name }) => ({
+                                  id: `settings-ai-${name}`,
+                                  label: t(`${name}Title` as MessageKey),
+                                  subsection: true,
+                                }),
+                              ),
+                            ]
+                          : []),
                         { id: "settings-location", label: t("geoTitle") },
                         { id: "settings-maps", label: t("settingMaps") },
                         {

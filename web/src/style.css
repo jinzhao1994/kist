@@ -3469,11 +3469,15 @@ main.upload-drag-active {
 .section-index a {
   color: var(--muted);
 }
+.section-index-subsection {
+  margin-inline-start: var(--mantine-spacing-md);
+}
 .section-index a:hover,
 .section-index a:focus-visible {
   color: var(--brand);
 }
-.flat-page-section {
+.flat-page-section,
+.settings-subsection {
   scroll-margin-block-start: var(
     --section-top-offset,
     var(--mantine-spacing-lg)

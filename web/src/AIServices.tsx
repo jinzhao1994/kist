@@ -349,7 +349,8 @@ export function AIConnection({
       {draft && (
         <div className="settings-blocks">
           <section
-            className="settings-blocks"
+            id="settings-ai-proxies"
+            className="settings-fields settings-subsection"
             aria-labelledby="ai-proxies-title"
           >
             <div className="settings-section-heading">
@@ -651,7 +652,8 @@ export function AIConnection({
             )}
           </section>
           <section
-            className="settings-blocks"
+            id="settings-ai-accounts"
+            className="settings-fields settings-subsection"
             aria-labelledby="ai-accounts-title"
           >
             <div className="settings-section-heading">
@@ -914,37 +916,29 @@ export function AIConnection({
               </div>
             )}
           </section>
-          <section
-            className="settings-blocks"
-            aria-labelledby="ai-features-title"
-          >
-            <h3 id="ai-features-title" className="settings-subsection-heading">
-              {t("aiFeatures")}
-            </h3>
-            {(draft.definitions || []).map((definition) => (
-              <FeatureSettings
-                key={definition.name}
-                definition={definition}
-                value={draft.features[definition.name] || emptyFeature()}
-                accounts={draft.accounts || []}
-                disabled={locked}
-                modelsBlocked={connectionsDirty}
-                onChange={(values) => {
-                  const feature = {
-                    ...(draft.features[definition.name] || emptyFeature()),
-                    ...values,
-                  };
-                  Object.keys(values).forEach((key) =>
-                    clear(`ai_services.features.${definition.name}.${key}`),
-                  );
-                  edit({
-                    ...draft,
-                    features: { ...draft.features, [definition.name]: feature },
-                  });
-                }}
-              />
-            ))}
-          </section>
+          {(draft.definitions || []).map((definition) => (
+            <FeatureSettings
+              key={definition.name}
+              definition={definition}
+              value={draft.features[definition.name] || emptyFeature()}
+              accounts={draft.accounts || []}
+              disabled={locked}
+              modelsBlocked={connectionsDirty}
+              onChange={(values) => {
+                const feature = {
+                  ...(draft.features[definition.name] || emptyFeature()),
+                  ...values,
+                };
+                Object.keys(values).forEach((key) =>
+                  clear(`ai_services.features.${definition.name}.${key}`),
+                );
+                edit({
+                  ...draft,
+                  features: { ...draft.features, [definition.name]: feature },
+                });
+              }}
+            />
+          ))}
         </div>
       )}
     </section>
@@ -987,14 +981,15 @@ function FeatureSettings({
   const account = accounts.find((a) => a.number === value.account);
   return (
     <div
-      className="settings-fields"
+      id={`settings-ai-${definition.name}`}
+      className="settings-fields settings-subsection"
       role="region"
       aria-label={t(`${definition.name}Title` as MessageKey)}
     >
       <div className="settings-section-heading">
-        <h4 className="settings-subsection-heading">
+        <h3 className="settings-subsection-heading">
           {t(`${definition.name}Title` as MessageKey)}
-        </h4>
+        </h3>
         <HelpTooltip label={t(`${definition.name}Title` as MessageKey)}>
           {t(`${definition.name}BackfillHint` as MessageKey)}
         </HelpTooltip>

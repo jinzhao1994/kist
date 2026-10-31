@@ -4472,6 +4472,18 @@ for (const scenario of [
       await expect(
         settings.getByRole("button", { name: "添加账户", exact: true }),
       ).toBeEnabled();
+      await expect(settings.locator(".section-index-subsection")).toHaveText([
+        "代理",
+        "AI 账户",
+        "图片方向",
+        "OCR",
+        "描述",
+        "结构化信息",
+        "语音转文字",
+      ]);
+      await expect(
+        settings.getByRole("heading", { name: "AI 功能", exact: true }),
+      ).toHaveCount(0);
     }
     if (["ai-trojan", "ai-http-auth", "ai-api-account"].includes(scenario)) {
       const table = settings.getByRole("table", {
@@ -4509,6 +4521,10 @@ for (const scenario of [
         ).not.toBeChecked();
     }
     if (scenario === "ai-transcription") {
+      await settings
+        .getByRole("link", { name: "语音转文字", exact: true })
+        .click();
+      await expect(page).toHaveURL(/#settings-ai-transcription$/);
       const feature = settings.getByRole("region", {
         name: "语音转文字",
         exact: true,

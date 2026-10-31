@@ -7,7 +7,7 @@ export function SectionIndex({
   children,
   ready = true,
 }: {
-  items: { id: string; label: string }[];
+  items: { id: string; label: string; subsection?: boolean }[];
   children: ReactNode;
   ready?: boolean;
 }) {
@@ -67,8 +67,13 @@ export function SectionIndex({
         aria-label={t("pageContents")}
         onClick={() => navigate.current?.()}
       >
-        {items.map(({ id, label }) => (
-          <Anchor key={id} href={`#${id}`} size="sm">
+        {items.map(({ id, label, subsection }) => (
+          <Anchor
+            key={id}
+            href={`#${id}`}
+            size={subsection ? "xs" : "sm"}
+            className={subsection ? "section-index-subsection" : undefined}
+          >
             {label}
           </Anchor>
         ))}

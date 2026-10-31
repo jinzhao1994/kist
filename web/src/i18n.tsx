@@ -12,7 +12,6 @@ export const en = {
     "Configure proxies, accounts and per-feature model settings. Use Save at the top.",
   aiProxies: "Proxies",
   aiAccounts: "AI accounts",
-  aiFeatures: "AI features",
   aiProxiesHint:
     "Each account selects one proxy or a direct connection. Requests originate on the kist server.",
   aiAccountsHint:
@@ -1149,7 +1148,6 @@ export const zh: Record<MessageKey, string> = {
     "依次配置代理、AI 账户和各功能的模型参数，统一使用页面顶部的保存按钮。",
   aiProxies: "代理",
   aiAccounts: "AI 账户",
-  aiFeatures: "AI 功能",
   aiProxiesHint: "每个账户可选择一个代理或直连，请求由运行 kist 的服务端发起。",
   aiAccountsHint:
     "可添加多个同类型账户，凭据仅保存在本机配置中，不随归档资料同步。",

@@ -145,6 +145,25 @@ it("reveals local settings together, reuses requests and does not wait for remot
   const sectionIDs = [
     ...view.container.querySelectorAll(".flat-page-section"),
   ].map((el) => el.id);
+  const aiSubsections = [
+    "settings-ai-proxies",
+    "settings-ai-accounts",
+    "settings-ai-orientation",
+    "settings-ai-ocr",
+    "settings-ai-desc",
+    "settings-ai-facts",
+    "settings-ai-transcription",
+  ];
+  expect(
+    [...view.container.querySelectorAll(".section-index-subsection")].map(
+      (link) => link.getAttribute("href"),
+    ),
+  ).toEqual(aiSubsections.map((id) => `#${id}`));
+  for (const id of aiSubsections)
+    expect(document.getElementById(id)).toHaveAccessibleName();
+  expect(
+    screen.queryByRole("heading", { name: "AI features" }),
+  ).not.toBeInTheDocument();
   expect(sectionIDs.slice(-3)).toEqual([
     "settings-location",
     "settings-maps",
