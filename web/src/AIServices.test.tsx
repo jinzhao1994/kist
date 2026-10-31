@@ -42,6 +42,72 @@ async function fill(input: HTMLElement, value: string) {
   await user.paste(value);
 }
 
+it("rejects blank names and invalid addresses before adding or completing a proxy without a request", async () => {
+  const fetch = reads(aiServicesFixture({ proxies: [] }));
+  const { client, unmount } = mount(<AIConnection />);
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Add proxy" }),
+  );
+  const editor = screen.getByRole("region", { name: "Add proxy" });
+  await userEvent.click(
+    within(editor).getByRole("button", { name: "Add proxy" }),
+  );
+  expect(within(editor).getByText("This value is required.")).toBeVisible();
+  expect(
+    screen.queryByRole("table", { name: "Proxies" }),
+  ).not.toBeInTheDocument();
+  await fill(within(editor).getByRole("textbox", { name: "Name" }), "   ");
+  await userEvent.click(
+    within(editor).getByRole("button", { name: "Add proxy" }),
+  );
+  expect(within(editor).getByText("This value is required.")).toBeVisible();
+  const name = within(editor).getByRole("textbox", { name: "Name" });
+  await userEvent.clear(name);
+  await fill(name, "123");
+  const address = within(editor).getByRole("textbox", {
+    name: "Proxy address",
+  });
+  await fill(address, "456");
+  await userEvent.click(
+    within(editor).getByRole("button", { name: "Add proxy" }),
+  );
+  expect(address).toHaveAttribute("aria-invalid", "true");
+  expect(
+    within(editor).getByText("Use a valid HTTP(S) or SOCKS proxy URL."),
+  ).toBeVisible();
+  expect(
+    screen.queryByRole("table", { name: "Proxies" }),
+  ).not.toBeInTheDocument();
+  await userEvent.clear(address);
+  await fill(address, "http://127.0.0.1:7890");
+  await userEvent.click(
+    within(editor).getByRole("button", { name: "Add proxy" }),
+  );
+  const table = screen.getByRole("table", { name: "Proxies" });
+  expect(within(table).getByText("Pending save")).toBeVisible();
+  expect(within(table).getByText("http://127.0.0.1:7890/")).toBeVisible();
+  await userEvent.click(within(table).getByRole("button", { name: "Edit" }));
+  const editing = screen.getByRole("region", { name: "Edit proxy" });
+  const editedAddress = within(editing).getByRole("textbox", {
+    name: "Proxy address",
+  });
+  await userEvent.clear(editedAddress);
+  await fill(editedAddress, "456");
+  await userEvent.click(within(editing).getByRole("button", { name: "Done" }));
+  expect(editedAddress).toHaveAttribute("aria-invalid", "true");
+  await userEvent.click(
+    within(editing).getByRole("button", { name: "Cancel" }),
+  );
+  expect(within(table).getByText("http://127.0.0.1:7890/")).toBeVisible();
+  expect(
+    fetch.mock.calls.every(
+      ([, init]) => !(init as RequestInit | undefined)?.method,
+    ),
+  ).toBe(true);
+  unmount();
+  client.clear();
+});
+
 it("keeps creation above the table without a placeholder row and can cancel it", async () => {
   reads();
   const changed = vi.fn();

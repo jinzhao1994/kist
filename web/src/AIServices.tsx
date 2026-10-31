@@ -33,7 +33,9 @@ import {
   useSettingsError,
   useSettingsPending,
   type SettingsSectionDraft,
+  type SettingsErrors,
 } from "./SettingsFields";
+import { aiObjectErrors } from "./ai-object-validation";
 import { settingsQueries } from "./settingsQueries";
 import { TaskError, TaskStatus } from "./TaskStatus";
 import { errorMessage } from "./mutations";
@@ -89,10 +91,11 @@ function proxyAddress(address: string) {
     url.password = "";
     return url.toString();
   } catch {
-    return "—";
+    return address.replace(/(^|\/\/)[^/@\s]*@/g, "$1") || "—";
   }
 }
-const objectNumber = (number: number) => (number > 0 ? String(number) : "—");
+const objectNumber = (number: number, pendingLabel: string) =>
+  number > 0 ? String(number) : pendingLabel;
 
 function ServiceField({
   path,
@@ -158,7 +161,21 @@ export function AIConnection({
   const [loginURL, setLoginURL] = useState("");
   const pendingAccount = useRef(0);
   const temporary = useRef(-1);
-  const { errors, clear } = useContext(SettingsErrorsContext);
+  const context = useContext(SettingsErrorsContext);
+  const [localErrors, setLocalErrors] = useState<SettingsErrors>({});
+  const errors = useMemo(
+    () => ({ ...context.errors, ...localErrors }),
+    [context.errors, localErrors],
+  );
+  function clear(path: string) {
+    context.clear(path);
+    setLocalErrors((old) => {
+      if (!old[path]) return old;
+      const next = { ...old };
+      delete next[path];
+      return next;
+    });
+  }
   const pending = useMemo(
     () => (draft ? aiServicesDraft(draft) : undefined),
     [draft],
@@ -188,6 +205,7 @@ export function AIConnection({
     setAccountEditor(undefined);
     setCreatingProxy(undefined);
     setCreatingAccount(undefined);
+    setLocalErrors({});
   }, [reloadVersion, queries]);
   useEffect(() => {
     onDraftChange?.(dirty && pending ? { value: pending } : null);
@@ -353,11 +371,45 @@ export function AIConnection({
   );
   const connectionBlocked =
     disabled || configurationPending || dirty || busy !== undefined;
+  function finishObject(
+    kind: "proxies" | "accounts",
+    value: Proxy | Account,
+    index: number,
+  ) {
+    const prefix = `ai_services.${kind}.${index}.`;
+    const fields = aiObjectErrors(value, draft?.[kind] || []);
+    const entries = Object.entries(fields).map(
+      ([key, code]) =>
+        [
+          prefix + key,
+          { field: prefix + key, code, message: "Invalid field" },
+        ] as const,
+    );
+    setLocalErrors((old) => ({
+      ...Object.fromEntries(
+        Object.entries(old).filter(([key]) => !key.startsWith(prefix)),
+      ),
+      ...Object.fromEntries(entries),
+    }));
+    if (entries.length) {
+      const field = Array.from(
+        document.querySelectorAll<HTMLElement>("[data-setting-field]"),
+      ).find((element) => element.dataset.settingField === entries[0][0]);
+      field?.scrollIntoView({ block: "center" });
+      field?.querySelector<HTMLElement>('input, [role="combobox"]')?.focus();
+      return false;
+    }
+    Object.keys(context.errors)
+      .filter((key) => key.startsWith(prefix))
+      .forEach(context.clear);
+    return true;
+  }
   const proxyForm = proxy && (
     <form
       className="settings-object-editor"
       onSubmit={(event) => {
         event.preventDefault();
+        if (!finishObject("proxies", proxy, proxyIndex)) return;
         setCreatingProxy(undefined);
         setProxyEditor(undefined);
       }}
@@ -582,6 +634,7 @@ export function AIConnection({
       className="settings-object-editor"
       onSubmit={(event) => {
         event.preventDefault();
+        if (!finishObject("accounts", account, accountIndex)) return;
         setCreatingAccount(undefined);
         setAccountEditor(undefined);
       }}
@@ -591,6 +644,7 @@ export function AIConnection({
       )}
     >
       <ServiceField
+        required
         path={`ai_services.accounts.${accountIndex}.id`}
         label={t("aiObjectID")}
         help={t("aiObjectIDHint")}
@@ -599,6 +653,7 @@ export function AIConnection({
           <TextInput
             id={id}
             autoFocus
+            aria-required="true"
             value={account.id}
             error={error}
             disabled={locked}
@@ -810,10 +865,16 @@ export function AIConnection({
               setCreatingProxy(number);
               setProxyEditor(undefined);
             }}
-            editor={proxyForm}
+            editor={
+              <SettingsErrorsContext value={{ errors, clear }}>
+                {proxyForm}
+              </SettingsErrorsContext>
+            }
             renderRow={(p) => (
               <>
-                <Table.Td>{objectNumber(p.number)}</Table.Td>
+                <Table.Td>
+                  {objectNumber(p.number, t("aiPendingNumber"))}
+                </Table.Td>
                 <Table.Th scope="row">{p.id || t("aiUnnamed")}</Table.Th>
                 <Table.Td>{p.type === "http" ? "HTTP" : "Trojan"}</Table.Td>
                 <Table.Td>
@@ -897,10 +958,16 @@ export function AIConnection({
               setCreatingAccount(number);
               setAccountEditor(undefined);
             }}
-            editor={accountForm}
+            editor={
+              <SettingsErrorsContext value={{ errors, clear }}>
+                {accountForm}
+              </SettingsErrorsContext>
+            }
             renderRow={(a) => (
               <>
-                <Table.Td>{objectNumber(a.number)}</Table.Td>
+                <Table.Td>
+                  {objectNumber(a.number, t("aiPendingNumber"))}
+                </Table.Td>
                 <Table.Th scope="row">{a.id || t("aiUnnamed")}</Table.Th>
                 <Table.Td>
                   {a.type === "chatgpt" ? "ChatGPT" : "OpenAI API"}

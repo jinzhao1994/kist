@@ -4134,6 +4134,7 @@ for (const scenario of [
   "ai-http-auth",
   "ai-api-account",
   "ai-proxy-create",
+  "ai-proxy-invalid",
   "ai-account-create",
   "ai-transcription",
   "service",
@@ -4486,6 +4487,35 @@ for (const scenario of [
       await expect(
         settings.getByRole("heading", { name: "AI 功能", exact: true }),
       ).toHaveCount(0);
+    }
+    if (scenario === "ai-proxy-invalid") {
+      const table = settings.getByRole("table", { name: "代理", exact: true });
+      const count = await table.getByRole("rowheader").count();
+      await settings
+        .getByRole("button", { name: "添加代理", exact: true })
+        .click();
+      const editor = settings.getByRole("region", {
+        name: "添加代理",
+        exact: true,
+      });
+      await editor
+        .getByRole("textbox", { name: "名称", exact: true })
+        .fill("123");
+      const address = editor.getByRole("textbox", {
+        name: "代理地址",
+        exact: true,
+      });
+      await address.fill("456");
+      await editor
+        .getByRole("button", { name: "添加代理", exact: true })
+        .click();
+      await expect(address).toHaveAttribute("aria-invalid", "true");
+      await expect(
+        editor.getByText("请输入有效的 HTTP(S) 或 SOCKS 代理地址。", {
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(table.getByRole("rowheader")).toHaveCount(count);
     }
     if (["ai-proxy-create", "ai-account-create"].includes(scenario)) {
       const proxy = scenario === "ai-proxy-create";
