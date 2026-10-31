@@ -16,8 +16,13 @@ func DetectMedia(r io.Reader) (string, error) {
 	if n == 0 {
 		return "application/octet-stream", nil
 	}
+	if n >= 4 && string(head[:4]) == "fLaC" {
+		return "audio/flac", nil
+	}
 	if n >= 12 && string(head[4:8]) == "ftyp" {
 		switch string(head[8:12]) {
+		case "M4A ", "M4B ":
+			return "audio/mp4", nil
 		case "qt  ":
 			return "video/quicktime", nil
 		case "heic", "heix", "hevc", "hevx", "heim", "heis", "hevm", "hevs":

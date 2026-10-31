@@ -184,7 +184,7 @@ func CheckValue(kv KV) error {
 	if kv.Key == "desc:text" && kv.Type == TypeText {
 		limit = 16 << 10
 	}
-	if kv.Key == "ocr:text" && kv.Type == TypeText {
+	if (kv.Key == "ocr:text" || kv.Key == "transcription:text") && kv.Type == TypeText {
 		limit = 256 << 10
 	}
 	if len(kv.Value) > limit {

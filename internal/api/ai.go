@@ -137,7 +137,7 @@ func (s *Server) aiRoutes() {
 			return s.library.SetImageRotation(ctx, domain.FileID{ID: id}, in.Body.BlobKey, in.Body.Degrees)
 		})
 	})
-	s.queueRoutes("/ai/", map[string]*library.OCRQueue{"orientation": s.library.OrientationQueue(), "ocr": s.library.OCRQueue(), "desc": s.library.DescriptionQueue(), "facts": s.library.FactsQueue()})
+	s.queueRoutes("/ai/", map[string]*library.OCRQueue{"orientation": s.library.OrientationQueue(), "ocr": s.library.OCRQueue(), "desc": s.library.DescriptionQueue(), "facts": s.library.FactsQueue(), "transcription": s.library.TranscriptionQueue()})
 	s.locationRoutes()
 	s.queueRoutes("/", map[string]*library.OCRQueue{"metadata": s.library.MetadataQueue()})
 }
@@ -145,7 +145,7 @@ func (s *Server) aiRoutes() {
 // RunOCR joins the server lifetime; requests only update the persistent queue.
 func (s *Server) RunOCR(ctx context.Context) {
 	if s.library != nil {
-		s.library.MetadataQueue().Run(ctx, s.library.OrientationQueue(), s.library.OCRQueue(), s.library.DescriptionQueue(), s.library.FactsQueue(), s.library.LocationQueue())
+		s.library.MetadataQueue().Run(ctx, s.library.OrientationQueue(), s.library.OCRQueue(), s.library.DescriptionQueue(), s.library.FactsQueue(), s.library.TranscriptionQueue(), s.library.LocationQueue())
 	}
 }
 

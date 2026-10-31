@@ -176,9 +176,9 @@ func (l *Library) prepareOCR(ctx context.Context, id domain.FileID, provider ai.
 func (l *Library) PrepareDescription(ctx context.Context, id domain.FileID, provider ai.Provider, model, language string) (*PreparedOCR, error) {
 	return l.prepareImageText(ctx, id, provider, model, "", "desc", language, false)
 }
-func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provider ai.Provider, model, expectedBlob, kind, language string, force bool) (*PreparedOCR, error) {
+func (l *Library) prepareAIState(ctx context.Context, id domain.FileID, kind string) (*PreparedOCR, *time.Location, error) {
 	if ctx.Value(requestContextKey{}) != nil {
-		return nil, ErrRequestScope
+		return nil, nil, ErrRequestScope
 	}
 	p := &PreparedOCR{library: l, extractor: kind}
 	var zone *time.Location
@@ -201,6 +201,14 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 		zone = l.zone()
 		return err
 	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return p, zone, nil
+}
+
+func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provider ai.Provider, model, expectedBlob, kind, language string, force bool) (*PreparedOCR, error) {
+	p, zone, err := l.prepareAIState(ctx, id, kind)
 	if err != nil {
 		return nil, err
 	}

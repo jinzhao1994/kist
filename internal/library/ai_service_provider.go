@@ -16,6 +16,30 @@ import (
 
 type aiConfigurationContextKey struct{}
 
+func (q *OCRQueue) requireConfiguredFeature(ctx context.Context) error {
+	if q.kind == "metadata" || q.kind == "geo" {
+		return nil
+	}
+	cfg, err := q.library.aiConfiguration(ctx)
+	if err != nil {
+		return err
+	}
+	if cfg.AIServices == nil {
+		if q.kind == "transcription" {
+			return errors.New("configure an OpenAI API account for transcription in Settings")
+		}
+		if cfg.AIOptions.Model == "" {
+			return errors.New("choose an AI model in Settings first")
+		}
+		return nil
+	}
+	f := cfg.AIServices.Features[q.kind]
+	if f.Account == 0 || f.Model == "" {
+		return errors.New("choose an AI account and model for this feature in Settings")
+	}
+	return nil
+}
+
 func (l *Library) aiConfiguration(ctx context.Context) (*config.Config, error) {
 	if cfg, ok := ctx.Value(aiConfigurationContextKey{}).(*config.Config); ok {
 		return cfg, nil

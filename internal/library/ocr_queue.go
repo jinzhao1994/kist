@@ -149,12 +149,8 @@ func (q *OCRQueue) Pause(ctx context.Context, paused bool) (OCRQueueStatus, erro
 	return queueStatus(s), q.save(s)
 }
 func (q *OCRQueue) Backfill(ctx context.Context, retry bool) (OCRQueueStatus, error) {
-	cfg, err := q.library.OCRSettings(ctx)
-	if err != nil {
+	if err := q.requireConfiguredFeature(ctx); err != nil {
 		return OCRQueueStatus{}, err
-	}
-	if q.kind != "geo" && q.kind != "metadata" && cfg.Model == "" {
-		return OCRQueueStatus{}, errors.New("choose an AI model in Settings first")
 	}
 	head, err := q.library.SyncHead(ctx)
 	if err != nil {
@@ -258,6 +254,9 @@ func (q *OCRQueue) eligible(j OCRJob) bool {
 	}
 	defer f.Close()
 	kind, err := extract.DetectMedia(f)
+	if q.kind == "transcription" {
+		return err == nil && supportedTranscription(j.Name, kind)
+	}
 	if q.kind == "geo" {
 		return err == nil && (geoExtractor{}).Wants(kind)
 	}
@@ -316,12 +315,8 @@ func (q *OCRQueue) Reextract(ctx context.Context, id domain.FileID, key string) 
 }
 
 func (q *OCRQueue) request(ctx context.Context, id domain.FileID, retry, force bool, key string) (OCRJob, error) {
-	cfg, err := q.library.OCRSettings(ctx)
-	if err != nil {
+	if err := q.requireConfiguredFeature(ctx); err != nil {
 		return OCRJob{}, err
-	}
-	if q.kind != "geo" && cfg.Model == "" {
-		return OCRJob{}, errors.New("choose an AI model in Settings first")
 	}
 	j, err := q.resolve(ctx, id)
 	if err != nil || j.State == "ready" && !force {
@@ -334,6 +329,9 @@ func (q *OCRQueue) request(ctx context.Context, id domain.FileID, retry, force b
 		}
 	}
 	if !q.eligible(j) {
+		if q.kind == "transcription" {
+			return j, errors.New("unsupported audio file for transcription")
+		}
 		if q.kind == "desc" || q.kind == "facts" {
 			return j, errors.New("this extraction supports images, PDF, Word and PowerPoint files")
 		}
@@ -426,6 +424,9 @@ func (q *OCRQueue) stepLocked(ctx context.Context) (bool, error) {
 	ctx = context.WithValue(ctx, aiConfigurationContextKey{}, cfg)
 	pauseOnError := q.kind != "metadata" && (q.kind != "geo" || cfg.Geocoding.PauseOnError)
 	auto, after := cfg.AIOptions.AutoOCR, cfg.AIOptions.AfterOp
+	if q.kind == "transcription" {
+		auto, after = false, 0
+	}
 	if q.kind == "metadata" {
 		auto, after = true, 0
 	}
@@ -673,7 +674,12 @@ func (q *OCRQueue) execute(ctx context.Context, j OCRJob, model, language string
 	if err != nil {
 		return err
 	}
-	prepared, err := q.library.prepareImageText(ctx, j.FileID, provider, model, j.BlobKey, q.kind, language, j.Force)
+	var prepared *PreparedOCR
+	if q.kind == "transcription" {
+		prepared, err = q.library.prepareTranscription(ctx, j.FileID, provider, model, j.BlobKey, j.Force)
+	} else {
+		prepared, err = q.library.prepareImageText(ctx, j.FileID, provider, model, j.BlobKey, q.kind, language, j.Force)
+	}
 	if err != nil {
 		var failure *modelResponseError
 		if errors.As(err, &failure) {

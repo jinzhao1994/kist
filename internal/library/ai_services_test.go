@@ -98,6 +98,14 @@ func TestAIServicePerFeatureProviderAndSnapshot(t *testing.T) {
 	draft.Features["orientation"] = ai.Feature{Account: -2, Model: "model-b", ReasoningEffort: "low", ImageDetail: "low"}
 	draft = saveServiceDraft(t, l, draft)
 	cfg, _ := config.Load(l.layout.ConfigPath())
+	// Manual and bulk entry points must not require the removed global model.
+	q := l.OCRQueue()
+	if _, err := q.Request(t.Context(), ocrFile(t, l), false); err != nil {
+		t.Fatal("per-feature manual request rejected", err)
+	}
+	if _, err := q.Backfill(t.Context(), false); err != nil {
+		t.Fatal("per-feature backfill rejected", err)
+	}
 	ctx := context.WithValue(t.Context(), aiConfigurationContextKey{}, cfg)
 	for kind, want := range map[string]string{"ocr": "synthetic-a", "orientation": "synthetic-b"} {
 		provider, err := l.AIFeatureProvider(ctx, kind)
@@ -113,6 +121,8 @@ func TestAIServicePerFeatureProviderAndSnapshot(t *testing.T) {
 			t.Fatal("wrong inference parameters")
 		}
 	}
+	// The first queue operation initializes runtime storage and pins its marker.
+	draft, _ = l.AIServicesSettings(t.Context())
 	feature := draft.Features["ocr"]
 	feature.Account = 2
 	draft.Features["ocr"] = feature
