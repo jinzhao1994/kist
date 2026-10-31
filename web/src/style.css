@@ -2627,7 +2627,7 @@ main.upload-drag-active {
   margin-inline-start: 0;
 }
 .input-number-control {
-  border-inline-start: 0;
+  border-inline-start: 1px solid var(--input-bd);
 }
 .input-number-control::after {
   content: "";
