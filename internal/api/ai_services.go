@@ -58,6 +58,13 @@ func (s *Server) prepareAISignInChange(next *library.AIServiceSettings) func() {
 }
 
 func (s *Server) aiServiceRoutes() {
+	huma.Post(s.contract, Prefix+"/ai/accounts/{number}/test", func(ctx context.Context, in *aiAccountAction) (*output[library.AIAccountTestResult], error) {
+		result, err := s.library.TestAIAccount(ctx, in.Number)
+		if errors.Is(err, library.ErrNoSuchAIAccount) {
+			return nil, huma.Error404NotFound("AI account no longer exists")
+		}
+		return response(result, err)
+	})
 	huma.Post(s.contract, Prefix+"/ai/proxies/{number}/test", func(ctx context.Context, in *aiAccountAction) (*output[ai.ProxyTestResult], error) {
 		result, err := s.library.TestAIProxy(ctx, in.Number)
 		if errors.Is(err, library.ErrNoSuchAIProxy) {

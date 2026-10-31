@@ -24,6 +24,7 @@ import type { components } from "./api-schema";
 import { get, result } from "./api";
 import { SettingsCollection } from "./SettingsCollection";
 import { AIProxyRow } from "./AIProxyRow";
+import { ConnectionTest } from "./ConnectionTest";
 import { SecretInput } from "./SecretInput";
 import { HelpTooltip } from "./HelpTooltip";
 import { Select } from "./Select";
@@ -971,83 +972,134 @@ export function AIConnection({
               </SettingsErrorsContext>
             }
             renderRow={(a) => (
-              <>
-                <Table.Td className="settings-number-column">
-                  {objectNumber(a.number, t("aiPendingNumber"))}
-                </Table.Td>
-                <Table.Th scope="row">{a.id || t("aiUnnamed")}</Table.Th>
-                <Table.Td>
-                  {a.type === "chatgpt" ? "ChatGPT" : "OpenAI API"}
-                </Table.Td>
-                <Table.Td>
-                  {a.proxy
-                    ? draft.proxies?.find((p) => p.number === a.proxy)?.id ||
-                      t("aiRemovedReference", { number: a.proxy })
-                    : t("aiDirect")}
-                </Table.Td>
-                <Table.Td>
-                  {query.data?.pending_account === a.number
-                    ? t("aiWaiting")
+              <ConnectionTest<Schema["AIAccountTestResult"]>
+                path={`/ai/accounts/${a.number}/test`}
+                revision={draft.revision}
+                saved={a.number > 0 && !connectionsDirty}
+                disabled={
+                  connectionBlocked ||
+                  !a.connected ||
+                  !!query.data?.pending_account ||
+                  creatingAccount !== undefined ||
+                  accountEditor !== undefined
+                }
+                hint={t(
+                  dirty || configurationPending
+                    ? "aiAccountTestSaveFirst"
                     : a.connected
-                      ? t("aiConnected")
-                      : t("aiDisconnected")}
-                </Table.Td>
-                <Table.Td>
-                  <Group
-                    gap="md"
-                    justify="flex-end"
-                    wrap="nowrap"
-                    className="table-row-actions"
-                    data-busy={busy === a.number || undefined}
-                  >
-                    {a.type === "chatgpt" &&
-                      rowAction(
-                        t("aiContinue"),
-                        () => void accountAction(a.number, "connect"),
-                        connectionBlocked ||
-                          a.number <= 0 ||
-                          !!query.data?.pending_account,
-                      )}
-                    {(a.connected ||
-                      query.data?.pending_account === a.number) &&
-                      rowAction(
-                        t(
-                          query.data?.pending_account === a.number
-                            ? "cancel"
-                            : "aiDisconnect",
-                        ),
-                        () => void accountAction(a.number, "disconnect"),
-                        connectionBlocked || a.number <= 0,
-                      )}
-                    {rowAction(
-                      t("aiEdit"),
-                      () => {
-                        originalAccount.current = a;
-                        setAccountEditor(a.number);
-                      },
-                      locked ||
-                        creatingAccount !== undefined ||
-                        accountEditor !== undefined,
+                      ? "aiAccountTestHint"
+                      : "aiAccountTestConfigure",
+                )}
+                saveHint={t("aiAccountTestSaveFirst")}
+                reasons={{
+                  not_configured: "aiAccountTestConfigure",
+                  authentication: "aiAccountTestAuth",
+                  permission: "aiAccountTestPermission",
+                  rate_limited: "aiAccountTestRate",
+                  timeout: "aiAccountTestTimeout",
+                  connection: "aiAccountTestConnection",
+                  service: "aiAccountTestService",
+                }}
+                success={(value) => (
+                  <>
+                    {t("aiAccountTestResult", {
+                      count: value.models?.length || 0,
+                      ms: value.elapsed_ms,
+                    })}
+                    {!!value.models?.length && (
+                      <span className="connection-test-models">
+                        {value.models.join(", ")}
+                      </span>
                     )}
-                    {rowAction(
-                      t("aiDelete"),
-                      () => {
-                        edit({
-                          ...draft,
-                          accounts: draft.accounts!.filter(
-                            (value) => value.number !== a.number,
-                          ),
-                        });
-                        if (accountEditor === a.number)
-                          setAccountEditor(undefined);
-                      },
-                      locked ||
-                        creatingAccount !== undefined ||
-                        accountEditor !== undefined,
-                    )}
-                  </Group>
-                </Table.Td>
-              </>
+                  </>
+                )}
+              >
+                {({ action, feedback, testing }) => (
+                  <>
+                    <Table.Td className="settings-number-column">
+                      {objectNumber(a.number, t("aiPendingNumber"))}
+                    </Table.Td>
+                    <Table.Th scope="row">{a.id || t("aiUnnamed")}</Table.Th>
+                    <Table.Td>
+                      {a.type === "chatgpt" ? "ChatGPT" : "OpenAI API"}
+                    </Table.Td>
+                    <Table.Td>
+                      {a.proxy
+                        ? draft.proxies?.find((p) => p.number === a.proxy)
+                            ?.id || t("aiRemovedReference", { number: a.proxy })
+                        : t("aiDirect")}
+                    </Table.Td>
+                    <Table.Td>
+                      {query.data?.pending_account === a.number
+                        ? t("aiWaiting")
+                        : a.connected
+                          ? t(
+                              a.type === "openai"
+                                ? "aiConfigured"
+                                : "aiConnected",
+                            )
+                          : t("aiDisconnected")}
+                      {feedback}
+                    </Table.Td>
+                    <Table.Td>
+                      <Group
+                        gap="md"
+                        justify="flex-end"
+                        wrap="nowrap"
+                        className="table-row-actions"
+                        data-busy={busy === a.number || testing || undefined}
+                      >
+                        {action}
+                        {a.type === "chatgpt" &&
+                          rowAction(
+                            t("aiContinue"),
+                            () => void accountAction(a.number, "connect"),
+                            connectionBlocked ||
+                              a.number <= 0 ||
+                              !!query.data?.pending_account,
+                          )}
+                        {(a.connected ||
+                          query.data?.pending_account === a.number) &&
+                          rowAction(
+                            t(
+                              query.data?.pending_account === a.number
+                                ? "cancel"
+                                : "aiDisconnect",
+                            ),
+                            () => void accountAction(a.number, "disconnect"),
+                            connectionBlocked || a.number <= 0,
+                          )}
+                        {rowAction(
+                          t("aiEdit"),
+                          () => {
+                            originalAccount.current = a;
+                            setAccountEditor(a.number);
+                          },
+                          locked ||
+                            creatingAccount !== undefined ||
+                            accountEditor !== undefined,
+                        )}
+                        {rowAction(
+                          t("aiDelete"),
+                          () => {
+                            edit({
+                              ...draft,
+                              accounts: draft.accounts!.filter(
+                                (value) => value.number !== a.number,
+                              ),
+                            });
+                            if (accountEditor === a.number)
+                              setAccountEditor(undefined);
+                          },
+                          locked ||
+                            creatingAccount !== undefined ||
+                            accountEditor !== undefined,
+                        )}
+                      </Group>
+                    </Table.Td>
+                  </>
+                )}
+              </ConnectionTest>
             )}
           />
           {loginURL && !!query.data?.pending_account && (

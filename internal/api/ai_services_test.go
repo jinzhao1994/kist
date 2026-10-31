@@ -83,7 +83,7 @@ func TestAIServiceLocalBoundaryIncludesEveryInvocation(t *testing.T) {
 	// Keep the exercised public routes independent of the feature registry used
 	// by the guard, including the newer structured and audio extraction paths.
 	for _, path := range []string{
-		"/ai/services", "/ai/accounts/1/models", "/ai/accounts/1/connect", "/ai/proxies/1/test",
+		"/ai/services", "/ai/accounts/1/models", "/ai/accounts/1/connect", "/ai/proxies/1/test", "/ai/accounts/1/test",
 		"/files/00000000-0000-7000-8000-000000000001/orientation",
 		"/files/00000000-0000-7000-8000-000000000001/ocr",
 		"/files/00000000-0000-7000-8000-000000000001/desc",
@@ -151,6 +151,31 @@ func TestAIProxyDiagnosticReadsOnlySavedConfiguration(t *testing.T) {
 	after, _ := os.ReadFile(l.Layout().ConfigPath())
 	if calls.Load() != 1 || !bytes.Equal(before, after) {
 		t.Fatal("diagnostic mutated settings or made an extra request")
+	}
+}
+
+func TestAIAccountDiagnosticEndpoint(t *testing.T) {
+	s, l := testServer(t)
+	draft, _ := l.AIServicesSettings(t.Context())
+	draft.Accounts = []library.AIAccountSettings{{Number: -1, ID: "Synthetic", Type: ai.AccountChatGPT}}
+	if err := l.UpdateCombinedAIServiceSettings(t.Context(), draft.Revision, map[string]any{}, nil, nil, &draft); err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		number string
+		status int
+	}{{"1", 200}, {"999", 404}, {"0", 422}} {
+		r := httptest.NewRequest("POST", "http://localhost:8473"+Prefix+"/ai/accounts/"+test.number+"/test", strings.NewReader("{}"))
+		r.RemoteAddr = "127.0.0.1:1234"
+		r.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		s.ServeHTTP(w, r)
+		if w.Code != test.status {
+			t.Fatalf("%s: %d %s", test.number, w.Code, w.Body.String())
+		}
+		if test.number == "1" && !strings.Contains(w.Body.String(), `"error":"not_configured"`) {
+			t.Fatal(w.Body.String())
+		}
 	}
 }
 

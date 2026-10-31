@@ -21,8 +21,8 @@ export const en = {
   aiAddProxy: "Add proxy",
   aiAddAccount: "Add account",
   aiPendingNumber: "Pending save",
-  aiProxyTest: "Test",
-  aiProxyTesting: "Testing…",
+  connectionTest: "Test",
+  connectionTesting: "Testing…",
   aiProxyTestHint:
     "Check this proxy’s exit IP and approximate location. Allow up to 15 seconds.",
   aiProxyTestSaveFirst: "Save this proxy before testing.",
@@ -62,6 +62,23 @@ export const en = {
   aiProxySecretHint:
     "Enter an HTTP(S) or SOCKS proxy URL. Saved URL credentials are hidden and preserved when omitted.",
   aiAccountProxy: "Proxy",
+  aiConfigured: "Configured",
+  aiAccountTestHint:
+    "Check account authentication and connectivity by reading the model list. No inference; individual model access and balance are not verified.",
+  aiAccountTestSaveFirst: "Save settings before testing this account.",
+  aiAccountTestConfigure: "Configure this account's API key or sign in first.",
+  aiAccountTestResult: "Test passed · {count} models · {ms} ms",
+  aiAccountTestAuth:
+    "Authentication failed. Check the API key or sign in again.",
+  aiAccountTestPermission:
+    "Model list access denied. Check the key's permissions.",
+  aiAccountTestRate: "The service is rate limited. Try again later.",
+  aiAccountTestTimeout:
+    "Test timed out after 15 seconds. Check the network or proxy.",
+  aiAccountTestConnection:
+    "Connection failed. Check the network and selected proxy.",
+  aiAccountTestService:
+    "Account or service check failed. Try again or sign in again.",
   aiAccount: "AI account",
   aiAPIKeyHint: "Enter an OpenAI API key. API usage is billed to this account.",
   showSecret: "Show secret",
@@ -1180,8 +1197,8 @@ export const zh: Record<MessageKey, string> = {
   aiAddProxy: "添加代理",
   aiAddAccount: "添加账户",
   aiPendingNumber: "待保存",
-  aiProxyTest: "测试",
-  aiProxyTesting: "测试中…",
+  connectionTest: "测试",
+  connectionTesting: "测试中…",
   aiProxyTestHint: "查询此代理的出口 IP 和大致位置，最多等待 15 秒。",
   aiProxyTestSaveFirst: "请先保存此代理，再进行测试。",
   aiProxyTestResult: "出口 IP：{ip} · {location} · {ms} ms",
@@ -1214,6 +1231,18 @@ export const zh: Record<MessageKey, string> = {
   aiProxySecretHint:
     "填写 HTTP(S) 或 SOCKS 代理地址。已保存的地址认证信息会隐藏，未填写时保留。",
   aiAccountProxy: "代理",
+  aiConfigured: "已配置",
+  aiAccountTestHint:
+    "读取模型列表，检查账户认证和连接，不执行推理。不验证余额及具体模型的调用权限。",
+  aiAccountTestSaveFirst: "请先保存设置，再进行账户测试。",
+  aiAccountTestConfigure: "请先填写此账户的 API Key 或完成登录。",
+  aiAccountTestResult: "测试通过 · {count} 个模型 · {ms} ms",
+  aiAccountTestAuth: "认证失败，请检查 API Key 或重新登录。",
+  aiAccountTestPermission: "模型列表访问被拒绝，请检查密钥权限。",
+  aiAccountTestRate: "服务已限流，请稍后重试。",
+  aiAccountTestTimeout: "测试超过 15 秒，请检查网络或代理。",
+  aiAccountTestConnection: "连接失败，请检查网络和所选代理。",
+  aiAccountTestService: "账户或服务检查失败，请稍后重试或重新登录。",
   aiAccount: "AI 账户",
   aiAPIKeyHint: "填写 OpenAI API Key，调用费用计入对应 API 账户。",
   showSecret: "显示密钥",
@@ -2303,6 +2332,7 @@ interface Parameters {
   ocrQueueCounts: { queued: number; failed: number };
   aiRemovedReference: { number: number };
   aiProxyTestResult: { ip: string; location: string; ms: number };
+  aiAccountTestResult: { count: number; ms: number };
   backgroundTaskLastFailure: { error: string };
   geoNearby: { address: string };
   clientSelectLoaded: { count: number };

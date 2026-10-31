@@ -23,6 +23,16 @@ const APIURL = "https://api.openai.com/v1"
 const Issuer = "https://auth.openai.com"
 const Resource = APIURL
 
+// HTTPStatusError exposes only a status code, never a provider body or token.
+type HTTPStatusError struct{ StatusCode int }
+
+func (e *HTTPStatusError) Error() string {
+	return fmt.Sprintf("OpenAI returned HTTP %d; check account access and usage", e.StatusCode)
+}
+
+// ErrConnection is a sanitized transport failure without URL or credentials.
+var ErrConnection = errors.New("OpenAI request failed; check connection and try again")
+
 // Client is immutable and scoped to a freshly loaded access token.
 type Client struct {
 	Token      string
@@ -54,11 +64,11 @@ func (c Client) requestContent(ctx context.Context, method, path string, body io
 	req.Header.Set("Content-Type", contentType)
 	res, err := c.http().Do(req)
 	if err != nil {
-		return nil, errors.New("OpenAI request failed; check connection and try again")
+		return nil, ErrConnection
 	}
 	if res.StatusCode != http.StatusOK {
 		res.Body.Close()
-		return nil, fmt.Errorf("OpenAI returned HTTP %d; check account access and usage", res.StatusCode)
+		return nil, &HTTPStatusError{StatusCode: res.StatusCode}
 	}
 	return res, nil
 }

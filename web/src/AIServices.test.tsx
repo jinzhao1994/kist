@@ -196,6 +196,92 @@ function reads(view = aiServicesFixture()) {
   return fetch;
 }
 
+it("tests a saved account explicitly and displays its full model list", async () => {
+  let finish!: (value: Response) => void;
+  const fetch = vi.fn((path: string, init?: RequestInit) =>
+    path.endsWith("/accounts/1/test")
+      ? new Promise<Response>((resolve) => {
+          finish = resolve;
+        })
+      : Promise.resolve(
+          Response.json(
+            path.endsWith("/services")
+              ? aiServicesFixture()
+              : { supported: true },
+          ),
+        ),
+  );
+  vi.stubGlobal("fetch", fetch);
+  const { client, unmount } = mount(<AIConnection />);
+  const row = (
+    await screen.findByRole("rowheader", { name: "Test account" })
+  ).closest("tr")!;
+  const test = within(row).getByRole("button", { name: "Test" });
+  expect(test).toBeEnabled();
+  expect(
+    fetch.mock.calls.filter(([, init]) => init?.method === "POST"),
+  ).toHaveLength(0);
+  await userEvent.click(test);
+  expect(within(row).getByRole("button", { name: "Testing…" })).toBeDisabled();
+  expect(fetch).toHaveBeenCalledWith(
+    "/api/v1/ai/accounts/1/test",
+    expect.objectContaining({ method: "POST", body: "{}" }),
+  );
+  finish(
+    Response.json({
+      models: ["synthetic-model-a", "synthetic-model-b"],
+      elapsed_ms: 120,
+      error: "",
+    }),
+  );
+  await waitFor(() =>
+    expect(within(row).getByRole("status")).toHaveTextContent(
+      "Test passed · 2 models · 120 ms",
+    ),
+  );
+  expect(
+    within(row).getByText("synthetic-model-a, synthetic-model-b"),
+  ).toBeVisible();
+  expect(within(row).getByText("Configured")).toBeVisible();
+  await userEvent.click(within(row).getByRole("button", { name: "Edit" }));
+  const editor = screen.getByRole("region", { name: "Edit AI account" });
+  await fill(within(editor).getByRole("textbox", { name: "Name" }), "Changed");
+  await userEvent.click(within(editor).getByRole("button", { name: "Done" }));
+  expect(screen.getByRole("button", { name: "Test" })).toBeDisabled();
+  expect(
+    screen.queryByText("synthetic-model-a, synthetic-model-b"),
+  ).not.toBeInTheDocument();
+  unmount();
+  client.clear();
+});
+
+it("reports account test permission failures without disconnecting the account", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string) =>
+      Response.json(
+        path.endsWith("/accounts/1/test")
+          ? { models: null, elapsed_ms: 0, error: "permission" }
+          : path.endsWith("/services")
+            ? aiServicesFixture()
+            : { supported: true },
+      ),
+    ),
+  );
+  const { client, unmount } = mount(<AIConnection />);
+  const row = (
+    await screen.findByRole("rowheader", { name: "Test account" })
+  ).closest("tr")!;
+  await userEvent.click(within(row).getByRole("button", { name: "Test" }));
+  expect(await within(row).findByRole("alert")).toHaveTextContent(
+    "Model list access denied",
+  );
+  expect(within(row).getByRole("button", { name: "Test" })).toBeEnabled();
+  expect(within(row).getByRole("button", { name: "Disconnect" })).toBeEnabled();
+  unmount();
+  client.clear();
+});
+
 // Multi-section user flows retain a bounded budget on slower CI workers.
 it("edits multiple same-type accounts and distinct proxies in one unsaved draft", async () => {
   const fixture = aiServicesFixture({ proxies: [], accounts: [] });

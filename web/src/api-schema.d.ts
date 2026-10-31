@@ -68,6 +68,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai/accounts/{number}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post API v1 ai accounts by number test */
+        post: operations["post-api-v1-ai-accounts-by-number-test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ai/connect": {
         parameters: {
             query?: never;
@@ -2225,6 +2242,13 @@ export interface components {
             /** @enum {string} */
             type: "chatgpt" | "openai";
         };
+        AIAccountTestResult: {
+            /** Format: int64 */
+            elapsed_ms: number;
+            /** @enum {string} */
+            error: "" | "not_configured" | "authentication" | "permission" | "rate_limited" | "timeout" | "connection" | "service";
+            models: string[] | null;
+        };
         AIOptions: {
             auto_desc: boolean;
             auto_facts: boolean;
@@ -3428,6 +3452,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Model"][] | null;
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPError"];
+                };
+            };
+        };
+    };
+    "post-api-v1-ai-accounts-by-number-test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiAccountActionBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AIAccountTestResult"];
                 };
             };
             /** @description Error */

@@ -4138,6 +4138,8 @@ for (const scenario of [
   "ai-proxy-test",
   "ai-proxy-test-error",
   "ai-account-create",
+  "ai-account-test",
+  "ai-account-test-error",
   "ai-transcription",
   "service",
   "maps",
@@ -4398,6 +4400,20 @@ for (const scenario of [
               : [{ id: "gpt-6-luna", name: "GPT-6 Luna" }],
         });
       });
+      if (
+        scenario === "ai-account-test" ||
+        scenario === "ai-account-test-error"
+      )
+        await page.route("**/api/v1/ai/accounts/2/test", (route) =>
+          route.fulfill({
+            json: {
+              models: ["synthetic-vision", "synthetic-text", "synthetic-audio"],
+              elapsed_ms: 120,
+              error:
+                scenario === "ai-account-test-error" ? "authentication" : "",
+            },
+          }),
+        );
       if (scenario === "ai-proxy-test" || scenario === "ai-proxy-test-error")
         await page.route("**/api/v1/ai/proxies/*/test", (route) =>
           route.fulfill({
@@ -4566,6 +4582,38 @@ for (const scenario of [
         await page.mouse.move(0, 0);
         await expect(page.getByRole("tooltip")).toHaveCount(0);
       }
+    }
+    if (
+      scenario === "ai-account-test" ||
+      scenario === "ai-account-test-error"
+    ) {
+      const row = settings
+        .getByRole("table", { name: "AI 账户", exact: true })
+        .getByRole("row")
+        .filter({
+          has: page.getByRole("rowheader", { name: "OpenAI API", exact: true }),
+        });
+      await row.hover();
+      const test = row.getByRole("button", { name: "测试", exact: true });
+      await test.click();
+      if (scenario === "ai-account-test-error")
+        await expect(row.getByRole("alert")).toHaveText(
+          "认证失败，请检查 API Key 或重新登录。",
+        );
+      else {
+        await expect(row.getByRole("status")).toContainText(
+          "测试通过 · 3 个模型 · 120 ms",
+        );
+        await expect(
+          row.getByText("synthetic-vision, synthetic-text, synthetic-audio", {
+            exact: true,
+          }),
+        ).toBeVisible();
+      }
+      await expect(test).toBeEnabled();
+      await expect(row.getByText("已配置", { exact: true })).toBeVisible();
+      await page.mouse.move(0, 0);
+      await expect(page.getByRole("tooltip")).toHaveCount(0);
     }
     if (scenario === "ai-proxy-invalid") {
       const table = settings.getByRole("table", { name: "代理", exact: true });
@@ -5108,9 +5156,11 @@ for (const scenario of [
         ? ["Model service unavailable"]
         : scenario === "ai-proxy-test-error"
           ? ["测试超过 15 秒，请检查代理或稍后重试。"]
-          : scenario === "ai-paused"
-            ? ["上次失败：任务已取消。"]
-            : [],
+          : scenario === "ai-account-test-error"
+            ? ["认证失败，请检查 API Key 或重新登录。"]
+            : scenario === "ai-paused"
+              ? ["上次失败：任务已取消。"]
+              : [],
     );
   });
 }
