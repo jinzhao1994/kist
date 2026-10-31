@@ -602,6 +602,8 @@ export function InstanceSettings({
                   { id: "settings-access", label: t("settingCredentials") },
                   ...(snapshot.mode === "library"
                     ? [
+                        { id: "settings-location", label: t("geoTitle") },
+                        { id: "settings-maps", label: t("settingMaps") },
                         { id: "settings-ai", label: t("aiConnection") },
                         ...(services.data
                           ? [
@@ -624,8 +626,6 @@ export function InstanceSettings({
                               ),
                             ]
                           : []),
-                        { id: "settings-location", label: t("geoTitle") },
-                        { id: "settings-maps", label: t("settingMaps") },
                         {
                           id: "settings-background-tasks",
                           label: t("backgroundTasks"),
@@ -683,6 +683,15 @@ export function InstanceSettings({
                   />
                 </section>
                 {snapshot.mode === "library" && (
+                  <LocationSettings
+                    onPendingChange={setLocationPending}
+                    onDraftChange={setLocationDraft}
+                    reloadVersion={reloadVersion}
+                    disabled={busy}
+                  />
+                )}
+                {snapshot.mode === "library" && renderGroup("maps")}
+                {snapshot.mode === "library" && (
                   <AIConnection
                     onPendingChange={setAIPending}
                     disabled={busy}
@@ -695,15 +704,6 @@ export function InstanceSettings({
                     }}
                   />
                 )}
-                {snapshot.mode === "library" && (
-                  <LocationSettings
-                    onPendingChange={setLocationPending}
-                    onDraftChange={setLocationDraft}
-                    reloadVersion={reloadVersion}
-                    disabled={busy}
-                  />
-                )}
-                {snapshot.mode === "library" && renderGroup("maps")}
                 {snapshot.mode === "library" && (
                   <BackgroundTasks
                     disabled={busy || unsaved}

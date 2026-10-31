@@ -11,7 +11,7 @@ export const en = {
   aiServicesHint:
     "Configure proxies, accounts and per-feature model settings. Use Save at the top.",
   aiProxies: "Proxies",
-  aiAccounts: "AI accounts",
+  aiAccounts: "Accounts",
   aiProxiesHint:
     "Each account selects one proxy or a direct connection. Requests originate on the kist server.",
   aiAccountsHint:
@@ -103,7 +103,7 @@ export const en = {
   settingInvalidModel: "Enter a model ID of at most 200 bytes.",
   settingInvalidTranscriptionModel:
     "Choose a model supported by file transcription.",
-  transcriptionTitle: "Speech to text",
+  transcriptionTitle: "Speech recognition (STT)",
   transcriptionExtract: "Transcribe speech",
   transcriptionAuto: "Automatically transcribe new audio and video files",
   transcriptionAutoHint:
@@ -112,7 +112,7 @@ export const en = {
     "Transcribe supported audio and video through the selected OpenAI API account. Videos send only audio. Media requiring conversion is limited to six hours and processed in segments. Human edits remain protected.",
   transcriptionText: "Transcript",
 
-  factsTitle: "Structured information",
+  factsTitle: "Information extraction",
   factsExtract: "Extract fields",
   factsAuto: "Automatically extract fields from new files",
   factsAutoHint:
@@ -190,8 +190,8 @@ export const en = {
   geoBackfill: "Fill missing file locations",
 
   taskCanceled: "Task canceled.",
-  ocrTitle: "OCR",
-  orientationTitle: "Image orientation",
+  ocrTitle: "Text recognition (OCR)",
+  orientationTitle: "Orientation correction",
   orientationEdit: "Adjust orientation",
   orientationAuto: "Automatically orient new images",
   orientationAutoHint:
@@ -221,7 +221,7 @@ export const en = {
     "Correction is relative to the camera’s orientation. Saving creates a manual override; future image extraction uses this direction.",
 
   descCopyText: "Copy description",
-  descTitle: "Description",
+  descTitle: "Content overview",
   descText: "Text",
   settingLibraryLanguage: "Library language",
   settingLanguageHint:
@@ -1198,16 +1198,16 @@ export const en = {
 export type MessageKey = keyof typeof en;
 export const zh: Record<MessageKey, string> = {
   aiServicesHint:
-    "依次配置代理、AI 账户和各功能的模型参数，统一使用页面顶部的保存按钮。",
+    "依次配置代理、AI 账号和各功能的模型参数，统一使用页面顶部的保存按钮。",
   aiProxies: "代理",
-  aiAccounts: "AI 账户",
-  aiProxiesHint: "每个账户可选择一个代理或直连，请求由运行 kist 的服务端发起。",
+  aiAccounts: "账号",
+  aiProxiesHint: "每个账号可选择一个代理或直连，请求由运行 kist 的服务端发起。",
   aiAccountsHint:
-    "可添加多个同类型账户，凭据仅保存在本机配置中，不随归档资料同步。",
+    "可添加多个同类型账号，凭据仅保存在本机配置中，不随归档资料同步。",
   aiNoProxies: "暂无代理",
-  aiNoAccounts: "暂无 AI 账户",
+  aiNoAccounts: "暂无 AI 账号",
   aiAddProxy: "添加代理",
-  aiAddAccount: "添加账户",
+  aiAddAccount: "添加账号",
   aiPendingNumber: "待保存",
   connectionTest: "测试",
   connectionTesting: "测试中…",
@@ -1222,14 +1222,14 @@ export const zh: Record<MessageKey, string> = {
   aiNumber: "编号",
   aiObjectID: "名称",
   aiFinishEditing: "完成",
-  aiObjectIDHint: "同类列表内唯一，选择代理或账户时使用此名称。",
+  aiObjectIDHint: "同类列表内唯一，选择代理或账号时使用此名称。",
   aiProxyAddress: "代理地址",
   aiEndpoint: "地址",
   aiDirect: "直连",
   aiUnnamed: "未命名",
   aiRemovedReference: "已移除 #{number}",
   aiProxyEditor: "编辑代理",
-  aiAccountEditor: "编辑 AI 账户",
+  aiAccountEditor: "编辑 AI 账号",
   aiProxyHost: "服务器地址",
   aiProxyPort: "端口",
   aiProxyPassword: "密码",
@@ -1246,18 +1246,18 @@ export const zh: Record<MessageKey, string> = {
   aiConfigured: "已配置",
   aiUnconfigured: "未配置",
   aiAccountTestHint:
-    "读取模型列表，检查账户认证和连接，不执行推理。不验证余额及具体模型的调用权限。",
-  aiAccountTestSaveFirst: "请先保存设置，再进行账户测试。",
-  aiAccountTestConfigure: "请先填写此账户的 API Key 或完成登录。",
+    "读取模型列表，检查账号认证和连接，不执行推理。不验证余额及具体模型的调用权限。",
+  aiAccountTestSaveFirst: "请先保存设置，再进行账号测试。",
+  aiAccountTestConfigure: "请先填写此账号的 API Key 或完成登录。",
   aiAccountTestResult: "测试通过 · {count} 个模型 · {ms} ms",
   aiAccountTestAuth: "认证失败，请检查 API Key 或重新登录。",
   aiAccountTestPermission: "模型列表访问被拒绝，请检查密钥权限。",
   aiAccountTestRate: "服务已限流，请稍后重试。",
   aiAccountTestTimeout: "测试超过 15 秒，请检查网络或代理。",
   aiAccountTestConnection: "连接失败，请检查网络和所选代理。",
-  aiAccountTestService: "账户或服务检查失败，请稍后重试或重新登录。",
-  aiAccount: "AI 账户",
-  aiAPIKeyHint: "填写 OpenAI API Key，调用费用计入对应 API 账户。",
+  aiAccountTestService: "账号或服务检查失败，请稍后重试或重新登录。",
+  aiAccount: "AI 账号",
+  aiAPIKeyHint: "填写 OpenAI API Key，调用费用计入对应 API 账号。",
   showSecret: "显示密钥",
   hideSecret: "隐藏密钥",
   aiFeatureDisabled: "未配置",
@@ -1270,22 +1270,22 @@ export const zh: Record<MessageKey, string> = {
   settingUniqueID: "请填写不重复的名称。",
   settingInvalidReference: "请选择仍然存在的配置项。",
   settingInvalidNumber: "编号无效，请重新加载后再试。",
-  settingInvalidCapability: "此功能不支持所选账户或参数。",
+  settingInvalidCapability: "此功能不支持所选账号或参数。",
   settingInvalidHost: "请填写主机名或 IP 地址，不包含协议和端口。",
   settingInvalidPort: "端口应在 1 至 65535 之间。",
   settingInvalidAPIKey: "API Key 中不能包含空白字符。",
   settingInvalidModel: "请填写不超过 200 字节的模型 ID。",
   settingInvalidTranscriptionModel: "请选择支持文件语音转录的模型。",
-  transcriptionTitle: "语音转文字",
+  transcriptionTitle: "语音识别（STT）",
   transcriptionExtract: "转录语音",
   transcriptionAuto: "自动转录新增音视频文件",
   transcriptionAutoHint:
     "仅处理启用后新增且支持的音视频文件，已有文件可在后台任务中补全。",
   transcriptionBackfillHint:
-    "通过所选 OpenAI API 账户转录音视频。视频仅发送音轨；需要转换的文件最多 6 小时，按段处理。人工修改的正文保持受保护。",
+    "通过所选 OpenAI API 账号转录音视频。视频仅发送音轨；需要转换的文件最多 6 小时，按段处理。人工修改的正文保持受保护。",
   transcriptionText: "转录文字",
 
-  factsTitle: "结构化信息",
+  factsTitle: "信息提取",
   factsExtract: "提取字段",
   factsAuto: "自动提取新增文件的结构化信息",
   factsAutoHint:
@@ -1357,8 +1357,8 @@ export const zh: Record<MessageKey, string> = {
   geoBackfill: "补全已有文件的位置",
 
   taskCanceled: "任务已取消。",
-  ocrTitle: "OCR",
-  orientationTitle: "图片方向",
+  ocrTitle: "文字识别（OCR）",
+  orientationTitle: "方向矫正",
   orientationEdit: "调整方向",
   orientationAuto: "自动校正新增图片方向",
   orientationAutoHint:
@@ -1386,7 +1386,7 @@ export const zh: Record<MessageKey, string> = {
     "相对于相机方向进行校正。保存后由人工管理；后续图片提取使用此方向。",
 
   descCopyText: "复制描述",
-  descTitle: "描述",
+  descTitle: "内容概述",
   descText: "正文",
   settingLibraryLanguage: "资料库语言",
   settingLanguageHint:
@@ -1426,7 +1426,7 @@ export const zh: Record<MessageKey, string> = {
   ocrBackfillHint:
     "查缺补漏会将尚未识别且受支持的图片发送给已连接的服务商。失败项不会自动重试；队列暂停时，需要点击继续后才开始处理。",
   ocrQueued: "已排队等待 OCR",
-  ocrConfigureFirst: "请先在 AI 设置中为此功能选择账户和模型。",
+  ocrConfigureFirst: "请先在 AI 设置中为此功能选择账号和模型。",
   ocrSettings: "AI 设置",
   aiConnection: "AI 服务",
   aiLocalHint:
@@ -1435,7 +1435,7 @@ export const zh: Record<MessageKey, string> = {
   aiSignIn: "登录",
   aiSignInAgain: "重新登录",
   aiSignInAndAdd: "登录并添加",
-  aiCreateFinishSignIn: "请先完成新建账户的登录。",
+  aiCreateFinishSignIn: "请先完成新建账号的登录。",
   aiSigningIn: "正在等待登录…",
   aiSignInPendingSave: "请先完成登录，再保存设置。",
   aiSignInUnsaved: "已登录，保存页面后生效。临时登录保留 30 分钟。",

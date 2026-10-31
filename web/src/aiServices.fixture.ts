@@ -8,7 +8,7 @@ export function aiServicesFixture({
   connected = true,
   ...overrides
 }: Partial<View> & { model?: string; connected?: boolean } = {}): View {
-  const names = ["orientation", "ocr", "desc", "facts", "transcription"];
+  const names = ["orientation", "ocr", "transcription", "desc", "facts"];
   return {
     revision: "one",
     proxies: [],

@@ -112,7 +112,7 @@ it("keeps creation above the table without a placeholder row and can cancel it",
   reads();
   const changed = vi.fn();
   const { client, unmount } = mount(<AIConnection onDraftChange={changed} />);
-  const table = await screen.findByRole("table", { name: "AI accounts" });
+  const table = await screen.findByRole("table", { name: "Accounts" });
   const before = within(table).getAllByRole("row").length;
   await userEvent.click(screen.getByRole("button", { name: "Add account" }));
   const form = screen.getByRole("region", { name: "Add account" });
@@ -155,7 +155,7 @@ it("edits one table row and cancels newly entered secrets without retaining hidd
   );
   const changed = vi.fn();
   const { client, unmount } = mount(<AIConnection onDraftChange={changed} />);
-  const accounts = await screen.findByRole("table", { name: "AI accounts" });
+  const accounts = await screen.findByRole("table", { name: "Accounts" });
   await userEvent.click(within(accounts).getByRole("button", { name: "Edit" }));
   const account = screen.getByRole("region", { name: "Edit AI account" });
   expect(account.closest("tr")?.closest("table")).toBe(accounts);
@@ -392,7 +392,9 @@ it("loads a selected account catalog on focus and preserves independent feature 
   vi.stubGlobal("fetch", fetch);
   const changed = vi.fn();
   const { client, unmount } = mount(<AIConnection onDraftChange={changed} />);
-  const ocr = await screen.findByRole("region", { name: "OCR" });
+  const ocr = await screen.findByRole("region", {
+    name: "Text recognition (OCR)",
+  });
   expect(fetch.mock.calls.some(([path]) => path.includes("/models"))).toBe(
     false,
   );
@@ -423,7 +425,7 @@ it("loads a selected account catalog on focus and preserves independent feature 
       .map(([path]) => path),
   ).toEqual(["/api/v1/ai/accounts/2/models"]);
   const audio = screen.getByRole("region", {
-    name: "Speech to text",
+    name: "Speech recognition (STT)",
   });
   expect(
     within(audio).queryByRole("combobox", { name: "Reasoning effort" }),
@@ -800,7 +802,9 @@ it("offers only file transcription models and requests a capability-filtered cat
   vi.stubGlobal("fetch", fetch);
   const changed = vi.fn();
   const { client, unmount } = mount(<AIConnection onDraftChange={changed} />);
-  const region = await screen.findByRole("region", { name: "Speech to text" });
+  const region = await screen.findByRole("region", {
+    name: "Speech recognition (STT)",
+  });
   const select = within(region).getByRole("combobox", { name: "Model" });
   expect(select).toHaveValue("gpt-transcribe");
   await userEvent.click(select);
@@ -885,17 +889,19 @@ it("keeps per-feature failure policy in the page draft and can restore the inher
   const fetch = reads();
   const changed = vi.fn();
   const { client, unmount } = mount(<AIConnection onDraftChange={changed} />);
-  const ocr = await screen.findByRole("region", { name: "OCR" });
+  const ocr = await screen.findByRole("region", {
+    name: "Text recognition (OCR)",
+  });
   const pause = within(ocr).getByRole("checkbox", {
     name: "Pause background processing on failure",
   });
   expect(pause).toBeChecked();
   for (const name of [
-    "Image orientation",
-    "OCR",
-    "Description",
-    "Structured information",
-    "Speech to text",
+    "Orientation correction",
+    "Text recognition (OCR)",
+    "Content overview",
+    "Information extraction",
+    "Speech recognition (STT)",
   ]) {
     const region = screen.getByRole("region", { name });
     const failurePolicy = within(region).getByRole("checkbox", {
@@ -921,7 +927,7 @@ it("keeps per-feature failure policy in the page draft and can restore the inher
     ),
   );
   expect(
-    within(screen.getByRole("region", { name: "Description" })).getByRole(
+    within(screen.getByRole("region", { name: "Content overview" })).getByRole(
       "checkbox",
       { name: "Pause background processing on failure" },
     ),

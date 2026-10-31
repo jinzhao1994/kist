@@ -85,10 +85,14 @@ func ParameterValues(name string) []string {
 
 func FeatureDefinitions() []FeatureDefinition {
 	definitions := []FeatureDefinition{}
-	for _, name := range []string{"orientation", "ocr", "desc", "facts"} {
+	for _, name := range []string{"orientation", "ocr", "transcription", "desc", "facts"} {
+		if name == "transcription" {
+			definitions = append(definitions, FeatureDefinition{Name: name, Models: TranscriptionModels(), DefaultModel: DefaultTranscriptionModel, Parameters: []string{}, AccountTypes: []string{AccountOpenAI}, Options: map[string][]string{}})
+			continue
+		}
 		definitions = append(definitions, FeatureDefinition{Name: name, Parameters: []string{"reasoning_effort", "image_detail"}, AccountTypes: []string{AccountChatGPT, AccountOpenAI}, Options: map[string][]string{"reasoning_effort": ParameterValues("reasoning_effort"), "image_detail": ParameterValues("image_detail")}})
 	}
-	return append(definitions, FeatureDefinition{Name: "transcription", Models: TranscriptionModels(), DefaultModel: DefaultTranscriptionModel, Parameters: []string{}, AccountTypes: []string{AccountOpenAI}, Options: map[string][]string{}})
+	return definitions
 }
 
 func (s Services) Account(number int64) (Account, bool) {

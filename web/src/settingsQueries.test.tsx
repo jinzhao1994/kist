@@ -117,12 +117,6 @@ it("reveals local settings together, reuses requests and does not wait for remot
     screen.getByLabelText("Photon endpoint", { selector: "input" }),
   ).toHaveValue(location.endpoint);
   expect(reads).not.toContain("/ai/accounts/1/models");
-  await userEvent.click(
-    within(screen.getByRole("region", { name: "OCR" })).getByRole("combobox", {
-      name: "Model",
-    }),
-  );
-  await screen.findByText("Loading models…");
   for (const path of [
     "/settings/storage",
     "/settings/credentials",
@@ -134,6 +128,14 @@ it("reveals local settings together, reuses requests and does not wait for remot
     "/ai/ocr",
   ])
     expect(reads.filter((p) => p === path)).toHaveLength(1);
+  await userEvent.click(
+    within(
+      screen.getByRole("region", { name: "Text recognition (OCR)" }),
+    ).getByRole("combobox", {
+      name: "Model",
+    }),
+  );
+  await screen.findByText("Loading models…");
   expect(
     view.container.querySelector(".storage-usage-values"),
   ).toHaveTextContent("—");
@@ -150,9 +152,9 @@ it("reveals local settings together, reuses requests and does not wait for remot
     "settings-ai-accounts",
     "settings-ai-orientation",
     "settings-ai-ocr",
+    "settings-ai-transcription",
     "settings-ai-desc",
     "settings-ai-facts",
-    "settings-ai-transcription",
   ];
   expect(
     [...view.container.querySelectorAll(".section-index-subsection")].map(
@@ -164,20 +166,23 @@ it("reveals local settings together, reuses requests and does not wait for remot
   expect(
     screen.queryByRole("heading", { name: "AI features" }),
   ).not.toBeInTheDocument();
-  expect(sectionIDs.slice(-3)).toEqual([
+  expect(sectionIDs.slice(-4)).toEqual([
     "settings-location",
     "settings-maps",
+    "settings-ai",
     "settings-background-tasks",
   ]);
-  expect(indexLinks.slice(-3)).toEqual(
-    sectionIDs.slice(-3).map((id) => `#${id}`),
-  );
+  expect(
+    indexLinks
+      .filter((href) => !aiSubsections.some((id) => href === `#${id}`))
+      .slice(-4),
+  ).toEqual(sectionIDs.slice(-4).map((id) => `#${id}`));
   const background = screen.getByRole("region", { name: "Background tasks" });
   expect(within(background).getAllByRole("rowheader")).toHaveLength(7);
   for (const id of ["settings-ai", "settings-location"])
     expect(view.container.querySelector(`#${id} table.task-table`)).toBeNull();
   const ocr = within(background)
-    .getByRole("rowheader", { name: /^OCR/ })
+    .getByRole("rowheader", { name: /^Text recognition \(OCR\)/ })
     .closest("tr")!;
   const geo = within(background)
     .getByRole("rowheader", { name: /^GPS/ })

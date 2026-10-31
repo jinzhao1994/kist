@@ -40,9 +40,9 @@ export function BackgroundTasks({
         "metadata",
         "orientation",
         "ocr",
+        "transcription",
         "desc",
         "facts",
-        "transcription",
         "geo",
       ]
     : ["metadata", "geo"];

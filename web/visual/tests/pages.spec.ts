@@ -4568,23 +4568,23 @@ for (const scenario of [
         .getByRole("link", { name: "AI 服务", exact: true })
         .click();
       await expect(
-        settings.getByRole("button", { name: "添加账户", exact: true }),
+        settings.getByRole("button", { name: "添加账号", exact: true }),
       ).toBeEnabled();
       await expect(settings.locator(".section-index-subsection")).toHaveText([
         "代理",
-        "AI 账户",
-        "图片方向",
-        "OCR",
-        "描述",
-        "结构化信息",
-        "语音转文字",
+        "账号",
+        "方向矫正",
+        "文字识别（OCR）",
+        "语音识别（STT）",
+        "内容概述",
+        "信息提取",
       ]);
       await expect(
         settings.getByRole("heading", { name: "AI 功能", exact: true }),
       ).toHaveCount(0);
       if (scenario.startsWith("ai-")) {
         const table = settings.getByRole("table", {
-          name: "AI 账户",
+          name: "账号",
           exact: true,
         });
         const chatgpt = table.getByRole("row").filter({
@@ -4658,11 +4658,11 @@ for (const scenario of [
         expect(detail.width).toBeLessThan(reasoning.width * 1.6);
       }
       for (const [feature, title, automaticLabel] of [
-        ["orientation", "图片方向", "自动校正新增图片方向"],
-        ["ocr", "OCR", "自动识别新增图片"],
-        ["desc", "描述", "自动描述新增文件"],
-        ["facts", "结构化信息", "自动提取新增文件的结构化信息"],
-        ["transcription", "语音转文字", "自动转录新增音视频文件"],
+        ["orientation", "方向矫正", "自动校正新增图片方向"],
+        ["ocr", "文字识别（OCR）", "自动识别新增图片"],
+        ["desc", "内容概述", "自动描述新增文件"],
+        ["facts", "信息提取", "自动提取新增文件的结构化信息"],
+        ["transcription", "语音识别（STT）", "自动转录新增音视频文件"],
       ]) {
         const region = settings.getByRole("region", {
           name: title,
@@ -4721,7 +4721,7 @@ for (const scenario of [
       scenario === "ai-account-test-error"
     ) {
       const row = settings
-        .getByRole("table", { name: "AI 账户", exact: true })
+        .getByRole("table", { name: "账号", exact: true })
         .getByRole("row")
         .filter({
           has: page.getByRole("rowheader", { name: "OpenAI API", exact: true }),
@@ -4786,8 +4786,8 @@ for (const scenario of [
       ].includes(scenario)
     ) {
       const proxy = scenario === "ai-proxy-create";
-      const title = proxy ? "代理" : "AI 账户";
-      const add = proxy ? "添加代理" : "添加账户";
+      const title = proxy ? "代理" : "账号";
+      const add = proxy ? "添加代理" : "添加账号";
       const table = settings.getByRole("table", { name: title, exact: true });
       const count = await table.getByRole("rowheader").count();
       await settings.getByRole("button", { name: add, exact: true }).click();
@@ -4858,7 +4858,7 @@ for (const scenario of [
     }
     if (["ai-trojan", "ai-http-auth", "ai-api-account"].includes(scenario)) {
       const table = settings.getByRole("table", {
-        name: scenario === "ai-api-account" ? "AI 账户" : "代理",
+        name: scenario === "ai-api-account" ? "账号" : "代理",
         exact: true,
       });
       const row = table.getByRole("row").filter({
@@ -4875,13 +4875,13 @@ for (const scenario of [
       await row.hover();
       await row.getByRole("button", { name: "编辑", exact: true }).click();
       const editor = settings.getByRole("region", {
-        name: scenario === "ai-api-account" ? "编辑 AI 账户" : "编辑代理",
+        name: scenario === "ai-api-account" ? "编辑 AI 账号" : "编辑代理",
         exact: true,
       });
       await expect(editor).toBeVisible();
       await expect(
         table.getByRole("region", {
-          name: scenario === "ai-api-account" ? "编辑 AI 账户" : "编辑代理",
+          name: scenario === "ai-api-account" ? "编辑 AI 账号" : "编辑代理",
           exact: true,
         }),
       ).toBeVisible();
@@ -4996,11 +4996,11 @@ for (const scenario of [
     }
     if (scenario === "ai-transcription") {
       await settings
-        .getByRole("link", { name: "语音转文字", exact: true })
+        .getByRole("link", { name: "语音识别（STT）", exact: true })
         .click();
       await expect(page).toHaveURL(/#settings-ai-transcription$/);
       const feature = settings.getByRole("region", {
-        name: "语音转文字",
+        name: "语音识别（STT）",
         exact: true,
       });
       await feature.scrollIntoViewIfNeeded();
@@ -5027,7 +5027,7 @@ for (const scenario of [
     if (scenario === "ai-description") {
       const row = settings
         .getByRole("row")
-        .filter({ has: page.getByRole("rowheader", { name: /^描述/ }) });
+        .filter({ has: page.getByRole("rowheader", { name: /^内容概述/ }) });
       await row.hover();
       const backfill = row.getByRole("button", { name: "补全", exact: true });
       await expect(backfill).toBeEnabled();
@@ -5302,7 +5302,7 @@ for (const scenario of [
     if (scenario.startsWith("ai-")) {
       if (["ai-loading", "ai-error", "ai-empty"].includes(scenario))
         await page
-          .getByRole("region", { name: "OCR", exact: true })
+          .getByRole("region", { name: "文字识别（OCR）", exact: true })
           .getByRole("combobox", { name: "模型", exact: true })
           .click();
       await expect(
@@ -5325,7 +5325,9 @@ for (const scenario of [
         await expect(
           page
             .getByRole("row")
-            .filter({ has: page.getByRole("rowheader", { name: /^OCR/ }) })
+            .filter({
+              has: page.getByRole("rowheader", { name: /^文字识别（OCR）/ }),
+            })
             .getByRole("button", { name: "继续", exact: true }),
         ).toBeEnabled();
       }
@@ -5619,7 +5621,7 @@ for (const scenario of [
       );
     } else if (scenario.startsWith("text")) {
       await expect(
-        page.getByRole("heading", { name: "OCR", exact: true }),
+        page.getByRole("heading", { name: "文字识别（OCR）", exact: true }),
       ).toBeVisible();
       await expect(
         page.getByText("openai/gpt-6-luna", { exact: true }),
@@ -5667,7 +5669,10 @@ for (const scenario of [
         page
           .locator(".file-metadata-group")
           .filter({
-            has: page.getByRole("heading", { name: "OCR", exact: true }),
+            has: page.getByRole("heading", {
+              name: "文字识别（OCR）",
+              exact: true,
+            }),
           })
           .getByRole("link", { name: "AI 设置", exact: true }),
       ).toHaveCount(scenario === "disconnected" ? 1 : 0);
@@ -5717,7 +5722,10 @@ for (const scenario of [
       const ocrPreview = page
         .locator(".file-metadata-group")
         .filter({
-          has: page.getByRole("heading", { name: "OCR", exact: true }),
+          has: page.getByRole("heading", {
+            name: "文字识别（OCR）",
+            exact: true,
+          }),
         })
         .locator(".copy-text-preview");
       await ocrPreview.hover();
@@ -5870,7 +5878,7 @@ for (const scenario of [
     await page.goto("/files?file=file-1");
     await page.getByRole("button", { name: "文件详情", exact: true }).click();
     const group = page.locator(".file-metadata-group").filter({
-      has: page.getByRole("heading", { name: "描述", exact: true }),
+      has: page.getByRole("heading", { name: "内容概述", exact: true }),
     });
     if (scenario === "background-queued") {
       await expect(group).toHaveCount(0);
@@ -6144,10 +6152,10 @@ for (const manual of [false, true]) {
       page.locator('img[src*="image_upright_v1_cw90"]'),
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "图片方向", exact: true }),
+      page.getByRole("heading", { name: "方向矫正", exact: true }),
     ).toBeVisible();
     const group = page.locator(".file-metadata-group").filter({
-      has: page.getByRole("heading", { name: "图片方向", exact: true }),
+      has: page.getByRole("heading", { name: "方向矫正", exact: true }),
     });
     await expect(group.getByText("方式", { exact: true })).toBeVisible();
     await group.getByText("置信度", { exact: true }).hover();
@@ -6365,9 +6373,9 @@ for (const anchor of [
     if (taskSection) {
       const tasks = page.locator("#settings-background-tasks");
       await expect(tasks.getByRole("rowheader")).toHaveCount(7);
-      const ocr = tasks
-        .getByRole("row")
-        .filter({ has: page.getByRole("rowheader", { name: /^OCR/ }) });
+      const ocr = tasks.getByRole("row").filter({
+        has: page.getByRole("rowheader", { name: /^文字识别（OCR）/ }),
+      });
       await expect(ocr.getByRole("status")).toHaveText("已暂停");
       await expect(ocr.getByRole("alert")).toHaveCount(expanded ? 1 : 0);
       await expect(
@@ -6404,17 +6412,17 @@ for (const anchor of [
       await expect(page.getByRole("tooltip")).toContainText("独立的按需执行器");
       await page.mouse.move(5, 5);
       const arrow = ocr.getByRole("button", {
-        name: "展开OCR任务",
+        name: "展开文字识别（OCR）任务",
         exact: true,
       });
       await expect(arrow.locator("..")).toHaveCSS("opacity", "0");
       await arrow.focus();
       await expect(arrow.locator("..")).toHaveCSS("opacity", "1");
       if (expanded) {
-        await ocr.getByRole("rowheader", { name: /^OCR/ }).click();
+        await ocr.getByRole("rowheader", { name: /^文字识别（OCR）/ }).click();
         await expect(tasks.locator(".task-table > tbody > tr")).toHaveCount(7);
         const details = ocr.getByRole("table", {
-          name: "OCR任务",
+          name: "文字识别（OCR）任务",
           exact: true,
         });
         await expect(
@@ -6425,7 +6433,10 @@ for (const anchor of [
           "任务已取消。",
         );
         await expect(
-          ocr.getByRole("button", { name: "收起OCR任务", exact: true }),
+          ocr.getByRole("button", {
+            name: "收起文字识别（OCR）任务",
+            exact: true,
+          }),
         ).toHaveAttribute("aria-expanded", "true");
       }
       await page.mouse.move(5, 5);
@@ -6640,9 +6651,12 @@ for (const variant of [
     });
     await page.goto("/files?file=file-1");
     await page.getByRole("button", { name: "文件详情", exact: true }).click();
-    const group = page
-      .locator(".file-metadata-group")
-      .filter({ has: page.getByRole("heading", { name: "OCR", exact: true }) });
+    const group = page.locator(".file-metadata-group").filter({
+      has: page.getByRole("heading", {
+        name: "文字识别（OCR）",
+        exact: true,
+      }),
+    });
     await group
       .locator(".metadata-value")
       .filter({
@@ -6865,9 +6879,12 @@ for (const variant of [
     });
     await page.goto("/files?file=file-1");
     await page.getByRole("button", { name: "文件详情", exact: true }).click();
-    const group = page
-      .locator(".file-metadata-group")
-      .filter({ has: page.getByRole("heading", { name: "OCR", exact: true }) });
+    const group = page.locator(".file-metadata-group").filter({
+      has: page.getByRole("heading", {
+        name: "文字识别（OCR）",
+        exact: true,
+      }),
+    });
     if (variant !== "manual")
       await expect(group.getByRole("img", { name: /人工编辑/ })).toHaveCount(0);
     const fieldRows = group.locator(".metadata-list > div");
@@ -6990,10 +7007,10 @@ for (const extension of ["pdf", "doc", "docx", "ppt", "pptx", "pdf-result"]) {
         }),
       ).toBeVisible();
     await expect(
-      panel.getByRole("heading", { name: "OCR", exact: true }),
+      panel.getByRole("heading", { name: "文字识别（OCR）", exact: true }),
     ).toHaveCount(0);
     await expect(
-      panel.getByRole("heading", { name: "图片方向", exact: true }),
+      panel.getByRole("heading", { name: "方向矫正", exact: true }),
     ).toHaveCount(0);
     await capture(page, errors, info.title);
   });
@@ -7017,7 +7034,7 @@ for (const scenario of ["queued", "running", "mobile", "dark"] as const) {
     await page.goto("/files?file=file-1");
     await page.getByRole("button", { name: "文件详情", exact: true }).click();
     const group = page.locator(".file-metadata-group").filter({
-      has: page.getByRole("heading", { name: "描述", exact: true }),
+      has: page.getByRole("heading", { name: "内容概述", exact: true }),
     });
     const action = group
       .locator(".metadata-group-heading")
@@ -7127,7 +7144,7 @@ for (const variant of [
     await page.goto("/files?file=file-1");
     await page.getByRole("button", { name: "文件详情", exact: true }).click();
     const group = page.locator(".file-metadata-group").filter({
-      has: page.getByRole("heading", { name: "结构化信息", exact: true }),
+      has: page.getByRole("heading", { name: "信息提取", exact: true }),
     });
     await group.scrollIntoViewIfNeeded();
     await expect(

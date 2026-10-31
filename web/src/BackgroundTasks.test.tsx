@@ -76,13 +76,17 @@ it("loads mixed queue details only when expanded and links filenames with the ca
     }),
   );
   const { client, unmount } = mount();
-  const row = (await screen.findByRole("rowheader", { name: /^OCR/ })).closest(
-    "tr",
-  )!;
+  const row = (
+    await screen.findByRole("rowheader", { name: /^Text recognition \(OCR\)/ })
+  ).closest("tr")!;
   expect(reads.some((p) => p.includes("/jobs"))).toBe(false);
-  const toggle = within(row).getByRole("button", { name: "Expand OCR tasks" });
+  const toggle = within(row).getByRole("button", {
+    name: "Expand Text recognition (OCR) tasks",
+  });
   await userEvent.click(within(row).getByRole("rowheader"));
-  const table = await screen.findByRole("table", { name: "OCR tasks" });
+  const table = await screen.findByRole("table", {
+    name: "Text recognition (OCR) tasks",
+  });
   expect(row).toContainElement(table);
   expect(document.querySelectorAll(".task-table > tbody > tr")).toHaveLength(7);
   expect(
@@ -110,7 +114,7 @@ it("loads mixed queue details only when expanded and links filenames with the ca
   expect(toggle).toHaveAttribute("aria-expanded", "true");
   await userEvent.click(toggle);
   expect(
-    screen.queryByRole("table", { name: "OCR tasks" }),
+    screen.queryByRole("table", { name: "Text recognition (OCR) tasks" }),
   ).not.toBeInTheDocument();
   expect(
     client
@@ -131,7 +135,7 @@ it("keeps task actions and expanded details independent from the row toggle", as
   vi.stubGlobal("fetch", fetch);
   const { client, unmount } = mount();
   const toggle = await screen.findByRole("button", {
-    name: "Expand OCR tasks",
+    name: "Expand Text recognition (OCR) tasks",
   });
   const row = toggle.closest("tr")!;
   await userEvent.click(
@@ -143,7 +147,9 @@ it("keeps task actions and expanded details independent from the row toggle", as
   );
   expect(toggle).toHaveAttribute("aria-expanded", "false");
   await userEvent.click(toggle);
-  const table = await screen.findByRole("table", { name: "OCR tasks" });
+  const table = await screen.findByRole("table", {
+    name: "Text recognition (OCR) tasks",
+  });
   await userEvent.click(within(table).getByText("Synthetic records"));
   expect(toggle).toHaveAttribute("aria-expanded", "true");
   const link = within(table).getByRole("link", { name: "Certificate.pdf" });
@@ -183,7 +189,9 @@ it("pages through all task states and keeps unavailable files as plain text", as
   );
   const { client, unmount } = mount();
   await userEvent.click(
-    await screen.findByRole("button", { name: "Expand OCR tasks" }),
+    await screen.findByRole("button", {
+      name: "Expand Text recognition (OCR) tasks",
+    }),
   );
   const next = await screen.findByRole("button", { name: "Next page" });
   await waitFor(() => expect(next).toBeEnabled());
@@ -219,7 +227,9 @@ it("shows loading, a retryable read error, and the empty state inside the expand
   );
   const { client, unmount } = mount();
   await userEvent.click(
-    await screen.findByRole("button", { name: "Expand OCR tasks" }),
+    await screen.findByRole("button", {
+      name: "Expand Text recognition (OCR) tasks",
+    }),
   );
   const details = document.getElementById("background-task-ocr-jobs")!;
   expect(within(details).getByRole("status")).toHaveTextContent("Loading");

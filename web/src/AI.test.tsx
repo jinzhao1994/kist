@@ -331,7 +331,9 @@ it("explains canceled tasks in both queue settings and metadata", async () => {
   ).not.toBeInTheDocument();
   expect(
     within(
-      screen.getByRole("rowheader", { name: /^OCR/ }).closest("tr")!,
+      screen
+        .getByRole("rowheader", { name: /^Text recognition \(OCR\)/ })
+        .closest("tr")!,
     ).getByRole("button", { name: "Retry" }),
   ).toBeEnabled();
 });
@@ -407,13 +409,13 @@ it.each(["queued", "running", "failed"])(
       ),
     );
     expect(
-      screen.queryByRole("heading", { name: "OCR" }),
+      screen.queryByRole("heading", { name: "Text recognition (OCR)" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("heading", { name: "Description" }),
+      screen.queryByRole("heading", { name: "Content overview" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("heading", { name: "Image orientation" }),
+      screen.queryByRole("heading", { name: "Orientation correction" }),
     ).not.toBeInTheDocument();
   },
 );
