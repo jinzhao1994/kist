@@ -11,12 +11,14 @@ import (
 	"net/http"
 	"path"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/jinzhao1994/kist/internal/ai"
 	"github.com/jinzhao1994/kist/internal/ai/openai"
 	"github.com/jinzhao1994/kist/internal/config"
 	"github.com/jinzhao1994/kist/internal/library"
@@ -175,7 +177,7 @@ func newServer(l *library.Library, c *library.Client, opt Options) (*Server, err
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if requiresLocalAI(r.URL.Path) && !localAIRequest(r.RemoteAddr, r.Host) {
-		writeFailure(w, huma.Error403Forbidden("AI connections and OCR require local access"))
+		writeFailure(w, huma.Error403Forbidden("AI services require local access"))
 		return
 	}
 
@@ -283,7 +285,7 @@ func requiresLocalAI(path string) bool {
 		return false
 	}
 	parts := strings.Split(rest, "/")
-	return len(parts) == 2 && (parts[1] == "ocr" || parts[1] == "desc" || parts[1] == "orientation")
+	return len(parts) == 2 && slices.Contains(ai.FeatureNames(), parts[1])
 }
 
 // localAIRequest is shared by dedicated AI routes and combined settings writes.

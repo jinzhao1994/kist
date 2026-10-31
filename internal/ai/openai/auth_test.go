@@ -76,16 +76,14 @@ func TestSignInVerifiesIdentityAndState(t *testing.T) {
 				}
 			}))
 			defer server.Close()
-			previous := authHTTP
-			authHTTP = &http.Client{Transport: rewriteTransport{server.URL}, Timeout: time.Second * 5}
-			defer func() { authHTTP = previous }()
+			client := &http.Client{Transport: rewriteTransport{server.URL}, Timeout: time.Second * 5}
 			saved := ai.Credentials{HostID: "urn:uuid:test"}
 			if mode == "wrong-subject" {
 				saved.ClientID = "issued-client"
 				saved.Subject = "another-person"
 			}
 			var result ai.Credentials
-			attempt, err := Begin(saved, func(_ context.Context, c ai.Credentials) error { result = c; return nil })
+			attempt, err := Begin(saved, func(_ context.Context, c ai.Credentials) error { result = c; return nil }, client)
 			if err != nil {
 				t.Fatal(err)
 			}

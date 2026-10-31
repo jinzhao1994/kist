@@ -11,6 +11,40 @@ import (
 	"github.com/jinzhao1994/kist/internal/library"
 )
 
+func TestAIServiceLocalBoundaryIncludesEveryInvocation(t *testing.T) {
+	s, _ := testServer(t)
+	// Keep the exercised public routes independent of the feature registry used
+	// by the guard, including the newer structured and audio extraction paths.
+	for _, path := range []string{
+		"/ai/services", "/ai/accounts/1/models", "/ai/accounts/1/connect",
+		"/files/00000000-0000-7000-8000-000000000001/orientation",
+		"/files/00000000-0000-7000-8000-000000000001/ocr",
+		"/files/00000000-0000-7000-8000-000000000001/desc",
+		"/files/00000000-0000-7000-8000-000000000001/facts",
+		"/files/00000000-0000-7000-8000-000000000001/transcription",
+	} {
+		for _, method := range []string{"GET", "POST"} {
+			r := httptest.NewRequest(method, "http://localhost:8473"+Prefix+path, strings.NewReader("{}"))
+			r.RemoteAddr = "192.0.2.1:1234"
+			r.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			s.ServeHTTP(w, r)
+			if w.Code != 403 {
+				t.Errorf("%s %s bypassed loopback boundary: %d", method, path, w.Code)
+			}
+		}
+	}
+	for _, path := range []string{
+		"/files/id/metadata", "/files/id/metadata/ocr:hint",
+		"/files/id/metadata/transcription:hint", "/files/id/ocr/nested",
+		"/files/id/image-rotation", "/files/id/content", "/files/id/geo",
+	} {
+		if requiresLocalAI(Prefix + path) {
+			t.Errorf("ordinary metadata/content route treated as inference: %s", path)
+		}
+	}
+}
+
 func TestAIServiceSettingsAtomicSaveAndRedaction(t *testing.T) {
 	s, _ := testServer(t)
 	call := func(method, path string, value any, remote string) *httptest.ResponseRecorder {

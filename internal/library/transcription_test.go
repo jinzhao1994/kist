@@ -168,3 +168,50 @@ func TestTranscriptionOutputBoundary(t *testing.T) {
 		t.Fatal("invalid result reached archive")
 	}
 }
+
+func TestTranscriptionUndoRedoAndReplacedAudio(t *testing.T) {
+	l, box := openWithBox(t)
+	file := importOneFile(t, l, box, "sample.wav", syntheticWAV())
+	provider := &fakeTranscriber{fakeOCR: fakeOCR{text: strings.Repeat("Synthetic long transcript.\n", 200)}}
+	p, err := l.prepareTranscription(t.Context(), file.ID, provider, "synthetic-transcribe", "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt, err := l.ExecuteRequest(t.Context(), requestFor("transcription-undo-0001", "transcription"), p.Commit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	undo, err := l.Undo(t.Context(), receipt.OpID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, found := metaOf(t, l, file.ID)["transcription:text"]; found {
+		t.Fatal("undo left transcription metadata")
+	}
+	if _, err := l.Undo(t.Context(), undo); err != nil {
+		t.Fatal(err)
+	}
+	if metaOf(t, l, file.ID)["transcription:text"].Value != provider.text || provider.audioCalls != 1 {
+		t.Fatal("redo did not restore the saved transcript without inference")
+	}
+	p, err = l.prepareTranscription(t.Context(), file.ID, provider, "synthetic-transcribe", "", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.Import(t.Context(), writeTree(t, map[string]string{"sample.wav": syntheticWAV() + "replacement"}), ImportOptions{Box: box, ConflictMode: "overwrite"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.ExecuteRequest(t.Context(), requestFor("transcription-stale-0001", "transcription"), p.Commit); !errors.Is(err, ErrOCRChanged) {
+		t.Fatal("stale transcript accepted after audio replacement", err)
+	}
+	if _, found := metaOf(t, l, file.ID)["transcription:text"]; found {
+		t.Fatal("replacement retained the old audio's AI transcript")
+	}
+	before := snapshotOf(t, l)
+	if err := l.Rebuild(t.Context()); err != nil || snapshotOf(t, l) != before {
+		t.Fatal("replacement/undo history changed during replay", err)
+	}
+	if report, err := l.Verify(t.Context(), VerifyOptions{Deep: true}); err != nil || report.Total() != 0 {
+		t.Fatal(report, err)
+	}
+}
