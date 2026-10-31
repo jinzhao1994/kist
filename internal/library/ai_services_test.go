@@ -13,6 +13,62 @@ import (
 	"github.com/jinzhao1994/kist/internal/config"
 )
 
+type independentImageProvider struct {
+	factsProvider
+	directionCalls int
+}
+
+func (p *independentImageProvider) ChooseUpright(context.Context, string, []ai.Image, bool) (ai.UprightChoice, error) {
+	p.directionCalls++
+	return ai.UprightChoice{}, errors.New("orientation must not inherit the caller's account")
+}
+
+func TestAIServiceUnconfiguredDirectionDoesNotBlockOtherFeatures(t *testing.T) {
+	for _, kind := range []string{"ocr", "desc", "facts"} {
+		for _, missing := range []string{"account", "model"} {
+			t.Run(kind+"/missing-"+missing, func(t *testing.T) {
+				l := openTestLibrary(t)
+				id := ocrFile(t, l)
+				draft, _ := l.AIServicesSettings(t.Context())
+				draft.Accounts = []AIAccountSettings{{Number: -1, ID: "Only account", Type: ai.AccountOpenAI, APIKey: "synthetic-key"}}
+				draft.Features[kind] = ai.Feature{Account: -1, Model: "synthetic-vision"}
+				if missing == "account" {
+					draft.Features["orientation"] = ai.Feature{Model: "unselected-direction"}
+				} else {
+					draft.Features["orientation"] = ai.Feature{Account: -1}
+				}
+				saveServiceDraft(t, l, draft)
+				provider := &independentImageProvider{factsProvider: factsProvider{fakeOCR: fakeOCR{text: "Synthetic text"}}}
+				if kind == "facts" {
+					provider.text = syntheticFacts
+				}
+				p, err := l.prepareImageText(t.Context(), id, provider, "synthetic-vision", "", kind, "en", false)
+				if err != nil {
+					t.Fatal("unconfigured direction blocked independent extraction", err)
+				}
+				if _, err := l.ExecuteRequest(t.Context(), requestFor("independent-image-0001", kind), p.Commit); err != nil {
+					t.Fatal(err)
+				}
+				key := kind + ":text"
+				if kind == "facts" {
+					key = "facts:data"
+				}
+				rows := metaOf(t, l, id)
+				if rows[key].Value == "" || provider.calls != 1 || provider.directionCalls != 0 {
+					t.Fatal("missing output or unexpected extra inference")
+				}
+				if _, found := rows["orientation:clockwise_degrees"]; found {
+					t.Fatal("skipped direction invented an extraction result")
+				}
+				status, err := l.OrientationQueue().Jobs(t.Context(), "", 100)
+				if err != nil || len(status.Items) != 0 {
+					t.Fatal("unconfigured direction queued work", err)
+				}
+			})
+		}
+	}
+}
+
 func saveServiceDraft(t *testing.T, l *Library, draft AIServiceSettings) AIServiceSettings {
 	t.Helper()
 	if err := l.UpdateCombinedAIServiceSettings(t.Context(), draft.Revision, map[string]any{}, nil, nil, &draft); err != nil {

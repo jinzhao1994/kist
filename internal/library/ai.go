@@ -234,10 +234,19 @@ func (l *Library) prepareImageText(ctx context.Context, id domain.FileID, provid
 	}
 	if kind != "orientation" {
 		if _, known, _ := imageRotation(p.rows); !known {
-			if err := l.ensureImageOrientation(ctx, id, provider, model, p.file.BlobKey); err != nil {
+			cfg, err := l.aiConfiguration(ctx)
+			if err != nil {
 				return nil, err
 			}
-			return l.prepareImageText(ctx, id, provider, model, p.file.BlobKey, kind, language, force)
+			direction := effectiveAIServices(cfg).Features["orientation"]
+			// An unconfigured independent feature must not block extraction or
+			// silently inherit the caller's account. Unknown direction stays 0°.
+			if cfg.AIServices == nil || direction.Account != 0 && direction.Model != "" {
+				if err := l.ensureImageOrientation(ctx, id, provider, model, p.file.BlobKey); err != nil {
+					return nil, err
+				}
+				return l.prepareImageText(ctx, id, provider, model, p.file.BlobKey, kind, language, force)
+			}
 		}
 	}
 	if _, err = f.Seek(0, io.SeekStart); err != nil {
