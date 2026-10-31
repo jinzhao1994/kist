@@ -3,6 +3,7 @@ package library
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"time"
@@ -79,6 +80,19 @@ func accountHTTP(services ai.Services, number int64, timeout time.Duration) (*ht
 	return ai.ProxyHTTPClient(&p, timeout)
 }
 
+func configuredAccountHTTP(cfg *config.Config, number int64, timeout time.Duration) (*http.Client, error) {
+	services := effectiveAIServices(cfg)
+	if _, ok := services.Account(number); !ok {
+		return nil, errors.New("AI account no longer exists")
+	}
+	if cfg.AIServices == nil {
+		// An explicit migration changes empty proxy selection to direct. Merely
+		// reading the new settings must preserve the legacy environment policy.
+		return ai.HTTPClient(cfg.AIOptions.ProxyURL, timeout)
+	}
+	return accountHTTP(services, number, timeout)
+}
+
 func (l *Library) AIAccountHTTP(ctx context.Context, number int64, timeout time.Duration) (*http.Client, error) {
 	cfg, err := config.Load(l.layout.ConfigPath())
 	if err != nil {
@@ -87,7 +101,7 @@ func (l *Library) AIAccountHTTP(ctx context.Context, number int64, timeout time.
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	return accountHTTP(effectiveAIServices(cfg), number, timeout)
+	return configuredAccountHTTP(cfg, number, timeout)
 }
 
 func (l *Library) AIAccountProvider(ctx context.Context, number int64) (ai.Provider, error) {
@@ -104,7 +118,7 @@ func (l *Library) aiAccountProvider(ctx context.Context, cfg *config.Config, num
 	if !ok {
 		return nil, errors.New("AI account no longer exists")
 	}
-	client, err := accountHTTP(services, number, 3*time.Minute)
+	client, err := configuredAccountHTTP(cfg, number, 3*time.Minute)
 	if err != nil {
 		return nil, err
 	}
@@ -114,23 +128,65 @@ func (l *Library) aiAccountProvider(ctx context.Context, cfg *config.Config, num
 		}
 		return openai.Client{Token: a.APIKey, APIKey: true, Parameters: parameters, HTTP: client}, nil
 	}
-	if a.Type != ai.AccountChatGPT || a.Credentials.AccessToken == "" {
+	if a.Type != ai.AccountChatGPT || a.Credentials.Provider != "openai" || a.Credentials.AccessToken == "" {
 		return nil, errors.New("connect this ChatGPT account first")
 	}
-	auth, err := accountHTTP(services, number, 30*time.Second)
+	auth, err := configuredAccountHTTP(cfg, number, 30*time.Second)
 	if err != nil {
 		return nil, err
 	}
-	next, err := openai.Refresh(ctx, a.Credentials, auth)
+	next, err := l.refreshAIAccount(ctx, number, a.Credentials, auth)
 	if err != nil {
 		return nil, err
-	}
-	if next != a.Credentials {
-		if err := l.SaveAIAccountConnection(ctx, number, a.Credentials, next); err != nil {
-			return nil, err
-		}
 	}
 	return openai.Client{Token: next.AccessToken, HTTP: client, Parameters: parameters}, nil
+}
+
+// refreshAIAccount serializes rotating-token redemption across processes. The
+// config lock only protects the final CAS; remote IO never holds that lock.
+func (l *Library) refreshAIAccount(ctx context.Context, number int64, selected ai.Credentials, client *http.Client) (ai.Credentials, error) {
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	lock := lockfile.New(filepath.Join(l.layout.Root, fmt.Sprintf("ai-account-%d-refresh.lock", number)))
+	for {
+		if err := ctx.Err(); err != nil {
+			return ai.Credentials{}, err
+		}
+		release, acquired, err := lock.TryAcquire()
+		if err != nil {
+			return ai.Credentials{}, err
+		}
+		if acquired {
+			defer release()
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return ai.Credentials{}, ctx.Err()
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+	current, err := config.Load(l.layout.ConfigPath())
+	if err != nil {
+		return ai.Credentials{}, err
+	}
+	a, ok := effectiveAIServices(current).Account(number)
+	before := a.Credentials
+	if !ok || a.Type != ai.AccountChatGPT || before.AccessToken == "" ||
+		before.HostID != selected.HostID || before.Provider != selected.Provider ||
+		before.ClientID != selected.ClientID || before.Subject != selected.Subject {
+		return ai.Credentials{}, config.ErrChanged
+	}
+	next, err := openai.Refresh(ctx, before, client)
+	if err != nil {
+		return ai.Credentials{}, err
+	}
+	if next != before {
+		if err := l.SaveAIAccountConnection(ctx, number, before, next); err != nil {
+			return ai.Credentials{}, err
+		}
+	}
+	return next, nil
 }
 
 // updateAIAccount rereads the complete config under its OS lock, changing just
@@ -204,7 +260,7 @@ func (l *Library) DisconnectAIAccount(ctx context.Context, number int64) (bool, 
 	}
 	confirmed := true
 	if a.Type == ai.AccountChatGPT {
-		client, err := accountHTTP(services, number, 30*time.Second)
+		client, err := configuredAccountHTTP(cfg, number, 30*time.Second)
 		if err != nil {
 			return false, err
 		}

@@ -16,7 +16,7 @@ You can edit multiple sections before saving. One request validates and atomical
 writes all drafts; validation failures save nothing, and reload discards all
 configuration drafts. Sign-in and task controls remain separate immediate actions.
 
-GPS and AI settings also offer per-field resets, including checkboxes. Resetting
+GPS settings also offer per-field resets, including checkboxes. Resetting
 changes the draft until you save. GPS automatic lookup resets to on, pause on
 failure to on, and the interval to 2 seconds; AI automatic extraction resets to
 off. Explicit settings show a theme-colored **Explicitly set** marker, even when
@@ -34,8 +34,8 @@ and destination. Same-page section navigation stays uninterrupted. Refreshing or
 closing the tab uses the browser's native unsaved-changes warning, which cannot
 include a custom save button.
 
-Settings are grouped into Appearance, Storage, Service, Maps, Connection
-(clients), and Access credentials (both libraries and clients). Storage includes client cache age and size
+Settings include Appearance, Storage, Service, Access credentials, Maps and Connection
+(clients), plus AI services, GPS and Background tasks on libraries. Storage includes client cache age and size
 limits, or the library's capture-time fallback zone and projection mode. Service
 includes listen address, allowed web origins and upload limits. The UI displays current defaults and marks options requiring a
 restart. Explicit command-line flags override stored service settings without
@@ -77,7 +77,7 @@ Simple comments and untouched lines are retained; complex TOML may be reformatte
 Stop old processes before upgrading. First open migrates legacy `client.json`,
 `connection.json` and `sync-access.json`, then removes them only after the unified
 configuration is durable. Unknown legacy versions are rejected. Back up the
-configuration before upgrading; binaries supporting version 2 or earlier cannot read version 3. Restore the pre-upgrade backup before downgrading.
+configuration before upgrading; older binaries cannot read the version 4 layered AI configuration. Restore the pre-upgrade backup before downgrading.
 
 Treat `kist.toml` as secret: it can contain a client's connection credential and
 library credential digests. The API never returns stored secrets. New sync
@@ -92,3 +92,8 @@ Map options have their own Maps section. Storage shows local file sizes for orig
 Access credentials support optional notes to distinguish clients or purposes. Editing or clearing a note does not rotate the token; existing credentials remain valid.
 
 Saving applies configuration immediately, except for the listen address, which requires a restart. Map changes refresh the page to load the new resource policy. On Linux/macOS, use `kill -HUP <PID>` after editing the file. Invalid reloads preserve the active service configuration. On Windows, save through the UI or restart after editing the file. Existing upload sessions can finish; projection and time-zone changes do not batch-modify existing files or historical records.
+
+
+AI services have three layers: proxies, accounts and feature routes. Multiple accounts of the same type are supported. Each account selects a proxy; each feature selects an account, model and supported parameters. Focusing a model input loads that account's catalog, and model IDs can also be entered manually. Speech-to-text requires an OpenAI API Key account and omits image and reasoning parameters. Blank secret inputs preserve stored values. Deleting referenced objects produces field errors until their references are updated.
+
+The first explicit layered AI save converts legacy `ai`/`ai_options` to `[ai_services]`, writes version 4, and preserves models and automatic import boundaries. Opening settings or saving another section does not migrate AI configuration. A legacy empty proxy inherits environment settings; an unselected proxy after migration explicitly means direct. Proxies apply to server requests, while browser sign-in uses the browser network. Sign-in and disconnect are immediate account actions; save pending configuration before signing in. Refresh-token redemption is serialized by stable account number without blocking unrelated settings writes or restoring disconnected accounts.

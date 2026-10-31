@@ -90,28 +90,7 @@ func (l *Library) AIProvider(ctx context.Context) (ai.Provider, error) {
 	if cfg.AIServices != nil {
 		return l.AIFeatureProvider(ctx, "ocr")
 	}
-	client, err := l.AIHTTP(3 * time.Minute)
-	if err != nil {
-		return nil, err
-	}
-	auth, err := l.AIHTTP(30 * time.Second)
-	if err != nil {
-		return nil, err
-	}
-	var token string
-	err = l.updateAI(ctx, func(c *ai.Credentials) error {
-		if c.Provider != "openai" {
-			return errors.New("connect ChatGPT first")
-		}
-		next, err := openai.Refresh(ctx, *c, auth)
-		if err != nil {
-			return err
-		}
-		*c = next
-		token = c.AccessToken
-		return nil
-	})
-	return openai.Client{Token: token, HTTP: client}, err
+	return l.aiAccountProvider(ctx, cfg, 1, nil)
 }
 func (l *Library) DisconnectAI(ctx context.Context) (bool, error) {
 	client, err := l.AIHTTP(30 * time.Second)
