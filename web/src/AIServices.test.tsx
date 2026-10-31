@@ -220,6 +220,11 @@ it("tests a saved account explicitly and displays only the catalog summary", asy
   const row = (
     await screen.findByRole("rowheader", { name: "Test account" })
   ).closest("tr")!;
+  expect(
+    within(row)
+      .getAllByRole("button")
+      .map((button) => button.textContent),
+  ).toEqual(["Test", "Edit", "Delete"]);
   const test = within(row).getByRole("button", { name: "Test" });
   expect(test).toBeEnabled();
   expect(
@@ -277,7 +282,10 @@ it("reports account test permission failures without disconnecting the account",
     "Model list access denied",
   );
   expect(within(row).getByRole("button", { name: "Test" })).toBeEnabled();
-  expect(within(row).getByRole("button", { name: "Disconnect" })).toBeEnabled();
+  expect(within(row).getByText("Configured")).toBeVisible();
+  expect(
+    within(row).queryByRole("button", { name: "Disconnect" }),
+  ).not.toBeInTheDocument();
   unmount();
   client.clear();
 });
@@ -464,7 +472,10 @@ it("keeps secrets hidden and clears the dirty state when a secret edit is undone
     within(editor).getByLabelText("API Key", { selector: "input" }),
   ).toHaveAttribute("placeholder", "Configured; leave empty to keep");
   await userEvent.click(within(editor).getByRole("button", { name: "Done" }));
-  expect(within(row).getByRole("button", { name: "Disconnect" })).toBeEnabled();
+  expect(within(row).getByText("Configured")).toBeVisible();
+  expect(
+    within(row).queryByRole("button", { name: "Disconnect" }),
+  ).not.toBeInTheDocument();
   const proxyRow = screen
     .getByRole("rowheader", { name: "Private proxy" })
     .closest("tr")!;

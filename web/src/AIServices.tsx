@@ -1280,9 +1280,10 @@ export function AIConnection({
                               signInPending ||
                               !!query.data?.pending_account,
                           )}
-                        {(a.connected ||
-                          a.login_draft ||
-                          query.data?.pending_account === a.number) &&
+                        {a.type === "chatgpt" &&
+                          (a.connected ||
+                            a.login_draft ||
+                            query.data?.pending_account === a.number) &&
                           rowAction(
                             t(
                               query.data?.pending_account === a.number ||

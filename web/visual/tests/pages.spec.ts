@@ -4624,6 +4624,15 @@ for (const scenario of [
             muted,
           );
         }
+        const api = table.getByRole("row").filter({
+          has: page.getByRole("rowheader", { name: "OpenAI API", exact: true }),
+        });
+        await api.hover();
+        expect(await api.getByRole("button").allTextContents()).toEqual([
+          "测试",
+          "编辑",
+          "删除",
+        ]);
         await page.mouse.move(0, 0);
       }
       await pairedFields(
