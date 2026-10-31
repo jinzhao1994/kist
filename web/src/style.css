@@ -3882,6 +3882,12 @@ main.upload-drag-active {
   display: inline-flex;
   flex-shrink: 0;
 }
+.table-row-expandable {
+  cursor: pointer;
+}
+.table-row-expandable .task-details {
+  cursor: auto;
+}
 .text-action-link:disabled {
   color: var(--mantine-color-dimmed);
   cursor: default;

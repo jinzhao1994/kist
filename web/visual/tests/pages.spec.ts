@@ -5747,7 +5747,7 @@ for (const anchor of [
       await arrow.focus();
       await expect(arrow.locator("..")).toHaveCSS("opacity", "1");
       if (expanded) {
-        await arrow.click();
+        await ocr.getByRole("rowheader", { name: /^OCR/ }).click();
         await expect(tasks.locator(".task-table > tbody > tr")).toHaveCount(6);
         const details = ocr.getByRole("table", {
           name: "OCR任务",

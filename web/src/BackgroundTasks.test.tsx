@@ -79,7 +79,7 @@ it("loads mixed queue details only when expanded and links filenames with the ca
   )!;
   expect(reads.some((p) => p.includes("/jobs"))).toBe(false);
   const toggle = within(row).getByRole("button", { name: "Expand OCR tasks" });
-  await userEvent.click(toggle);
+  await userEvent.click(within(row).getByRole("rowheader"));
   const table = await screen.findByRole("table", { name: "OCR tasks" });
   expect(row).toContainElement(table);
   expect(document.querySelectorAll(".task-table > tbody > tr")).toHaveLength(6);
@@ -102,6 +102,10 @@ it("loads mixed queue details only when expanded and links filenames with the ca
     within(table).queryByRole("button", { name: /view file/i }),
   ).not.toBeInTheDocument();
   expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await userEvent.click(within(row).getByRole("status"));
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await userEvent.click(row);
+  expect(toggle).toHaveAttribute("aria-expanded", "true");
   await userEvent.click(toggle);
   expect(
     screen.queryByRole("table", { name: "OCR tasks" }),
@@ -112,6 +116,42 @@ it("loads mixed queue details only when expanded and links filenames with the ca
       .find({ queryKey: ["ocr-queue-jobs", ""] })
       ?.getObserversCount(),
   ).toBe(0);
+  unmount();
+  client.clear();
+});
+
+it("keeps task actions and expanded details independent from the row toggle", async () => {
+  const fetch = vi.fn(async (path: string) =>
+    Response.json(
+      path.includes("/jobs?") ? { items, next_cursor: "" } : base(path),
+    ),
+  );
+  vi.stubGlobal("fetch", fetch);
+  const { client, unmount } = mount();
+  const toggle = await screen.findByRole("button", {
+    name: "Expand OCR tasks",
+  });
+  const row = toggle.closest("tr")!;
+  await userEvent.click(
+    await within(row).findByRole("button", { name: "Resume" }),
+  );
+  expect(fetch).toHaveBeenCalledWith(
+    "/api/v1/ai/ocr/pause",
+    expect.objectContaining({ method: "POST" }),
+  );
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await userEvent.click(toggle);
+  const table = await screen.findByRole("table", { name: "OCR tasks" });
+  await userEvent.click(within(table).getByText("Synthetic records"));
+  expect(toggle).toHaveAttribute("aria-expanded", "true");
+  const link = within(table).getByRole("link", { name: "Certificate.pdf" });
+  link.addEventListener("click", (event) => event.preventDefault());
+  await userEvent.click(link);
+  expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await userEvent.click(within(row).getByRole("button", { name: "Retry" }));
+  expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await userEvent.click(toggle);
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
   unmount();
   client.clear();
 });

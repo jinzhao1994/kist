@@ -192,7 +192,18 @@ function BackgroundTaskRow({
             ? t("backgroundTaskWaiting")
             : t("backgroundTaskIdle");
   return (
-    <Table.Tr>
+    <Table.Tr
+      className="table-row-expandable"
+      onClick={(event) => {
+        if (
+          (event.target as Element).closest(
+            "a, button, input, select, textarea, [role='button'], .task-details",
+          )
+        )
+          return;
+        setExpanded((value) => !value);
+      }}
+    >
       <Table.Td className="task-table-toggle-cell">
         <span className="table-row-help">
           <TreeToggle
