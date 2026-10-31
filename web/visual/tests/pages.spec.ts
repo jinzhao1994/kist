@@ -4654,15 +4654,23 @@ for (const scenario of [
             color: style.color,
           };
         });
-        const stepper = await numberControls.evaluate((node) => {
-          const style = getComputedStyle(node, "::after");
-          return {
-            width: style.width,
-            height: style.height,
-            color: style.color,
-          };
-        });
-        expect(stepper).toEqual(icon);
+        const stepper = await numberControls
+          .locator('button[data-direction="up"]')
+          .evaluate((node) => {
+            const style = getComputedStyle(node, "::after");
+            return {
+              width: style.width,
+              height: style.height,
+              color: style.color,
+              maskSize: style.maskSize,
+              divider: getComputedStyle(node).borderBottomWidth,
+            };
+          });
+        expect(stepper.width).toBe(icon.width);
+        expect(stepper.color).toBe(icon.color);
+        expect(stepper.maskSize).toBe(`${icon.width} ${icon.height}`);
+        expect(parseFloat(stepper.height) * 2).toBe(parseFloat(icon.height));
+        expect(parseFloat(stepper.divider)).toBeGreaterThan(0);
         expect(
           await eye
             .locator("svg")

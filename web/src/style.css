@@ -4,6 +4,7 @@
   --field-label-gap: 0.35rem;
   --toolbar-control-size: 2.5rem;
   --toolbar-control-gap: 0.5rem;
+  --input-chevron-size: 1.125rem;
   font-family: var(--mantine-font-family);
   color: var(--text);
   background: var(--canvas);
@@ -2607,38 +2608,44 @@ main.upload-drag-active {
 
 /* Both controls paint one vector; numeric buttons keep their full hit areas. */
 .input-chevron,
-.input-number-controls::after {
+.input-number-control::after {
   display: inline-block;
-  width: 1.125rem;
-  height: 1.125rem;
+  width: var(--input-chevron-size);
+  height: var(--input-chevron-size);
   flex-shrink: 0;
   color: var(--muted);
   background: currentColor;
-  mask: url("./input-chevron.svg") center / contain no-repeat;
+  mask: url("./input-chevron.svg") center / var(--input-chevron-size)
+    var(--input-chevron-size) no-repeat;
   pointer-events: none;
 }
 .input-chevron[data-error] {
   color: var(--mantine-color-error);
 }
 .input-number-controls {
-  position: relative;
   max-width: none;
   margin-inline-start: 0;
-}
-.input-number-controls::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
 }
 .input-number-control {
   border-inline-start: 0;
 }
-.input-number-control svg {
-  visibility: hidden;
+.input-number-control::after {
+  content: "";
+  height: calc(var(--input-chevron-size) / 2);
 }
-.mantine-NumberInput-root[data-error] .input-number-controls::after {
+.input-number-control[data-direction="up"] {
+  border-block-end: 1px solid var(--input-bd);
+}
+.input-number-control[data-direction="up"]::after {
+  mask-position: top;
+}
+.input-number-control[data-direction="down"]::after {
+  mask-position: bottom;
+}
+.input-number-control svg {
+  display: none;
+}
+.mantine-NumberInput-root[data-error] .input-number-control::after {
   color: var(--mantine-color-error);
 }
 .input-visibility-toggle svg {
