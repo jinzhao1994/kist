@@ -73,8 +73,15 @@ export function SettingsCollection<T extends { number: number }>({
           >
             <Table.Thead>
               <Table.Tr>
-                {headers.map((header) => (
-                  <Table.Th key={header}>{header}</Table.Th>
+                {headers.map((header, index) => (
+                  <Table.Th
+                    key={header}
+                    className={
+                      index === 0 ? "settings-number-column" : undefined
+                    }
+                  >
+                    {header}
+                  </Table.Th>
                 ))}
                 <Table.Th>
                   <span className="sr-only">

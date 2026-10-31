@@ -3625,6 +3625,12 @@ main.upload-drag-active {
   font-size: var(--mantine-font-size-xs);
   font-weight: 500;
 }
+.settings-table .settings-number-column {
+  inline-size: 1%;
+  padding-inline-end: var(--mantine-spacing-lg);
+  white-space: nowrap;
+  color: var(--muted);
+}
 .settings-table :is(th, td):first-child {
   padding-inline-start: 0;
 }

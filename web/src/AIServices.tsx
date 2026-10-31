@@ -872,7 +872,7 @@ export function AIConnection({
             }
             renderRow={(p) => (
               <>
-                <Table.Td>
+                <Table.Td className="settings-number-column">
                   {objectNumber(p.number, t("aiPendingNumber"))}
                 </Table.Td>
                 <Table.Th scope="row">{p.id || t("aiUnnamed")}</Table.Th>
@@ -965,7 +965,7 @@ export function AIConnection({
             }
             renderRow={(a) => (
               <>
-                <Table.Td>
+                <Table.Td className="settings-number-column">
                   {objectNumber(a.number, t("aiPendingNumber"))}
                 </Table.Td>
                 <Table.Th scope="row">{a.id || t("aiUnnamed")}</Table.Th>
