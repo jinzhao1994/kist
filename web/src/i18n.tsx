@@ -89,6 +89,7 @@ export const en = {
   aiImageDetail: "Image detail",
   aiModelDefault: "Model default",
   aiModelPlaceholder: "Choose or enter a model ID",
+  aiUseModelID: "Use model ID: {model}",
   aiEdit: "Edit",
   aiDelete: "Delete",
   settingUniqueID: "Enter a unique name.",
@@ -1265,6 +1266,7 @@ export const zh: Record<MessageKey, string> = {
   aiImageDetail: "图像精度",
   aiModelDefault: "模型默认",
   aiModelPlaceholder: "选择或填写模型 ID",
+  aiUseModelID: "使用模型 ID：{model}",
   aiEdit: "编辑",
   aiDelete: "删除",
   settingUniqueID: "请填写不重复的名称。",
@@ -2353,6 +2355,7 @@ interface Parameters {
   extractionQueueRunning: { name: string };
   ocrQueueCounts: { queued: number; failed: number };
   aiRemovedReference: { number: number };
+  aiUseModelID: { model: string };
   aiProxyTestResult: { ip: string; location: string; ms: number };
   aiAccountTestResult: { count: number; ms: number };
   backgroundTaskLastFailure: { error: string };

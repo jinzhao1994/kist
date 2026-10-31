@@ -1,9 +1,7 @@
 import {
   Anchor,
-  Autocomplete,
   Button,
   Group,
-  Loader,
   NumberInput,
   PasswordInput,
   Table,
@@ -1569,49 +1567,33 @@ function ModelInput({
         ? model.id
         : `${model.id} · ${model.name}`,
   }));
-  if (
-    allowedModels.length &&
-    !selectOptions.some((option) => option.value === value) &&
-    value
-  )
+  if (!selectOptions.some((option) => option.value === value) && value)
     selectOptions.unshift({ value, label: value });
   return (
     <>
-      {allowedModels.length ? (
-        <div onFocusCapture={() => setRequested(true)}>
-          <Select
-            id={id}
-            error={error}
-            value={value}
-            disabled={disabled}
-            options={selectOptions.map((option) => ({
-              ...option,
-              disabled:
-                !!models.data &&
-                !choices.some((model) => model.id === option.value),
-            }))}
-            onValueChange={onChange}
-          />
-        </div>
-      ) : (
-        <Autocomplete
+      <div onFocusCapture={() => setRequested(true)}>
+        <Select
           id={id}
-          value={value}
           error={error}
+          value={value}
           disabled={disabled}
-          autoComplete="off"
+          searchable
           placeholder={t("aiModelPlaceholder")}
-          data={(models.data || []).map((m) => ({
-            value: m.id,
-            label: m.name === m.id || !m.name ? m.id : `${m.id} · ${m.name}`,
+          options={selectOptions.map((option) => ({
+            ...option,
+            disabled:
+              !!allowedModels.length &&
+              !!models.data &&
+              !choices.some((model) => model.id === option.value),
           }))}
-          onChange={onChange}
-          onFocus={() => setRequested(true)}
-          rightSection={
-            requested && models.isFetching ? <Loader size="xs" /> : undefined
+          getCreateLabel={
+            allowedModels.length
+              ? undefined
+              : (model) => t("aiUseModelID", { model })
           }
+          onValueChange={onChange}
         />
-      )}
+      </div>
       {requested && models.isFetching && (
         <TaskStatus>{t("aiModelsLoading")}</TaskStatus>
       )}

@@ -190,7 +190,13 @@ it("edits one table row and cancels newly entered secrets without retaining hidd
 });
 function reads(view = aiServicesFixture()) {
   const fetch = vi.fn(async (path: string, _init?: RequestInit) =>
-    Response.json(path.endsWith("/services") ? view : { supported: true }),
+    Response.json(
+      path.endsWith("/services")
+        ? view
+        : path.includes("/models")
+          ? []
+          : { supported: true },
+    ),
   );
   vi.stubGlobal("fetch", fetch);
   return fetch;
@@ -403,9 +409,21 @@ it("loads a selected account catalog on focus and preserves independent feature 
   await userEvent.click(model);
   expect(await screen.findByText("Loading models…")).toBeInTheDocument();
   expect(model).toBeEnabled();
-  release(Response.json([{ id: "second-model", name: "Second model" }]));
-  await userEvent.clear(model);
-  await fill(model, "second-model");
+  const search = screen.getByRole("textbox", { name: "Search options" });
+  expect(search).toHaveValue("");
+  expect(search).toHaveFocus();
+  release(
+    Response.json([
+      { id: "second-model", name: "Second model" },
+      { id: "other-model", name: "Other model" },
+    ]),
+  );
+  expect(
+    await screen.findByRole("option", { name: "other-model · Other model" }),
+  ).toBeVisible();
+  await userEvent.click(
+    await screen.findByRole("option", { name: "second-model · Second model" }),
+  );
   await choose(ocr, "Reasoning effort", "high");
   await waitFor(() =>
     expect(changed.mock.lastCall?.[0]?.value.features.ocr.model).toBe(
@@ -806,7 +824,7 @@ it("offers only file transcription models and requests a capability-filtered cat
     name: "Speech recognition (STT)",
   });
   const select = within(region).getByRole("combobox", { name: "Model" });
-  expect(select).toHaveValue("gpt-transcribe");
+  expect(select).toHaveTextContent("gpt-transcribe");
   await userEvent.click(select);
   await waitFor(() =>
     expect(fetch).toHaveBeenCalledWith(
@@ -826,6 +844,13 @@ it("offers only file transcription models and requests a capability-filtered cat
   expect(
     screen.queryByRole("option", { name: "gpt-4o-transcribe-diarize" }),
   ).not.toBeInTheDocument();
+  const search = screen.getByRole("textbox", { name: "Search options" });
+  await fill(search, "unsupported-audio-model");
+  expect(screen.getByText("No matching options")).toBeVisible();
+  expect(
+    screen.queryByRole("option", { name: /Use model ID/ }),
+  ).not.toBeInTheDocument();
+  await userEvent.clear(search);
   await userEvent.click(
     screen.getByRole("option", { name: "gpt-4o-mini-transcribe" }),
   );
@@ -937,6 +962,47 @@ it("keeps per-feature failure policy in the page draft and can restore the inher
   );
   await waitFor(() => expect(changed.mock.lastCall?.[0]).toBeNull());
   expect(pause).toBeChecked();
+  expect(fetch.mock.calls.every(([, init]) => !init?.method)).toBe(true);
+  unmount();
+  client.clear();
+});
+
+it("keeps model search separate from the chosen value and explicitly accepts custom IDs", async () => {
+  const fetch = reads();
+  const changed = vi.fn();
+  const { client, unmount } = mount(<AIConnection onDraftChange={changed} />);
+  const ocr = await screen.findByRole("region", {
+    name: "Text recognition (OCR)",
+  });
+  const model = within(ocr).getByRole("combobox", { name: "Model" });
+  expect(model).toHaveTextContent("gpt-6-luna");
+  await userEvent.click(model);
+  let search = screen.getByRole("textbox", { name: "Search options" });
+  expect(search).toHaveValue("");
+  await fill(search, "private-vision-model");
+  expect(changed.mock.lastCall?.[0]).toBeNull();
+  await userEvent.keyboard("{Escape}");
+  expect(model).toHaveTextContent("gpt-6-luna");
+  await userEvent.click(model);
+  search = screen.getByRole("textbox", { name: "Search options" });
+  expect(search).toHaveValue("");
+  await fill(search, "private-vision-model");
+  await userEvent.click(
+    screen.getByRole("option", { name: "Use model ID: private-vision-model" }),
+  );
+  await waitFor(() =>
+    expect(changed.mock.lastCall?.[0]?.value.features.ocr.model).toBe(
+      "private-vision-model",
+    ),
+  );
+  expect(model).toHaveTextContent("private-vision-model");
+  await userEvent.click(model);
+  expect(screen.getByRole("textbox", { name: "Search options" })).toHaveValue(
+    "",
+  );
+  expect(
+    screen.getByRole("option", { name: "private-vision-model" }),
+  ).toBeVisible();
   expect(fetch.mock.calls.every(([, init]) => !init?.method)).toBe(true);
   unmount();
   client.clear();

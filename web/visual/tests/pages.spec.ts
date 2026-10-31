@@ -4125,6 +4125,8 @@ for (const scenario of [
   "appearance",
   "ai",
   "ai-loading",
+  "ai-models",
+  "ai-model-custom",
   "ai-error",
   "ai-empty",
   "ai-unconfigured",
@@ -4433,7 +4435,11 @@ for (const scenario of [
           json:
             scenario === "ai-empty"
               ? []
-              : [{ id: "gpt-6-luna", name: "GPT-6 Luna" }],
+              : [
+                  { id: "gpt-6-luna", name: "GPT-6 Luna" },
+                  { id: "synthetic-vision", name: "Synthetic vision" },
+                  { id: "synthetic-text", name: "Synthetic text" },
+                ],
         });
       });
       if (
@@ -5008,7 +5014,7 @@ for (const scenario of [
         name: "模型",
         exact: true,
       });
-      await expect(model).toHaveValue("gpt-transcribe");
+      await expect(model).toHaveText("gpt-transcribe");
       await model.click();
       await expect(
         page.getByRole("option", { name: /^gpt-transcribe/ }),
@@ -5298,6 +5304,42 @@ for (const scenario of [
       const usage = settings.getByRole("region", { name: "本机存储用量" });
       await expect(usage.locator(".storage-usage-values > div")).toHaveCount(4);
       await expect(usage).toContainText("原文件");
+    }
+    if (scenario === "ai-models" || scenario === "ai-model-custom") {
+      const feature = settings.getByRole("region", {
+        name: "文字识别（OCR）",
+        exact: true,
+      });
+      const model = feature.getByRole("combobox", {
+        name: "模型",
+        exact: true,
+      });
+      await model.scrollIntoViewIfNeeded();
+      await model.click();
+      const search = page.getByRole("textbox", {
+        name: "搜索选项",
+        exact: true,
+      });
+      await expect(search).toBeFocused();
+      await expect(search).toHaveValue("");
+      await expect(page.getByRole("option")).toHaveText([
+        "gpt-6-luna · GPT-6 Luna",
+        "synthetic-vision · Synthetic vision",
+        "synthetic-text · Synthetic text",
+      ]);
+      if (scenario === "ai-model-custom") {
+        await search.fill("private-vision-model");
+        await expect(
+          page.getByRole("option", {
+            name: "使用模型 ID：private-vision-model",
+            exact: true,
+          }),
+        ).toBeVisible();
+        await expect(
+          settings.getByRole("button", { name: "保存", exact: true }),
+        ).toBeDisabled();
+      }
+      await expect(model).toHaveText("gpt-6-luna · GPT-6 Luna");
     }
     if (scenario.startsWith("ai-")) {
       if (["ai-loading", "ai-error", "ai-empty"].includes(scenario))

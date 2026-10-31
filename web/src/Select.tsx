@@ -3,6 +3,7 @@ import {
   Select as MantineSelect,
   CheckIcon,
   Combobox,
+  Input,
   InputBase,
   ScrollArea,
   useCombobox,
@@ -25,6 +26,8 @@ export function Select({
   searchable = false,
   renderOption,
   nothingFoundMessage,
+  placeholder,
+  getCreateLabel,
 }: {
   id?: string;
   "aria-label"?: string;
@@ -43,6 +46,8 @@ export function Select({
   searchable?: boolean;
   renderOption?: SelectProps["renderOption"];
   nothingFoundMessage?: string;
+  placeholder?: string;
+  getCreateLabel?: (value: string) => string;
 }) {
   const { t } = useI18n();
   const [search, setSearch] = useState("");
@@ -76,6 +81,12 @@ export function Select({
   );
   if (searchable) {
     const selected = options.find((option) => option.value === value);
+    const customValue =
+      getCreateLabel &&
+      search.trim() &&
+      !options.some((option) => option.value === search.trim())
+        ? search.trim()
+        : undefined;
     const visible = options.filter((option) =>
       option.label
         .toLocaleLowerCase()
@@ -123,7 +134,11 @@ export function Select({
               maw={360}
               classNames={{ tooltip: "metadata-tooltip" }}
             >
-              <span className="select-value">{selected?.label}</span>
+              <span className="select-value">
+                {selected?.label ?? (
+                  <Input.Placeholder>{placeholder}</Input.Placeholder>
+                )}
+              </span>
             </FloatingTooltip>
           </InputBase>
         </Combobox.Target>
@@ -145,19 +160,23 @@ export function Select({
           />
           <Combobox.Options>
             <ScrollArea.Autosize mah={240} type="scroll">
-              {visible.length ? (
-                visible.map((option) => (
-                  <Combobox.Option
-                    key={option.value}
-                    value={option.value}
-                    aria-label={option.label}
-                    active={option.value === value}
-                    disabled={option.disabled}
-                  >
-                    {renderItem({ option, checked: option.value === value })}
-                  </Combobox.Option>
-                ))
-              ) : (
+              {visible.map((option) => (
+                <Combobox.Option
+                  key={option.value}
+                  value={option.value}
+                  aria-label={option.label}
+                  active={option.value === value}
+                  disabled={option.disabled}
+                >
+                  {renderItem({ option, checked: option.value === value })}
+                </Combobox.Option>
+              ))}
+              {customValue && (
+                <Combobox.Option value={customValue}>
+                  {getCreateLabel!(customValue)}
+                </Combobox.Option>
+              )}
+              {!visible.length && !customValue && (
                 <Combobox.Empty>
                   {nothingFoundMessage || t("noFilterOptions")}
                 </Combobox.Empty>
@@ -175,6 +194,7 @@ export function Select({
       aria-label={ariaLabel}
       label={label}
       error={error}
+      placeholder={placeholder}
       value={value}
       rightSection={<InputChevron error={!!error} />}
       rightSectionPointerEvents="none"
